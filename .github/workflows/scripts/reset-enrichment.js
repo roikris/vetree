@@ -34,14 +34,21 @@ async function main() {
     // Update all articles in this batch
     const ids = articles.map(a => a.id);
 
+    if (ids.length === 0) {
+      console.log('  No IDs to update, skipping batch.');
+      break;
+    }
+
+    console.log(`  Updating ${ids.length} articles...`);
+
     const { error: updateError, count } = await supabase
       .from('articles')
       .update({ needs_enrichment: false })
-      .in('id', ids)
-      .not('id', 'is', null);
+      .in('id', ids);
 
     if (updateError) {
       console.error('Error updating articles:', updateError);
+      console.error('Error details:', JSON.stringify(updateError, null, 2));
       break;
     }
 
