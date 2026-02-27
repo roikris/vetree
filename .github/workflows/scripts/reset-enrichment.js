@@ -39,22 +39,33 @@ async function main() {
       break;
     }
 
-    console.log(`  Updating ${ids.length} articles...`);
+    console.log(`  Updating ${ids.length} articles in chunks...`);
 
-    const { error: updateError, count } = await supabase
-      .from('articles')
-      .update({ needs_enrichment: false })
-      .in('id', ids);
+    // Split into smaller chunks of 100 to avoid Supabase limits
+    const chunkSize = 100;
+    let chunkUpdated = 0;
 
-    if (updateError) {
-      console.error('Error updating articles:', updateError);
-      console.error('Error details:', JSON.stringify(updateError, null, 2));
-      break;
+    for (let i = 0; i < ids.length; i += chunkSize) {
+      const chunk = ids.slice(i, i + chunkSize);
+
+      const { error: updateError, count } = await supabase
+        .from('articles')
+        .update({ needs_enrichment: false })
+        .in('id', chunk);
+
+      if (updateError) {
+        console.error(`Error updating chunk ${i / chunkSize + 1}:`, updateError);
+        console.error('Error details:', JSON.stringify(updateError, null, 2));
+        break;
+      }
+
+      const updated = count || chunk.length;
+      chunkUpdated += updated;
+      console.log(`    Chunk ${i / chunkSize + 1}: updated ${updated} articles`);
     }
 
-    const updated = count || articles.length;
-    totalUpdated += updated;
-    console.log(`  Updated ${updated} articles (total: ${totalUpdated})`);
+    totalUpdated += chunkUpdated;
+    console.log(`  Batch complete: ${chunkUpdated} articles (total: ${totalUpdated})`);
 
     // If we got less than a full batch, we're done
     if (articles.length < batchSize) {
