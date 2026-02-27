@@ -1,12 +1,11 @@
 name: Fix HTML Encoding
 
 on:
-  workflow_dispatch: # Manual trigger only
+  workflow_dispatch:
 
 jobs:
   fix-encoding:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -18,9 +17,11 @@ jobs:
 
       - name: Install dependencies
         run: npm install @supabase/supabase-js
+        working-directory: .github/workflows
 
-      - name: Run encoding fix
+      - name: Run encoding fix script
+        run: node scripts/fix-encoding.js
+        working-directory: .github/workflows
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: node .github/workflows/scripts/fix-encoding.js

@@ -2,13 +2,12 @@ name: Daily PubMed Sync
 
 on:
   schedule:
-    - cron: '0 6 * * *' # 6:00 AM UTC daily
-  workflow_dispatch: # Allow manual trigger
+    - cron: '0 6 * * *'
+  workflow_dispatch:
 
 jobs:
   sync:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -20,9 +19,11 @@ jobs:
 
       - name: Install dependencies
         run: npm install @supabase/supabase-js xml2js
+        working-directory: .github/workflows
 
-      - name: Run PubMed sync
+      - name: Run sync script
+        run: node scripts/daily-sync.js
+        working-directory: .github/workflows
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: node .github/workflows/scripts/daily-sync.js
