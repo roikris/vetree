@@ -37,7 +37,8 @@ async function main() {
     const { error: updateError, count } = await supabase
       .from('articles')
       .update({ needs_enrichment: false })
-      .in('id', ids);
+      .in('id', ids)
+      .not('id', 'is', null);
 
     if (updateError) {
       console.error('Error updating articles:', updateError);
