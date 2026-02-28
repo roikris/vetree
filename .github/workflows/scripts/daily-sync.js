@@ -178,6 +178,50 @@ async function fetchArticleDetails(pmids) {
   return articles;
 }
 
+async function sendSlackNotification(stats) {
+  const webhookUrl = process.env.SLACK_WEBHOOK_URL;
+
+  if (!webhookUrl) {
+    console.log('No SLACK_WEBHOOK_URL configured, skipping notification');
+    return;
+  }
+
+  // Build journal breakdown text
+  let journalBreakdown = '';
+  const journalsWithNew = Object.entries(stats.byJournal)
+    .filter(([_, count]) => count > 0)
+    .sort((a, b) => b[1] - a[1]);
+
+  if (journalsWithNew.length > 0) {
+    journalBreakdown = '\n\n📰 *New articles by journal:*\n' +
+      journalsWithNew.map(([journal, count]) => `• ${journal}: ${count}`).join('\n');
+  }
+
+  const message = {
+    text: `🌿 *Vetree Daily Sync Report*
+• New articles found on PubMed: ${stats.totalFound}
+• Already in database: ${stats.totalExisting}
+• Successfully added: ${stats.totalAdded}
+• Failed to add: ${stats.totalFailed}${journalBreakdown}`
+  };
+
+  try {
+    const response = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(message)
+    });
+
+    if (!response.ok) {
+      console.error('Failed to send Slack notification:', response.statusText);
+    } else {
+      console.log('✓ Slack notification sent');
+    }
+  } catch (error) {
+    console.error('Error sending Slack notification:', error.message);
+  }
+}
+
 async function main() {
   console.log('Starting PubMed sync...');
 
@@ -186,14 +230,22 @@ async function main() {
     process.env.SUPABASE_SERVICE_ROLE_KEY
   );
 
-  let totalNewArticles = 0;
+  const stats = {
+    totalFound: 0,
+    totalExisting: 0,
+    totalAdded: 0,
+    totalFailed: 0,
+    byJournal: {}
+  };
 
   for (const journal of JOURNALS) {
     console.log(`\nSearching ${journal}...`);
+    stats.byJournal[journal] = 0;
 
     try {
       const pmids = await searchPubMed(journal);
       console.log(`  Found ${pmids.length} articles`);
+      stats.totalFound += pmids.length;
 
       if (pmids.length === 0) continue;
 
@@ -206,6 +258,7 @@ async function main() {
       const existingPmids = new Set((existing || []).map(a => a.pubmed_id));
       const newPmids = pmids.filter(pmid => !existingPmids.has(pmid));
 
+      stats.totalExisting += existingPmids.size;
       console.log(`  ${newPmids.length} new articles to fetch`);
 
       if (newPmids.length === 0) continue;
@@ -224,9 +277,11 @@ async function main() {
 
           if (error) {
             console.error('  Error inserting articles:', error.message);
+            stats.totalFailed += articles.length;
           } else {
             console.log(`  Inserted ${articles.length} articles`);
-            totalNewArticles += articles.length;
+            stats.totalAdded += articles.length;
+            stats.byJournal[journal] += articles.length;
           }
         }
 
@@ -240,7 +295,14 @@ async function main() {
     }
   }
 
-  console.log(`\n✅ Sync complete! Added ${totalNewArticles} new articles.`);
+  console.log(`\n✅ Sync complete!`);
+  console.log(`   Found: ${stats.totalFound}`);
+  console.log(`   Already existed: ${stats.totalExisting}`);
+  console.log(`   Added: ${stats.totalAdded}`);
+  console.log(`   Failed: ${stats.totalFailed}`);
+
+  // Send Slack notification
+  await sendSlackNotification(stats);
 }
 
 main().catch(error => {

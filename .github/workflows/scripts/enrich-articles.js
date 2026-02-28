@@ -115,6 +115,39 @@ Return ONLY valid JSON, no markdown formatting.`;
   }
 }
 
+async function sendSlackNotification(stats) {
+  const webhookUrl = process.env.SLACK_WEBHOOK_URL;
+
+  if (!webhookUrl) {
+    console.log('No SLACK_WEBHOOK_URL configured, skipping notification');
+    return;
+  }
+
+  const message = {
+    text: `🧠 *Vetree Enrichment Report*
+• Articles found needing enrichment: ${stats.totalFound}
+• Successfully enriched: ${stats.successCount}
+• Failed (will retry): ${stats.failCount}
+• Still in queue after this run: ${stats.remainingInQueue}`
+  };
+
+  try {
+    const response = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(message)
+    });
+
+    if (!response.ok) {
+      console.error('Failed to send Slack notification:', response.statusText);
+    } else {
+      console.log('✓ Slack notification sent');
+    }
+  } catch (error) {
+    console.error('Error sending Slack notification:', error.message);
+  }
+}
+
 async function main() {
   console.log('Starting article enrichment...');
 
@@ -140,15 +173,30 @@ async function main() {
     process.exit(1);
   }
 
+  const stats = {
+    totalFound: articles?.length || 0,
+    successCount: 0,
+    failCount: 0,
+    remainingInQueue: 0
+  };
+
   if (!articles || articles.length === 0) {
     console.log('No articles need enrichment.');
+
+    // Check remaining in queue
+    const { count } = await supabase
+      .from('articles')
+      .select('*', { count: 'exact', head: true })
+      .eq('needs_enrichment', true);
+
+    stats.remainingInQueue = count || 0;
+
+    // Send notification even with 0 articles
+    await sendSlackNotification(stats);
     return;
   }
 
   console.log(`Found ${articles.length} articles to enrich\n`);
-
-  let successCount = 0;
-  let failCount = 0;
 
   for (let i = 0; i < articles.length; i++) {
     const article = articles[i];
@@ -157,9 +205,9 @@ async function main() {
     const success = await enrichArticle(supabase, anthropic, article);
 
     if (success) {
-      successCount++;
+      stats.successCount++;
     } else {
-      failCount++;
+      stats.failCount++;
     }
 
     // Wait 1 second between articles
@@ -168,9 +216,21 @@ async function main() {
     }
   }
 
+  // Check remaining in queue after this run
+  const { count } = await supabase
+    .from('articles')
+    .select('*', { count: 'exact', head: true })
+    .eq('needs_enrichment', true);
+
+  stats.remainingInQueue = count || 0;
+
   console.log(`\n✅ Enrichment complete!`);
-  console.log(`   Successful: ${successCount}`);
-  console.log(`   Failed: ${failCount}`);
+  console.log(`   Successful: ${stats.successCount}`);
+  console.log(`   Failed: ${stats.failCount}`);
+  console.log(`   Remaining in queue: ${stats.remainingInQueue}`);
+
+  // Send Slack notification
+  await sendSlackNotification(stats);
 }
 
 main().catch(error => {
