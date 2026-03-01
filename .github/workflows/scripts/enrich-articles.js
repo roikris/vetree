@@ -125,10 +125,10 @@ async function sendSlackNotification(stats) {
 
   const message = {
     text: `🧠 *Vetree Enrichment Report*
-• Articles found needing enrichment: ${stats.totalFound}
+• Total processed this run: ${stats.totalProcessed}
 • Successfully enriched: ${stats.successCount}
 • Failed (will retry): ${stats.failCount}
-• Still in queue after this run: ${stats.remainingInQueue}`
+• Total remaining in queue: ${stats.remainingInQueue}`
   };
 
   try {
@@ -160,59 +160,74 @@ async function main() {
     apiKey: process.env.ANTHROPIC_API_KEY
   });
 
-  // Fetch articles that need enrichment (max 50)
-  const { data: articles, error } = await supabase
-    .from('articles')
-    .select('*')
-    .eq('needs_enrichment', true)
-    .lt('enrichment_attempts', 3)
-    .limit(50);
-
-  if (error) {
-    console.error('Error fetching articles:', error);
-    process.exit(1);
-  }
-
   const stats = {
-    totalFound: articles?.length || 0,
+    totalProcessed: 0,
     successCount: 0,
     failCount: 0,
     remainingInQueue: 0
   };
 
-  if (!articles || articles.length === 0) {
-    console.log('No articles need enrichment.');
+  const BATCH_SIZE = 50;
+  const MAX_ARTICLES_PER_RUN = 500;
 
-    // Check remaining in queue
-    const { count } = await supabase
+  console.log(`Safety cap: ${MAX_ARTICLES_PER_RUN} articles per run\n`);
+
+  // Keep fetching and processing batches until no more articles or safety cap reached
+  while (stats.totalProcessed < MAX_ARTICLES_PER_RUN) {
+    // Calculate how many articles we can still process in this batch
+    const articlesToFetch = Math.min(BATCH_SIZE, MAX_ARTICLES_PER_RUN - stats.totalProcessed);
+
+    // Fetch next batch of articles that need enrichment
+    const { data: articles, error } = await supabase
       .from('articles')
-      .select('*', { count: 'exact', head: true })
-      .eq('needs_enrichment', true);
+      .select('*')
+      .eq('needs_enrichment', true)
+      .lt('enrichment_attempts', 3)
+      .limit(articlesToFetch);
 
-    stats.remainingInQueue = count || 0;
-
-    // Send notification even with 0 articles
-    await sendSlackNotification(stats);
-    return;
-  }
-
-  console.log(`Found ${articles.length} articles to enrich\n`);
-
-  for (let i = 0; i < articles.length; i++) {
-    const article = articles[i];
-    console.log(`[${i + 1}/${articles.length}] Processing...`);
-
-    const success = await enrichArticle(supabase, anthropic, article);
-
-    if (success) {
-      stats.successCount++;
-    } else {
-      stats.failCount++;
+    if (error) {
+      console.error('Error fetching articles:', error);
+      process.exit(1);
     }
 
-    // Wait 1 second between articles
-    if (i < articles.length - 1) {
-      await sleep(1000);
+    if (!articles || articles.length === 0) {
+      console.log('No more articles need enrichment.');
+      break;
+    }
+
+    console.log(`\n📦 Batch starting at ${stats.totalProcessed}: ${articles.length} articles to enrich`);
+
+    for (let i = 0; i < articles.length; i++) {
+      const article = articles[i];
+      const overallIndex = stats.totalProcessed + i + 1;
+      console.log(`[${overallIndex}/${Math.min(stats.totalProcessed + articles.length, MAX_ARTICLES_PER_RUN)}] Processing...`);
+
+      const success = await enrichArticle(supabase, anthropic, article);
+
+      if (success) {
+        stats.successCount++;
+      } else {
+        stats.failCount++;
+      }
+
+      // Wait 1 second between articles
+      if (i < articles.length - 1 || stats.totalProcessed + articles.length < MAX_ARTICLES_PER_RUN) {
+        await sleep(1000);
+      }
+    }
+
+    stats.totalProcessed += articles.length;
+
+    // If we processed fewer articles than requested, we've reached the end
+    if (articles.length < articlesToFetch) {
+      console.log('\n✓ Processed all available articles');
+      break;
+    }
+
+    // If we've hit the safety cap
+    if (stats.totalProcessed >= MAX_ARTICLES_PER_RUN) {
+      console.log(`\n⚠️  Safety cap reached (${MAX_ARTICLES_PER_RUN} articles)`);
+      break;
     }
   }
 
@@ -225,6 +240,7 @@ async function main() {
   stats.remainingInQueue = count || 0;
 
   console.log(`\n✅ Enrichment complete!`);
+  console.log(`   Total processed: ${stats.totalProcessed}`);
   console.log(`   Successful: ${stats.successCount}`);
   console.log(`   Failed: ${stats.failCount}`);
   console.log(`   Remaining in queue: ${stats.remainingInQueue}`);
