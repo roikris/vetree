@@ -65,7 +65,7 @@ export function Pagination({ currentPage, totalPages, filters }: PaginationProps
       <button
         onClick={() => goToPage(currentPage - 1)}
         disabled={currentPage === 1}
-        className="px-3 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white dark:disabled:hover:bg-zinc-900"
+        className="px-3 py-2 text-sm font-medium text-[#1A1A1A] dark:text-[#E8E8E8] bg-white dark:bg-[#1A1A1A] border border-[#E5E5E5] dark:border-[#2A2A2A] rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-900 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white dark:disabled:hover:bg-[#1A1A1A]"
       >
         Previous
       </button>
@@ -92,8 +92,8 @@ export function Pagination({ currentPage, totalPages, filters }: PaginationProps
               onClick={() => goToPage(pageNum)}
               className={`px-3 py-2 text-sm font-medium rounded-lg ${
                 isActive
-                  ? 'bg-blue-600 text-white'
-                  : 'text-zinc-700 dark:text-zinc-300 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800'
+                  ? 'bg-[#3D7A5F] dark:bg-[#4E9A78] text-white'
+                  : 'text-[#1A1A1A] dark:text-[#E8E8E8] bg-white dark:bg-[#1A1A1A] border border-[#E5E5E5] dark:border-[#2A2A2A] hover:bg-zinc-50 dark:hover:bg-zinc-900'
               }`}
             >
               {pageNum}
@@ -105,7 +105,7 @@ export function Pagination({ currentPage, totalPages, filters }: PaginationProps
       <button
         onClick={() => goToPage(currentPage + 1)}
         disabled={currentPage === totalPages}
-        className="px-3 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white dark:disabled:hover:bg-zinc-900"
+        className="px-3 py-2 text-sm font-medium text-[#1A1A1A] dark:text-[#E8E8E8] bg-white dark:bg-[#1A1A1A] border border-[#E5E5E5] dark:border-[#2A2A2A] rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-900 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white dark:disabled:hover:bg-[#1A1A1A]"
       >
         Next
       </button>

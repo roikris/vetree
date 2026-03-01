@@ -28,7 +28,7 @@ export function ArticleSummary({
       {shouldTruncate && (
         <button
           onClick={() => setIsExpanded(!isExpanded)}
-          className="text-[#2B6CB0] dark:text-blue-400 hover:underline text-sm mt-2 font-medium"
+          className="text-[#3D7A5F] dark:text-[#4E9A78] hover:text-[#2F5F4A] dark:hover:text-[#5FAA88] text-sm mt-2 font-medium transition-colors"
         >
           {isExpanded ? 'Show less' : 'Read more'}
         </button>

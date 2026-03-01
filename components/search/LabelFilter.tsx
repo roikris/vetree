@@ -41,13 +41,13 @@ export function LabelFilter({
         </h3>
 
         {/* Quick Filter Tabs */}
-        <div className="flex gap-1 mb-4 bg-zinc-100 dark:bg-zinc-800 p-1 rounded-lg">
+        <div className="flex gap-1 mb-4 bg-zinc-50 dark:bg-zinc-900 p-1 rounded-lg border border-[#E5E5E5] dark:border-[#2A2A2A]">
           <button
             onClick={() => onQuickFilterChange('all')}
             className={`flex-1 px-3 py-2 text-xs font-medium rounded transition-colors ${
               quickFilter === 'all'
-                ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm'
-                : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
+                ? 'bg-[#3D7A5F] dark:bg-[#4E9A78] text-white shadow-sm'
+                : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'
             }`}
           >
             All
@@ -56,8 +56,8 @@ export function LabelFilter({
             onClick={() => onQuickFilterChange('small-animal')}
             className={`flex-1 px-3 py-2 text-xs font-medium rounded transition-colors ${
               quickFilter === 'small-animal'
-                ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm'
-                : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
+                ? 'bg-[#3D7A5F] dark:bg-[#4E9A78] text-white shadow-sm'
+                : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'
             }`}
           >
             Small Animal
@@ -66,8 +66,8 @@ export function LabelFilter({
             onClick={() => onQuickFilterChange('large-animal')}
             className={`flex-1 px-3 py-2 text-xs font-medium rounded transition-colors ${
               quickFilter === 'large-animal'
-                ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm'
-                : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
+                ? 'bg-[#3D7A5F] dark:bg-[#4E9A78] text-white shadow-sm'
+                : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'
             }`}
           >
             Large Animal
@@ -82,7 +82,7 @@ export function LabelFilter({
           {selected.length > 0 && (
             <button
               onClick={() => onChange([])}
-              className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+              className="text-xs text-[#3D7A5F] dark:text-[#4E9A78] hover:underline font-medium"
             >
               Clear
             </button>
@@ -92,14 +92,14 @@ export function LabelFilter({
         {/* OR/AND Toggle - Show only when 2+ specialties selected */}
         {selected.length >= 2 && (
           <div className="mb-3 flex items-center gap-2">
-            <span className="text-xs text-zinc-600 dark:text-zinc-400">Match:</span>
-            <div className="flex gap-1 bg-zinc-100 dark:bg-zinc-800 p-0.5 rounded">
+            <span className="text-xs text-zinc-600 dark:text-zinc-400 font-medium">Match:</span>
+            <div className="flex gap-1 bg-zinc-50 dark:bg-zinc-900 p-0.5 rounded border border-[#E5E5E5] dark:border-[#2A2A2A]">
               <button
                 onClick={() => onOperatorChange('OR')}
                 className={`px-2 py-1 text-xs font-medium rounded transition-colors ${
                   operator === 'OR'
-                    ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm'
-                    : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
+                    ? 'bg-[#3D7A5F] dark:bg-[#4E9A78] text-white shadow-sm'
+                    : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'
                 }`}
               >
                 Any (OR)
@@ -108,8 +108,8 @@ export function LabelFilter({
                 onClick={() => onOperatorChange('AND')}
                 className={`px-2 py-1 text-xs font-medium rounded transition-colors ${
                   operator === 'AND'
-                    ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm'
-                    : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
+                    ? 'bg-[#3D7A5F] dark:bg-[#4E9A78] text-white shadow-sm'
+                    : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'
                 }`}
               >
                 All (AND)
@@ -129,7 +129,7 @@ export function LabelFilter({
                 type="checkbox"
                 checked={selected.includes(label)}
                 onChange={() => toggleLabel(label)}
-                className="w-4 h-4 text-blue-600 bg-zinc-100 border-zinc-300 rounded focus:ring-blue-500 dark:bg-zinc-700 dark:border-zinc-600"
+                className="w-4 h-4 text-[#3D7A5F] bg-zinc-50 border-zinc-300 rounded focus:ring-[#3D7A5F] dark:bg-zinc-900 dark:border-zinc-600 dark:text-[#4E9A78] dark:focus:ring-[#4E9A78]"
               />
               <span className="text-sm text-zinc-700 dark:text-zinc-300">
                 {label}

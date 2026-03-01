@@ -18,7 +18,7 @@ export function SortSelector({ value, onChange, showRelevance }: SortSelectorPro
         id="sort"
         value={value}
         onChange={(e) => onChange(e.target.value as SortOption)}
-        className="px-3 py-2 text-sm bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-zinc-900 dark:text-white"
+        className="px-3 py-2 text-sm bg-white dark:bg-[#1A1A1A] border border-[#E5E5E5] dark:border-[#2A2A2A] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D7A5F] dark:focus:ring-[#4E9A78] text-[#1A1A1A] dark:text-[#E8E8E8]"
       >
         <option value="newest">Newest First</option>
         <option value="oldest">Oldest First</option>

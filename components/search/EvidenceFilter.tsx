@@ -47,7 +47,7 @@ export function EvidenceFilter({ availableLevels, selected, onChange }: Evidence
           {selected.length > 0 && (
             <button
               onClick={clearAll}
-              className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+              className="text-xs text-[#3D7A5F] dark:text-[#4E9A78] hover:underline font-medium"
             >
               Clear all
             </button>
@@ -62,7 +62,7 @@ export function EvidenceFilter({ availableLevels, selected, onChange }: Evidence
                   type="checkbox"
                   checked={selected.includes(level)}
                   onChange={() => toggleLevel(level)}
-                  className="w-4 h-4 text-blue-600 bg-zinc-100 border-zinc-300 rounded focus:ring-blue-500 dark:bg-zinc-700 dark:border-zinc-600"
+                  className="w-4 h-4 text-[#3D7A5F] bg-zinc-50 border-zinc-300 rounded focus:ring-[#3D7A5F] dark:bg-zinc-900 dark:border-zinc-600 dark:text-[#4E9A78] dark:focus:ring-[#4E9A78]"
                 />
                 <span className="text-sm text-zinc-700 dark:text-zinc-300">
                   {level}

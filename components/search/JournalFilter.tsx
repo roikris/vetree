@@ -54,12 +54,12 @@ export function JournalFilter({ availableJournals, selected, onChange }: Journal
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search journals..."
-            className="w-full px-3 py-2 text-sm bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-zinc-900 dark:text-white placeholder-zinc-400"
+            className="w-full px-3 py-2 text-sm bg-white dark:bg-[#1A1A1A] border border-[#E5E5E5] dark:border-[#2A2A2A] rounded focus:outline-none focus:ring-2 focus:ring-[#3D7A5F] dark:focus:ring-[#4E9A78] text-[#1A1A1A] dark:text-[#E8E8E8] placeholder-zinc-400"
           />
           {selected.length > 0 && (
             <button
               onClick={clearAll}
-              className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+              className="text-xs text-[#3D7A5F] dark:text-[#4E9A78] hover:underline font-medium"
             >
               Clear all
             </button>
@@ -75,7 +75,7 @@ export function JournalFilter({ availableJournals, selected, onChange }: Journal
                     type="checkbox"
                     checked={selected.includes(journal)}
                     onChange={() => toggleJournal(journal)}
-                    className="w-4 h-4 text-blue-600 bg-zinc-100 border-zinc-300 rounded focus:ring-blue-500 dark:bg-zinc-700 dark:border-zinc-600"
+                    className="w-4 h-4 text-[#3D7A5F] bg-zinc-50 border-zinc-300 rounded focus:ring-[#3D7A5F] dark:bg-zinc-900 dark:border-zinc-600 dark:text-[#4E9A78] dark:focus:ring-[#4E9A78]"
                   />
                   <span className="text-sm text-zinc-700 dark:text-zinc-300">
                     {journal}

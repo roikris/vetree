@@ -35,10 +35,10 @@ export function FilterPanel({
   onJournalsChange
 }: FilterPanelProps) {
   return (
-    <div className="w-80 bg-white dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 h-screen overflow-y-auto flex-shrink-0">
+    <div className="w-80 bg-white dark:bg-[#0F0F0F] border-r border-[#E5E5E5] dark:border-[#2A2A2A] h-screen overflow-y-auto flex-shrink-0">
       <div className="p-6 space-y-6">
         <div>
-          <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-4">
+          <h2 className="text-lg font-semibold text-[#1A1A1A] dark:text-[#E8E8E8] mb-4">
             Filters
           </h2>
 
@@ -54,7 +54,7 @@ export function FilterPanel({
         </div>
 
         {/* Journal Filter Section */}
-        <div className="border-t border-zinc-200 dark:border-zinc-800 pt-6">
+        <div className="border-t border-[#E5E5E5] dark:border-[#2A2A2A] pt-6">
           <JournalFilter
             availableJournals={availableJournals}
             selected={journals}
@@ -63,7 +63,7 @@ export function FilterPanel({
         </div>
 
         {/* Evidence Filter Section */}
-        <div className="border-t border-zinc-200 dark:border-zinc-800 pt-6">
+        <div className="border-t border-[#E5E5E5] dark:border-[#2A2A2A] pt-6">
           <EvidenceFilter
             availableLevels={availableEvidenceLevels}
             selected={evidence}

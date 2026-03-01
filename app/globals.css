@@ -1,8 +1,19 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #FFFFFF;
+  --foreground: #1A1A1A;
+  --sage-green: #3D7A5F;
+  --sage-green-hover: #2F5F4A;
+  --border-subtle: #E5E5E5;
+}
+
+.dark {
+  --background: #0F0F0F;
+  --foreground: #E8E8E8;
+  --sage-green: #4E9A78;
+  --sage-green-hover: #5FAA88;
+  --border-subtle: #2A2A2A;
 }
 
 @theme inline {
@@ -12,19 +23,17 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 html,
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   height: 100%;
   margin: 0;
   overflow: hidden;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+* {
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
