@@ -1,0 +1,34 @@
+name: Backfill Historical Articles
+
+on:
+  workflow_dispatch:
+    inputs:
+      year:
+        description: 'Year to backfill (2020, 2021, 2022, 2023, or 2024)'
+        required: true
+        default: '2024'
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install @supabase/supabase-js xml2js
+        working-directory: .github/workflows
+
+      - name: Run backfill script
+        run: node scripts/backfill-articles.js
+        working-directory: .github/workflows
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          BACKFILL_YEAR: ${{ github.event.inputs.year }}
