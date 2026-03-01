@@ -4,6 +4,7 @@ import { SearchControls } from '@/components/search/SearchControls'
 import { ResultsCount } from '@/components/ui/ResultsCount'
 import { ArticleList } from '@/components/articles/ArticleList'
 import { Pagination } from '@/components/ui/Pagination'
+import { DisclaimerBanner } from '@/components/ui/DisclaimerBanner'
 
 // Force dynamic rendering to ensure searchParams are always fresh
 export const dynamic = 'force-dynamic'
@@ -63,6 +64,8 @@ export default async function Home({ searchParams }: HomeProps) {
 
       {!error && (count !== null && count > 0 || hasActiveFilters) && (
         <>
+          <DisclaimerBanner />
+
           <ResultsCount
             total={count || 0}
             showing={articles?.length || 0}
