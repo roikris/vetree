@@ -27,14 +27,27 @@ export default async function Image({ params }: { params: Promise<{ id: string }
 
     return new ImageResponse(
       <div style={{ background: 'white', width: '100%', height: '100%', display: 'flex', flexDirection: 'column', padding: 60, fontFamily: 'sans-serif' }}>
-        <div style={{ fontSize: 24, color: '#3D7A5F', marginBottom: 20 }}>🌿 Vetree</div>
-        <div style={{ fontSize: 20, color: '#333', background: '#f0f7f4', padding: 20, borderRadius: 8, marginBottom: 20 }}>
-          {article?.clinical_bottom_line?.slice(0, 200) || 'No clinical bottom line - ID: ' + id}
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 40 }}>
+          <div style={{ fontSize: 32, color: '#3D7A5F', fontWeight: 'bold' }}>🌿 Vetree</div>
+          <div style={{ marginLeft: 12, fontSize: 16, color: '#888' }}>Evidence-based veterinary research, distilled.</div>
         </div>
-        <div style={{ fontSize: 28, fontWeight: 'bold', color: '#111' }}>
-          {article?.title?.slice(0, 120) || 'No title found'}
+
+        {/* Clinical Bottom Line */}
+        <div style={{ background: '#f0f7f4', borderLeft: '6px solid #3D7A5F', borderRadius: 8, padding: 24, marginBottom: 32, fontSize: 22, color: '#2d5a45', lineHeight: 1.4 }}>
+          {article?.clinical_bottom_line?.slice(0, 200) || ''}
         </div>
-        <div style={{ marginTop: 'auto', fontSize: 16, color: '#888' }}>vetree.app</div>
+
+        {/* Title */}
+        <div style={{ fontSize: 30, fontWeight: 'bold', color: '#111', lineHeight: 1.3, flex: 1 }}>
+          {article?.title?.slice(0, 140) || ''}
+        </div>
+
+        {/* Footer */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #E5E5E5', paddingTop: 20, marginTop: 20 }}>
+          <div style={{ fontSize: 16, color: '#666' }}>{article?.source_journal || ''}</div>
+          <div style={{ fontSize: 18, color: '#3D7A5F', fontWeight: 'bold' }}>vetree.app</div>
+        </div>
       </div>,
       { width: 1200, height: 630 }
     )
