@@ -5,25 +5,6 @@ export const alt = 'Vetree Article'
 export const size = { width: 1200, height: 630 }
 export const contentType = 'image/png'
 
-// Pre-build OG images for 100 newest articles at deploy time
-export async function generateStaticParams() {
-  const response = await fetch(
-    `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/articles?select=id&order=publication_date.desc&limit=100`,
-    {
-      headers: {
-        'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!}`,
-      }
-    }
-  )
-
-  const data = await response.json()
-  return (data || []).map((article: { id: string }) => ({ id: article.id }))
-}
-
-// Allow on-demand generation for articles not in top 100
-export const dynamicParams = true
-
 // Revalidate every 24 hours (86400 seconds)
 export const revalidate = 86400
 
