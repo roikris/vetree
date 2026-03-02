@@ -32,6 +32,7 @@ export function BookmarkButton({ articleId }: BookmarkButtonProps) {
       className="group relative p-2 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors disabled:opacity-50"
       aria-label={saved ? 'Remove from library' : 'Save to library'}
       title={saved ? 'Remove from library' : 'Save to library'}
+      data-onboarding="bookmark"
     >
       {saved ? (
         // Filled bookmark (saved)

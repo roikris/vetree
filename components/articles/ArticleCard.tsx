@@ -38,7 +38,7 @@ export function ArticleCard({ article }: ArticleCardProps) {
   const hasUrl = article.article_url && article.article_url.trim() !== ''
 
   return (
-    <article className="bg-white dark:bg-[#1A1A1A] rounded-lg border border-[#E5E5E5] dark:border-[#2A2A2A] p-6 hover:shadow-md transition-shadow relative">
+    <article className="bg-white dark:bg-[#1A1A1A] rounded-lg border border-[#E5E5E5] dark:border-[#2A2A2A] p-6 hover:shadow-md transition-shadow relative" data-onboarding="article-card">
       {/* Bookmark button - top right */}
       <div className="absolute top-4 right-4">
         <BookmarkButton articleId={article.id} />

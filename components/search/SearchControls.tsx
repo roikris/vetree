@@ -8,6 +8,7 @@ import { FilterPanel } from './FilterPanel'
 import { SortSelector } from './SortSelector'
 import { DarkModeToggle } from '@/components/ui/DarkModeToggle'
 import { AuthButton } from '@/components/ui/AuthButton'
+import { Onboarding } from '@/components/onboarding/Onboarding'
 import { useCallback, useRef, useEffect, ReactNode } from 'react'
 
 type SearchControlsProps = {
@@ -67,9 +68,11 @@ export function SearchControls({
   }, [updateFilters])
 
   return (
-    <div className="flex h-screen">
-      {/* Left Sidebar - Filters */}
-      <FilterPanel
+    <>
+      <Onboarding />
+      <div className="flex h-screen">
+        {/* Left Sidebar - Filters */}
+        <FilterPanel
         labels={initialFilters.labels}
         labelOperator={initialFilters.labelOperator}
         quickFilter={initialFilters.quickFilter}
@@ -88,7 +91,7 @@ export function SearchControls({
       <div className="flex-1 overflow-y-auto bg-white dark:bg-[#0F0F0F]">
         <div className="max-w-4xl mx-auto px-8 py-8">
           {/* Header with leaf icon and dark mode toggle */}
-          <header className="mb-10 relative">
+          <header className="mb-10 relative" data-onboarding="header">
             <div className="flex items-start gap-3 mb-2">
               {/* Leaf icon */}
               <svg className="w-9 h-9 text-[#3D7A5F] dark:text-[#4E9A78] flex-shrink-0 mt-1" fill="currentColor" viewBox="0 0 24 24">
@@ -128,6 +131,7 @@ export function SearchControls({
           {children}
         </div>
       </div>
-    </div>
+      </div>
+    </>
   )
 }

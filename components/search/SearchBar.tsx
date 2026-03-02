@@ -28,7 +28,7 @@ export function SearchBar({ defaultValue, onSearch }: SearchBarProps) {
   }
 
   return (
-    <div className="relative">
+    <div className="relative" data-onboarding="search-bar">
       <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
         <svg
           className="h-5 w-5 text-zinc-400 dark:text-zinc-500"

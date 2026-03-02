@@ -35,7 +35,7 @@ export function FilterPanel({
   onJournalsChange
 }: FilterPanelProps) {
   return (
-    <div className="w-80 bg-white dark:bg-[#0F0F0F] border-r border-[#E5E5E5] dark:border-[#2A2A2A] h-screen overflow-y-auto flex-shrink-0">
+    <div className="w-80 bg-white dark:bg-[#0F0F0F] border-r border-[#E5E5E5] dark:border-[#2A2A2A] h-screen overflow-y-auto flex-shrink-0" data-onboarding="filters">
       <div className="p-6 space-y-6">
         <div>
           <h2 className="text-lg font-semibold text-[#1A1A1A] dark:text-[#E8E8E8] mb-4">
