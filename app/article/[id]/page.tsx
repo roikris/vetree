@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { createClient as createPublicClient } from '@supabase/supabase-js'
 import { Article } from '@/lib/supabase'
 import { ArticleCard } from '@/components/articles/ArticleCard'
 import Link from 'next/link'
@@ -8,6 +9,28 @@ import type { Metadata } from 'next'
 type PageProps = {
   params: Promise<{ id: string }>
 }
+
+// Pre-build 100 newest articles at deploy time
+export async function generateStaticParams() {
+  const supabase = createPublicClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
+
+  const { data } = await supabase
+    .from('articles')
+    .select('id')
+    .order('publication_date', { ascending: false })
+    .limit(100)
+
+  return (data || []).map((article) => ({ id: article.id }))
+}
+
+// Allow on-demand generation for articles not in top 100
+export const dynamicParams = true
+
+// Revalidate every 24 hours (86400 seconds)
+export const revalidate = 86400
 
 async function getArticle(id: string): Promise<Article | null> {
   const supabase = await createClient()
@@ -40,19 +63,23 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     : article.summary?.substring(0, 160) || 'Veterinary research article on Vetree'
 
   return {
-    title: `${article.title} - Vetree`,
+    title: article.title,
     description,
     openGraph: {
       title: article.title,
       description,
       url: `https://vetree.app/article/${id}`,
       siteName: 'Vetree',
+      images: [{
+        url: `https://vetree.app/article/${id}/opengraph-image`,
+        width: 1200,
+        height: 630,
+      }],
       type: 'article',
     },
     twitter: {
-      card: 'summary',
-      title: article.title,
-      description,
+      card: 'summary_large_image',
+      images: [`https://vetree.app/article/${id}/opengraph-image`],
     },
   }
 }

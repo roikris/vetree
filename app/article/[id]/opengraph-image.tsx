@@ -6,6 +6,28 @@ export const alt = 'Vetree Article'
 export const size = { width: 1200, height: 630 }
 export const contentType = 'image/png'
 
+// Pre-build OG images for 100 newest articles at deploy time
+export async function generateStaticParams() {
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
+
+  const { data } = await supabase
+    .from('articles')
+    .select('id')
+    .order('publication_date', { ascending: false })
+    .limit(100)
+
+  return (data || []).map((article) => ({ id: article.id }))
+}
+
+// Allow on-demand generation for articles not in top 100
+export const dynamicParams = true
+
+// Revalidate every 24 hours (86400 seconds)
+export const revalidate = 86400
+
 type Params = Promise<{ id: string }>
 
 export default async function Image({ params }: { params: Params }) {
