@@ -48,12 +48,9 @@ export function ShareButton({ articleId, title, clinicalBottomLine }: ShareButto
   // WhatsApp message with emoji and formatting
   const whatsappMessage = `🌿 ${shareText}\n\n${title}\n\nFull summary → ${vetreeUrl}`
 
-  // Twitter message with clinical bottom line and hashtag
-  const twitterMessage = `${shareText}\n\n${vetreeUrl} #VeterinaryMedicine`
-
   const shareLinks = {
     whatsapp: `https://wa.me/?text=${encodeURIComponent(whatsappMessage)}`,
-    twitter: `https://twitter.com/intent/tweet?text=${encodeURIComponent(twitterMessage)}`,
+    twitter: `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(vetreeUrl)}&hashtags=VeterinaryMedicine`,
     linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(vetreeUrl)}`,
     facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(vetreeUrl)}`,
   }
