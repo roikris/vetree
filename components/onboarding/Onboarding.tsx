@@ -176,51 +176,55 @@ export function Onboarding() {
     skipOnboarding()
   }
 
-  // Hand-drawn arrow SVG components
+  // Hand-drawn arrow SVG components with organic, sketchy appearance
   const HandDrawnArrow = ({ position }: { position: 'top' | 'bottom' | 'left' | 'right' }) => {
     const arrowPaths = {
       top: (
-        // Arrow pointing up from tooltip to target above
+        // Arrow pointing up from tooltip to target above - wobbly and organic
         <path
-          d="M 50 80 Q 45 60, 48 40 T 50 10 M 50 10 L 45 18 M 50 10 L 55 18"
+          d="M 50 85 C 48 75, 52 70, 49 60 C 47 50, 51 45, 50 35 C 49 25, 52 20, 50 10 M 50 10 L 44 20 M 50 10 L 56 19"
           stroke="#1A1A1A"
           strokeWidth="2.5"
           fill="none"
           strokeLinecap="round"
           strokeLinejoin="round"
+          opacity="0.85"
         />
       ),
       bottom: (
-        // Arrow pointing down from tooltip to target below
+        // Arrow pointing down from tooltip to target below - wobbly and organic
         <path
-          d="M 50 20 Q 52 40, 48 60 T 50 90 M 50 90 L 45 82 M 50 90 L 55 82"
+          d="M 50 15 C 52 25, 48 30, 51 40 C 53 50, 49 55, 50 65 C 51 75, 48 80, 50 90 M 50 90 L 44 80 M 50 90 L 56 81"
           stroke="#1A1A1A"
           strokeWidth="2.5"
           fill="none"
           strokeLinecap="round"
           strokeLinejoin="round"
+          opacity="0.85"
         />
       ),
       left: (
-        // Arrow pointing left from tooltip to target on left
+        // Arrow pointing left from tooltip to target on left - wobbly and organic
         <path
-          d="M 80 50 Q 60 48, 40 52 T 10 50 M 10 50 L 18 45 M 10 50 L 18 55"
+          d="M 85 50 C 75 52, 70 48, 60 51 C 50 53, 45 49, 35 50 C 25 51, 20 48, 10 50 M 10 50 L 20 44 M 10 50 L 19 56"
           stroke="#1A1A1A"
           strokeWidth="2.5"
           fill="none"
           strokeLinecap="round"
           strokeLinejoin="round"
+          opacity="0.85"
         />
       ),
       right: (
-        // Arrow pointing right from tooltip to target on right
+        // Arrow pointing right from tooltip to target on right - wobbly and organic
         <path
-          d="M 20 50 Q 40 52, 60 48 T 90 50 M 90 50 L 82 45 M 90 50 L 82 55"
+          d="M 15 50 C 25 48, 30 52, 40 49 C 50 47, 55 51, 65 50 C 75 49, 80 52, 90 50 M 90 50 L 80 44 M 90 50 L 81 56"
           stroke="#1A1A1A"
           strokeWidth="2.5"
           fill="none"
           strokeLinecap="round"
           strokeLinejoin="round"
+          opacity="0.85"
         />
       ),
     }
