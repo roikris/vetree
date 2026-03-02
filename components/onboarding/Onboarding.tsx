@@ -19,7 +19,7 @@ const STEPS: OnboardingStep[] = [
   {
     id: 'search',
     title: 'Search Articles',
-    description: 'Search 7,000+ veterinary research articles by title, author, or keyword',
+    description: 'Search thousands of veterinary research articles by title, author, or keyword',
     targetSelector: '[data-onboarding="search-bar"]',
   },
   {

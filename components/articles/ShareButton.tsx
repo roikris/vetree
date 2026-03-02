@@ -3,14 +3,21 @@
 import { useState, useRef, useEffect } from 'react'
 
 type ShareButtonProps = {
+  articleId: string
   title: string
-  url: string
+  clinicalBottomLine?: string
 }
 
-export function ShareButton({ title, url }: ShareButtonProps) {
+export function ShareButton({ articleId, title, clinicalBottomLine }: ShareButtonProps) {
   const [showPopup, setShowPopup] = useState(false)
   const [copied, setCopied] = useState(false)
   const popupRef = useRef<HTMLDivElement>(null)
+
+  // Vetree article URL
+  const vetreeUrl = `https://vetree.app/article/${articleId}`
+
+  // Share text based on clinical bottom line or title
+  const shareText = clinicalBottomLine || title
 
   useEffect(() => {
     if (!showPopup) return
@@ -27,7 +34,7 @@ export function ShareButton({ title, url }: ShareButtonProps) {
 
   const handleCopyLink = async () => {
     try {
-      await navigator.clipboard.writeText(url)
+      await navigator.clipboard.writeText(vetreeUrl)
       setCopied(true)
       setTimeout(() => {
         setCopied(false)
@@ -39,10 +46,10 @@ export function ShareButton({ title, url }: ShareButtonProps) {
   }
 
   const shareLinks = {
-    whatsapp: `https://wa.me/?text=${encodeURIComponent(title)} - ${encodeURIComponent(url)}`,
-    twitter: `https://twitter.com/intent/tweet?text=${encodeURIComponent(title)}&url=${encodeURIComponent(url)}`,
-    linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`,
-    facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`,
+    whatsapp: `https://wa.me/?text=${encodeURIComponent(`${shareText} — Read on Vetree: ${vetreeUrl}`)}`,
+    twitter: `https://twitter.com/intent/tweet?text=${encodeURIComponent(`${shareText} ${vetreeUrl} #VeterinaryMedicine`)}`,
+    linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(vetreeUrl)}`,
+    facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(vetreeUrl)}`,
   }
 
   return (
