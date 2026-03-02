@@ -1,5 +1,4 @@
 import { ImageResponse } from 'next/og'
-import { createClient } from '@supabase/supabase-js'
 
 export const runtime = 'edge'
 export const alt = 'Vetree Article'
@@ -8,18 +7,18 @@ export const contentType = 'image/png'
 
 // Pre-build OG images for 100 newest articles at deploy time
 export async function generateStaticParams() {
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  const response = await fetch(
+    `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/articles?select=id&order=publication_date.desc&limit=100`,
+    {
+      headers: {
+        'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!}`,
+      }
+    }
   )
 
-  const { data } = await supabase
-    .from('articles')
-    .select('id')
-    .order('publication_date', { ascending: false })
-    .limit(100)
-
-  return (data || []).map((article) => ({ id: article.id }))
+  const data = await response.json()
+  return (data || []).map((article: { id: string }) => ({ id: article.id }))
 }
 
 // Allow on-demand generation for articles not in top 100
@@ -33,16 +32,18 @@ type Params = Promise<{ id: string }>
 export default async function Image({ params }: { params: Params }) {
   const { id } = await params
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  const response = await fetch(
+    `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/articles?id=eq.${id}&select=title,clinical_bottom_line,source_journal,strength_of_evidence`,
+    {
+      headers: {
+        'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!}`,
+      }
+    }
   )
 
-  const { data: article } = await supabase
-    .from('articles')
-    .select('title, clinical_bottom_line, source_journal, strength_of_evidence')
-    .eq('id', id)
-    .single()
+  const data = await response.json()
+  const article = data[0]
 
   if (!article) {
     return new ImageResponse(
