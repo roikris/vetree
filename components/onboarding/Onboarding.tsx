@@ -3,6 +3,9 @@
 import { useState, useEffect } from 'react'
 import { useOnboarding } from '@/lib/hooks/useOnboarding'
 import { useAuth } from '@/lib/hooks/useAuth'
+import { Caveat } from 'next/font/google'
+
+const caveat = Caveat({ subsets: ['latin'] })
 
 type OnboardingStep = {
   id: string
@@ -251,12 +254,6 @@ export function Onboarding() {
 
   return (
     <>
-      {/* Load Caveat font for handwritten style */}
-      <link
-        href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&display=swap"
-        rel="stylesheet"
-      />
-
       {/* Dark overlay with spotlight cutout */}
       <div
         className="fixed inset-0 bg-black/60 transition-opacity duration-300"
@@ -280,7 +277,7 @@ export function Onboarding() {
 
       {/* Tooltip card */}
       <div
-        className="bg-white dark:bg-[#1A1A1A] rounded-xl border-2 border-[#3D7A5F] dark:border-[#4E9A78] shadow-2xl p-6 w-96 max-w-[calc(100vw-40px)] transition-all duration-300 fixed"
+        className={`bg-white dark:bg-[#1A1A1A] rounded-xl border-2 border-[#3D7A5F] dark:border-[#4E9A78] shadow-2xl p-6 w-96 max-w-[calc(100vw-40px)] transition-all duration-300 fixed ${caveat.className}`}
         style={{
           zIndex: 10001,
           top: tooltipPosition.top,
@@ -291,17 +288,17 @@ export function Onboarding() {
         <HandDrawnArrow position={tooltipPosition.arrowPosition} />
 
         {/* Step counter */}
-        <div className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-2">
+        <div className="text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-2">
           {currentStepIndex + 1} of {availableSteps.length}
         </div>
 
         {/* Title */}
-        <h3 className="text-xl font-bold text-[#3D7A5F] dark:text-[#4E9A78] mb-3">
+        <h3 className="text-2xl font-bold text-[#3D7A5F] dark:text-[#4E9A78] mb-3">
           {currentStep.title}
         </h3>
 
         {/* Description */}
-        <p className="text-[#1A1A1A] dark:text-[#E8E8E8] mb-6 leading-relaxed">
+        <p className="text-lg text-[#1A1A1A] dark:text-[#E8E8E8] mb-6 leading-relaxed">
           {currentStep.description}
         </p>
 
@@ -309,13 +306,13 @@ export function Onboarding() {
         <div className="flex items-center justify-between gap-4">
           <button
             onClick={handleSkip}
-            className="text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 transition-colors"
+            className="text-base text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 transition-colors"
           >
             Skip tutorial
           </button>
           <button
             onClick={handleNext}
-            className="bg-[#3D7A5F] dark:bg-[#4E9A78] text-white hover:bg-[#2F5F4A] dark:hover:bg-[#5FAA88] rounded-lg px-6 py-2.5 font-medium transition-colors"
+            className="bg-[#3D7A5F] dark:bg-[#4E9A78] text-white hover:bg-[#2F5F4A] dark:hover:bg-[#5FAA88] rounded-lg px-6 py-3 text-lg font-semibold transition-colors"
           >
             {isLastStep ? 'Get Started!' : 'Next'}
           </button>
