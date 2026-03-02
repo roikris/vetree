@@ -22,7 +22,16 @@ export function AuthButton() {
   if (user) {
     return (
       <div className="flex items-center gap-3">
-        <span className="text-sm text-zinc-600 dark:text-zinc-400 hidden sm:inline">
+        <Link
+          href="/library"
+          className="flex items-center gap-1.5 text-[#3D7A5F] dark:text-[#4E9A78] hover:text-[#2F5F4A] dark:hover:text-[#5FAA88] text-sm font-medium transition-colors"
+        >
+          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2z" />
+          </svg>
+          <span className="hidden sm:inline">My Library</span>
+        </Link>
+        <span className="text-sm text-zinc-600 dark:text-zinc-400 hidden md:inline">
           {user.email}
         </span>
         <button

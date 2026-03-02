@@ -1,6 +1,8 @@
 import { Article } from '@/lib/supabase'
 import { ArticleSummary } from './ArticleSummary'
 import { getLabelColor } from '@/lib/constants/labelColors'
+import { BookmarkButton } from './BookmarkButton'
+import { SaveCount } from './SaveCount'
 
 type ArticleCardProps = {
   article: Article
@@ -36,8 +38,13 @@ export function ArticleCard({ article }: ArticleCardProps) {
   const hasUrl = article.article_url && article.article_url.trim() !== ''
 
   return (
-    <article className="bg-white dark:bg-[#1A1A1A] rounded-lg border border-[#E5E5E5] dark:border-[#2A2A2A] p-6 hover:shadow-md transition-shadow">
-      <div className="space-y-4">
+    <article className="bg-white dark:bg-[#1A1A1A] rounded-lg border border-[#E5E5E5] dark:border-[#2A2A2A] p-6 hover:shadow-md transition-shadow relative">
+      {/* Bookmark button - top right */}
+      <div className="absolute top-4 right-4">
+        <BookmarkButton articleId={article.id} />
+      </div>
+
+      <div className="space-y-4 pr-10">
         {/* 1. Source journal + publication date */}
         <div className="flex flex-wrap gap-x-3 gap-y-1 text-sm text-zinc-500 dark:text-zinc-400">
           {article.source_journal && (
@@ -125,9 +132,9 @@ export function ArticleCard({ article }: ArticleCardProps) {
           </div>
         )}
 
-        {/* 8. Read Full Article link */}
-        {hasUrl && (
-          <div className="pt-3">
+        {/* 8. Read Full Article link + Save count */}
+        <div className="pt-3 flex items-center justify-between gap-4">
+          {hasUrl && (
             <a
               href={article.article_url}
               target="_blank"
@@ -139,8 +146,9 @@ export function ArticleCard({ article }: ArticleCardProps) {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
               </svg>
             </a>
-          </div>
-        )}
+          )}
+          <SaveCount articleId={article.id} />
+        </div>
       </div>
     </article>
   )
