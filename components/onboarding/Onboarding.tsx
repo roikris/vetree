@@ -9,7 +9,6 @@ type OnboardingStep = {
   title: string
   description: string
   targetSelector: string
-  position: 'top' | 'right' | 'bottom' | 'left'
   requiresAuth?: boolean
 }
 
@@ -19,28 +18,24 @@ const STEPS: OnboardingStep[] = [
     title: 'Search Articles',
     description: 'Search 7,000+ veterinary research articles by title, author, or keyword',
     targetSelector: '[data-onboarding="search-bar"]',
-    position: 'bottom',
   },
   {
     id: 'filters',
     title: 'Filter Results',
     description: 'Filter by specialty, journal, or strength of evidence',
     targetSelector: '[data-onboarding="filters"]',
-    position: 'right',
   },
   {
     id: 'article',
     title: 'Clinical Bottom Line',
     description: 'Each card shows the clinical bottom line first — the most important takeaway',
     targetSelector: '[data-onboarding="article-card"]',
-    position: 'right',
   },
   {
     id: 'bookmark',
     title: 'Save Articles',
     description: 'Save articles to your personal library for quick access later',
     targetSelector: '[data-onboarding="bookmark"]',
-    position: 'left',
     requiresAuth: true,
   },
   {
@@ -48,15 +43,22 @@ const STEPS: OnboardingStep[] = [
     title: "You're All Set!",
     description: 'New articles are added daily from top veterinary journals',
     targetSelector: '[data-onboarding="header"]',
-    position: 'bottom',
   },
 ]
+
+type TooltipPosition = {
+  top: number
+  left: number
+  arrowPosition: 'top' | 'bottom' | 'left' | 'right'
+  arrowOffset?: { x: number; y: number }
+}
 
 export function Onboarding() {
   const { showOnboarding, completeOnboarding, skipOnboarding } = useOnboarding()
   const { user } = useAuth()
   const [currentStepIndex, setCurrentStepIndex] = useState(0)
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null)
+  const [tooltipPosition, setTooltipPosition] = useState<TooltipPosition | null>(null)
 
   // Filter steps based on auth status
   const availableSteps = STEPS.filter(step => !step.requiresAuth || user)
@@ -76,15 +78,89 @@ export function Onboarding() {
 
     updateTargetRect()
     window.addEventListener('resize', updateTargetRect)
-    window.addEventListener('scroll', updateTargetRect)
+    window.addEventListener('scroll', updateTargetRect, true)
 
     return () => {
       window.removeEventListener('resize', updateTargetRect)
-      window.removeEventListener('scroll', updateTargetRect)
+      window.removeEventListener('scroll', updateTargetRect, true)
     }
   }, [showOnboarding, currentStep])
 
-  if (!showOnboarding || !currentStep || !targetRect) {
+  // Calculate smart tooltip positioning
+  useEffect(() => {
+    if (!targetRect) return
+
+    const MARGIN = 20
+    const TOOLTIP_WIDTH = 384 // max-w-sm = 24rem = 384px
+    const TOOLTIP_HEIGHT = 250 // approximate height
+    const SPACING = 40
+
+    const viewportWidth = window.innerWidth
+    const viewportHeight = window.innerHeight
+
+    // Determine if target is in top or bottom half
+    const targetCenterY = targetRect.top + targetRect.height / 2
+    const isInTopHalf = targetCenterY < viewportHeight / 2
+
+    // Determine if target is on left or right side
+    const targetCenterX = targetRect.left + targetRect.width / 2
+    const isOnLeftSide = targetCenterX < viewportWidth / 2
+
+    let top = 0
+    let left = 0
+    let arrowPosition: 'top' | 'bottom' | 'left' | 'right' = 'top'
+
+    // Prefer vertical positioning (above or below)
+    if (isInTopHalf) {
+      // Show tooltip BELOW target
+      top = targetRect.bottom + SPACING
+      arrowPosition = 'top'
+
+      // Check if tooltip would go off bottom
+      if (top + TOOLTIP_HEIGHT + MARGIN > viewportHeight) {
+        // Not enough room below, try above
+        top = targetRect.top - SPACING - TOOLTIP_HEIGHT
+        arrowPosition = 'bottom'
+      }
+    } else {
+      // Show tooltip ABOVE target
+      top = targetRect.top - SPACING - TOOLTIP_HEIGHT
+      arrowPosition = 'bottom'
+
+      // Check if tooltip would go off top
+      if (top < MARGIN) {
+        // Not enough room above, show below
+        top = targetRect.bottom + SPACING
+        arrowPosition = 'top'
+      }
+    }
+
+    // Center horizontally on target
+    left = targetCenterX - TOOLTIP_WIDTH / 2
+
+    // Constrain to viewport horizontally
+    if (left < MARGIN) {
+      left = MARGIN
+    } else if (left + TOOLTIP_WIDTH + MARGIN > viewportWidth) {
+      left = viewportWidth - TOOLTIP_WIDTH - MARGIN
+    }
+
+    // Constrain to viewport vertically
+    if (top < MARGIN) {
+      top = MARGIN
+    } else if (top + TOOLTIP_HEIGHT + MARGIN > viewportHeight) {
+      top = viewportHeight - TOOLTIP_HEIGHT - MARGIN
+    }
+
+    setTooltipPosition({
+      top,
+      left,
+      arrowPosition,
+      arrowOffset: { x: targetCenterX - left, y: targetCenterY - top }
+    })
+  }, [targetRect])
+
+  if (!showOnboarding || !currentStep || !targetRect || !tooltipPosition) {
     return null
   }
 
@@ -100,42 +176,83 @@ export function Onboarding() {
     skipOnboarding()
   }
 
-  // Calculate tooltip position based on target position
-  const getTooltipStyle = () => {
-    const spacing = 24
-    const style: React.CSSProperties = {
-      position: 'fixed',
-      zIndex: 10001,
+  // Hand-drawn arrow SVG components
+  const HandDrawnArrow = ({ position }: { position: 'top' | 'bottom' | 'left' | 'right' }) => {
+    const arrowPaths = {
+      top: (
+        // Arrow pointing up from tooltip to target above
+        <path
+          d="M 50 80 Q 45 60, 48 40 T 50 10 M 50 10 L 45 18 M 50 10 L 55 18"
+          stroke="#1A1A1A"
+          strokeWidth="2.5"
+          fill="none"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      ),
+      bottom: (
+        // Arrow pointing down from tooltip to target below
+        <path
+          d="M 50 20 Q 52 40, 48 60 T 50 90 M 50 90 L 45 82 M 50 90 L 55 82"
+          stroke="#1A1A1A"
+          strokeWidth="2.5"
+          fill="none"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      ),
+      left: (
+        // Arrow pointing left from tooltip to target on left
+        <path
+          d="M 80 50 Q 60 48, 40 52 T 10 50 M 10 50 L 18 45 M 10 50 L 18 55"
+          stroke="#1A1A1A"
+          strokeWidth="2.5"
+          fill="none"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      ),
+      right: (
+        // Arrow pointing right from tooltip to target on right
+        <path
+          d="M 20 50 Q 40 52, 60 48 T 90 50 M 90 50 L 82 45 M 90 50 L 82 55"
+          stroke="#1A1A1A"
+          strokeWidth="2.5"
+          fill="none"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      ),
     }
 
-    switch (currentStep.position) {
-      case 'top':
-        style.left = targetRect.left + targetRect.width / 2
-        style.top = targetRect.top - spacing
-        style.transform = 'translate(-50%, -100%)'
-        break
-      case 'bottom':
-        style.left = targetRect.left + targetRect.width / 2
-        style.top = targetRect.bottom + spacing
-        style.transform = 'translateX(-50%)'
-        break
-      case 'left':
-        style.right = window.innerWidth - targetRect.left + spacing
-        style.top = targetRect.top + targetRect.height / 2
-        style.transform = 'translateY(-50%)'
-        break
-      case 'right':
-        style.left = targetRect.right + spacing
-        style.top = targetRect.top + targetRect.height / 2
-        style.transform = 'translateY(-50%)'
-        break
+    const arrowStyles = {
+      top: { top: '-60px', left: '50%', transform: 'translateX(-50%)' },
+      bottom: { bottom: '-60px', left: '50%', transform: 'translateX(-50%)' },
+      left: { left: '-60px', top: '50%', transform: 'translateY(-50%)' },
+      right: { right: '-60px', top: '50%', transform: 'translateY(-50%)' },
     }
 
-    return style
+    return (
+      <svg
+        className="absolute pointer-events-none"
+        style={arrowStyles[position]}
+        width="100"
+        height="100"
+        viewBox="0 0 100 100"
+      >
+        {arrowPaths[position]}
+      </svg>
+    )
   }
 
   return (
     <>
+      {/* Load Caveat font for handwritten style */}
+      <link
+        href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&display=swap"
+        rel="stylesheet"
+      />
+
       {/* Dark overlay with spotlight cutout */}
       <div
         className="fixed inset-0 bg-black/60 transition-opacity duration-300"
@@ -159,46 +276,15 @@ export function Onboarding() {
 
       {/* Tooltip card */}
       <div
-        className="bg-white dark:bg-[#1A1A1A] rounded-xl border-2 border-[#3D7A5F] dark:border-[#4E9A78] shadow-2xl p-6 max-w-sm transition-all duration-300"
-        style={getTooltipStyle()}
+        className="bg-white dark:bg-[#1A1A1A] rounded-xl border-2 border-[#3D7A5F] dark:border-[#4E9A78] shadow-2xl p-6 w-96 max-w-[calc(100vw-40px)] transition-all duration-300 fixed"
+        style={{
+          zIndex: 10001,
+          top: tooltipPosition.top,
+          left: tooltipPosition.left,
+        }}
       >
-        {/* Arrow SVG pointing to target */}
-        {currentStep.position === 'bottom' && (
-          <svg
-            className="absolute -top-6 left-1/2 -translate-x-1/2 w-8 h-8 text-[#3D7A5F] dark:text-[#4E9A78]"
-            viewBox="0 0 24 24"
-            fill="currentColor"
-          >
-            <path d="M12 2 L2 12 L12 10 L22 12 Z" />
-          </svg>
-        )}
-        {currentStep.position === 'top' && (
-          <svg
-            className="absolute -bottom-6 left-1/2 -translate-x-1/2 w-8 h-8 text-[#3D7A5F] dark:text-[#4E9A78] rotate-180"
-            viewBox="0 0 24 24"
-            fill="currentColor"
-          >
-            <path d="M12 2 L2 12 L12 10 L22 12 Z" />
-          </svg>
-        )}
-        {currentStep.position === 'right' && (
-          <svg
-            className="absolute -left-6 top-1/2 -translate-y-1/2 w-8 h-8 text-[#3D7A5F] dark:text-[#4E9A78] -rotate-90"
-            viewBox="0 0 24 24"
-            fill="currentColor"
-          >
-            <path d="M12 2 L2 12 L12 10 L22 12 Z" />
-          </svg>
-        )}
-        {currentStep.position === 'left' && (
-          <svg
-            className="absolute -right-6 top-1/2 -translate-y-1/2 w-8 h-8 text-[#3D7A5F] dark:text-[#4E9A78] rotate-90"
-            viewBox="0 0 24 24"
-            fill="currentColor"
-          >
-            <path d="M12 2 L2 12 L12 10 L22 12 Z" />
-          </svg>
-        )}
+        {/* Hand-drawn arrow */}
+        <HandDrawnArrow position={tooltipPosition.arrowPosition} />
 
         {/* Step counter */}
         <div className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-2">
