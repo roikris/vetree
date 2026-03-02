@@ -66,7 +66,7 @@ export default async function ArticlePage({ params }: PageProps) {
   }
 
   return (
-    <div className="min-h-screen bg-white dark:bg-[#0F0F0F]">
+    <div className="h-screen overflow-y-auto bg-white dark:bg-[#0F0F0F]">
       <div className="max-w-4xl mx-auto px-6 py-8">
         {/* Header with back link */}
         <header className="mb-8">
