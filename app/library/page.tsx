@@ -17,22 +17,20 @@ export default async function LibraryPage() {
   const { articles, error } = await getSavedArticles()
 
   return (
-    <div className="min-h-screen bg-white dark:bg-[#0F0F0F]">
-      {/* Header */}
-      <header className="border-b border-[#E5E5E5] dark:border-[#2A2A2A] bg-white dark:bg-[#1A1A1A]">
-        <div className="max-w-4xl mx-auto px-6 py-6">
+    <div className="h-screen overflow-y-auto bg-white dark:bg-[#0F0F0F]">
+      <div className="max-w-4xl mx-auto px-6 py-8">
+        {/* Header */}
+        <header className="mb-8">
           <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <Link
-                href="/"
-                className="flex items-center gap-2 text-[#3D7A5F] dark:text-[#4E9A78] hover:text-[#2F5F4A] dark:hover:text-[#5FAA88] transition-colors"
-              >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                </svg>
-                <span className="text-sm font-medium">Back to Search</span>
-              </Link>
-            </div>
+            <Link
+              href="/"
+              className="flex items-center gap-2 text-[#3D7A5F] dark:text-[#4E9A78] hover:text-[#2F5F4A] dark:hover:text-[#5FAA88] transition-colors"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+              <span className="text-sm font-medium">Back to Search</span>
+            </Link>
           </div>
           <div className="flex items-center gap-3">
             <svg className="w-8 h-8 text-[#3D7A5F] dark:text-[#4E9A78]" fill="currentColor" viewBox="0 0 24 24">
@@ -47,11 +45,10 @@ export default async function LibraryPage() {
               </p>
             </div>
           </div>
-        </div>
-      </header>
+        </header>
 
-      {/* Content */}
-      <main className="max-w-4xl mx-auto px-6 py-8">
+        {/* Content */}
+        <main>
         {error && (
           <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-6">
             <p className="text-red-800 dark:text-red-200 text-sm">
@@ -96,7 +93,8 @@ export default async function LibraryPage() {
             ))}
           </div>
         )}
-      </main>
+        </main>
+      </div>
     </div>
   )
 }
