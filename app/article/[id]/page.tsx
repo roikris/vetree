@@ -136,7 +136,7 @@ export default async function ArticlePage({ params }: PageProps) {
             </h2>
           </div>
           <p className="text-zinc-600 dark:text-zinc-400 mb-6 max-w-2xl mx-auto">
-            Vetree distills veterinary research into clear, actionable summaries. Explore thousands of articles from top journals.
+            Vetree distills veterinary research into clear, actionable summaries. Explore articles from top veterinary journals.
           </p>
           <Link
             href="/"
