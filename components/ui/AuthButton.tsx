@@ -3,10 +3,12 @@
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/lib/hooks/useAuth'
+import { useAdmin } from '@/lib/hooks/useAdmin'
 import { createClient } from '@/lib/supabase/client'
 
 export function AuthButton() {
   const { user, loading } = useAuth()
+  const { isAdmin } = useAdmin()
   const router = useRouter()
   const supabase = createClient()
 
@@ -22,6 +24,17 @@ export function AuthButton() {
   if (user) {
     return (
       <div className="flex items-center gap-3">
+        {isAdmin && (
+          <Link
+            href="/admin/reports"
+            className="flex items-center gap-1.5 text-[#3D7A5F] dark:text-[#4E9A78] hover:text-[#2F5F4A] dark:hover:text-[#5FAA88] text-sm font-medium transition-colors"
+          >
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/>
+            </svg>
+            <span className="hidden sm:inline">Admin</span>
+          </Link>
+        )}
         <Link
           href="/library"
           className="flex items-center gap-1.5 text-[#3D7A5F] dark:text-[#4E9A78] hover:text-[#2F5F4A] dark:hover:text-[#5FAA88] text-sm font-medium transition-colors"

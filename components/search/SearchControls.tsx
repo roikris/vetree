@@ -9,6 +9,7 @@ import { SortSelector } from './SortSelector'
 import { DarkModeToggle } from '@/components/ui/DarkModeToggle'
 import { AuthButton } from '@/components/ui/AuthButton'
 import { Onboarding } from '@/components/onboarding/Onboarding'
+import { Footer } from '@/components/ui/Footer'
 import { useCallback, useRef, useEffect, ReactNode } from 'react'
 
 type SearchControlsProps = {
@@ -129,6 +130,9 @@ export function SearchControls({
 
           {/* Search results content */}
           {children}
+
+          {/* Footer */}
+          <Footer />
         </div>
       </div>
       </div>

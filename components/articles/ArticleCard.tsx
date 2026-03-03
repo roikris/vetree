@@ -4,6 +4,7 @@ import { getLabelColor } from '@/lib/constants/labelColors'
 import { BookmarkButton } from './BookmarkButton'
 import { SaveCount } from './SaveCount'
 import { ShareButton } from './ShareButton'
+import { ReportButton } from './ReportButton'
 
 type ArticleCardProps = {
   article: Article
@@ -40,8 +41,9 @@ export function ArticleCard({ article }: ArticleCardProps) {
 
   return (
     <article className="bg-white dark:bg-[#1A1A1A] rounded-lg border border-[#E5E5E5] dark:border-[#2A2A2A] p-6 hover:shadow-md transition-shadow relative" data-onboarding="article-card">
-      {/* Bookmark and Share buttons - top right */}
+      {/* Report, Bookmark and Share buttons - top right */}
       <div className="absolute top-4 right-4 flex items-center gap-1">
+        <ReportButton articleId={article.id} />
         <ShareButton
           articleId={article.id}
           title={article.title}
