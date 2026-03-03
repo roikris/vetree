@@ -12,8 +12,8 @@ type TrendingArticlesProps = {
 }
 
 export function TrendingArticles({ articles }: TrendingArticlesProps) {
-  // Don't show section if fewer than 3 articles
-  if (articles.length < 3) {
+  // Don't show section if fewer than 1 article (temporarily lowered from 3 for testing)
+  if (articles.length < 1) {
     return null
   }
 
