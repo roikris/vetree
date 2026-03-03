@@ -5,6 +5,8 @@ import { ResultsCount } from '@/components/ui/ResultsCount'
 import { ArticleList } from '@/components/articles/ArticleList'
 import { Pagination } from '@/components/ui/Pagination'
 import { DisclaimerBanner } from '@/components/ui/DisclaimerBanner'
+import { TrendingArticles } from '@/components/articles/TrendingArticles'
+import { getTrendingArticles } from '@/app/actions/trending'
 
 // Force dynamic rendering to ensure searchParams are always fresh
 export const dynamic = 'force-dynamic'
@@ -23,6 +25,15 @@ export default async function Home({ searchParams }: HomeProps) {
   // Fetch unique journals and evidence levels for filters
   const journals = await getUniqueJournals()
   const evidenceLevels = await getDistinctEvidenceLevels()
+
+  // Fetch trending articles (only show on first page with no filters)
+  const showTrending = filters.page === 1 && !filters.search &&
+    filters.labels.length === 0 && filters.evidence.length === 0 &&
+    filters.journals.length === 0 && filters.quickFilter === 'all'
+
+  const { articles: trendingArticles } = showTrending
+    ? await getTrendingArticles()
+    : { articles: [] }
 
   const totalPages = Math.ceil((count || 0) / 20)
 
@@ -65,6 +76,8 @@ export default async function Home({ searchParams }: HomeProps) {
       {!error && (count !== null && count > 0 || hasActiveFilters) && (
         <>
           <DisclaimerBanner />
+
+          <TrendingArticles articles={trendingArticles} />
 
           <ResultsCount
             total={count || 0}
