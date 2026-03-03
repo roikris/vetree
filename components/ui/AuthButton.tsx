@@ -8,16 +8,18 @@ import { createClient } from '@/lib/supabase/client'
 
 export function AuthButton() {
   const { user, loading } = useAuth()
-  const { isAdmin } = useAdmin()
+  const { isAdmin, loading: adminLoading } = useAdmin()
   const router = useRouter()
   const supabase = createClient()
+
+  console.log('[AuthButton] user:', user?.email, 'isAdmin:', isAdmin, 'adminLoading:', adminLoading)
 
   const handleSignOut = async () => {
     await supabase.auth.signOut()
     router.refresh()
   }
 
-  if (loading) {
+  if (loading || adminLoading) {
     return <div className="w-24 h-10" /> // Placeholder to prevent layout shift
   }
 
