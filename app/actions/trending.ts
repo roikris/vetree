@@ -31,8 +31,8 @@ export async function getTrendingArticles() {
     .slice(0, 5)
     .map(([id]) => id)
 
-  // Return empty if fewer than 1 trending article (temporarily lowered from 3 for testing)
-  if (topArticleIds.length < 1) {
+  // Return empty if fewer than 3 trending articles
+  if (topArticleIds.length < 3) {
     return { articles: [], error: null }
   }
 
