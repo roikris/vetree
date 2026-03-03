@@ -31,9 +31,12 @@ export function AuthButton() {
           </svg>
           <span className="hidden sm:inline">My Library</span>
         </Link>
-        <span className="text-sm text-zinc-600 dark:text-zinc-400 hidden md:inline">
+        <Link
+          href="/profile"
+          className="text-sm text-zinc-600 dark:text-zinc-400 hover:text-[#3D7A5F] dark:hover:text-[#4E9A78] hidden md:inline transition-colors"
+        >
           {user.email}
-        </span>
+        </Link>
         <button
           onClick={handleSignOut}
           className="bg-white dark:bg-[#1A1A1A] border border-[#E5E5E5] dark:border-[#2A2A2A] text-[#1A1A1A] dark:text-[#E8E8E8] hover:bg-zinc-50 dark:hover:bg-zinc-900 rounded-lg px-4 py-2 text-sm font-medium transition-colors"
