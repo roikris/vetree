@@ -1,6 +1,49 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
+async function sendSlackNotification(count: number) {
+  const webhookUrl = process.env.SLACK_WEBHOOK_URL
+
+  if (!webhookUrl) {
+    console.log('No SLACK_WEBHOOK_URL configured, skipping notification')
+    return
+  }
+
+  const timestamp = new Date().toLocaleString('en-US', {
+    timeZone: 'America/New_York',
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZoneName: 'short'
+  })
+
+  const message = {
+    text: `🔄 *Vetree Manual Enrichment Retry*
+• Articles queued for retry: ${count}
+• Triggered by: Admin
+• Time: ${timestamp}
+• Note: Articles with enrichment_attempts >= 3 were manually re-queued`
+  }
+
+  try {
+    const response = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(message)
+    })
+
+    if (!response.ok) {
+      console.error('Failed to send Slack notification:', response.statusText)
+    } else {
+      console.log('✓ Slack notification sent')
+    }
+  } catch (error) {
+    console.error('Error sending Slack notification:', error)
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient()
@@ -102,6 +145,9 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       )
     }
+
+    // Send Slack notification
+    await sendSlackNotification(failedArticles.length)
 
     return NextResponse.json(
       {
