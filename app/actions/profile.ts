@@ -22,35 +22,6 @@ export async function sendPasswordResetEmail() {
   return { success: true }
 }
 
-export async function deleteAccount() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) {
-    return { error: 'Not authenticated' }
-  }
-
-  // Delete user's saved articles first (cascade should handle this, but being explicit)
-  await supabase
-    .from('saved_articles')
-    .delete()
-    .eq('user_id', user.id)
-
-  // Note: Supabase doesn't allow deleting users via client SDK
-  // This would need to be done via admin API or a database function
-  // For now, we'll just sign them out and they can contact support
-  // In production, you'd want to set up a database function or use the admin API
-
-  const { error } = await supabase.auth.signOut()
-
-  if (error) {
-    return { error: error.message }
-  }
-
-  revalidatePath('/')
-  return { success: true, message: 'Account data cleared. Please contact support to fully delete your account.' }
-}
-
 export async function getUserStats() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()

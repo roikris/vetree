@@ -123,7 +123,7 @@ export default function PrivacyPage() {
               <ul className="list-disc pl-6 space-y-2">
                 <li><strong>Access:</strong> View the personal information we have about you</li>
                 <li><strong>Update:</strong> Correct or update your information through your profile</li>
-                <li><strong>Delete:</strong> Delete your account and associated data through your profile settings</li>
+                <li><strong>Delete:</strong> Delete your account and all associated data at any time from your Profile page. This will permanently remove all your data including saved articles, reports, and account information.</li>
                 <li><strong>Export:</strong> Request a copy of your data (contact us at the email below)</li>
                 <li><strong>Object:</strong> Object to certain processing of your information</li>
               </ul>

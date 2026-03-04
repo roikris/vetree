@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { sendPasswordResetEmail, deleteAccount } from '@/app/actions/profile'
+import { sendPasswordResetEmail } from '@/app/actions/profile'
 
 export function ProfileClient() {
   const router = useRouter()
@@ -37,18 +37,36 @@ export function ProfileClient() {
   const handleDeleteAccount = async () => {
     setLoading(true)
     setMessage(null)
+    setShowDeleteModal(false)
 
-    const result = await deleteAccount()
+    try {
+      const response = await fetch('/api/delete-account', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
 
-    if (result.error) {
-      setMessage({ type: 'error', text: result.error })
-      setLoading(false)
-    } else {
-      setMessage({ type: 'success', text: result.message || 'Account deleted successfully.' })
+      const data = await response.json()
+
+      if (!response.ok) {
+        setMessage({ type: 'error', text: data.error || 'Failed to delete account' })
+        setLoading(false)
+        return
+      }
+
+      // Show success message
+      setMessage({ type: 'success', text: 'Account deleted successfully. Redirecting...' })
+
+      // Wait 2 seconds then redirect to home
       setTimeout(() => {
         router.push('/')
         router.refresh()
       }, 2000)
+    } catch (error) {
+      console.error('Error deleting account:', error)
+      setMessage({ type: 'error', text: 'An unexpected error occurred. Please try again.' })
+      setLoading(false)
     }
   }
 
@@ -111,7 +129,7 @@ export function ProfileClient() {
           Danger Zone
         </h2>
         <p className="text-sm text-red-700 dark:text-red-300 mb-4">
-          Once you delete your account, there is no going back. This will remove all your saved articles.
+          Once you delete your account, there is no going back. This will permanently delete your account and all your data, including saved articles, reports, and account information.
         </p>
         <button
           onClick={() => setShowDeleteModal(true)}
@@ -126,11 +144,11 @@ export function ProfileClient() {
       {showDeleteModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
           <div className="bg-white dark:bg-[#1A1A1A] rounded-lg max-w-md w-full p-6">
-            <h3 className="text-xl font-semibold text-[#1A1A1A] dark:text-[#E8E8E8] mb-2">
-              Delete Account?
+            <h3 className="text-xl font-semibold text-red-900 dark:text-red-200 mb-2">
+              Are you sure?
             </h3>
-            <p className="text-zinc-600 dark:text-zinc-400 mb-6">
-              This action cannot be undone. All your saved articles and account data will be permanently deleted.
+            <p className="text-zinc-700 dark:text-zinc-300 mb-6">
+              This will <strong>permanently delete your account and all your data</strong>. All your saved articles, reports, and account information will be removed. This action <strong>cannot be undone</strong>.
             </p>
             <div className="flex gap-3">
               <button
