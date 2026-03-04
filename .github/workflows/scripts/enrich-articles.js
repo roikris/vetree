@@ -67,7 +67,8 @@ Return ONLY valid JSON, no markdown formatting.`;
       labels: validLabels,
       strength_of_evidence: enrichment.strength_of_evidence || null,
       needs_enrichment: !hasValidContent,
-      enrichment_attempts: (article.enrichment_attempts || 0) + 1
+      enrichment_attempts: (article.enrichment_attempts || 0) + 1,
+      force_retry: false  // Reset force_retry flag after processing
     };
 
     // Update authors if corrected
@@ -98,12 +99,13 @@ Return ONLY valid JSON, no markdown formatting.`;
   } catch (error) {
     console.error(`  ✗ Error enriching article ${article.id}:`, error.message);
 
-    // Increment attempt counter
+    // Increment attempt counter and reset force_retry
     const { error: updateError } = await client
       .from('articles')
       .update({
         enrichment_attempts: (article.enrichment_attempts || 0) + 1,
-        needs_enrichment: (article.enrichment_attempts || 0) + 1 < 3
+        needs_enrichment: (article.enrichment_attempts || 0) + 1 < 3,
+        force_retry: false  // Reset force_retry flag even on failure
       })
       .eq('id', article.id);
 
@@ -184,11 +186,14 @@ async function main() {
     const articlesToFetch = Math.min(BATCH_SIZE, MAX_ARTICLES_PER_RUN - stats.totalProcessed);
 
     // Fetch next batch of articles that need enrichment
+    // Include articles that EITHER:
+    // 1. Have < 3 attempts (normal queue)
+    // 2. Have force_retry = true (admin manual retry)
     const { data: articles, error } = await supabase
       .from('articles')
       .select('*')
       .eq('needs_enrichment', true)
-      .lt('enrichment_attempts', 3)
+      .or('enrichment_attempts.lt.3,force_retry.eq.true')
       .limit(articlesToFetch);
 
     if (error) {

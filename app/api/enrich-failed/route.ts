@@ -52,11 +52,14 @@ export async function POST(request: NextRequest) {
 
     const articleIds = failedArticles.map(a => a.id)
 
-    // Set needs_enrichment = true for these articles
+    // Set needs_enrichment = true AND force_retry = true for manual retry
     // Do NOT reset enrichment_attempts - let them accumulate
     const { error: updateError } = await supabase
       .from('articles')
-      .update({ needs_enrichment: true })
+      .update({
+        needs_enrichment: true,
+        force_retry: true
+      })
       .in('id', articleIds)
 
     if (updateError) {
