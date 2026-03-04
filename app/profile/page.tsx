@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getSavedArticles } from '@/app/actions/saved-articles'
 import { getUserStats } from '@/app/actions/profile'
 import { ProfileClient } from './ProfileClient'
+import { ProfileHeader } from './ProfileHeader'
 import Link from 'next/link'
 import { Article } from '@/lib/supabase'
 
@@ -32,37 +33,19 @@ export default async function ProfilePage() {
     .toUpperCase()
     .slice(0, 2)
 
+  // Get avatar URL from user metadata
+  const avatarUrl = user.user_metadata?.avatar_url || null
+
   return (
     <div className="min-h-screen bg-white dark:bg-[#0F0F0F]">
       <div className="max-w-4xl mx-auto px-6 py-8">
-        {/* Header */}
-        <header className="mb-8">
-          <Link
-            href="/"
-            className="flex items-center gap-2 text-[#3D7A5F] dark:text-[#4E9A78] hover:text-[#2F5F4A] dark:hover:text-[#5FAA88] transition-colors mb-6"
-          >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
-            <span className="text-sm font-medium">Back to Search</span>
-          </Link>
-
-          <div className="flex items-center gap-4">
-            {/* User Avatar */}
-            <div className="w-20 h-20 rounded-full bg-[#3D7A5F] dark:bg-[#4E9A78] flex items-center justify-center text-white text-2xl font-semibold flex-shrink-0">
-              {initials}
-            </div>
-
-            <div>
-              <h1 className="text-3xl font-semibold text-[#1A1A1A] dark:text-[#E8E8E8]">
-                Profile
-              </h1>
-              <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
-                {email}
-              </p>
-            </div>
-          </div>
-        </header>
+        {/* Header - Client Component for Avatar Upload */}
+        <ProfileHeader
+          userId={user.id}
+          email={email}
+          initials={initials}
+          avatarUrl={avatarUrl}
+        />
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">

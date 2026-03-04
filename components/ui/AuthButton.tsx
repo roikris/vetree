@@ -24,6 +24,19 @@ export function AuthButton() {
   }
 
   if (user) {
+    // Get avatar URL from user metadata
+    const avatarUrl = user.user_metadata?.avatar_url
+
+    // Get user initials for fallback
+    const email = user.email || ''
+    const initials = email
+      .split('@')[0]
+      .split(/[._-]/)
+      .map(part => part[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2)
+
     return (
       <div className="flex items-center gap-3">
         {isAdmin && (
@@ -48,9 +61,22 @@ export function AuthButton() {
         </Link>
         <Link
           href="/profile"
-          className="text-sm text-zinc-600 dark:text-zinc-400 hover:text-[#3D7A5F] dark:hover:text-[#4E9A78] hidden md:inline transition-colors"
+          className="flex items-center gap-2 hover:opacity-80 transition-opacity"
         >
-          {user.email}
+          {avatarUrl ? (
+            <img
+              src={avatarUrl}
+              alt="Profile"
+              className="w-8 h-8 rounded-full object-cover border-2 border-[#3D7A5F] dark:border-[#4E9A78]"
+            />
+          ) : (
+            <div className="w-8 h-8 rounded-full bg-[#3D7A5F] dark:bg-[#4E9A78] flex items-center justify-center text-white text-xs font-semibold border-2 border-[#3D7A5F] dark:border-[#4E9A78]">
+              {initials}
+            </div>
+          )}
+          <span className="text-sm text-zinc-600 dark:text-zinc-400 hover:text-[#3D7A5F] dark:hover:text-[#4E9A78] hidden md:inline transition-colors">
+            {user.email}
+          </span>
         </Link>
         <button
           onClick={handleSignOut}
