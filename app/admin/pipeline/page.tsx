@@ -1,5 +1,6 @@
 import { getPipelineStats } from '@/app/actions/admin'
 import { PipelineClient } from './PipelineClient'
+import { DownloadFailedCSV } from './DownloadFailedCSV'
 
 export default async function AdminPipelinePage() {
   const { stats, error } = await getPipelineStats()
@@ -50,6 +51,9 @@ export default async function AdminPipelinePage() {
           <p className="text-xs text-zinc-500 dark:text-zinc-400">
             Articles with 3+ failed attempts
           </p>
+          {stats?.failedEnrichment && stats.failedEnrichment > 0 && (
+            <DownloadFailedCSV />
+          )}
         </div>
 
         <div className="bg-white dark:bg-[#1A1A1A] border border-zinc-200 dark:border-zinc-800 rounded-lg p-6">
