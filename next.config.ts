@@ -6,9 +6,10 @@ const nextConfig: NextConfig = {
   turbopack: {},
 };
 
+// @ts-ignore - Sentry v7 types don't fully support Next.js 16 yet
 export default withSentryConfig(nextConfig, {
-  // Sentry configuration options
   silent: true,
   hideSourceMaps: true,
   disableLogger: true,
+  telemetry: false,
 });
