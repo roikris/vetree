@@ -73,8 +73,15 @@ export async function getSavedArticles() {
     return { articles: [], error: error.message }
   }
 
-  // Extract articles from the join result
-  const articles = data?.map((item: any) => item.articles).filter(Boolean) || []
+  // Extract articles from the join result and filter to only enriched articles
+  const articles = data
+    ?.map((item: any) => item.articles)
+    .filter(Boolean)
+    .filter((article: any) =>
+      article.needs_enrichment === false &&
+      article.summary !== null &&
+      article.clinical_bottom_line !== null
+    ) || []
 
   return { articles, error: null }
 }

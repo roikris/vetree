@@ -12,6 +12,12 @@ export async function searchArticles(filters: ParsedFilters, pageSize = 20) {
   try {
     let query = supabase.from('articles').select('*', { count: 'exact' })
 
+    // Filter: Only show fully enriched articles to public
+    query = query
+      .eq('needs_enrichment', false)
+      .not('summary', 'is', null)
+      .not('clinical_bottom_line', 'is', null)
+
     // Search across multiple fields with OR
     if (filters.search) {
       const sanitizedSearch = sanitizeSearchTerm(filters.search)

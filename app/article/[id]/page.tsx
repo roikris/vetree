@@ -10,7 +10,7 @@ type PageProps = {
   params: Promise<{ id: string }>
 }
 
-// Pre-build 100 newest articles at deploy time
+// Pre-build 100 newest enriched articles at deploy time
 export async function generateStaticParams() {
   const supabase = createPublicClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -20,6 +20,9 @@ export async function generateStaticParams() {
   const { data } = await supabase
     .from('articles')
     .select('id')
+    .eq('needs_enrichment', false)
+    .not('summary', 'is', null)
+    .not('clinical_bottom_line', 'is', null)
     .order('publication_date', { ascending: false })
     .limit(100)
 
@@ -39,6 +42,9 @@ async function getArticle(id: string): Promise<Article | null> {
     .from('articles')
     .select('*')
     .eq('id', id)
+    .eq('needs_enrichment', false)
+    .not('summary', 'is', null)
+    .not('clinical_bottom_line', 'is', null)
     .single()
 
   if (error || !data) {

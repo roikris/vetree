@@ -36,11 +36,14 @@ export async function getTrendingArticles() {
     return { articles: [], error: null }
   }
 
-  // Fetch full article data for trending articles
+  // Fetch full article data for trending articles (only enriched)
   const { data: articles, error: articlesError } = await supabase
     .from('articles')
     .select('*')
     .in('id', topArticleIds)
+    .eq('needs_enrichment', false)
+    .not('summary', 'is', null)
+    .not('clinical_bottom_line', 'is', null)
 
   if (articlesError) {
     console.error('Error fetching article details:', articlesError)
