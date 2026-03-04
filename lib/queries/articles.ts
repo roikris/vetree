@@ -1,16 +1,34 @@
 import { supabase } from '@/lib/supabase'
 import { ParsedFilters } from '@/types/search'
 
-export async function searchArticles(filters: ParsedFilters, pageSize = 20) {
-  let query = supabase.from('articles').select('*', { count: 'exact' })
+// Sanitize search terms to prevent PostgREST query parsing errors
+function sanitizeSearchTerm(term: string): string {
+  // Remove special characters that break PostgREST parsing: ( ) , . % _ [ ] * ? \
+  // Replace with spaces and trim
+  return term.replace(/[(),.%_[\]*?\\]/g, ' ').trim()
+}
 
-  // Search across multiple fields with OR
-  if (filters.search) {
-    const search = filters.search
-    query = query.or(
-      `title.ilike.%${search}%,summary.ilike.%${search}%,clinical_bottom_line.ilike.%${search}%,authors.ilike.%${search}%`
-    )
-  }
+export async function searchArticles(filters: ParsedFilters, pageSize = 20) {
+  try {
+    let query = supabase.from('articles').select('*', { count: 'exact' })
+
+    // Search across multiple fields with OR
+    if (filters.search) {
+      const sanitizedSearch = sanitizeSearchTerm(filters.search)
+
+      // Skip search if sanitized term is empty
+      if (!sanitizedSearch) {
+        return {
+          data: [],
+          count: 0,
+          error: { message: 'No articles found. Try different search terms.' }
+        }
+      }
+
+      query = query.or(
+        `title.ilike.%${sanitizedSearch}%,summary.ilike.%${sanitizedSearch}%,clinical_bottom_line.ilike.%${sanitizedSearch}%,authors.ilike.%${sanitizedSearch}%`
+      )
+    }
 
   // Quick filter (Small Animal or Large Animal)
   if (filters.quickFilter !== 'all') {
@@ -47,12 +65,33 @@ export async function searchArticles(filters: ParsedFilters, pageSize = 20) {
     query = query.order('publication_date', { ascending: true })
   }
 
-  // Pagination
-  const from = (filters.page - 1) * pageSize
-  const to = from + pageSize - 1
-  query = query.range(from, to)
+    // Pagination
+    const from = (filters.page - 1) * pageSize
+    const to = from + pageSize - 1
+    query = query.range(from, to)
 
-  return query
+    const result = await query
+
+    // If there's an error, return a user-friendly message
+    if (result.error) {
+      console.error('Search error:', result.error)
+      return {
+        data: [],
+        count: 0,
+        error: { message: 'No articles found. Try different search terms.' }
+      }
+    }
+
+    return result
+  } catch (error) {
+    // Catch any unexpected errors and return a friendly message
+    console.error('Unexpected search error:', error)
+    return {
+      data: [],
+      count: 0,
+      error: { message: 'No articles found. Try different search terms.' }
+    }
+  }
 }
 
 export async function getUniqueJournals() {
