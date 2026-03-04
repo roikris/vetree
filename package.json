@@ -10,7 +10,7 @@
     "import-articles": "tsx scripts/import-articles.ts"
   },
   "dependencies": {
-    "@sentry/nextjs": "^8",
+    "@sentry/nextjs": "^7",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.97.0",
     "@upstash/ratelimit": "^2",
