@@ -1,8 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { deleteAccountLimiter, getClientIP } from '@/lib/ratelimit'
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limiting check
+    const ip = getClientIP(request)
+    const { success } = await deleteAccountLimiter.limit(ip)
+
+    if (!success) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please try again later.' },
+        { status: 429 }
+      )
+    }
+
     const supabase = await createClient()
 
     // Verify user is authenticated

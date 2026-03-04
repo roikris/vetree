@@ -31,4 +31,5 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          NCBI_API_KEY: ${{ secrets.NCBI_API_KEY }}
           BACKFILL_YEAR: ${{ github.event.inputs.year }}

@@ -81,7 +81,8 @@ async function searchPubMed(journal, daysAgo = 5) {
   const dateStr = date.toISOString().split('T')[0].replace(/-/g, '/');
 
   const query = `${journal}[Journal] AND ("${dateStr}"[Date - Publication] : "3000"[Date - Publication])`;
-  const searchUrl = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term=${encodeURIComponent(query)}&retmax=100&retmode=json`;
+  const apiKey = process.env.NCBI_API_KEY || '';
+  const searchUrl = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term=${encodeURIComponent(query)}&retmax=100&retmode=json&api_key=${apiKey}`;
 
   const response = await fetch(searchUrl, {
     headers: { 'User-Agent': 'VetResearch/1.0 (mailto:research@vetapp.com)' }
@@ -94,7 +95,8 @@ async function searchPubMed(journal, daysAgo = 5) {
 async function fetchArticleDetails(pmids) {
   if (pmids.length === 0) return [];
 
-  const fetchUrl = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id=${pmids.join(',')}&retmode=xml`;
+  const apiKey = process.env.NCBI_API_KEY || '';
+  const fetchUrl = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id=${pmids.join(',')}&retmode=xml&api_key=${apiKey}`;
 
   const response = await fetch(fetchUrl, {
     headers: { 'User-Agent': 'VetResearch/1.0 (mailto:research@vetapp.com)' }
@@ -285,9 +287,9 @@ async function main() {
           }
         }
 
-        // Wait 2 seconds between batches
+        // Wait 500ms between batches (safe with API key)
         if (i + 20 < newPmids.length) {
-          await sleep(2000);
+          await sleep(500);
         }
       }
     } catch (error) {

@@ -123,12 +123,17 @@ async function sendSlackNotification(stats) {
     return;
   }
 
+  let failedWarning = '';
+  if (stats.failedArticles > 0) {
+    failedWarning = `\n⚠️ *Articles requiring manual review:* ${stats.failedArticles} (failed 3+ times)`;
+  }
+
   const message = {
     text: `🧠 *Vetree Enrichment Report*
 • Total processed this run: ${stats.totalProcessed}
 • Successfully enriched: ${stats.successCount}
 • Failed (will retry): ${stats.failCount}
-• Total remaining in queue: ${stats.remainingInQueue}`
+• Total remaining in queue: ${stats.remainingInQueue}${failedWarning}`
   };
 
   try {
@@ -164,7 +169,8 @@ async function main() {
     totalProcessed: 0,
     successCount: 0,
     failCount: 0,
-    remainingInQueue: 0
+    remainingInQueue: 0,
+    failedArticles: 0
   };
 
   const BATCH_SIZE = 50;
@@ -238,6 +244,15 @@ async function main() {
     .eq('needs_enrichment', true);
 
   stats.remainingInQueue = count || 0;
+
+  // Count articles that failed 3+ times
+  const { count: failedCount } = await supabase
+    .from('articles')
+    .select('*', { count: 'exact', head: true })
+    .gte('enrichment_attempts', 3)
+    .eq('needs_enrichment', false);
+
+  stats.failedArticles = failedCount || 0;
 
   console.log(`\n✅ Enrichment complete!`);
   console.log(`   Total processed: ${stats.totalProcessed}`);
