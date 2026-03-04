@@ -47,6 +47,17 @@ NCBI_API_KEY=your_ncbi_api_key
 2. Generate an API key from your account settings
 3. Add this to your GitHub Secrets for the workflows
 
+### GitHub API (For Admin Features)
+```bash
+GITHUB_PAT=your_github_personal_access_token
+```
+
+**Setup Instructions:**
+1. Go to GitHub Settings → Developer settings → Personal access tokens → Tokens (classic)
+2. Generate new token with scope: `repo` (full control of private repositories)
+3. Add this to Vercel environment variables (NOT public)
+4. Used for: Triggering enrichment workflows from admin panel
+
 ## Vercel Environment Variables
 
 Add the following to your Vercel project settings → Environment Variables:

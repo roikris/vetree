@@ -1,6 +1,7 @@
 import { getPipelineStats } from '@/app/actions/admin'
 import { PipelineClient } from './PipelineClient'
 import { DownloadFailedCSV } from './DownloadFailedCSV'
+import { EnrichFailedButton } from './EnrichFailedButton'
 
 export default async function AdminPipelinePage() {
   const { stats, error } = await getPipelineStats()
@@ -52,7 +53,10 @@ export default async function AdminPipelinePage() {
             Articles with 3+ failed attempts
           </p>
           {stats?.failedEnrichment && stats.failedEnrichment > 0 && (
-            <DownloadFailedCSV />
+            <div className="flex gap-2">
+              <DownloadFailedCSV />
+              <EnrichFailedButton />
+            </div>
           )}
         </div>
 
