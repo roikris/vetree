@@ -1,5 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
+
+// Service role client that bypasses RLS for admin operations
+const supabaseAdmin = createSupabaseClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+)
 
 async function sendSlackNotification(count: number) {
   const webhookUrl = process.env.SLACK_WEBHOOK_URL
@@ -72,8 +79,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Fetch all articles where enrichment_attempts >= 3
-    const { data: failedArticles, error: fetchError } = await supabase
+    // Fetch all articles where enrichment_attempts >= 3 (using admin client to bypass RLS)
+    const { data: failedArticles, error: fetchError } = await supabaseAdmin
       .from('articles')
       .select('id')
       .gte('enrichment_attempts', 3)
@@ -109,7 +116,7 @@ export async function POST(request: NextRequest) {
       where: `id IN [${articleIds.join(', ')}]`
     })
 
-    const { data: updateData, error: updateError } = await supabase
+    const { data: updateData, error: updateError } = await supabaseAdmin
       .from('articles')
       .update({
         needs_enrichment: true,
