@@ -87,6 +87,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (!failedArticles || failedArticles.length === 0) {
+      console.log('[DEBUG] No failed articles found with enrichment_attempts >= 3')
       return NextResponse.json(
         { message: 'No failed articles to re-enrich', count: 0 },
         { status: 200 }
@@ -95,20 +96,39 @@ export async function POST(request: NextRequest) {
 
     const articleIds = failedArticles.map(a => a.id)
 
+    console.log('[DEBUG] Found failed articles:', {
+      count: failedArticles.length,
+      articleIds: articleIds
+    })
+
     // Set needs_enrichment = true AND force_retry = true for manual retry
     // Do NOT reset enrichment_attempts - let them accumulate
-    const { error: updateError } = await supabase
+    console.log('[DEBUG] Running Supabase update query:', {
+      table: 'articles',
+      update: { needs_enrichment: true, force_retry: true },
+      where: `id IN [${articleIds.join(', ')}]`
+    })
+
+    const { data: updateData, error: updateError } = await supabase
       .from('articles')
       .update({
         needs_enrichment: true,
         force_retry: true
       })
       .in('id', articleIds)
+      .select()
+
+    console.log('[DEBUG] Update result:', {
+      success: !updateError,
+      error: updateError,
+      rowsAffected: updateData?.length || 0,
+      updatedIds: updateData?.map(a => a.id) || []
+    })
 
     if (updateError) {
-      console.error('Error updating articles:', updateError)
+      console.error('[ERROR] Failed to update articles:', updateError)
       return NextResponse.json(
-        { error: 'Failed to update articles' },
+        { error: 'Failed to update articles', details: updateError },
         { status: 500 }
       )
     }
@@ -149,14 +169,16 @@ export async function POST(request: NextRequest) {
     // Send Slack notification
     await sendSlackNotification(failedArticles.length)
 
-    return NextResponse.json(
-      {
-        success: true,
-        message: `${failedArticles.length} articles queued for enrichment retry`,
-        count: failedArticles.length
-      },
-      { status: 200 }
-    )
+    const response = {
+      success: true,
+      message: `${failedArticles.length} articles queued for enrichment retry`,
+      count: failedArticles.length,
+      articleIds: articleIds
+    }
+
+    console.log('[DEBUG] Sending success response:', response)
+
+    return NextResponse.json(response, { status: 200 })
 
   } catch (error) {
     console.error('Unexpected error in enrich-failed:', error)
