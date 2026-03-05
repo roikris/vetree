@@ -149,11 +149,12 @@ export async function getPipelineStats() {
     .select('*', { count: 'exact', head: true })
     .eq('needs_enrichment', true)
 
-  // Get articles with failed enrichment (if column exists)
+  // Get articles with failed enrichment that still need attention
   const { count: failedEnrichment } = await supabase
     .from('articles')
     .select('*', { count: 'exact', head: true })
-    .gt('enrichment_attempts', 2)
+    .gte('enrichment_attempts', 3)
+    .eq('needs_enrichment', true)
 
   // Get most recent article (proxy for last sync)
   const { data: recentArticle } = await supabase
