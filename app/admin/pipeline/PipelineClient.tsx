@@ -15,18 +15,33 @@ export function PipelineClient({ pendingCount }: PipelineClientProps) {
     setMessage(null)
 
     try {
-      // This would trigger GitHub Actions workflow via API
-      // For now, just simulate
-      await new Promise(resolve => setTimeout(resolve, 2000))
+      const response = await fetch('/api/trigger-enrichment', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        setMessage({
+          type: 'error',
+          text: data.error || 'Failed to trigger enrichment workflow'
+        })
+        return
+      }
 
       setMessage({
         type: 'success',
-        text: 'Enrichment workflow triggered successfully! Check GitHub Actions for progress.'
+        text: data.message || 'Enrichment workflow triggered successfully! Check GitHub Actions for progress.'
       })
+
     } catch (error) {
+      console.error('Error triggering enrichment:', error)
       setMessage({
         type: 'error',
-        text: 'Failed to trigger enrichment workflow: ' + String(error)
+        text: 'An error occurred. Please try again.'
       })
     } finally {
       setIsRunning(false)
