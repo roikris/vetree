@@ -250,12 +250,14 @@ async function main() {
 
   stats.remainingInQueue = count || 0;
 
-  // Count articles that failed 3+ times
+  // Count articles that failed 3+ times and still need attention
+  // (3+ attempts, still needs enrichment, not currently queued for retry)
   const { count: failedCount } = await supabase
     .from('articles')
     .select('*', { count: 'exact', head: true })
     .gte('enrichment_attempts', 3)
-    .eq('needs_enrichment', false);
+    .eq('needs_enrichment', true)
+    .neq('force_retry', true);
 
   stats.failedArticles = failedCount || 0;
 

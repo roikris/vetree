@@ -150,11 +150,13 @@ export async function getPipelineStats() {
     .eq('needs_enrichment', true)
 
   // Get articles with failed enrichment that still need attention
+  // (3+ attempts, still needs enrichment, not currently queued for retry)
   const { count: failedEnrichment } = await supabase
     .from('articles')
     .select('*', { count: 'exact', head: true })
     .gte('enrichment_attempts', 3)
     .eq('needs_enrichment', true)
+    .neq('force_retry', true)
 
   // Get most recent article (proxy for last sync)
   const { data: recentArticle } = await supabase
