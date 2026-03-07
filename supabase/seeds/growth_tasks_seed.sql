@@ -1,6 +1,5 @@
--- Seed growth_tasks with 90 days of staggered tasks
--- Start date: today
--- 9-day rotation cycle with varied content for each specialty
+-- Seed growth_tasks with 90 days using REAL articles from the database
+-- Each post references an actual article with clinical_bottom_line
 
 DO $$
 DECLARE
@@ -11,123 +10,290 @@ DECLARE
   group_name text;
   language_code text;
   post_content text;
-  specialty text;
-  specialties text[] := ARRAY[
-    'cardiology', 'oncology', 'surgery', 'exotic', 'equine',
-    'dermatology', 'neurology', 'orthopedics', 'ophthalmology', 'dentistry',
-    'emergency', 'internal medicine', 'radiology', 'anesthesia', 'behavior'
+  hook_line text;
+  article_record record;
+  article_ids text[] := '{}';
+  used_articles text[] := '{}';
+  hook_index integer;
+
+  -- Hook lines for Hebrew posts (rotate through these)
+  hebrew_hooks text[] := ARRAY[
+    'כמה פעמים השבוע חיפשתם מחקר ולא מצאתם זמן לקרוא?',
+    'מה הייתם עושים אחרת אם ידעתם את זה?',
+    'הממצא הזה שינה את הגישה שלי לחלוטין:',
+    'שאלה ששאלו אותי בקליניקה אתמול:',
+    'לא כל הגרסאות של הפרוטוקול הזה שוות:',
+    'מחקר חדש הפתיע אותי השבוע:',
+    'התשובה לשאלה הזו לא מה שחשבתם:',
+    'עדכון קליני שחשוב לדעת:',
+    'הפרוטוקול שלי השתנה אחרי שקראתי את זה:',
+    'ראיתם את המחקר החדש על זה?',
+    'משהו שלמדתי השבוע ורציתי לשתף:',
+    'מקרה מאתגר? הנה מה שהספרות אומרת:',
+    'זה לא מה שלימדו אותנו בפקולטה:',
+    'עדכון על נושא שנתקלנו בו השבוע:',
+    'המחקר הזה ענה על שאלה שהייתה לי:'
   ];
+
+  -- Hook lines for English posts (rotate through these)
+  english_hooks text[] := ARRAY[
+    'This changed how I approach this case type:',
+    'Worth 2 minutes of your time:',
+    'Evidence just shifted on this one:',
+    'Question I got asked in clinic today:',
+    'Not all protocols are created equal:',
+    'New data on something we see every week:',
+    'The answer might surprise you:',
+    'Clinical update you should know about:',
+    'My protocol changed after reading this:',
+    'Have you seen this new research?',
+    'Something I learned this week worth sharing:',
+    'Challenging case? Here''s what the evidence says:',
+    'This isn''t what we learned in school:',
+    'Update on a common scenario:',
+    'This study answered a question I had:'
+  ];
+
 BEGIN
+  -- Get all article IDs that have clinical_bottom_line and are relevant to small animal practice
+  SELECT array_agg(id) INTO article_ids
+  FROM articles
+  WHERE clinical_bottom_line IS NOT NULL
+    AND clinical_bottom_line != ''
+    AND length(clinical_bottom_line) > 50
+    AND (
+      topics ILIKE '%cardiology%' OR
+      topics ILIKE '%oncology%' OR
+      topics ILIKE '%pain%' OR
+      topics ILIKE '%dermatology%' OR
+      topics ILIKE '%internal medicine%' OR
+      topics ILIKE '%surgery%' OR
+      topics ILIKE '%anesthesia%' OR
+      topics ILIKE '%emergency%' OR
+      topics ILIKE '%gastroenterology%' OR
+      topics ILIKE '%neurology%' OR
+      topics ILIKE '%nephrology%' OR
+      topics ILIKE '%endocrine%' OR
+      topics ILIKE '%respiratory%' OR
+      topics ILIKE '%infectious%' OR
+      topics ILIKE '%pharmacology%'
+    )
+  ORDER BY publication_date DESC
+  LIMIT 90;
+
+  -- Check if we have enough articles
+  IF array_length(article_ids, 1) IS NULL OR array_length(article_ids, 1) < 90 THEN
+    RAISE EXCEPTION 'Not enough articles with clinical_bottom_line found. Need 90, found %',
+      COALESCE(array_length(article_ids, 1), 0);
+  END IF;
+
+  -- Generate 90 tasks
   FOR task_day IN 1..90 LOOP
     cycle_day := ((task_day - 1) % 9) + 1;
-    specialty := specialties[((task_day - 1) % array_length(specialties, 1)) + 1];
 
+    -- Get an article for this task (cycle through available articles)
+    SELECT * INTO article_record
+    FROM articles
+    WHERE id = article_ids[((task_day - 1) % array_length(article_ids, 1)) + 1];
+
+    -- Determine platform and language
     CASE cycle_day
       WHEN 1 THEN
         platform_name := 'facebook_il';
         group_name := 'משרות ומודעות בתחום הוטרינריה';
         language_code := 'he';
-        post_content := format('💡 תובנה קלינית ב%s
+        hook_index := ((task_day - 1) % array_length(hebrew_hooks, 1)) + 1;
+        hook_line := hebrew_hooks[hook_index];
+        post_content := format('%s
 
-היום נתקלתי במקרה מעניין של %s שהזכיר לי עד כמה חשוב להישאר מעודכנים.
+%s
 
-האם גם אתם חווים את האתגר של לעקוב אחרי כל המחקרים החדשים?
+%s
+🔗 vetree.app/article/%s
 
-Vetree עוזרת לי לקבל תקצירים מותאמים אישית של מאמרים רלוונטיים בדיוק לתחום שלי.
-
-🌿 vetree.app - הידע הווטרינרי שאתם צריכים, בלי הרעש', specialty, specialty);
+🌿 עוד תקצירים קליניים על vetree.app',
+          hook_line,
+          article_record.clinical_bottom_line,
+          CASE
+            WHEN length(article_record.title) > 80
+            THEN substring(article_record.title from 1 for 77) || '...'
+            ELSE article_record.title
+          END,
+          article_record.id
+        );
 
       WHEN 2 THEN
         platform_name := 'whatsapp';
         group_name := 'וטרינרים ישראל';
         language_code := 'he';
-        post_content := format('בוקר טוב קולגות! 👋
+        hook_index := ((task_day - 1) % array_length(hebrew_hooks, 1)) + 1;
+        hook_line := hebrew_hooks[hook_index];
+        post_content := format('%s
 
-מישהו עוד מרגיש שקשה לעקוב אחרי כל הפרסומים החדשים ב%s?
+%s
 
-גיליתי כלי שממש עוזר - Vetree מסכמת מאמרים חדשים ונותנת bottom line קליני ישירות.
+📄 %s
+🔗 vetree.app/article/%s
 
-שווה לבדוק: vetree.app 🌿', specialty);
+🌿 עוד ב-vetree.app',
+          hook_line,
+          article_record.clinical_bottom_line,
+          CASE
+            WHEN length(article_record.title) > 80
+            THEN substring(article_record.title from 1 for 77) || '...'
+            ELSE article_record.title
+          END,
+          article_record.id
+        );
 
       WHEN 3 THEN
         platform_name := 'reddit';
         group_name := 'r/veterinarymedicine';
         language_code := 'en';
-        post_content := format('Fellow vets, how do you stay current with %s research?
+        hook_index := ((task_day - 1) % array_length(english_hooks, 1)) + 1;
+        hook_line := english_hooks[hook_index];
+        post_content := format('%s
 
-I''ve been using Vetree to get AI-curated summaries of new papers with clinical bottom lines. Game-changer for evidence-based practice.
+%s
 
-Check it out: vetree.app 🌿
+📄 %s
+🔗 vetree.app/article/%s
 
-What tools do you use to stay up-to-date?', specialty);
+🌿 More evidence-based summaries at vetree.app',
+          hook_line,
+          article_record.clinical_bottom_line,
+          CASE
+            WHEN length(article_record.title) > 80
+            THEN substring(article_record.title from 1 for 77) || '...'
+            ELSE article_record.title
+          END,
+          article_record.id
+        );
 
       WHEN 4 THEN
         platform_name := 'linkedin';
         group_name := 'Personal profile (Roi Krispin DVM)';
         language_code := 'en';
-        post_content := format('The challenge with %s practice isn''t lack of research—it''s information overload.
+        hook_index := ((task_day - 1) % array_length(english_hooks, 1)) + 1;
+        hook_line := english_hooks[hook_index];
+        post_content := format('%s
 
-I built Vetree to solve this: AI-powered clinical summaries from thousands of veterinary journals, personalized to your practice areas.
+%s
 
-For veterinarians who want evidence-based medicine without the overwhelm.
+Full article summary: vetree.app/article/%s
 
-🌿 Try it: vetree.app
+This is why I built Vetree - to make evidence-based medicine accessible without the information overload.
 
-#veterinarymedicine #evidencebasedmedicine #vettech', specialty);
+🌿 Get personalized clinical summaries at vetree.app
+
+#veterinarymedicine #evidencebasedmedicine #vetlife',
+          hook_line,
+          article_record.clinical_bottom_line,
+          article_record.id
+        );
 
       WHEN 5 THEN
         platform_name := 'facebook_intl';
         group_name := 'Veterinary Professionals Worldwide';
         language_code := 'en';
-        post_content := format('Quick poll: How much time do you spend reading %s literature each week?
+        hook_index := ((task_day - 1) % array_length(english_hooks, 1)) + 1;
+        hook_line := english_hooks[hook_index];
+        post_content := format('%s
 
-For me it was hours trying to filter signal from noise. Now I use Vetree—it gives me personalized article summaries with clinical takeaways in minutes.
+%s
 
-If you''re drowning in research but want to stay current, check it out: vetree.app 🌿', specialty);
+📄 %s
+🔗 vetree.app/article/%s
+
+🌿 More evidence-based summaries at vetree.app',
+          hook_line,
+          article_record.clinical_bottom_line,
+          CASE
+            WHEN length(article_record.title) > 80
+            THEN substring(article_record.title from 1 for 77) || '...'
+            ELSE article_record.title
+          END,
+          article_record.id
+        );
 
       WHEN 6 THEN
         platform_name := 'twitter';
         group_name := '@vetreeapp';
         language_code := 'en';
-        post_content := format('New in %s this week 🩺
+        -- Twitter needs shorter content
+        post_content := format('%s
 
-📚 15 new research papers
-🎯 Top clinical takeaway: [insert relevant insight]
-⚡ Delivered to your feed in <2 min
+📄 %s
+🔗 vetree.app/article/%s
 
-Evidence-based medicine, personalized.
-
-vetree.app 🌿
-
-#VetMed #%s', specialty, specialty);
+🌿 Evidence-based summaries for busy vets',
+          substring(article_record.clinical_bottom_line from 1 for 180),
+          CASE
+            WHEN length(article_record.title) > 50
+            THEN substring(article_record.title from 1 for 47) || '...'
+            ELSE article_record.title
+          END,
+          article_record.id
+        );
 
       WHEN 7 THEN
         platform_name := 'instagram';
         group_name := '@vetreeapp';
         language_code := 'en';
-        post_content := format('[VISUAL POST]
+        hook_index := ((task_day - 1) % array_length(english_hooks, 1)) + 1;
+        hook_line := english_hooks[hook_index];
+        post_content := format('[CAROUSEL POST - Slide 1: Hook + Key visual]
+%s
 
-Swipe → to see this week''s top %s insights
+[Slide 2: Clinical Bottom Line]
+%s
 
-🔬 Research updates
-💡 Clinical pearls
-⚡ AI-summarized for busy vets
+[Slide 3: Article Details]
+📄 %s
+🔗 Link in bio → vetree.app/article/%s
 
-Stay current without the overwhelm.
+[Caption:]
+%s
 
-Link in bio → vetree.app 🌿
+Full summary at the link in bio 👆
 
-#veterinary #%s #vetlife #evidencebased', specialty, specialty);
+🌿 Follow for evidence-based veterinary updates
+
+#veterinary #vetmed #evidencebased #vetlife',
+          hook_line,
+          article_record.clinical_bottom_line,
+          CASE
+            WHEN length(article_record.title) > 60
+            THEN substring(article_record.title from 1 for 57) || '...'
+            ELSE article_record.title
+          END,
+          article_record.id,
+          substring(article_record.clinical_bottom_line from 1 for 100)
+        );
 
       WHEN 8 THEN
         platform_name := 'telegram';
         group_name := 'Veterinary groups';
         language_code := 'en';
-        post_content := format('Hey team! Sharing a tool that''s been super helpful for staying current with %s research.
+        hook_index := ((task_day - 1) % array_length(english_hooks, 1)) + 1;
+        hook_line := english_hooks[hook_index];
+        post_content := format('%s
 
-Vetree uses AI to summarize new veterinary papers and delivers clinical bottom lines personalized to your interests.
+%s
 
-Worth checking out: vetree.app 🌿', specialty);
+📄 %s
+🔗 vetree.app/article/%s
+
+🌿 Get more evidence-based summaries at vetree.app',
+          hook_line,
+          article_record.clinical_bottom_line,
+          CASE
+            WHEN length(article_record.title) > 80
+            THEN substring(article_record.title from 1 for 77) || '...'
+            ELSE article_record.title
+          END,
+          article_record.id
+        );
 
       WHEN 9 THEN
         platform_name := 'kol';
@@ -135,16 +301,27 @@ Worth checking out: vetree.app 🌿', specialty);
         language_code := 'en';
         post_content := format('Hi [Name],
 
-I noticed you''re focused on %s and thought you might find this useful.
+Thought this might be relevant to your practice:
 
-I built Vetree to help veterinarians stay current with research without information overload—AI-generated summaries with clinical takeaways from thousands of journals.
+%s
 
-Would love your feedback as a %s specialist: vetree.app
+%s
+
+Full summary: vetree.app/article/%s
+
+I built Vetree to solve exactly this - getting evidence-based insights without spending hours searching literature.
+
+Would value your thoughts: vetree.app
 
 Best,
-Roi', specialty, specialty);
+Roi',
+          article_record.title,
+          article_record.clinical_bottom_line,
+          article_record.id
+        );
     END CASE;
 
+    -- Insert the task
     INSERT INTO growth_tasks (
       day_number,
       scheduled_date,
@@ -152,6 +329,7 @@ Roi', specialty, specialty);
       group_name,
       language,
       content,
+      article_id,
       status
     ) VALUES (
       task_day,
@@ -160,7 +338,11 @@ Roi', specialty, specialty);
       group_name,
       language_code,
       post_content,
+      article_record.id,
       'pending'
     );
+
   END LOOP;
+
+  RAISE NOTICE 'Successfully created 90 growth tasks with real article references';
 END $$;

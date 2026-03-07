@@ -117,12 +117,42 @@ Today's tasks:
 
 ## Content Strategy
 
-Each task includes:
+Each task is built from **REAL articles** in the database:
+- **Hook line**: Rotates through 15 unique hooks - never repeats
+- **Clinical bottom line**: Direct from article's `clinical_bottom_line` field
+- **Article link**: Specific URL to the actual article (vetree.app/article/[id])
 - **Platform-specific format**: Tailored for each channel
 - **Language**: Hebrew for Israeli platforms, English for international
-- **Specialty rotation**: 15 veterinary specialties (cardiology, oncology, surgery, etc.)
-- **Clinical angle**: Each post highlights a different clinical perspective
-- **CTA**: Always includes vetree.app link
+
+### Content Formula
+
+**Hebrew posts:**
+```
+[Hook line - שאלה או עובדה מפתיעה]
+[clinical_bottom_line של המאמר]
+[title של המאמר]
+🔗 vetree.app/article/[id]
+🌿 עוד תקצירים קליניים על vetree.app
+```
+
+**English posts:**
+```
+[Hook line - question or surprising fact]
+[clinical_bottom_line of the article]
+📄 [article title]
+🔗 vetree.app/article/[article_id]
+🌿 More evidence-based summaries at vetree.app
+```
+
+**Hook lines rotate** (15 Hebrew, 15 English) to ensure variety and prevent repetition.
+
+### Article Selection Criteria
+
+The seed script automatically selects 90 articles from the database that:
+- Have a `clinical_bottom_line` (>50 characters)
+- Cover relevant specialties: cardiology, oncology, pain management, dermatology, internal medicine, surgery, anesthesia, emergency, etc.
+- Are sorted by publication date (most recent first)
+- Cycle through to ensure variety
 
 ## Task Management Workflow
 
@@ -137,8 +167,11 @@ Each task includes:
 
 To modify the seed data:
 - Edit `supabase/seeds/growth_tasks_seed.sql`
-- Adjust content templates, groups, or specialties
-- Re-run the seed script (may need to truncate table first)
+- Adjust hook lines, content templates, or platform groups
+- Modify article selection criteria (specialty filters, date ranges)
+- Re-run the seed script (truncate `growth_tasks` table first)
+
+**Note**: Re-running the seed will automatically select articles from the database based on current availability and the defined criteria.
 
 ## Troubleshooting
 
