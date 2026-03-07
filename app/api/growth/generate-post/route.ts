@@ -6,6 +6,18 @@ import Anthropic from '@anthropic-ai/sdk'
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
+// Handle CORS preflight
+export async function OPTIONS(request: NextRequest) {
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    },
+  })
+}
+
 export async function POST(request: NextRequest) {
   try {
     // Initialize Anthropic client inside the function for serverless compatibility
