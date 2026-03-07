@@ -86,9 +86,18 @@ export function ContentAgent() {
         })
       })
 
+      console.log('[ContentAgent] Response status:', response.status, response.statusText)
+      console.log('[ContentAgent] Response URL:', response.url)
+
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to generate post')
+        let errorMessage = `HTTP ${response.status}: ${response.statusText}`
+        try {
+          const errorData = await response.json()
+          errorMessage = errorData.error || errorMessage
+        } catch {
+          // If response isn't JSON, use status text
+        }
+        throw new Error(errorMessage)
       }
 
       const data = await response.json()
