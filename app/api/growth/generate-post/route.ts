@@ -85,44 +85,62 @@ export async function POST(request: NextRequest) {
 
     const shownArticleIds = shownArticles?.map(a => a.article_id) || []
 
-    // Query for a relevant article
-    let query = supabase
-      .from('articles')
-      .select('*')
-      .not('clinical_bottom_line', 'is', null)
-      .not('summary', 'is', null)
-      .neq('clinical_bottom_line', '')
-      .neq('summary', '')
-      .gt('clinical_bottom_line', '')
+    // Build base query
+    const buildArticleQuery = (includePreferences: boolean) => {
+      let q = supabase
+        .from('articles')
+        .select('*')
+        .not('clinical_bottom_line', 'is', null)
+        .not('summary', 'is', null)
+        .neq('clinical_bottom_line', '')
+        .neq('summary', '')
+        .gte('clinical_bottom_line', 'A') // Ensure it has content
 
-    // Exclude already-shown articles
-    if (shownArticleIds.length > 0) {
-      query = query.not('id', 'in', `(${shownArticleIds.join(',')})`)
+      // Exclude already-shown articles
+      if (shownArticleIds.length > 0) {
+        q = q.not('id', 'in', `(${shownArticleIds.join(',')})`)
+      }
+
+      // Only apply preference filters if requested
+      if (includePreferences) {
+        // Filter by preferred specialties if available
+        if (preferences.preferred_specialties && preferences.preferred_specialties.length > 0) {
+          q = q.overlaps('labels', preferences.preferred_specialties)
+        }
+
+        // Exclude avoided specialties
+        if (preferences.avoided_specialties && preferences.avoided_specialties.length > 0) {
+          q = q.not('labels', 'ov', preferences.avoided_specialties)
+        }
+      }
+
+      // Always exclude large animal articles
+      q = q.not('labels', 'ov', ['equine', 'livestock', 'food animal', 'poultry', 'Equine', 'Livestock'])
+
+      // Order by publication date and limit
+      return q.order('publication_date', { ascending: false }).limit(10)
     }
 
-    // Filter by preferred specialties if available
-    if (preferences.preferred_specialties && preferences.preferred_specialties.length > 0) {
-      // PostgreSQL array overlap operator
-      query = query.overlaps('labels', preferences.preferred_specialties)
+    // Try with preferences first
+    let { data: articles, error: articlesError } = await buildArticleQuery(true)
+
+    // If no articles found with preferences, try without preferences
+    if ((!articles || articles.length === 0) && !articlesError) {
+      console.log('[generate-post] No articles with preferences, trying fallback query')
+      const fallbackResult = await buildArticleQuery(false)
+      articles = fallbackResult.data
+      articlesError = fallbackResult.error
     }
 
-    // Exclude avoided specialties
-    if (preferences.avoided_specialties && preferences.avoided_specialties.length > 0) {
-      query = query.not('labels', 'ov', preferences.avoided_specialties)
-    }
-
-    // Exclude large animal articles
-    query = query.not('labels', 'ov', ['equine', 'livestock', 'food animal', 'poultry', 'Equine', 'Livestock'])
-
-    // Order by publication date and limit
-    query = query.order('publication_date', { ascending: false }).limit(10)
-
-    const { data: articles, error: articlesError } = await query
-
+    // If still no articles, return 500 (not 404 - route exists, just no data)
     if (articlesError || !articles || articles.length === 0) {
       return NextResponse.json(
-        { error: 'No suitable articles found', details: articlesError?.message },
-        { status: 404 }
+        {
+          error: 'No suitable articles found in database',
+          details: articlesError?.message,
+          hint: 'Make sure articles have clinical_bottom_line and summary fields populated'
+        },
+        { status: 500 }
       )
     }
 
