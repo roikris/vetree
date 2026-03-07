@@ -6,12 +6,13 @@ import Anthropic from '@anthropic-ai/sdk'
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-})
-
 export async function POST(request: NextRequest) {
   try {
+    // Initialize Anthropic client inside the function for serverless compatibility
+    const anthropic = new Anthropic({
+      apiKey: process.env.ANTHROPIC_API_KEY,
+    })
+
     const supabase = await createClient()
 
     // Verify user is authenticated and is admin
