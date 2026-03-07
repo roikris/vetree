@@ -7,6 +7,7 @@ import { WeeklyCalendar } from './WeeklyCalendar'
 import { TodaysTasks } from './TodaysTasks'
 import { UpcomingTasks } from './UpcomingTasks'
 import { TaskHistory } from './TaskHistory'
+import { ContentAgent } from './ContentAgent'
 
 type GrowthTask = {
   id: string
@@ -46,7 +47,7 @@ export function GrowthClient({
 }: GrowthClientProps) {
   const [stats, setStats] = useState<Stats | undefined>(initialStats)
   const [todaysTasks, setTodaysTasks] = useState<GrowthTask[]>(initialTodaysTasks)
-  const [activeTab, setActiveTab] = useState<'week' | 'history'>('week')
+  const [activeTab, setActiveTab] = useState<'week' | 'agent' | 'history'>('week')
   const [isRefreshing, setIsRefreshing] = useState(false)
 
   const refreshData = async () => {
@@ -86,6 +87,16 @@ export function GrowthClient({
           }`}
         >
           This Week
+        </button>
+        <button
+          onClick={() => setActiveTab('agent')}
+          className={`px-4 py-2 font-medium transition-colors ${
+            activeTab === 'agent'
+              ? 'text-[#3D7A5F] dark:text-[#4E9A78] border-b-2 border-[#3D7A5F] dark:border-[#4E9A78]'
+              : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300'
+          }`}
+        >
+          🤖 Content Agent
         </button>
         <button
           onClick={() => setActiveTab('history')}
@@ -133,6 +144,8 @@ export function GrowthClient({
           {/* Upcoming Tasks */}
           <UpcomingTasks />
         </>
+      ) : activeTab === 'agent' ? (
+        <ContentAgent />
       ) : (
         <TaskHistory />
       )}
