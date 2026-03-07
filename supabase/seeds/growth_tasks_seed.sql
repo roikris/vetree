@@ -55,33 +55,51 @@ DECLARE
   ];
 
 BEGIN
-  -- Get all article IDs that have clinical_bottom_line and are relevant to small animal practice
+  -- Try to get articles with relevant labels first
   SELECT array_agg(id) INTO article_ids
-  FROM articles
-  WHERE clinical_bottom_line IS NOT NULL
-    AND clinical_bottom_line != ''
-    AND length(clinical_bottom_line) > 50
-    AND (
-      topics ILIKE '%cardiology%' OR
-      topics ILIKE '%oncology%' OR
-      topics ILIKE '%pain%' OR
-      topics ILIKE '%dermatology%' OR
-      topics ILIKE '%internal medicine%' OR
-      topics ILIKE '%surgery%' OR
-      topics ILIKE '%anesthesia%' OR
-      topics ILIKE '%emergency%' OR
-      topics ILIKE '%gastroenterology%' OR
-      topics ILIKE '%neurology%' OR
-      topics ILIKE '%nephrology%' OR
-      topics ILIKE '%endocrine%' OR
-      topics ILIKE '%respiratory%' OR
-      topics ILIKE '%infectious%' OR
-      topics ILIKE '%pharmacology%'
-    )
-  ORDER BY publication_date DESC
-  LIMIT 90;
+  FROM (
+    SELECT id FROM articles
+    WHERE clinical_bottom_line IS NOT NULL
+      AND clinical_bottom_line != ''
+      AND length(clinical_bottom_line) > 50
+      AND (
+        labels && ARRAY['cardiology', 'Cardiology', 'CARDIOLOGY'] OR
+        labels && ARRAY['oncology', 'Oncology', 'ONCOLOGY', 'cancer', 'Cancer'] OR
+        labels && ARRAY['pain', 'Pain', 'analgesia', 'Analgesia'] OR
+        labels && ARRAY['dermatology', 'Dermatology', 'DERMATOLOGY'] OR
+        labels && ARRAY['internal medicine', 'Internal Medicine', 'INTERNAL MEDICINE'] OR
+        labels && ARRAY['surgery', 'Surgery', 'SURGERY', 'surgical', 'Surgical'] OR
+        labels && ARRAY['anesthesia', 'Anesthesia', 'ANESTHESIA', 'anesthesiology'] OR
+        labels && ARRAY['emergency', 'Emergency', 'EMERGENCY', 'critical care'] OR
+        labels && ARRAY['gastroenterology', 'Gastroenterology', 'GI'] OR
+        labels && ARRAY['neurology', 'Neurology', 'NEUROLOGY', 'neurological'] OR
+        labels && ARRAY['nephrology', 'Nephrology', 'renal', 'Renal', 'kidney'] OR
+        labels && ARRAY['endocrine', 'Endocrine', 'ENDOCRINE', 'diabetes', 'thyroid'] OR
+        labels && ARRAY['respiratory', 'Respiratory', 'pulmonary', 'Pulmonary'] OR
+        labels && ARRAY['infectious', 'Infectious', 'infection', 'Infection'] OR
+        labels && ARRAY['pharmacology', 'Pharmacology', 'drug', 'Drug', 'medication']
+      )
+    ORDER BY publication_date DESC
+    LIMIT 90
+  ) filtered_articles;
 
-  -- Check if we have enough articles
+  -- If not enough articles with specific labels, get any articles with clinical_bottom_line
+  IF array_length(article_ids, 1) IS NULL OR array_length(article_ids, 1) < 90 THEN
+    RAISE NOTICE 'Only found % articles with specific labels, fetching any articles with clinical_bottom_line',
+      COALESCE(array_length(article_ids, 1), 0);
+
+    SELECT array_agg(id) INTO article_ids
+    FROM (
+      SELECT id FROM articles
+      WHERE clinical_bottom_line IS NOT NULL
+        AND clinical_bottom_line != ''
+        AND length(clinical_bottom_line) > 50
+      ORDER BY publication_date DESC
+      LIMIT 90
+    ) all_articles;
+  END IF;
+
+  -- Final check
   IF array_length(article_ids, 1) IS NULL OR array_length(article_ids, 1) < 90 THEN
     RAISE EXCEPTION 'Not enough articles with clinical_bottom_line found. Need 90, found %',
       COALESCE(array_length(article_ids, 1), 0);
