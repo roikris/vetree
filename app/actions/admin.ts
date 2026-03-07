@@ -175,3 +175,204 @@ export async function getPipelineStats() {
     error: null
   }
 }
+
+// Growth OS Actions
+export async function getGrowthStats() {
+  const supabase = await createClient()
+
+  // Check if user is admin
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const { data: roleData } = await supabase
+    .from('user_roles')
+    .select('role')
+    .eq('user_id', user.id)
+    .single()
+
+  if (roleData?.role !== 'admin') {
+    return { error: 'Unauthorized' }
+  }
+
+  // Get current day number (earliest pending or done task)
+  const { data: firstTask } = await supabase
+    .from('growth_tasks')
+    .select('day_number')
+    .order('day_number', { ascending: true })
+    .limit(1)
+    .single()
+
+  const { data: latestTask } = await supabase
+    .from('growth_tasks')
+    .select('day_number, status')
+    .order('day_number', { ascending: false })
+    .or('status.eq.done,status.eq.pending')
+    .limit(1)
+    .single()
+
+  // Count completed tasks this week
+  const oneWeekAgo = new Date()
+  oneWeekAgo.setDate(oneWeekAgo.getDate() - 7)
+
+  const { count: completedThisWeek } = await supabase
+    .from('growth_tasks')
+    .select('*', { count: 'exact', head: true })
+    .eq('status', 'done')
+    .gte('completed_at', oneWeekAgo.toISOString())
+
+  // Count total done
+  const { count: totalDone } = await supabase
+    .from('growth_tasks')
+    .select('*', { count: 'exact', head: true })
+    .eq('status', 'done')
+
+  // Get platforms covered this week
+  const { data: platformsThisWeek } = await supabase
+    .from('growth_tasks')
+    .select('platform')
+    .eq('status', 'done')
+    .gte('completed_at', oneWeekAgo.toISOString())
+
+  const uniquePlatforms = platformsThisWeek
+    ? [...new Set(platformsThisWeek.map(t => t.platform))]
+    : []
+
+  return {
+    stats: {
+      currentDay: latestTask?.day_number || 1,
+      totalDays: 90,
+      completedThisWeek: completedThisWeek || 0,
+      totalDone: totalDone || 0,
+      platformsThisWeek: uniquePlatforms,
+    },
+    error: null
+  }
+}
+
+export async function getGrowthTasks({
+  startDate,
+  endDate,
+  status,
+}: {
+  startDate?: string
+  endDate?: string
+  status?: 'pending' | 'done' | 'skipped'
+}) {
+  const supabase = await createClient()
+
+  // Check if user is admin
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { tasks: [], error: 'Not authenticated' }
+
+  const { data: roleData } = await supabase
+    .from('user_roles')
+    .select('role')
+    .eq('user_id', user.id)
+    .single()
+
+  if (roleData?.role !== 'admin') {
+    return { tasks: [], error: 'Unauthorized' }
+  }
+
+  let query = supabase
+    .from('growth_tasks')
+    .select('*')
+    .order('scheduled_date', { ascending: true })
+
+  if (startDate) {
+    query = query.gte('scheduled_date', startDate)
+  }
+  if (endDate) {
+    query = query.lte('scheduled_date', endDate)
+  }
+  if (status) {
+    query = query.eq('status', status)
+  }
+
+  const { data: tasks, error } = await query
+
+  if (error) {
+    return { tasks: [], error: error.message }
+  }
+
+  return { tasks: tasks || [], error: null }
+}
+
+export async function getTodaysTasks() {
+  const supabase = await createClient()
+
+  // Check if user is admin
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { tasks: [], error: 'Not authenticated' }
+
+  const { data: roleData } = await supabase
+    .from('user_roles')
+    .select('role')
+    .eq('user_id', user.id)
+    .single()
+
+  if (roleData?.role !== 'admin') {
+    return { tasks: [], error: 'Unauthorized' }
+  }
+
+  const today = new Date().toISOString().split('T')[0]
+
+  const { data: tasks, error } = await supabase
+    .from('growth_tasks')
+    .select('*')
+    .eq('scheduled_date', today)
+    .order('day_number', { ascending: true })
+
+  if (error) {
+    return { tasks: [], error: error.message }
+  }
+
+  return { tasks: tasks || [], error: null }
+}
+
+export async function updateGrowthTask({
+  taskId,
+  status,
+  notes,
+}: {
+  taskId: string
+  status: 'done' | 'skipped'
+  notes?: string
+}) {
+  const supabase = await createClient()
+
+  // Check if user is admin
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const { data: roleData } = await supabase
+    .from('user_roles')
+    .select('role')
+    .eq('user_id', user.id)
+    .single()
+
+  if (roleData?.role !== 'admin') {
+    return { error: 'Unauthorized' }
+  }
+
+  const updateData: any = { status }
+
+  if (status === 'done') {
+    updateData.completed_at = new Date().toISOString()
+  }
+
+  if (notes !== undefined) {
+    updateData.notes = notes
+  }
+
+  const { error } = await supabase
+    .from('growth_tasks')
+    .update(updateData)
+    .eq('id', taskId)
+
+  if (error) {
+    return { error: error.message }
+  }
+
+  return { success: true }
+}
