@@ -73,12 +73,28 @@ export async function POST(request: NextRequest) {
       const Anthropic = (await import('@anthropic-ai/sdk')).default
       const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
-      const message = await anthropic.messages.create({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
-        messages: [{
-          role: 'user',
-          content: `Write a ${language} social media post for ${platform}.
+      // Build platform-specific prompt
+      let promptContent: string
+      if (platform === 'twitter') {
+        promptContent = `Write a ${language} tweet for Twitter.
+
+Article: ${article.title}
+Clinical Bottom Line: ${article.clinical_bottom_line}
+Labels: ${article.labels?.join(', ') || 'N/A'}
+
+IMPORTANT: This post is for small animal first opinion practice only. If the article is about large animals, equine, livestock, or poultry - do not generate a post and return ONLY the text: SKIP_LARGE_ANIMAL
+
+TWITTER RULES: Total post must be UNDER 280 characters including the link.
+Count every character. Be ruthless with brevity.
+
+Format:
+[Hook - max 1 sentence]
+[One clinical insight - max 1 sentence]
+🔗 vetree.app/article/${article.id}
+
+Return ONLY the tweet text. Count characters carefully - MUST be under 280 total.`
+      } else {
+        promptContent = `Write a ${language} social media post for ${platform}.
 
 Article: ${article.title}
 Clinical Bottom Line: ${article.clinical_bottom_line}
@@ -96,11 +112,52 @@ Format:
 🌿 vetree.app
 
 Return ONLY the post text.`
+      }
+
+      const message = await anthropic.messages.create({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{
+          role: 'user',
+          content: promptContent
         }],
         system: `You are a veterinary content writer. Write specific, clinically relevant posts for DVMs in small animal practice. ${language === 'he' ? 'Write in natural Hebrew.' : 'Write in English.'}`
       })
 
       postContent = message.content[0].type === 'text' ? message.content[0].text : ''
+
+      // Twitter-specific length check
+      if (platform === 'twitter' && postContent.length > 280 && !postContent.includes('SKIP_LARGE_ANIMAL')) {
+        console.log(`[generate-post] Tweet too long (${postContent.length} chars), asking Claude to shorten...`)
+
+        const shortenMessage = await anthropic.messages.create({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 500,
+          messages: [{
+            role: 'user',
+            content: `This tweet is ${postContent.length} characters but must be under 280. Shorten it ruthlessly while keeping the clinical insight and link:
+
+${postContent}
+
+Return ONLY the shortened tweet (under 280 chars).`
+          }]
+        })
+
+        const shortenedContent = shortenMessage.content[0].type === 'text' ? shortenMessage.content[0].text : postContent
+
+        // If still too long, truncate intelligently
+        if (shortenedContent.length <= 280) {
+          postContent = shortenedContent
+        } else {
+          console.log(`[generate-post] Still too long after shortening, truncating...`)
+          // Keep first part and ensure we keep the link
+          const linkMatch = postContent.match(/🔗 vetree\.app\/article\/[\w-]+/)
+          const link = linkMatch ? linkMatch[0] : `🔗 vetree.app/article/${article.id}`
+          const maxTextLength = 280 - link.length - 3 // -3 for newlines
+          const textPart = postContent.split('🔗')[0].trim()
+          postContent = textPart.slice(0, maxTextLength).trim() + '\n' + link
+        }
+      }
 
       // Check if Claude detected large animal content
       if (postContent.includes('SKIP_LARGE_ANIMAL')) {
