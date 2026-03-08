@@ -14,45 +14,61 @@ export async function POST(request: NextRequest) {
 
     // Parse request body
     const body = await request.json()
-
-    // Query for enriched articles
-    const { data: articles, error } = await supabase
-      .from('articles')
-      .select('id, title, clinical_bottom_line, summary, labels, source_journal')
-      .eq('needs_enrichment', false)
-      .not('clinical_bottom_line', 'is', null)
-      .not('summary', 'is', null)
-      .not('labels', 'cs', '{"equine"}')
-      .not('labels', 'cs', '{"livestock"}')
-      .limit(10)
-      .order('created_at', { ascending: false })
-
-    if (error || !articles || articles.length === 0) {
-      return NextResponse.json({
-        error: 'No articles found',
-        details: error?.message
-      }, { status: 500 })
-    }
-
-    // Pick a random article from top 10
-    const article = articles[Math.floor(Math.random() * articles.length)]
-
-    // Call Anthropic API
-    const Anthropic = (await import('@anthropic-ai/sdk')).default
-    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
-
     const platform = body.platform || 'general'
     const language = body.language || 'en'
 
-    const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 1000,
-      messages: [{
-        role: 'user',
-        content: `Write a ${language} social media post for ${platform}.
+    // Retry logic for large animal detection
+    const MAX_RETRIES = 3
+    let retryCount = 0
+    let postContent = ''
+    let article: any = null
+    let hookLine = ''
+
+    while (retryCount < MAX_RETRIES) {
+      // Query for enriched articles - properly exclude large animal
+      const { data: articles, error } = await supabase
+        .from('articles')
+        .select('id, title, clinical_bottom_line, summary, labels, source_journal')
+        .eq('needs_enrichment', false)
+        .not('clinical_bottom_line', 'is', null)
+        .not('summary', 'is', null)
+        .not('labels', 'cs', '["equine"]')
+        .not('labels', 'cs', '["Equine"]')
+        .not('labels', 'cs', '["large animal"]')
+        .not('labels', 'cs', '["Large Animal"]')
+        .not('labels', 'cs', '["livestock"]')
+        .not('labels', 'cs', '["Livestock"]')
+        .not('labels', 'cs', '["poultry"]')
+        .not('labels', 'cs', '["Poultry"]')
+        .limit(10)
+        .order('created_at', { ascending: false })
+
+      if (error || !articles || articles.length === 0) {
+        return NextResponse.json({
+          error: 'No articles found',
+          details: error?.message
+        }, { status: 500 })
+      }
+
+      // Pick a random article from top 10
+      article = articles[Math.floor(Math.random() * articles.length)]
+
+      // Call Anthropic API
+      const Anthropic = (await import('@anthropic-ai/sdk')).default
+      const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+
+      const message = await anthropic.messages.create({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{
+          role: 'user',
+          content: `Write a ${language} social media post for ${platform}.
 
 Article: ${article.title}
 Clinical Bottom Line: ${article.clinical_bottom_line}
+Labels: ${article.labels?.join(', ') || 'N/A'}
+
+IMPORTANT: This post is for small animal first opinion practice only. If the article is about large animals, equine, livestock, or poultry - do not generate a post and return ONLY the text: SKIP_LARGE_ANIMAL
 
 Format:
 [Hook line]
@@ -64,12 +80,31 @@ Format:
 🌿 vetree.app
 
 Return ONLY the post text.`
-      }],
-      system: `You are a veterinary content writer. Write specific, clinically relevant posts for DVMs. ${language === 'he' ? 'Write in natural Hebrew.' : 'Write in English.'}`
-    })
+        }],
+        system: `You are a veterinary content writer. Write specific, clinically relevant posts for DVMs in small animal practice. ${language === 'he' ? 'Write in natural Hebrew.' : 'Write in English.'}`
+      })
 
-    const postContent = message.content[0].type === 'text' ? message.content[0].text : ''
-    const hookLine = postContent.split('\n')[0].trim()
+      postContent = message.content[0].type === 'text' ? message.content[0].text : ''
+
+      // Check if Claude detected large animal content
+      if (postContent.includes('SKIP_LARGE_ANIMAL')) {
+        console.log(`[generate-post] Large animal detected in article ${article.id}, retrying... (${retryCount + 1}/${MAX_RETRIES})`)
+        retryCount++
+        continue
+      }
+
+      // Success - break out of retry loop
+      hookLine = postContent.split('\n')[0].trim()
+      break
+    }
+
+    // If all retries failed
+    if (postContent.includes('SKIP_LARGE_ANIMAL')) {
+      return NextResponse.json({
+        error: 'All articles were large animal focused. Please try again.',
+        details: 'After 3 retries, only large animal articles were found'
+      }, { status: 500 })
+    }
 
     return NextResponse.json({
       post_content: postContent,
