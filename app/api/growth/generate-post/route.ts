@@ -24,23 +24,24 @@ export async function POST(request: NextRequest) {
     let article: any = null
     let hookLine = ''
 
+    // Define large animal labels to exclude
+    const largeAnimalLabels = [
+      'Equine', 'equine',
+      'Large Animal', 'large animal',
+      'Livestock', 'livestock',
+      'Poultry', 'poultry',
+      'Food Animal', 'food animal'
+    ]
+
     while (retryCount < MAX_RETRIES) {
-      // Query for enriched articles - properly exclude large animal
+      // Query for enriched articles - fetch more and filter in JS
       const { data: articles, error } = await supabase
         .from('articles')
         .select('id, title, clinical_bottom_line, summary, labels, source_journal')
         .eq('needs_enrichment', false)
         .not('clinical_bottom_line', 'is', null)
         .not('summary', 'is', null)
-        .not('labels', 'cs', '["equine"]')
-        .not('labels', 'cs', '["Equine"]')
-        .not('labels', 'cs', '["large animal"]')
-        .not('labels', 'cs', '["Large Animal"]')
-        .not('labels', 'cs', '["livestock"]')
-        .not('labels', 'cs', '["Livestock"]')
-        .not('labels', 'cs', '["poultry"]')
-        .not('labels', 'cs', '["Poultry"]')
-        .limit(10)
+        .limit(20)
         .order('created_at', { ascending: false })
 
       if (error || !articles || articles.length === 0) {
@@ -50,8 +51,23 @@ export async function POST(request: NextRequest) {
         }, { status: 500 })
       }
 
-      // Pick a random article from top 10
-      article = articles[Math.floor(Math.random() * articles.length)]
+      // Filter out large animal articles in JavaScript
+      const filteredArticles = articles.filter(article => {
+        const labels = article.labels || []
+        return !labels.some((label: string) =>
+          largeAnimalLabels.includes(label)
+        )
+      })
+
+      if (filteredArticles.length === 0) {
+        return NextResponse.json({
+          error: 'No small animal articles found',
+          details: 'All recent articles are large animal focused'
+        }, { status: 500 })
+      }
+
+      // Pick a random article from filtered results
+      article = filteredArticles[Math.floor(Math.random() * filteredArticles.length)]
 
       // Call Anthropic API
       const Anthropic = (await import('@anthropic-ai/sdk')).default
