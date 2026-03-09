@@ -9,10 +9,15 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient()
     const body = await request.json()
-    const { path, referrer, session_id, duration_seconds } = body
+    const { query, results_count } = body
 
-    if (!path) {
-      return NextResponse.json({ error: 'Path is required' }, { status: 400 })
+    if (!query || query.trim().length === 0) {
+      return NextResponse.json({ error: 'Query is required' }, { status: 400 })
+    }
+
+    // Don't log single character searches
+    if (query.trim().length < 2) {
+      return NextResponse.json({ success: true })
     }
 
     // Get user if logged in
@@ -25,28 +30,18 @@ export async function POST(request: NextRequest) {
     // Hash IP for privacy (never store raw IP)
     const ipHash = createHash('sha256').update(ip + process.env.IP_HASH_SALT || 'vetree-salt').digest('hex')
 
-    // Get user agent
-    const userAgent = request.headers.get('user-agent') || undefined
-
-    // Get country from Vercel headers
-    const country = request.headers.get('x-vercel-ip-country') || undefined
-
-    // Insert page view
+    // Insert search log
     const { error } = await supabase
-      .from('page_views')
+      .from('search_logs')
       .insert({
-        path,
-        referrer: referrer || undefined,
-        user_agent: userAgent,
-        ip_hash: ipHash,
+        query: query.trim(),
+        results_count: results_count || 0,
         user_id: user?.id || null,
-        country,
-        session_id: session_id || undefined,
-        duration_seconds: duration_seconds || undefined
+        ip_hash: ipHash
       })
 
     if (error) {
-      console.error('[analytics] Error inserting page view:', error)
+      console.error('[analytics] Error inserting search log:', error)
       // Don't fail the request if analytics fails
       return NextResponse.json({ success: false }, { status: 200 })
     }
@@ -54,7 +49,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true })
 
   } catch (error) {
-    console.error('[analytics] Error tracking page view:', error)
+    console.error('[analytics] Error tracking search:', error)
     // Don't fail the request if analytics fails
     return NextResponse.json({ success: false }, { status: 200 })
   }

@@ -16,6 +16,7 @@ type SearchControlsProps = {
   initialFilters: ParsedFilters
   availableJournals: string[]
   availableEvidenceLevels: string[]
+  resultsCount?: number
   children?: ReactNode
 }
 
@@ -23,6 +24,7 @@ export function SearchControls({
   initialFilters,
   availableJournals,
   availableEvidenceLevels,
+  resultsCount,
   children
 }: SearchControlsProps) {
   const router = useRouter()
@@ -118,7 +120,11 @@ export function SearchControls({
 
           {/* Search and sort controls */}
           <div className="space-y-4 mb-8">
-            <SearchBar defaultValue={initialFilters.search} onSearch={handleSearchChange} />
+            <SearchBar
+              defaultValue={initialFilters.search}
+              onSearch={handleSearchChange}
+              resultsCount={resultsCount}
+            />
             <div className="flex items-center justify-end">
               <SortSelector
                 value={initialFilters.sort}

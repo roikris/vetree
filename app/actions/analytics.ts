@@ -209,3 +209,132 @@ export async function getTopArticles(days: number = 7, limit: number = 10) {
 
   return { data: topArticles, error: null }
 }
+
+export async function getSessionDuration(days: number = 7) {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const { data: roleData } = await supabase
+    .from('user_roles')
+    .select('role')
+    .eq('user_id', user.id)
+    .single()
+
+  if (roleData?.role !== 'admin') {
+    return { error: 'Unauthorized' }
+  }
+
+  const startDate = new Date()
+  startDate.setDate(startDate.getDate() - days)
+
+  // Get all sessions with duration
+  const { data: sessions } = await supabase
+    .from('page_views')
+    .select('duration_seconds')
+    .gte('created_at', startDate.toISOString())
+    .not('duration_seconds', 'is', null)
+
+  if (!sessions || sessions.length === 0) {
+    return {
+      data: {
+        average: 0,
+        distribution: {
+          under1min: 0,
+          between1and3: 0,
+          between3and10: 0,
+          over10min: 0
+        }
+      },
+      error: null
+    }
+  }
+
+  // Calculate average
+  const total = sessions.reduce((sum, s) => sum + (s.duration_seconds || 0), 0)
+  const average = Math.round(total / sessions.length)
+
+  // Calculate distribution
+  const distribution = {
+    under1min: 0,
+    between1and3: 0,
+    between3and10: 0,
+    over10min: 0
+  }
+
+  sessions.forEach(s => {
+    const minutes = (s.duration_seconds || 0) / 60
+    if (minutes < 1) distribution.under1min++
+    else if (minutes < 3) distribution.between1and3++
+    else if (minutes < 10) distribution.between3and10++
+    else distribution.over10min++
+  })
+
+  return { data: { average, distribution }, error: null }
+}
+
+export async function getRecentSearches(days: number = 7, limit: number = 20) {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const { data: roleData } = await supabase
+    .from('user_roles')
+    .select('role')
+    .eq('user_id', user.id)
+    .single()
+
+  if (roleData?.role !== 'admin') {
+    return { error: 'Unauthorized' }
+  }
+
+  const startDate = new Date()
+  startDate.setDate(startDate.getDate() - days)
+
+  const { data: searches } = await supabase
+    .from('search_logs')
+    .select('query, results_count, created_at')
+    .gte('created_at', startDate.toISOString())
+
+  if (!searches || searches.length === 0) {
+    return { data: [], error: null }
+  }
+
+  // Group by query and aggregate
+  const searchStats: Record<string, {
+    count: number
+    avgResults: number
+    lastSearched: string
+  }> = {}
+
+  searches.forEach(search => {
+    const query = search.query.toLowerCase()
+    if (!searchStats[query]) {
+      searchStats[query] = {
+        count: 0,
+        avgResults: 0,
+        lastSearched: search.created_at
+      }
+    }
+    searchStats[query].count++
+    searchStats[query].avgResults += search.results_count || 0
+    if (search.created_at > searchStats[query].lastSearched) {
+      searchStats[query].lastSearched = search.created_at
+    }
+  })
+
+  // Calculate averages and format
+  const recentSearches = Object.entries(searchStats)
+    .map(([query, stats]) => ({
+      query,
+      count: stats.count,
+      avgResults: Math.round(stats.avgResults / stats.count),
+      lastSearched: stats.lastSearched
+    }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, limit)
+
+  return { data: recentSearches, error: null }
+}

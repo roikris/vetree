@@ -5,11 +5,13 @@ import { useState, useEffect, useRef } from 'react'
 type SearchBarProps = {
   defaultValue: string
   onSearch: (query: string) => void
+  resultsCount?: number
 }
 
-export function SearchBar({ defaultValue, onSearch }: SearchBarProps) {
+export function SearchBar({ defaultValue, onSearch, resultsCount }: SearchBarProps) {
   const [query, setQuery] = useState(defaultValue)
   const onSearchRef = useRef(onSearch)
+  const lastLoggedQuery = useRef('')
 
   useEffect(() => {
     onSearchRef.current = onSearch
@@ -22,6 +24,30 @@ export function SearchBar({ defaultValue, onSearch }: SearchBarProps) {
 
     return () => clearTimeout(timer)
   }, [query])
+
+  // Log searches after they complete and results are available
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      // Only log if query is not empty, at least 2 chars, and different from last logged
+      if (query.trim().length >= 2 && query !== lastLoggedQuery.current) {
+        lastLoggedQuery.current = query
+
+        // Log the search
+        fetch('/api/analytics/search', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            query: query.trim(),
+            results_count: resultsCount || 0
+          })
+        }).catch(error => {
+          console.debug('[analytics] Failed to log search:', error)
+        })
+      }
+    }, 1000) // Wait 1 second after user stops typing
+
+    return () => clearTimeout(timer)
+  }, [query, resultsCount])
 
   const handleClear = () => {
     setQuery('')
