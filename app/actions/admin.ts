@@ -22,18 +22,37 @@ export async function getAdminStats() {
   // Use admin client to count real users from auth.users
   const adminClient = createAdminClient()
 
-  // Get total users count from auth.users
-  const { data: allUsers, error: usersError } = await adminClient.auth.admin.listUsers()
-  const totalUsers = allUsers?.users?.length || 0
+  // Get ALL users from auth.users (handle pagination)
+  let allUsers: any[] = []
+  let page = 1
+  const perPage = 1000
+
+  while (true) {
+    const { data, error } = await adminClient.auth.admin.listUsers({
+      page,
+      perPage
+    })
+
+    if (error) break
+    if (!data.users || data.users.length === 0) break
+
+    allUsers = allUsers.concat(data.users)
+
+    // If we got fewer than perPage, we're done
+    if (data.users.length < perPage) break
+    page++
+  }
+
+  const totalUsers = allUsers.length
 
   // Get new users this week
   const oneWeekAgo = new Date()
   oneWeekAgo.setDate(oneWeekAgo.getDate() - 7)
 
-  const newUsersThisWeek = allUsers?.users?.filter(u => {
+  const newUsersThisWeek = allUsers.filter(u => {
     const createdAt = new Date(u.created_at)
     return createdAt >= oneWeekAgo
-  }).length || 0
+  }).length
 
   // Get total articles
   const { count: totalArticles } = await supabase
@@ -74,12 +93,30 @@ export async function getAllUsers() {
     return { users: [], error: 'Unauthorized' }
   }
 
-  // Use admin client to get all users from auth.users
+  // Use admin client to get ALL users from auth.users (handle pagination)
   const adminClient = createAdminClient()
-  const { data: authData, error: authError } = await adminClient.auth.admin.listUsers()
 
-  if (authError) {
-    return { users: [], error: authError.message }
+  let allAuthUsers: any[] = []
+  let page = 1
+  const perPage = 1000
+
+  while (true) {
+    const { data, error } = await adminClient.auth.admin.listUsers({
+      page,
+      perPage
+    })
+
+    if (error) {
+      return { users: [], error: error.message }
+    }
+
+    if (!data.users || data.users.length === 0) break
+
+    allAuthUsers = allAuthUsers.concat(data.users)
+
+    // If we got fewer than perPage, we're done
+    if (data.users.length < perPage) break
+    page++
   }
 
   // Get user roles from user_roles table
@@ -93,7 +130,7 @@ export async function getAllUsers() {
   )
 
   // Combine auth users with their roles
-  const users = authData.users.map(authUser => ({
+  const users = allAuthUsers.map(authUser => ({
     user_id: authUser.id,
     email: authUser.email,
     created_at: authUser.created_at,

@@ -94,12 +94,12 @@ export function UsersClient({ initialUsers }: UsersClientProps) {
                     {user.email || 'No email'}
                   </td>
                   <td className="px-6 py-4">
-                    <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                    <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full ${
                       user.confirmed
                         ? 'bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-200'
                         : 'bg-amber-100 dark:bg-amber-900/20 text-amber-800 dark:text-amber-200'
                     }`}>
-                      {user.confirmed ? 'Confirmed' : 'Pending'}
+                      {user.confirmed ? '✅ Confirmed' : '⏳ Pending'}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-sm text-zinc-600 dark:text-zinc-400">
