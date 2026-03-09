@@ -35,16 +35,12 @@ export function FilterPanel({
   onEvidenceChange,
   onJournalsChange
 }: FilterPanelProps) {
-  // State for collapsed/expanded (default: expanded)
-  const [isCollapsed, setIsCollapsed] = useState(false)
-
-  // Load collapsed state from localStorage on mount
-  useEffect(() => {
+  // State for collapsed/expanded (default: expanded/open)
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    if (typeof window === 'undefined') return false
     const saved = localStorage.getItem('filtersSidebarCollapsed')
-    if (saved !== null) {
-      setIsCollapsed(saved === 'true')
-    }
-  }, [])
+    return saved !== null ? JSON.parse(saved) : false // default to OPEN
+  })
 
   // Save collapsed state to localStorage
   const toggleCollapsed = () => {
