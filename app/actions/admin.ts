@@ -1,6 +1,6 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 
 export async function getAdminStats() {
   const supabase = await createClient()
@@ -19,19 +19,21 @@ export async function getAdminStats() {
     return { error: 'Unauthorized' }
   }
 
-  // Get total users count (unique users who have saved articles + users with roles)
-  const { count: totalUsers } = await supabase
-    .from('user_roles')
-    .select('*', { count: 'exact', head: true })
+  // Use admin client to count real users from auth.users
+  const adminClient = createAdminClient()
+
+  // Get total users count from auth.users
+  const { data: allUsers, error: usersError } = await adminClient.auth.admin.listUsers()
+  const totalUsers = allUsers?.users?.length || 0
 
   // Get new users this week
   const oneWeekAgo = new Date()
   oneWeekAgo.setDate(oneWeekAgo.getDate() - 7)
 
-  const { count: newUsersThisWeek } = await supabase
-    .from('user_roles')
-    .select('*', { count: 'exact', head: true })
-    .gte('created_at', oneWeekAgo.toISOString())
+  const newUsersThisWeek = allUsers?.users?.filter(u => {
+    const createdAt = new Date(u.created_at)
+    return createdAt >= oneWeekAgo
+  }).length || 0
 
   // Get total articles
   const { count: totalArticles } = await supabase
@@ -72,23 +74,37 @@ export async function getAllUsers() {
     return { users: [], error: 'Unauthorized' }
   }
 
-  // Get all user roles with saved article counts
-  const { data: users, error } = await supabase
-    .from('user_roles')
-    .select(`
-      user_id,
-      role,
-      created_at
-    `)
-    .order('created_at', { ascending: false })
+  // Use admin client to get all users from auth.users
+  const adminClient = createAdminClient()
+  const { data: authData, error: authError } = await adminClient.auth.admin.listUsers()
 
-  if (error) {
-    return { users: [], error: error.message }
+  if (authError) {
+    return { users: [], error: authError.message }
   }
 
-  // Get emails from auth.users (requires service role or custom RPC)
-  // For now, return without emails - would need RPC function to get auth.users data
-  return { users: users || [], error: null }
+  // Get user roles from user_roles table
+  const { data: userRoles } = await supabase
+    .from('user_roles')
+    .select('user_id, role, created_at')
+
+  // Create a map of user_id to role
+  const roleMap = new Map(
+    (userRoles || []).map(r => [r.user_id, r.role])
+  )
+
+  // Combine auth users with their roles
+  const users = authData.users.map(authUser => ({
+    user_id: authUser.id,
+    email: authUser.email,
+    created_at: authUser.created_at,
+    role: roleMap.get(authUser.id) || 'user', // Default to 'user' if no role set
+    confirmed: authUser.email_confirmed_at !== null
+  }))
+
+  // Sort by created_at descending
+  users.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+
+  return { users, error: null }
 }
 
 export async function updateUserRole({
@@ -114,13 +130,32 @@ export async function updateUserRole({
     return { error: 'Unauthorized' }
   }
 
-  const { error } = await supabase
+  // Check if user already has a role entry
+  const { data: existingRole } = await supabase
     .from('user_roles')
-    .update({ role })
+    .select('user_id')
     .eq('user_id', userId)
+    .single()
 
-  if (error) {
-    return { error: error.message }
+  if (existingRole) {
+    // Update existing role
+    const { error } = await supabase
+      .from('user_roles')
+      .update({ role })
+      .eq('user_id', userId)
+
+    if (error) {
+      return { error: error.message }
+    }
+  } else {
+    // Create new role entry
+    const { error } = await supabase
+      .from('user_roles')
+      .insert({ user_id: userId, role })
+
+    if (error) {
+      return { error: error.message }
+    }
   }
 
   return { success: true }
