@@ -3,6 +3,8 @@ import { createClient } from '@/lib/supabase/server'
 import { createClient as createPublicClient } from '@supabase/supabase-js'
 import { Article } from '@/lib/supabase'
 import { ArticleCard } from '@/components/articles/ArticleCard'
+import { ArticleViewTracker } from '@/components/articles/ArticleViewTracker'
+import { RegistrationWall } from '@/components/ui/RegistrationWall'
 import Link from 'next/link'
 import type { Metadata } from 'next'
 
@@ -98,6 +100,11 @@ export default async function ArticlePage({ params }: PageProps) {
     notFound()
   }
 
+  // Check if user is logged in
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  const isLoggedIn = !!user
+
   // JSON-LD structured data for SEO
   const structuredData = {
     "@context": "https://schema.org",
@@ -124,6 +131,13 @@ export default async function ArticlePage({ params }: PageProps) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
       />
+
+      {/* Track article view for non-logged-in users */}
+      <ArticleViewTracker isLoggedIn={isLoggedIn} />
+
+      {/* Registration wall for non-logged-in users after 3 views */}
+      {!isLoggedIn && <RegistrationWall />}
+
       <div className="h-screen overflow-y-auto bg-white dark:bg-[#0F0F0F]">
         <div className="max-w-4xl mx-auto px-6 py-8">
         {/* Header with back link */}

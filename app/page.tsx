@@ -7,8 +7,10 @@ import { Pagination } from '@/components/ui/Pagination'
 import { DisclaimerBanner } from '@/components/ui/DisclaimerBanner'
 import { TrendingArticles } from '@/components/articles/TrendingArticles'
 import { PersonalizedFeed } from '@/components/articles/PersonalizedFeed'
+import { HeroSection } from '@/components/home/HeroSection'
 import { getTrendingArticles } from '@/app/actions/trending'
 import { getPersonalizedArticles } from '@/app/actions/personalized-feed'
+import { createClient } from '@/lib/supabase/server'
 
 // Force dynamic rendering to ensure searchParams are always fresh
 export const dynamic = 'force-dynamic'
@@ -20,6 +22,31 @@ type HomeProps = {
 export default async function Home({ searchParams }: HomeProps) {
   const params = await searchParams
   const filters = parseSearchParams(params)
+
+  // Check if user is logged in
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  const isLoggedIn = !!user
+
+  // Fetch public stats for hero section
+  const statsResponse = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://vetree.app'}/api/stats/public`, {
+    next: { revalidate: 3600 }
+  })
+  const stats = await statsResponse.json().catch(() => ({ confirmed_users: 0, articles_count: 8000 }))
+
+  // Fetch most recent article for hero example (only if not logged in and on first page)
+  let exampleArticle = null
+  if (!isLoggedIn && filters.page === 1 && !filters.search && filters.labels.length === 0) {
+    const { data } = await supabase
+      .from('articles')
+      .select('*')
+      .eq('needs_enrichment', false)
+      .not('clinical_bottom_line', 'is', null)
+      .order('publication_date', { ascending: false })
+      .limit(1)
+      .single()
+    exampleArticle = data
+  }
 
   // JSON-LD structured data for site-level SEO
   const structuredData = {
@@ -72,6 +99,12 @@ export default async function Home({ searchParams }: HomeProps) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
       />
+
+      {/* Hero Section - only for non-logged-in users on first page */}
+      {!isLoggedIn && filters.page === 1 && !filters.search && filters.labels.length === 0 && (
+        <HeroSection exampleArticle={exampleArticle} stats={stats} />
+      )}
+
       <SearchControls
         initialFilters={filters}
         availableJournals={journals}
@@ -105,7 +138,7 @@ export default async function Home({ searchParams }: HomeProps) {
       )}
 
       {!error && (count !== null && count > 0 || hasActiveFilters) && (
-        <>
+        <div id="articles">
           <DisclaimerBanner />
 
           <TrendingArticles articles={trendingArticles} />
@@ -125,7 +158,7 @@ export default async function Home({ searchParams }: HomeProps) {
             totalPages={totalPages}
             filters={filters}
           />
-        </>
+        </div>
       )}
       </SearchControls>
     </>
