@@ -34,15 +34,24 @@ export async function POST(request: NextRequest) {
     ]
 
     while (retryCount < MAX_RETRIES) {
-      // Query for enriched articles - fetch more and filter in JS
+      // Get articles already used for this platform+language combo
+      const { data: usedArticleIds } = await supabase
+        .from('growth_agent_memory')
+        .select('article_id')
+        .eq('platform', platform)
+        .eq('language', language)
+
+      const usedIds = usedArticleIds?.map(row => row.article_id) || []
+
+      // Query for enriched articles - fetch top 50 most recent by publication date
       const { data: articles, error } = await supabase
         .from('articles')
-        .select('id, title, clinical_bottom_line, summary, labels, source_journal')
+        .select('id, title, clinical_bottom_line, summary, labels, source_journal, publication_date')
         .eq('needs_enrichment', false)
         .not('clinical_bottom_line', 'is', null)
         .not('summary', 'is', null)
-        .limit(20)
-        .order('created_at', { ascending: false })
+        .limit(50)
+        .order('publication_date', { ascending: false })
 
       if (error || !articles || articles.length === 0) {
         return NextResponse.json({
@@ -51,23 +60,42 @@ export async function POST(request: NextRequest) {
         }, { status: 500 })
       }
 
-      // Filter out large animal articles in JavaScript
+      // Filter out large animal articles and already-used articles
       const filteredArticles = articles.filter(article => {
         const labels = article.labels || []
-        return !labels.some((label: string) =>
+        const isLargeAnimal = labels.some((label: string) =>
           largeAnimalLabels.includes(label)
         )
+        const alreadyUsed = usedIds.includes(article.id)
+        return !isLargeAnimal && !alreadyUsed
       })
 
       if (filteredArticles.length === 0) {
         return NextResponse.json({
           error: 'No small animal articles found',
-          details: 'All recent articles are large animal focused'
+          details: 'All recent articles are large animal focused or already used'
         }, { status: 500 })
       }
 
-      // Pick a random article from filtered results
-      article = filteredArticles[Math.floor(Math.random() * filteredArticles.length)]
+      // Weighted random selection - newer articles get higher probability
+      const weighted = filteredArticles.map((article, index) => ({
+        article,
+        weight: Math.pow(0.95, index) // exponential decay: 1st=1.0, 2nd=0.95, 10th=0.60, 30th=0.21
+      }))
+
+      const totalWeight = weighted.reduce((sum, w) => sum + w.weight, 0)
+      let random = Math.random() * totalWeight
+      let selected = weighted[0].article
+
+      for (const { article: weightedArticle, weight } of weighted) {
+        random -= weight
+        if (random <= 0) {
+          selected = weightedArticle
+          break
+        }
+      }
+
+      article = selected
 
       // Call Anthropic API
       const Anthropic = (await import('@anthropic-ai/sdk')).default
