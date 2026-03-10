@@ -93,6 +93,40 @@ Format:
 🔗 vetree.app/article/${article.id}
 
 Return ONLY the tweet text. Count characters carefully - MUST be under 280 total.`
+      } else if (platform === 'linkedin') {
+        promptContent = `Write a ${language} LinkedIn post.
+
+Article: ${article.title}
+Clinical Bottom Line: ${article.clinical_bottom_line}
+Labels: ${article.labels?.join(', ') || 'N/A'}
+
+IMPORTANT: This post is for small animal first opinion practice only. If the article is about large animals, equine, livestock, or poultry - do not generate a post and return ONLY the text: SKIP_LARGE_ANIMAL
+
+LINKEDIN RHYTHM FORMATTING (CRITICAL):
+- Alternate between short lines (1 sentence) and longer paragraphs (2-3 sentences)
+- Pattern: short → long → short → medium → short → short
+- Never have 3+ paragraphs of the same length in a row
+- End with a single punchy line before the link
+- No bullet points, no emojis except one at the end
+- Must feel human-written, not AI-generated
+- Squint test: when you blur your eyes, the text blocks should vary in size like music rhythm
+
+LinkedIn post structure:
+[1 short punchy hook - one sentence that creates curiosity]
+
+[1-2 sentences of context/story - why this matters]
+
+[The specific clinical finding from the article - 2-3 sentences]
+
+[Short punchy takeaway - one sentence]
+
+[Article title shortened to ~60 chars]
+
+🔗 vetree.app/article/${article.id}
+
+🌿 vetree.app
+
+Return ONLY the post text following this exact rhythm pattern.`
       } else {
         promptContent = `Write a ${language} social media post for ${platform}.
 
