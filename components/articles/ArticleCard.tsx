@@ -5,6 +5,7 @@ import { BookmarkButton } from './BookmarkButton'
 import { SaveCount } from './SaveCount'
 import { ShareButton } from './ShareButton'
 import { ReportButton } from './ReportButton'
+import { EvidenceBadge } from '@/components/ui/EvidenceBadge'
 
 type ArticleCardProps = {
   article: Article
@@ -109,17 +110,14 @@ export function ArticleCard({ article }: ArticleCardProps) {
           </p>
         )}
 
-        {/* 5. Strength of evidence badge */}
-        {article.strength_of_evidence && (
-          <div>
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-zinc-50 dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 text-xs font-medium rounded-full border border-zinc-200 dark:border-zinc-700">
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              Evidence: {article.strength_of_evidence}
-            </span>
-          </div>
-        )}
+        {/* 5. Evidence level badge */}
+        <div>
+          <EvidenceBadge
+            strengthOfEvidence={article.strength_of_evidence}
+            labels={cleanLabels}
+            size="sm"
+          />
+        </div>
 
         {/* 6. Summary */}
         {article.summary && (

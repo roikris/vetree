@@ -98,9 +98,34 @@ export default async function ArticlePage({ params }: PageProps) {
     notFound()
   }
 
+  // JSON-LD structured data for SEO
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@type": "ScholarlyArticle",
+    "headline": article.title,
+    "description": article.clinical_bottom_line || article.summary,
+    "datePublished": article.publication_date,
+    "publisher": {
+      "@type": "Organization",
+      "name": article.source_journal || "Unknown Journal"
+    },
+    "about": article.labels?.map(label => ({
+      "@type": "MedicalCondition",
+      "name": label
+    })),
+    "url": `https://vetree.app/article/${article.id}`,
+    "isAccessibleForFree": true,
+    "inLanguage": "en"
+  }
+
   return (
-    <div className="h-screen overflow-y-auto bg-white dark:bg-[#0F0F0F]">
-      <div className="max-w-4xl mx-auto px-6 py-8">
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+      />
+      <div className="h-screen overflow-y-auto bg-white dark:bg-[#0F0F0F]">
+        <div className="max-w-4xl mx-auto px-6 py-8">
         {/* Header with back link */}
         <header className="mb-8">
           <Link
@@ -155,6 +180,7 @@ export default async function ArticlePage({ params }: PageProps) {
           </Link>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   )
 }
