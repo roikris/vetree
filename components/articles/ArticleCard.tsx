@@ -40,9 +40,9 @@ export function ArticleCard({ article }: ArticleCardProps) {
   const hasUrl = article.article_url && article.article_url.trim() !== ''
 
   return (
-    <article className="bg-white dark:bg-[#1A1A1A] rounded-lg border border-[#E5E5E5] dark:border-[#2A2A2A] p-6 hover:shadow-md transition-shadow relative" data-onboarding="article-card">
+    <article className="bg-white dark:bg-[#1A1A1A] rounded-lg border border-[#E5E5E5] dark:border-[#2A2A2A] p-4 md:p-6 hover:shadow-md transition-shadow relative" data-onboarding="article-card">
       {/* Report, Bookmark and Share buttons - top right */}
-      <div className="absolute top-4 right-4 flex items-center gap-1">
+      <div className="absolute top-3 right-3 md:top-4 md:right-4 flex items-center gap-1">
         <ReportButton articleId={article.id} />
         <ShareButton
           articleId={article.id}
@@ -52,7 +52,7 @@ export function ArticleCard({ article }: ArticleCardProps) {
         <BookmarkButton articleId={article.id} />
       </div>
 
-      <div className="space-y-4 pr-10">
+      <div className="space-y-3 md:space-y-4 pr-8 md:pr-10">
         {/* 1. Source journal + publication date */}
         <div className="flex flex-wrap gap-x-3 gap-y-1 text-sm text-zinc-500 dark:text-zinc-400">
           {article.source_journal && (
@@ -71,14 +71,14 @@ export function ArticleCard({ article }: ArticleCardProps) {
 
         {/* 2. Clinical Bottom Line */}
         {article.clinical_bottom_line && (
-          <div className="bg-amber-50/80 dark:bg-amber-900/10 border-l-3 border-amber-400 dark:border-amber-600 rounded-r-md p-4">
-            <h4 className="font-semibold text-amber-900 dark:text-amber-200 text-sm mb-2 flex items-center gap-2">
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+          <div className="bg-amber-50/80 dark:bg-amber-900/10 border-l-3 border-amber-400 dark:border-amber-600 rounded-r-md p-3 md:p-4">
+            <h4 className="font-semibold text-amber-900 dark:text-amber-200 text-xs md:text-sm mb-1.5 md:mb-2 flex items-center gap-1.5 md:gap-2">
+              <svg className="w-3.5 h-3.5 md:w-4 md:h-4" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M13 7h-2v4H7v2h4v4h2v-4h4v-2h-4V7zm-1-5C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/>
               </svg>
               Clinical Bottom Line
             </h4>
-            <p className="text-amber-900 dark:text-amber-100 text-sm leading-relaxed">
+            <p className="text-amber-900 dark:text-amber-100 text-sm leading-relaxed line-clamp-2 md:line-clamp-none">
               {article.clinical_bottom_line}
             </p>
           </div>
@@ -91,12 +91,12 @@ export function ArticleCard({ article }: ArticleCardProps) {
               href={article.article_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-2xl font-semibold text-[#3D7A5F] dark:text-[#4E9A78] hover:text-[#2F5F4A] dark:hover:text-[#5FAA88] transition-colors"
+              className="text-lg md:text-2xl font-semibold text-[#3D7A5F] dark:text-[#4E9A78] hover:text-[#2F5F4A] dark:hover:text-[#5FAA88] transition-colors block"
             >
               {article.title}
             </a>
           ) : (
-            <h3 className="text-2xl font-semibold text-[#3D7A5F] dark:text-[#4E9A78]">
+            <h3 className="text-lg md:text-2xl font-semibold text-[#3D7A5F] dark:text-[#4E9A78]">
               {article.title}
             </h3>
           )}
@@ -128,15 +128,17 @@ export function ArticleCard({ article }: ArticleCardProps) {
 
         {/* 7. Labels with pastel colors */}
         {cleanLabels.length > 0 && (
-          <div className="flex flex-wrap gap-2 pt-3 border-t border-[#E5E5E5] dark:border-[#2A2A2A]">
-            {cleanLabels.map((label, index) => (
-              <span
-                key={index}
-                className={`px-3 py-1 text-xs font-medium rounded-full border ${getLabelColor(label)}`}
-              >
-                {label}
-              </span>
-            ))}
+          <div className="pt-3 border-t border-[#E5E5E5] dark:border-[#2A2A2A]">
+            <div className="flex md:flex-wrap gap-2 overflow-x-auto md:overflow-x-visible scrollbar-hide pb-1">
+              {cleanLabels.map((label, index) => (
+                <span
+                  key={index}
+                  className={`px-3 py-1.5 md:py-1 text-xs font-medium rounded-full border whitespace-nowrap flex-shrink-0 ${getLabelColor(label)}`}
+                >
+                  {label}
+                </span>
+              ))}
+            </div>
           </div>
         )}
 

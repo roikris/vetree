@@ -4,6 +4,7 @@ import { getSavedArticles } from '@/app/actions/saved-articles'
 import { ArticleCard } from '@/components/articles/ArticleCard'
 import { Article } from '@/lib/supabase'
 import Link from 'next/link'
+import { BottomNav } from '@/components/ui/BottomNav'
 
 export default async function LibraryPage() {
   const supabase = await createClient()
@@ -17,8 +18,9 @@ export default async function LibraryPage() {
   const { articles, error } = await getSavedArticles()
 
   return (
-    <div className="h-screen overflow-y-auto bg-white dark:bg-[#0F0F0F]">
-      <div className="max-w-4xl mx-auto px-6 py-8">
+    <>
+      <div className="min-h-screen bg-white dark:bg-[#0F0F0F]">
+        <div className="max-w-4xl mx-auto px-4 md:px-6 py-6 md:py-8 pb-20 md:pb-8">
         {/* Header */}
         <header className="mb-8">
           <div className="flex items-center justify-between mb-4">
@@ -94,7 +96,9 @@ export default async function LibraryPage() {
           </div>
         )}
         </main>
+        </div>
       </div>
-    </div>
+      <BottomNav />
+    </>
   )
 }

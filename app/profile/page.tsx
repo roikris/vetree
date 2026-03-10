@@ -6,6 +6,7 @@ import { ProfileClient } from './ProfileClient'
 import { ProfileHeader } from './ProfileHeader'
 import Link from 'next/link'
 import { Article } from '@/lib/supabase'
+import { BottomNav } from '@/components/ui/BottomNav'
 
 export default async function ProfilePage() {
   const supabase = await createClient()
@@ -37,8 +38,9 @@ export default async function ProfilePage() {
   const avatarUrl = user.user_metadata?.avatar_url || null
 
   return (
-    <div className="min-h-screen bg-white dark:bg-[#0F0F0F]">
-      <div className="max-w-4xl mx-auto px-6 py-8">
+    <>
+      <div className="min-h-screen bg-white dark:bg-[#0F0F0F]">
+        <div className="max-w-4xl mx-auto px-4 md:px-6 py-6 md:py-8 pb-20 md:pb-8">
         {/* Header - Client Component for Avatar Upload */}
         <ProfileHeader
           userId={user.id}
@@ -132,7 +134,9 @@ export default async function ProfilePage() {
 
         {/* Account Actions - Client Component */}
         <ProfileClient />
+        </div>
       </div>
-    </div>
+      <BottomNav />
+    </>
   )
 }
