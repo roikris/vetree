@@ -6,6 +6,7 @@ import { SaveCount } from './SaveCount'
 import { ShareButton } from './ShareButton'
 import { ReportButton } from './ReportButton'
 import { EvidenceBadge } from '@/components/ui/EvidenceBadge'
+import { FollowTagButton } from '@/components/ui/FollowTagButton'
 
 type ArticleCardProps = {
   article: Article
@@ -124,16 +125,17 @@ export function ArticleCard({ article }: ArticleCardProps) {
           <ArticleSummary summary={article.summary} expandedByDefault={true} />
         )}
 
-        {/* 7. Labels with pastel colors */}
+        {/* 7. Labels with pastel colors + follow buttons */}
         {cleanLabels.length > 0 && (
           <div className="pt-3 border-t border-[#E5E5E5] dark:border-[#2A2A2A]">
             <div className="flex md:flex-wrap gap-2 overflow-x-auto md:overflow-x-visible scrollbar-hide pb-1">
               {cleanLabels.map((label, index) => (
                 <span
                   key={index}
-                  className={`px-3 py-1.5 md:py-1 text-xs font-medium rounded-full border whitespace-nowrap flex-shrink-0 ${getLabelColor(label)}`}
+                  className={`inline-flex items-center px-3 py-1.5 md:py-1 text-xs font-medium rounded-full border whitespace-nowrap flex-shrink-0 ${getLabelColor(label)}`}
                 >
                   {label}
+                  <FollowTagButton tag={label} />
                 </span>
               ))}
             </div>

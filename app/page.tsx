@@ -6,7 +6,9 @@ import { ArticleList } from '@/components/articles/ArticleList'
 import { Pagination } from '@/components/ui/Pagination'
 import { DisclaimerBanner } from '@/components/ui/DisclaimerBanner'
 import { TrendingArticles } from '@/components/articles/TrendingArticles'
+import { PersonalizedFeed } from '@/components/articles/PersonalizedFeed'
 import { getTrendingArticles } from '@/app/actions/trending'
+import { getPersonalizedArticles } from '@/app/actions/personalized-feed'
 
 // Force dynamic rendering to ensure searchParams are always fresh
 export const dynamic = 'force-dynamic'
@@ -48,6 +50,15 @@ export default async function Home({ searchParams }: HomeProps) {
   const { articles: trendingArticles } = showTrending
     ? await getTrendingArticles()
     : { articles: [] }
+
+  // Fetch personalized articles (only show on first page with no filters)
+  const { articles: personalizedArticles, hasFollowedTags } = showTrending
+    ? await getPersonalizedArticles()
+    : { articles: [], hasFollowedTags: false }
+
+  // Deduplicate main feed articles to avoid showing same articles in personalized feed
+  const personalizedIds = new Set(personalizedArticles.map(a => a.id))
+  const deduplicatedArticles = articles?.filter(a => !personalizedIds.has(a.id)) || []
 
   const totalPages = Math.ceil((count || 0) / 20)
 
@@ -99,13 +110,15 @@ export default async function Home({ searchParams }: HomeProps) {
 
           <TrendingArticles articles={trendingArticles} />
 
+          <PersonalizedFeed articles={personalizedArticles} />
+
           <ResultsCount
             total={count || 0}
-            showing={articles?.length || 0}
+            showing={deduplicatedArticles.length}
             filters={filters}
           />
 
-          <ArticleList articles={articles || []} />
+          <ArticleList articles={deduplicatedArticles} />
 
           <Pagination
             currentPage={filters.page}

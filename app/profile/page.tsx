@@ -2,8 +2,10 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getSavedArticles } from '@/app/actions/saved-articles'
 import { getUserStats } from '@/app/actions/profile'
+import { getFollowedTags } from '@/app/actions/followed-tags'
 import { ProfileClient } from './ProfileClient'
 import { ProfileHeader } from './ProfileHeader'
+import { FollowedTagsList } from '@/components/profile/FollowedTagsList'
 import Link from 'next/link'
 import { Article } from '@/lib/supabase'
 import { BottomNav } from '@/components/ui/BottomNav'
@@ -23,6 +25,9 @@ export default async function ProfilePage() {
   // Get last 3 saved articles
   const { articles } = await getSavedArticles()
   const recentArticles = articles.slice(0, 3)
+
+  // Get followed tags
+  const { tags: followedTags } = await getFollowedTags()
 
   // Get user initials for avatar
   const email = user.email || ''
@@ -131,6 +136,14 @@ export default async function ProfilePage() {
             </div>
           </div>
         )}
+
+        {/* My Research Interests */}
+        <div className="bg-white dark:bg-[#1A1A1A] border border-zinc-200 dark:border-zinc-800 rounded-lg p-6 mb-8">
+          <h2 className="text-xl font-semibold text-[#1A1A1A] dark:text-[#E8E8E8] mb-4">
+            My Research Interests
+          </h2>
+          <FollowedTagsList initialTags={followedTags} />
+        </div>
 
         {/* Account Actions - Client Component */}
         <ProfileClient />
