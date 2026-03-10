@@ -18,6 +18,19 @@ export async function POST(request: NextRequest) {
     // Get user if logged in
     const { data: { user } } = await supabase.auth.getUser()
 
+    // Check if admin - don't track admin traffic
+    if (user) {
+      const { data: role } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .single()
+
+      if (role?.role === 'admin') {
+        return NextResponse.json({ success: true, tracked: false })
+      }
+    }
+
     // Get IP from headers (privacy-conscious: we'll hash it)
     const forwarded = request.headers.get('x-forwarded-for')
     const ip = forwarded ? forwarded.split(',')[0].trim() : request.headers.get('x-real-ip') || 'unknown'

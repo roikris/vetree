@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react'
 import { usePathname } from 'next/navigation'
+import { useAdmin } from '@/lib/hooks/useAdmin'
 
 // Generate or get existing session ID
 function getSessionId(): string {
@@ -17,8 +18,12 @@ function getSessionId(): string {
 
 export function usePageTracking() {
   const pathname = usePathname()
+  const { isAdmin } = useAdmin()
 
   useEffect(() => {
+    // Don't track admin users
+    if (isAdmin) return
+
     const sessionId = getSessionId()
     const startTime = Date.now()
 
@@ -79,5 +84,5 @@ export function usePageTracking() {
     return () => {
       trackDuration()
     }
-  }, [pathname])
+  }, [pathname, isAdmin])
 }

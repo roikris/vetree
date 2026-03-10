@@ -22,26 +22,29 @@ export async function getAnalyticsOverview(days: number = 7) {
   const startDate = new Date()
   startDate.setDate(startDate.getDate() - days)
 
-  // Total pageviews
+  // Total pageviews (exclude admin)
   const { count: totalViews } = await supabase
     .from('page_views')
     .select('*', { count: 'exact', head: true })
     .gte('created_at', startDate.toISOString())
+    .neq('user_id', '90cb8294-b593-4144-a9f5-23ca52dd5e35')
 
-  // Unique visitors
+  // Unique visitors (exclude admin)
   const { data: uniqueVisitors } = await supabase
     .from('page_views')
     .select('ip_hash')
     .gte('created_at', startDate.toISOString())
+    .neq('user_id', '90cb8294-b593-4144-a9f5-23ca52dd5e35')
 
   const uniqueCount = uniqueVisitors ? [...new Set(uniqueVisitors.map(v => v.ip_hash))].length : 0
 
-  // Logged-in vs anonymous
+  // Logged-in vs anonymous (exclude admin)
   const { count: loggedInViews } = await supabase
     .from('page_views')
     .select('*', { count: 'exact', head: true })
     .gte('created_at', startDate.toISOString())
     .not('user_id', 'is', null)
+    .neq('user_id', '90cb8294-b593-4144-a9f5-23ca52dd5e35')
 
   return {
     data: {
@@ -77,6 +80,7 @@ export async function getTopPages(days: number = 7, limit: number = 10) {
     .from('page_views')
     .select('path')
     .gte('created_at', startDate.toISOString())
+    .neq('user_id', '90cb8294-b593-4144-a9f5-23ca52dd5e35')
 
   if (!pageViews) return { data: [], error: null }
 
@@ -117,6 +121,7 @@ export async function getVisitorsOverTime(days: number = 7) {
     .from('page_views')
     .select('created_at, ip_hash')
     .gte('created_at', startDate.toISOString())
+    .neq('user_id', '90cb8294-b593-4144-a9f5-23ca52dd5e35')
     .order('created_at', { ascending: true })
 
   if (!pageViews) return { data: [], error: null }
@@ -163,12 +168,13 @@ export async function getTopArticles(days: number = 7, limit: number = 10) {
   const startDate = new Date()
   startDate.setDate(startDate.getDate() - days)
 
-  // Get article page views
+  // Get article page views (exclude admin)
   const { data: pageViews } = await supabase
     .from('page_views')
     .select('path, ip_hash')
     .gte('created_at', startDate.toISOString())
     .like('path', '/article/%')
+    .neq('user_id', '90cb8294-b593-4144-a9f5-23ca52dd5e35')
 
   if (!pageViews) return { data: [], error: null }
 
@@ -229,12 +235,13 @@ export async function getSessionDuration(days: number = 7) {
   const startDate = new Date()
   startDate.setDate(startDate.getDate() - days)
 
-  // Get all sessions with duration
+  // Get all sessions with duration (exclude admin)
   const { data: sessions } = await supabase
     .from('page_views')
     .select('duration_seconds')
     .gte('created_at', startDate.toISOString())
     .not('duration_seconds', 'is', null)
+    .neq('user_id', '90cb8294-b593-4144-a9f5-23ca52dd5e35')
 
   if (!sessions || sessions.length === 0) {
     return {
