@@ -6,73 +6,106 @@ export default async function DiagnosticsPage() {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
-  // Query 1: Total articles
-  const { count: totalArticles } = await supabase
-    .from('articles')
-    .select('*', { count: 'exact', head: true })
+  let error: string | null = null
+  let totalArticles = 0
+  let visibleArticles = 0
+  let needsEnrichment = 0
+  let enrichedNoSummary = 0
+  let enrichedNoCBL = 0
+  let quarantinedComplete = 0
+  let permanentlyFailed = 0
+  let neverTriedButDone = 0
+  let sampleProblems: any[] = []
 
-  // Query 2: Currently visible to users
-  const { count: visibleArticles } = await supabase
-    .from('articles')
-    .select('*', { count: 'exact', head: true })
-    .eq('needs_enrichment', false)
-    .not('summary', 'is', null)
-    .not('clinical_bottom_line', 'is', null)
-    .or('quarantined.is.null,quarantined.eq.false')
+  try {
+    // Query 1: Total articles
+    const q1 = await supabase
+      .from('articles')
+      .select('id', { count: 'exact', head: true })
+    if (q1.error) throw new Error(`Query 1 failed: ${q1.error.message}`)
+    totalArticles = q1.count || 0
 
-  // Query 3a: needs_enrichment = true
-  const { count: needsEnrichment } = await supabase
-    .from('articles')
-    .select('*', { count: 'exact', head: true })
-    .eq('needs_enrichment', true)
+    // Query 2: Currently visible to users
+    const q2 = await supabase
+      .from('articles')
+      .select('id', { count: 'exact', head: true })
+      .eq('needs_enrichment', false)
+      .not('summary', 'is', null)
+      .not('clinical_bottom_line', 'is', null)
+      .or('quarantined.is.null,quarantined.eq.false')
+    if (q2.error) throw new Error(`Query 2 failed: ${q2.error.message}`)
+    visibleArticles = q2.count || 0
 
-  // Query 3b: needs_enrichment = false BUT summary is null
-  const { count: enrichedNoSummary } = await supabase
-    .from('articles')
-    .select('*', { count: 'exact', head: true })
-    .eq('needs_enrichment', false)
-    .is('summary', null)
+    // Query 3a: needs_enrichment = true
+    const q3a = await supabase
+      .from('articles')
+      .select('id', { count: 'exact', head: true })
+      .eq('needs_enrichment', true)
+    if (q3a.error) throw new Error(`Query 3a failed: ${q3a.error.message}`)
+    needsEnrichment = q3a.count || 0
 
-  // Query 3c: needs_enrichment = false BUT clinical_bottom_line is null
-  const { count: enrichedNoCBL } = await supabase
-    .from('articles')
-    .select('*', { count: 'exact', head: true })
-    .eq('needs_enrichment', false)
-    .is('clinical_bottom_line', null)
+    // Query 3b: needs_enrichment = false BUT summary is null
+    const q3b = await supabase
+      .from('articles')
+      .select('id', { count: 'exact', head: true })
+      .eq('needs_enrichment', false)
+      .is('summary', null)
+    if (q3b.error) throw new Error(`Query 3b failed: ${q3b.error.message}`)
+    enrichedNoSummary = q3b.count || 0
 
-  // Query 3d: needs_enrichment = false, has content BUT quarantined
-  const { count: quarantinedComplete } = await supabase
-    .from('articles')
-    .select('*', { count: 'exact', head: true })
-    .eq('needs_enrichment', false)
-    .not('summary', 'is', null)
-    .not('clinical_bottom_line', 'is', null)
-    .eq('quarantined', true)
+    // Query 3c: needs_enrichment = false BUT clinical_bottom_line is null
+    const q3c = await supabase
+      .from('articles')
+      .select('id', { count: 'exact', head: true })
+      .eq('needs_enrichment', false)
+      .is('clinical_bottom_line', null)
+    if (q3c.error) throw new Error(`Query 3c failed: ${q3c.error.message}`)
+    enrichedNoCBL = q3c.count || 0
 
-  // Query 3e: enrichment_attempts >= 3 (permanently failed)
-  const { count: permanentlyFailed } = await supabase
-    .from('articles')
-    .select('*', { count: 'exact', head: true })
-    .gte('enrichment_attempts', 3)
-    .or('force_retry.eq.false,force_retry.is.null')
+    // Query 3d: needs_enrichment = false, has content BUT quarantined
+    const q3d = await supabase
+      .from('articles')
+      .select('id', { count: 'exact', head: true })
+      .eq('needs_enrichment', false)
+      .not('summary', 'is', null)
+      .not('clinical_bottom_line', 'is', null)
+      .eq('quarantined', true)
+    if (q3d.error) throw new Error(`Query 3d failed: ${q3d.error.message}`)
+    quarantinedComplete = q3d.count || 0
 
-  // Query 3f: never tried, incorrectly marked done
-  const { count: neverTriedButDone } = await supabase
-    .from('articles')
-    .select('*', { count: 'exact', head: true })
-    .eq('enrichment_attempts', 0)
-    .eq('needs_enrichment', false)
-    .is('summary', null)
+    // Query 3e: enrichment_attempts >= 3 (permanently failed)
+    const q3e = await supabase
+      .from('articles')
+      .select('id', { count: 'exact', head: true })
+      .gte('enrichment_attempts', 3)
+      .or('force_retry.eq.false,force_retry.is.null')
+    if (q3e.error) throw new Error(`Query 3e failed: ${q3e.error.message}`)
+    permanentlyFailed = q3e.count || 0
 
-  // Query 3g: Sample problem articles
-  const { data: sampleProblems } = await supabase
-    .from('articles')
-    .select('id, title, needs_enrichment, enrichment_attempts, summary, clinical_bottom_line, quarantined, last_enrichment_error')
-    .eq('needs_enrichment', false)
-    .is('summary', null)
-    .limit(5)
+    // Query 3f: never tried, incorrectly marked done
+    const q3f = await supabase
+      .from('articles')
+      .select('id', { count: 'exact', head: true })
+      .eq('enrichment_attempts', 0)
+      .eq('needs_enrichment', false)
+      .is('summary', null)
+    if (q3f.error) throw new Error(`Query 3f failed: ${q3f.error.message}`)
+    neverTriedButDone = q3f.count || 0
 
-  const hiddenCount = (totalArticles || 0) - (visibleArticles || 0)
+    // Query 3g: Sample problem articles
+    const q3g = await supabase
+      .from('articles')
+      .select('id, title, needs_enrichment, enrichment_attempts, summary, clinical_bottom_line, quarantined, last_enrichment_error')
+      .eq('needs_enrichment', false)
+      .is('summary', null)
+      .limit(5)
+    if (q3g.error) throw new Error(`Query 3g failed: ${q3g.error.message}`)
+    sampleProblems = q3g.data || []
+  } catch (err) {
+    error = err instanceof Error ? err.message : 'Unknown error occurred'
+  }
+
+  const hiddenCount = totalArticles - visibleArticles
 
   return (
     <div className="min-h-screen bg-white dark:bg-[#0F0F0F] p-8">
@@ -86,6 +119,18 @@ export default async function DiagnosticsPage() {
             Understanding why {hiddenCount.toLocaleString()} articles are not showing on the UI
           </p>
         </div>
+
+        {/* Error Display */}
+        {error && (
+          <div className="mb-8 p-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+            <h2 className="text-lg font-semibold text-red-900 dark:text-red-100 mb-2">
+              ❌ Error Loading Diagnostics
+            </h2>
+            <p className="text-sm text-red-800 dark:text-red-200 font-mono">
+              {error}
+            </p>
+          </div>
+        )}
 
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
