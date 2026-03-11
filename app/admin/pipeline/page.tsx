@@ -3,6 +3,7 @@ import { PipelineClient } from './PipelineClient'
 import { PipelineStats } from './PipelineStats'
 import { ArticleHealth } from './ArticleHealth'
 import { FailedArticles } from './FailedArticles'
+import { IncompleteEnrichment } from './IncompleteEnrichment'
 
 export default async function AdminPipelinePage() {
   const { stats, error } = await getPipelineStats()
@@ -19,6 +20,9 @@ export default async function AdminPipelinePage() {
           Monitor and manage the article enrichment pipeline
         </p>
       </div>
+
+      {/* Incomplete Enrichment Alert */}
+      <IncompleteEnrichment />
 
       {/* Article Health Diagnostics */}
       <ArticleHealth diagnostics={diagnostics} />

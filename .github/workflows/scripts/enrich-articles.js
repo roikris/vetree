@@ -55,10 +55,23 @@ Return ONLY valid JSON, no markdown formatting.`;
     // Filter and validate labels
     const validLabels = filterLabels(enrichment.labels);
 
-    // Determine if enrichment succeeded
-    const hasValidContent = enrichment.summary &&
-                           enrichment.clinical_bottom_line &&
-                           validLabels.length > 0;
+    // Validate enrichment is complete - BOTH fields must be populated
+    const hasSummary = enrichment.summary && enrichment.summary.trim().length > 0;
+    const hasClinicalBottomLine = enrichment.clinical_bottom_line && enrichment.clinical_bottom_line.trim().length > 0;
+    const hasValidLabels = validLabels.length > 0;
+
+    const isComplete = hasSummary && hasClinicalBottomLine && hasValidLabels;
+    const attemptNumber = (article.enrichment_attempts || 0) + 1;
+
+    // If enrichment is incomplete, set error and keep needs_enrichment = true
+    let errorMessage = null;
+    if (!isComplete) {
+      const missing = [];
+      if (!hasSummary) missing.push('summary');
+      if (!hasClinicalBottomLine) missing.push('clinical_bottom_line');
+      if (!hasValidLabels) missing.push('labels');
+      errorMessage = `Enrichment incomplete - missing: ${missing.join(', ')}`;
+    }
 
     // Update the article
     const updates = {
@@ -66,21 +79,16 @@ Return ONLY valid JSON, no markdown formatting.`;
       clinical_bottom_line: enrichment.clinical_bottom_line || null,
       labels: validLabels,
       strength_of_evidence: enrichment.strength_of_evidence || null,
-      needs_enrichment: !hasValidContent,
-      enrichment_attempts: (article.enrichment_attempts || 0) + 1,
+      needs_enrichment: !isComplete,  // Only mark done if COMPLETE
+      enrichment_attempts: attemptNumber,
       force_retry: false,  // Reset force_retry flag after processing
       last_enrichment_at: new Date().toISOString(),
-      last_enrichment_error: null  // Clear error on success
+      last_enrichment_error: errorMessage  // Set error if incomplete, null if complete
     };
 
     // Update authors if corrected
     if (enrichment.authors) {
       updates.authors = enrichment.authors;
-    }
-
-    // After 3 attempts, give up
-    if (updates.enrichment_attempts >= 3) {
-      updates.needs_enrichment = false;
     }
 
     const { error } = await client
