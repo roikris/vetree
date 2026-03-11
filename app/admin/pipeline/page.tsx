@@ -1,9 +1,11 @@
-import { getPipelineStats } from '@/app/actions/admin'
+import { getPipelineStats, getArticleHealthDiagnostics } from '@/app/actions/admin'
 import { PipelineClient } from './PipelineClient'
 import { PipelineStats } from './PipelineStats'
+import { ArticleHealth } from './ArticleHealth'
 
 export default async function AdminPipelinePage() {
   const { stats, error } = await getPipelineStats()
+  const diagnostics = await getArticleHealthDiagnostics()
 
   return (
     <div className="p-8">
@@ -16,6 +18,9 @@ export default async function AdminPipelinePage() {
           Monitor and manage the article enrichment pipeline
         </p>
       </div>
+
+      {/* Article Health Diagnostics */}
+      <ArticleHealth diagnostics={diagnostics} />
 
       {/* Stats Cards */}
       <PipelineStats initialStats={stats} initialError={error} />

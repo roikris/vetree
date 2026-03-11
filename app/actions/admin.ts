@@ -448,3 +448,79 @@ export async function updateGrowthTask({
 
   return { success: true }
 }
+
+export async function getArticleHealthDiagnostics() {
+  const supabase = await createClient()
+
+  // Check if user is admin
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const { data: roleData } = await supabase
+    .from('user_roles')
+    .select('role')
+    .eq('user_id', user.id)
+    .single()
+
+  if (roleData?.role !== 'admin') {
+    return { error: 'Unauthorized' }
+  }
+
+  // Query 1: Total articles
+  const { count: totalArticles } = await supabase
+    .from('articles')
+    .select('*', { count: 'exact', head: true })
+
+  // Query 2: Visible articles (needs_enrichment = false AND summary IS NOT NULL AND clinical_bottom_line IS NOT NULL)
+  const { count: visibleArticles } = await supabase
+    .from('articles')
+    .select('*', { count: 'exact', head: true })
+    .eq('needs_enrichment', false)
+    .not('summary', 'is', null)
+    .not('clinical_bottom_line', 'is', null)
+
+  // Query 3: Pending enrichment (needs_enrichment = true)
+  const { count: pendingEnrichment } = await supabase
+    .from('articles')
+    .select('*', { count: 'exact', head: true })
+    .eq('needs_enrichment', true)
+
+  // Query 4: Enriched flag but no content (needs_enrichment = false but summary IS NULL)
+  const { count: enrichedButNoContent } = await supabase
+    .from('articles')
+    .select('*', { count: 'exact', head: true })
+    .eq('needs_enrichment', false)
+    .is('summary', null)
+
+  // Query 5: Permanently failed (enrichment_attempts >= 3 AND force_retry = false)
+  const { count: permanentlyFailed } = await supabase
+    .from('articles')
+    .select('*', { count: 'exact', head: true })
+    .gte('enrichment_attempts', 3)
+    .eq('force_retry', false)
+
+  // Query 6: Never attempted (enrichment_attempts = 0)
+  const { count: neverAttempted } = await supabase
+    .from('articles')
+    .select('*', { count: 'exact', head: true })
+    .eq('enrichment_attempts', 0)
+
+  // Query 7: Partially attempted (enrichment_attempts between 1-2)
+  const { count: partiallyAttempted } = await supabase
+    .from('articles')
+    .select('*', { count: 'exact', head: true })
+    .in('enrichment_attempts', [1, 2])
+
+  return {
+    data: {
+      totalArticles: totalArticles || 0,
+      visibleArticles: visibleArticles || 0,
+      pendingEnrichment: pendingEnrichment || 0,
+      enrichedButNoContent: enrichedButNoContent || 0,
+      permanentlyFailed: permanentlyFailed || 0,
+      neverAttempted: neverAttempted || 0,
+      partiallyAttempted: partiallyAttempted || 0
+    },
+    error: null
+  }
+}
