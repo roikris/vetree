@@ -63,6 +63,10 @@ export async function POST(request: NextRequest) {
       const usedIds = usedArticleIds?.map(row => row.article_id) || []
 
       // Query for enriched articles - fetch top 50 most recent by publication date
+      // NOTE: GIN index exists on labels column (idx_articles_labels_gin) for efficient array operations.
+      // Ideally we'd filter large animals server-side with .not('labels', 'ov', largeAnimalLabels),
+      // but Supabase PostgREST doesn't reliably support .not() with overlap operators.
+      // JS filtering works fine for small result sets. For raw SQL queries, the GIN index will be used automatically.
       const { data: articles, error } = await supabase
         .from('articles')
         .select('id, title, clinical_bottom_line, summary, labels, source_journal, publication_date')
@@ -79,7 +83,7 @@ export async function POST(request: NextRequest) {
         }, { status: 500 })
       }
 
-      // Filter out large animal articles and already-used articles
+      // Filter out large animal articles and already-used articles (JS filtering)
       const filteredArticles = articles.filter(article => {
         const labels = article.labels || []
         const isLargeAnimal = labels.some((label: string) =>

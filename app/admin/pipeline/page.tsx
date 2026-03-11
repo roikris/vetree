@@ -2,6 +2,7 @@ import { getPipelineStats, getArticleHealthDiagnostics } from '@/app/actions/adm
 import { PipelineClient } from './PipelineClient'
 import { PipelineStats } from './PipelineStats'
 import { ArticleHealth } from './ArticleHealth'
+import { FailedArticles } from './FailedArticles'
 
 export default async function AdminPipelinePage() {
   const { stats, error } = await getPipelineStats()
@@ -21,6 +22,9 @@ export default async function AdminPipelinePage() {
 
       {/* Article Health Diagnostics */}
       <ArticleHealth diagnostics={diagnostics} />
+
+      {/* Failed Articles Table */}
+      <FailedArticles />
 
       {/* Stats Cards */}
       <PipelineStats initialStats={stats} initialError={error} />

@@ -68,7 +68,9 @@ Return ONLY valid JSON, no markdown formatting.`;
       strength_of_evidence: enrichment.strength_of_evidence || null,
       needs_enrichment: !hasValidContent,
       enrichment_attempts: (article.enrichment_attempts || 0) + 1,
-      force_retry: false  // Reset force_retry flag after processing
+      force_retry: false,  // Reset force_retry flag after processing
+      last_enrichment_at: new Date().toISOString(),
+      last_enrichment_error: null  // Clear error on success
     };
 
     // Update authors if corrected
@@ -99,13 +101,15 @@ Return ONLY valid JSON, no markdown formatting.`;
   } catch (error) {
     console.error(`  ✗ Error enriching article ${article.id}:`, error.message);
 
-    // Increment attempt counter and reset force_retry
+    // Increment attempt counter, log error, and reset force_retry
     const { error: updateError } = await client
       .from('articles')
       .update({
         enrichment_attempts: (article.enrichment_attempts || 0) + 1,
         needs_enrichment: (article.enrichment_attempts || 0) + 1 < 3,
-        force_retry: false  // Reset force_retry flag even on failure
+        force_retry: false,  // Reset force_retry flag even on failure
+        last_enrichment_error: error.message,
+        last_enrichment_at: new Date().toISOString()
       })
       .eq('id', article.id);
 

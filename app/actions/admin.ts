@@ -642,3 +642,35 @@ export async function quarantineUnfixable() {
 
   return { success: true, count: count || 0 }
 }
+
+export async function getFailedArticles(limit: number = 20) {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated', data: [] }
+
+  const { data: roleData } = await supabase
+    .from('user_roles')
+    .select('role')
+    .eq('user_id', user.id)
+    .single()
+
+  if (roleData?.role !== 'admin') {
+    return { error: 'Unauthorized', data: [] }
+  }
+
+  // Fetch failed articles (attempts >= 3) with error details
+  const { data: articles, error } = await supabase
+    .from('articles')
+    .select('id, title, enrichment_attempts, last_enrichment_error, last_enrichment_at, abstract')
+    .gte('enrichment_attempts', 3)
+    .eq('needs_enrichment', true)
+    .order('last_enrichment_at', { ascending: false, nullsFirst: false })
+    .limit(limit)
+
+  if (error) {
+    return { error: error.message, data: [] }
+  }
+
+  return { data: articles || [], error: null }
+}
