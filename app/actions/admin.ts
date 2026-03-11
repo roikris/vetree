@@ -674,3 +674,180 @@ export async function getFailedArticles(limit: number = 20) {
 
   return { data: articles || [], error: null }
 }
+
+export async function getCampaignStats() {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const { data: roleData } = await supabase
+    .from('user_roles')
+    .select('role')
+    .eq('user_id', user.id)
+    .single()
+
+  if (roleData?.role !== 'admin') {
+    return { error: 'Unauthorized' }
+  }
+
+  // Count completed tasks
+  const { count: totalDone } = await supabase
+    .from('growth_tasks')
+    .select('*', { count: 'exact', head: true })
+    .eq('status', 'done')
+
+  // Get last 7 days to check streak
+  const sevenDaysAgo = new Date()
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+
+  const { data: recentTasks } = await supabase
+    .from('growth_tasks')
+    .select('scheduled_date, status, platform')
+    .gte('scheduled_date', sevenDaysAgo.toISOString().split('T')[0])
+    .order('scheduled_date', { ascending: false })
+
+  // Calculate streak (consecutive days with completed tasks)
+  let streak = 0
+  if (recentTasks) {
+    const today = new Date().toISOString().split('T')[0]
+    const sortedDates = [...new Set(recentTasks.map(t => t.scheduled_date))].sort().reverse()
+
+    for (let i = 0; i < sortedDates.length; i++) {
+      const dateToCheck = new Date()
+      dateToCheck.setDate(dateToCheck.getDate() - i)
+      const expectedDate = dateToCheck.toISOString().split('T')[0]
+
+      const taskOnDate = recentTasks.find(t => t.scheduled_date === expectedDate && t.status === 'done')
+      if (taskOnDate) {
+        streak++
+      } else if (expectedDate !== today) {
+        // Don't break streak if today's task isn't done yet
+        break
+      }
+    }
+  }
+
+  // Get platforms covered this week
+  const platformsThisWeek = recentTasks
+    ? [...new Set(recentTasks.filter(t => t.status === 'done').map(t => t.platform))]
+    : []
+
+  return {
+    stats: {
+      totalDone: totalDone || 0,
+      streak,
+      platformsThisWeek
+    },
+    error: null
+  }
+}
+
+export async function getTodaysTask() {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { task: null, error: 'Not authenticated' }
+
+  const { data: roleData } = await supabase
+    .from('user_roles')
+    .select('role')
+    .eq('user_id', user.id)
+    .single()
+
+  if (roleData?.role !== 'admin') {
+    return { task: null, error: 'Unauthorized' }
+  }
+
+  const today = new Date().toISOString().split('T')[0]
+
+  const { data: task } = await supabase
+    .from('growth_tasks')
+    .select('*')
+    .eq('scheduled_date', today)
+    .single()
+
+  return { task, error: null }
+}
+
+export async function markTaskComplete(taskId: string, content: string) {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const { data: roleData } = await supabase
+    .from('user_roles')
+    .select('role')
+    .eq('user_id', user.id)
+    .single()
+
+  if (roleData?.role !== 'admin') {
+    return { error: 'Unauthorized' }
+  }
+
+  const { error } = await supabase
+    .from('growth_tasks')
+    .update({
+      status: 'done',
+      content,
+      completed_at: new Date().toISOString()
+    })
+    .eq('id', taskId)
+
+  if (error) {
+    return { error: error.message }
+  }
+
+  return { success: true }
+}
+
+export async function createTodaysTask(dayNumber: number, platform: string, language: string) {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const { data: roleData } = await supabase
+    .from('user_roles')
+    .select('role')
+    .eq('user_id', user.id)
+    .single()
+
+  if (roleData?.role !== 'admin') {
+    return { error: 'Unauthorized' }
+  }
+
+  const today = new Date().toISOString().split('T')[0]
+
+  // Check if task already exists
+  const { data: existingTask } = await supabase
+    .from('growth_tasks')
+    .select('*')
+    .eq('scheduled_date', today)
+    .single()
+
+  if (existingTask) {
+    return { task: existingTask, error: null }
+  }
+
+  // Create new task
+  const { data: newTask, error } = await supabase
+    .from('growth_tasks')
+    .insert({
+      day_number: dayNumber,
+      scheduled_date: today,
+      platform,
+      language,
+      status: 'pending',
+      group_name: 'campaign'
+    })
+    .select()
+    .single()
+
+  if (error) {
+    return { error: error.message }
+  }
+
+  return { task: newTask, error: null }
+}

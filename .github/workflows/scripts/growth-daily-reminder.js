@@ -79,18 +79,18 @@ async function sendDailyReminder() {
     if (todaysTasks.length === 0) {
       message += '*No tasks scheduled for today!* 🎉\n'
     } else {
-      message += '*Today\'s tasks:*\n\n'
+      const task = todaysTasks[0]
+      const emoji = PLATFORM_EMOJIS[task.platform] || '📱'
+      const platformName = PLATFORM_NAMES[task.platform] || task.platform
+      const flag = task.language === 'he' ? '🇮🇱' : '🇺🇸'
+      const status = task.status === 'done' ? '✅ Done' : task.status === 'pending' ? '⏳ Pending' : '⏭️ Skipped'
 
-      todaysTasks.forEach(task => {
-        const emoji = PLATFORM_EMOJIS[task.platform] || '📱'
-        const platformName = PLATFORM_NAMES[task.platform] || task.platform
-        const flag = task.language === 'he' ? '🇮🇱' : '🇺🇸'
-        const preview = task.content.substring(0, 100).replace(/\n/g, ' ')
+      message += `📅 *Today's post:* ${emoji} ${platformName} ${flag}\n`
+      message += `Status: ${status}\n\n`
 
-        message += `${emoji} *${platformName}* — ${task.group_name}\n`
-        message += `${flag} ${preview}${task.content.length > 100 ? '...' : ''}\n`
-        message += `<https://vetree.app/admin/growth|View in Admin Dashboard>\n\n`
-      })
+      if (task.status === 'pending') {
+        message += `Go to <https://vetree.app/admin/growth|vetree.app/admin/growth> to generate and approve today's post 🌿\n\n`
+      }
     }
 
     message += `━━━━━━━━━━━━━━━\n`

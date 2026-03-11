@@ -1,14 +1,13 @@
-name: Growth OS Daily Reminder (DEPRECATED)
+name: Growth OS Daily Reminder
 
-# DEPRECATED: Daily tasks replaced by Content Agent (on-demand content generation)
-# Kept for reference only - cron trigger disabled
-# The growth_tasks table still exists but is no longer actively used
+# Reminds admin to generate and approve today's post in the 90-day campaign
+# Posts are generated fresh each day by Content Agent with auto-UTM tracking
 
 on:
-  # schedule:
-  #   # Runs every day at 3:00 AM UTC (6:00 AM Israel time, UTC+3)
-  #   - cron: '0 3 * * *'
-  workflow_dispatch: # Kept for manual testing if needed
+  schedule:
+    # Runs every day at 3:00 AM UTC (6:00 AM Israel time, UTC+3)
+    - cron: '0 3 * * *'
+  workflow_dispatch:
 
 jobs:
   reminder:
