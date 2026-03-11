@@ -662,7 +662,7 @@ export async function getFailedArticles(limit: number = 20) {
   // Fetch failed articles (attempts >= 3) with error details
   const { data: articles, error } = await supabase
     .from('articles')
-    .select('id, title, enrichment_attempts, last_enrichment_error, last_enrichment_at, abstract')
+    .select('id, title, enrichment_attempts, last_enrichment_error, last_enrichment_at')
     .gte('enrichment_attempts', 3)
     .eq('needs_enrichment', true)
     .order('last_enrichment_at', { ascending: false, nullsFirst: false })

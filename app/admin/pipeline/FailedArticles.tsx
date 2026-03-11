@@ -9,7 +9,6 @@ type FailedArticle = {
   enrichment_attempts: number
   last_enrichment_error: string | null
   last_enrichment_at: string | null
-  abstract: string | null
 }
 
 export function FailedArticles() {
