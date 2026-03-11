@@ -132,6 +132,21 @@ export async function POST(request: NextRequest) {
       }, { status: 500 })
     }
 
+    // Build article URL with UTM parameters for tracking
+    const utmParams = {
+      twitter: 'utm_source=twitter&utm_medium=social',
+      linkedin: 'utm_source=linkedin&utm_medium=social',
+      facebook: 'utm_source=facebook&utm_medium=social',
+      facebook_il: 'utm_source=facebook&utm_medium=social&utm_campaign=il',
+      facebook_intl: 'utm_source=facebook&utm_medium=social&utm_campaign=intl',
+      whatsapp: 'utm_source=whatsapp&utm_medium=social',
+      instagram: 'utm_source=instagram&utm_medium=social',
+      telegram: 'utm_source=telegram&utm_medium=social',
+      reddit: 'utm_source=reddit&utm_medium=social'
+    }
+
+    const articleUrl = `https://vetree.app/article/${article.id}?${utmParams[platform as keyof typeof utmParams] || 'utm_source=social&utm_medium=social'}`
+
     // Call Anthropic API to generate post for the selected article
     const Anthropic = (await import('@anthropic-ai/sdk')).default
     const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
@@ -174,7 +189,7 @@ TWITTER RULES (CRITICAL):
 Format:
 [Hook - max 1 sentence]
 [One clinical insight - max 1 sentence]
-🔗 vetree.app/article/${article.id}
+🔗 ${articleUrl}
 
 Return ONLY the tweet text. Count characters carefully - MUST be under 280 total.`
     } else if (platform === 'linkedin') {
@@ -209,7 +224,7 @@ LinkedIn post structure:
 
 [Article title shortened to ~60 chars]
 
-🔗 vetree.app/article/${article.id}
+🔗 ${articleUrl}
 
 🌿 vetree.app
 
@@ -235,7 +250,7 @@ Format:
 [2-3 sentences insight]
 
 📄 ${article.title.slice(0, 80)}
-🔗 vetree.app/article/${article.id}
+🔗 ${articleUrl}
 🌿 vetree.app
 
 Return ONLY the post text. Follow the platform rule exactly.`

@@ -98,3 +98,14 @@ Always run `npm run build` and confirm it passes before committing.
 - Cap: `enrichment_attempts < 3` (normal) OR `force_retry = true` (admin override)
 - Articles hidden from public until: `needs_enrichment = false` AND `summary IS NOT NULL`
 - Failed enrichment tools at `/admin/pipeline`
+
+## Growth Tools (`/admin/growth`)
+- **Content Agent**: On-demand social media post generation using Claude Sonnet
+  - Generates platform-specific posts (Twitter, LinkedIn, Facebook, Instagram, WhatsApp, Telegram)
+  - Auto-includes UTM tracking parameters in article links
+  - Weighted random article selection (prefers newer articles)
+  - Redesign feature regenerates posts for different platforms
+- **UTM Links**: Campaign link generator with QR codes for tracking traffic sources
+- **Growth Tasks (DEPRECATED)**: Daily task system replaced by Content Agent
+  - `growth_tasks` table still exists but is no longer actively used
+  - `growth-daily-reminder.yml` workflow disabled (kept for reference)
