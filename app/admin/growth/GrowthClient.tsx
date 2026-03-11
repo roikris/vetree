@@ -8,6 +8,7 @@ import { TodaysTasks } from './TodaysTasks'
 import { UpcomingTasks } from './UpcomingTasks'
 import { TaskHistory } from './TaskHistory'
 import { ContentAgent } from './ContentAgent'
+import { UtmLinks } from './UtmLinks'
 
 type GrowthTask = {
   id: string
@@ -47,7 +48,7 @@ export function GrowthClient({
 }: GrowthClientProps) {
   const [stats, setStats] = useState<Stats | undefined>(initialStats)
   const [todaysTasks, setTodaysTasks] = useState<GrowthTask[]>(initialTodaysTasks)
-  const [activeTab, setActiveTab] = useState<'week' | 'agent' | 'history'>('week')
+  const [activeTab, setActiveTab] = useState<'week' | 'agent' | 'utm' | 'history'>('week')
   const [isRefreshing, setIsRefreshing] = useState(false)
 
   const refreshData = async () => {
@@ -99,6 +100,16 @@ export function GrowthClient({
           🤖 Content Agent
         </button>
         <button
+          onClick={() => setActiveTab('utm')}
+          className={`px-4 py-2 font-medium transition-colors ${
+            activeTab === 'utm'
+              ? 'text-[#3D7A5F] dark:text-[#4E9A78] border-b-2 border-[#3D7A5F] dark:border-[#4E9A78]'
+              : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300'
+          }`}
+        >
+          🔗 UTM Links
+        </button>
+        <button
           onClick={() => setActiveTab('history')}
           className={`px-4 py-2 font-medium transition-colors ${
             activeTab === 'history'
@@ -146,6 +157,8 @@ export function GrowthClient({
         </>
       ) : activeTab === 'agent' ? (
         <ContentAgent />
+      ) : activeTab === 'utm' ? (
+        <UtmLinks />
       ) : (
         <TaskHistory />
       )}

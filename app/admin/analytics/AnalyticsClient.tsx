@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
-import { getAnalyticsOverview, getTopPages, getVisitorsOverTime, getTopArticles, getSessionDuration, getRecentSearches, getDeviceBreakdown, getTopCountries, getSavedArticlesStats } from '@/app/actions/analytics'
+import { getAnalyticsOverview, getTopPages, getVisitorsOverTime, getTopArticles, getSessionDuration, getRecentSearches, getDeviceBreakdown, getTopCountries, getSavedArticlesStats, getTrafficSources } from '@/app/actions/analytics'
 
 type AnalyticsClientProps = {
   initialOverview: any
@@ -14,6 +14,7 @@ type AnalyticsClientProps = {
   initialDeviceBreakdown: any
   initialTopCountries: any[]
   initialSavedArticlesStats: any
+  initialTrafficSources: any[]
 }
 
 export function AnalyticsClient({
@@ -25,7 +26,8 @@ export function AnalyticsClient({
   initialRecentSearches,
   initialDeviceBreakdown,
   initialTopCountries,
-  initialSavedArticlesStats
+  initialSavedArticlesStats,
+  initialTrafficSources
 }: AnalyticsClientProps) {
   const [dateRange, setDateRange] = useState<7 | 30 | 90>(7)
   const [overview, setOverview] = useState(initialOverview)
@@ -37,6 +39,7 @@ export function AnalyticsClient({
   const [deviceBreakdown, setDeviceBreakdown] = useState(initialDeviceBreakdown)
   const [topCountries, setTopCountries] = useState(initialTopCountries || [])
   const [savedArticlesStats, setSavedArticlesStats] = useState(initialSavedArticlesStats)
+  const [trafficSources, setTrafficSources] = useState(initialTrafficSources || [])
   const [isLoading, setIsLoading] = useState(false)
 
   const handleDateRangeChange = async (newRange: 7 | 30 | 90) => {
@@ -44,7 +47,7 @@ export function AnalyticsClient({
     setIsLoading(true)
 
     try {
-      const [overviewRes, topPagesRes, visitorsRes, articlesRes, sessionRes, searchesRes, deviceRes, countriesRes, savedRes] = await Promise.all([
+      const [overviewRes, topPagesRes, visitorsRes, articlesRes, sessionRes, searchesRes, deviceRes, countriesRes, savedRes, trafficRes] = await Promise.all([
         getAnalyticsOverview(newRange),
         getTopPages(newRange),
         getVisitorsOverTime(newRange),
@@ -53,7 +56,8 @@ export function AnalyticsClient({
         getRecentSearches(newRange),
         getDeviceBreakdown(newRange),
         getTopCountries(newRange),
-        getSavedArticlesStats(newRange)
+        getSavedArticlesStats(newRange),
+        getTrafficSources(newRange)
       ])
 
       setOverview(overviewRes.data)
@@ -65,6 +69,7 @@ export function AnalyticsClient({
       setDeviceBreakdown(deviceRes.data)
       setTopCountries(countriesRes.data || [])
       setSavedArticlesStats(savedRes.data)
+      setTrafficSources(trafficRes.data || [])
     } catch (error) {
       console.error('Error loading analytics:', error)
     } finally {
@@ -398,6 +403,76 @@ export function AnalyticsClient({
           </div>
         )}
       </div>
+
+      {/* Traffic Sources */}
+      {trafficSources.length > 0 && (
+        <div className="bg-white dark:bg-[#1A1A1A] border border-zinc-200 dark:border-zinc-800 rounded-lg p-6">
+          <h2 className="text-xl font-semibold text-[#1A1A1A] dark:text-[#E8E8E8] mb-4">
+            Traffic Sources
+          </h2>
+
+          {/* Bar Chart */}
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={trafficSources}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#444" />
+              <XAxis dataKey="source" stroke="#888" angle={-45} textAnchor="end" height={100} />
+              <YAxis stroke="#888" />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: '#1A1A1A',
+                  border: '1px solid #333',
+                  borderRadius: '8px'
+                }}
+              />
+              <Legend />
+              <Bar dataKey="visits" fill="#3D7A5F" name="Visits" />
+            </BarChart>
+          </ResponsiveContainer>
+
+          {/* Table */}
+          <div className="mt-6 overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-zinc-200 dark:border-zinc-800">
+                  <th className="text-left py-3 px-4 text-sm font-medium text-zinc-600 dark:text-zinc-400">
+                    Source
+                  </th>
+                  <th className="text-right py-3 px-4 text-sm font-medium text-zinc-600 dark:text-zinc-400">
+                    Visits
+                  </th>
+                  <th className="text-right py-3 px-4 text-sm font-medium text-zinc-600 dark:text-zinc-400">
+                    Unique Visitors
+                  </th>
+                  <th className="text-right py-3 px-4 text-sm font-medium text-zinc-600 dark:text-zinc-400">
+                    Signups Attributed
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {trafficSources.map((source, idx) => (
+                  <tr
+                    key={idx}
+                    className="border-b border-zinc-200 dark:border-zinc-800 last:border-0"
+                  >
+                    <td className="py-3 px-4 text-sm text-zinc-900 dark:text-zinc-100 font-medium">
+                      {source.source}
+                    </td>
+                    <td className="py-3 px-4 text-sm text-right text-zinc-700 dark:text-zinc-300 font-medium">
+                      {source.visits}
+                    </td>
+                    <td className="py-3 px-4 text-sm text-right text-zinc-700 dark:text-zinc-300">
+                      {source.uniqueVisitors}
+                    </td>
+                    <td className="py-3 px-4 text-sm text-right text-zinc-700 dark:text-zinc-300">
+                      {source.signups}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Recent Searches */}
       <div className="bg-white dark:bg-[#1A1A1A] border border-zinc-200 dark:border-zinc-800 rounded-lg p-6">

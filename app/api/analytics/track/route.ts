@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient()
     const body = await request.json()
-    const { path, referrer, session_id, duration_seconds } = body
+    const { path, referrer, session_id, duration_seconds, utm_source, utm_medium, utm_campaign } = body
 
     if (!path) {
       return NextResponse.json({ error: 'Path is required' }, { status: 400 })
@@ -90,7 +90,10 @@ export async function POST(request: NextRequest) {
         city,
         device_type: deviceType,
         session_id: session_id || undefined,
-        duration_seconds: duration_seconds || undefined
+        duration_seconds: duration_seconds || undefined,
+        utm_source: utm_source || undefined,
+        utm_medium: utm_medium || undefined,
+        utm_campaign: utm_campaign || undefined
       })
 
     if (error) {

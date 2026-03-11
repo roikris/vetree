@@ -27,9 +27,25 @@ export function usePageTracking() {
     const sessionId = getSessionId()
     const startTime = Date.now()
 
+    // Extract and persist UTM parameters
+    const searchParams = new URLSearchParams(window.location.search)
+    const utm_source = searchParams.get('utm_source') || null
+    const utm_medium = searchParams.get('utm_medium') || null
+    const utm_campaign = searchParams.get('utm_campaign') || null
+
+    // Store in sessionStorage so UTMs persist across pages within same session
+    if (utm_source) sessionStorage.setItem('utm_source', utm_source)
+    if (utm_medium) sessionStorage.setItem('utm_medium', utm_medium)
+    if (utm_campaign) sessionStorage.setItem('utm_campaign', utm_campaign)
+
     // Track page view on load
     const trackPageView = async () => {
       try {
+        // Always send from sessionStorage (persists after leaving landing page)
+        const tracked_utm_source = sessionStorage.getItem('utm_source')
+        const tracked_utm_medium = sessionStorage.getItem('utm_medium')
+        const tracked_utm_campaign = sessionStorage.getItem('utm_campaign')
+
         await fetch('/api/analytics/track', {
           method: 'POST',
           headers: {
@@ -38,7 +54,10 @@ export function usePageTracking() {
           body: JSON.stringify({
             path: pathname,
             referrer: document.referrer,
-            session_id: sessionId
+            session_id: sessionId,
+            utm_source: tracked_utm_source,
+            utm_medium: tracked_utm_medium,
+            utm_campaign: tracked_utm_campaign
           })
         })
       } catch (error) {

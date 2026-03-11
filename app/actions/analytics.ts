@@ -487,3 +487,92 @@ export async function getSavedArticlesStats(days: number = 7) {
     error: null
   }
 }
+
+export async function getTrafficSources(days: number = 7) {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const { data: roleData } = await supabase
+    .from('user_roles')
+    .select('role')
+    .eq('user_id', user.id)
+    .single()
+
+  if (roleData?.role !== 'admin') {
+    return { error: 'Unauthorized' }
+  }
+
+  const startDate = new Date()
+  startDate.setDate(startDate.getDate() - days)
+
+  // Get all page views with UTM data and referrers (exclude admin)
+  const { data: pageViews } = await supabase
+    .from('page_views')
+    .select('utm_source, referrer, ip_hash, user_id')
+    .gte('created_at', startDate.toISOString())
+    .or('user_id.is.null,user_id.neq.90cb8294-b593-4144-a9f5-23ca52dd5e35')
+
+  if (!pageViews) return { data: [], error: null }
+
+  // Categorize traffic sources
+  const sourceStats: Record<string, { visits: number, uniqueVisitors: Set<string>, signups: Set<string> }> = {}
+
+  const categorizeSource = (utmSource: string | null, referrer: string | null): string => {
+    // UTM source takes priority
+    if (utmSource) {
+      const source = utmSource.toLowerCase()
+      if (source === 'facebook') return 'Facebook'
+      if (source === 'whatsapp') return 'WhatsApp'
+      if (source === 'linkedin') return 'LinkedIn'
+      if (source === 'twitter' || source === 'x') return 'Twitter/X'
+      if (source === 'telegram') return 'Telegram'
+      if (source === 'instagram') return 'Instagram'
+      if (source === 'reddit') return 'Reddit'
+      return utmSource // Return custom UTM source
+    }
+
+    // Fallback to referrer
+    if (referrer) {
+      const ref = referrer.toLowerCase()
+      if (ref.includes('google')) return 'Google Search'
+      if (ref.includes('facebook')) return 'Facebook (organic)'
+      if (ref.includes('linkedin')) return 'LinkedIn (organic)'
+      if (ref.includes('twitter') || ref.includes('t.co')) return 'Twitter/X (organic)'
+      if (ref.includes('instagram')) return 'Instagram (organic)'
+      if (ref.includes('reddit')) return 'Reddit (organic)'
+      return 'Other Referral'
+    }
+
+    return 'Direct / Unknown'
+  }
+
+  pageViews.forEach(view => {
+    const source = categorizeSource(view.utm_source, view.referrer)
+
+    if (!sourceStats[source]) {
+      sourceStats[source] = { visits: 0, uniqueVisitors: new Set(), signups: new Set() }
+    }
+
+    sourceStats[source].visits++
+    sourceStats[source].uniqueVisitors.add(view.ip_hash)
+
+    // Track signups (visitors who have user_id)
+    if (view.user_id) {
+      sourceStats[source].signups.add(view.user_id)
+    }
+  })
+
+  // Convert to array and sort by visits
+  const trafficSources = Object.entries(sourceStats)
+    .map(([source, stats]) => ({
+      source,
+      visits: stats.visits,
+      uniqueVisitors: stats.uniqueVisitors.size,
+      signups: stats.signups.size
+    }))
+    .sort((a, b) => b.visits - a.visits)
+
+  return { data: trafficSources, error: null }
+}
