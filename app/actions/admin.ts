@@ -524,3 +524,121 @@ export async function getArticleHealthDiagnostics() {
     error: null
   }
 }
+
+export async function requeueNeverAttempted() {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const { data: roleData } = await supabase
+    .from('user_roles')
+    .select('role')
+    .eq('user_id', user.id)
+    .single()
+
+  if (roleData?.role !== 'admin') {
+    return { error: 'Unauthorized' }
+  }
+
+  const { count, error } = await supabase
+    .from('articles')
+    .update({ needs_enrichment: true })
+    .eq('enrichment_attempts', 0)
+
+  if (error) {
+    return { error: error.message }
+  }
+
+  return { success: true, count: count || 0 }
+}
+
+export async function requeuePartialAttempts() {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const { data: roleData } = await supabase
+    .from('user_roles')
+    .select('role')
+    .eq('user_id', user.id)
+    .single()
+
+  if (roleData?.role !== 'admin') {
+    return { error: 'Unauthorized' }
+  }
+
+  const { count, error } = await supabase
+    .from('articles')
+    .update({ needs_enrichment: true })
+    .in('enrichment_attempts', [1, 2])
+
+  if (error) {
+    return { error: error.message }
+  }
+
+  return { success: true, count: count || 0 }
+}
+
+export async function forceRetryFailed() {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const { data: roleData } = await supabase
+    .from('user_roles')
+    .select('role')
+    .eq('user_id', user.id)
+    .single()
+
+  if (roleData?.role !== 'admin') {
+    return { error: 'Unauthorized' }
+  }
+
+  const { count, error } = await supabase
+    .from('articles')
+    .update({
+      needs_enrichment: true,
+      force_retry: true
+    })
+    .gte('enrichment_attempts', 3)
+    .eq('force_retry', false)
+
+  if (error) {
+    return { error: error.message }
+  }
+
+  return { success: true, count: count || 0 }
+}
+
+export async function quarantineUnfixable() {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const { data: roleData } = await supabase
+    .from('user_roles')
+    .select('role')
+    .eq('user_id', user.id)
+    .single()
+
+  if (roleData?.role !== 'admin') {
+    return { error: 'Unauthorized' }
+  }
+
+  // Quarantine articles with 3+ attempts AND no abstract (nothing to enrich)
+  const { count, error } = await supabase
+    .from('articles')
+    .update({ quarantined: true })
+    .gte('enrichment_attempts', 3)
+    .is('abstract', null)
+
+  if (error) {
+    return { error: error.message }
+  }
+
+  return { success: true, count: count || 0 }
+}

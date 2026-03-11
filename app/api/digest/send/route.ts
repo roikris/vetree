@@ -65,6 +65,7 @@ export async function POST(request: NextRequest) {
         .select('id, title, clinical_bottom_line, source_journal, publication_date, strength_of_evidence, labels')
         .eq('needs_enrichment', false)
         .not('clinical_bottom_line', 'is', null)
+        .or('quarantined.is.null,quarantined.eq.false')
         .overlaps('labels', tags)
         .gte('publication_date', sevenDaysAgo.toISOString().split('T')[0])
         .order('publication_date', { ascending: false })

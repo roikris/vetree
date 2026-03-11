@@ -24,6 +24,7 @@ export async function GET() {
       .select('*', { count: 'exact', head: true })
       .eq('needs_enrichment', false)
       .not('clinical_bottom_line', 'is', null)
+      .or('quarantined.is.null,quarantined.eq.false')
 
     return NextResponse.json({
       confirmed_users: confirmedUsers || 0,

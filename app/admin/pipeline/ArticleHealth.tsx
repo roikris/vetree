@@ -1,5 +1,8 @@
 'use client'
 
+import { useState } from 'react'
+import { requeueNeverAttempted, requeuePartialAttempts, forceRetryFailed, quarantineUnfixable } from '@/app/actions/admin'
+
 type ArticleHealthProps = {
   diagnostics: {
     data?: {
@@ -16,6 +19,32 @@ type ArticleHealthProps = {
 }
 
 export function ArticleHealth({ diagnostics }: ArticleHealthProps) {
+  const [isProcessing, setIsProcessing] = useState(false)
+  const [message, setMessage] = useState<{type: 'success' | 'error', text: string} | null>(null)
+
+  const handleAction = async (action: () => Promise<any>, successMessage: string) => {
+    if (!confirm(`Are you sure? This will modify articles in the database.`)) return
+
+    setIsProcessing(true)
+    setMessage(null)
+
+    try {
+      const result = await action()
+
+      if (result.error) {
+        setMessage({ type: 'error', text: result.error })
+      } else {
+        setMessage({ type: 'success', text: `${successMessage} (${result.count} articles affected)` })
+        // Refresh page after 2 seconds to show updated counts
+        setTimeout(() => window.location.reload(), 2000)
+      }
+    } catch (error) {
+      setMessage({ type: 'error', text: String(error) })
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
   if (diagnostics.error) {
     return (
       <div className="mb-8 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
@@ -129,37 +158,57 @@ export function ArticleHealth({ diagnostics }: ArticleHealthProps) {
         </div>
       </div>
 
-      {/* Action Buttons Section - Coming Next */}
+      {/* Action Buttons Section */}
       <div className="mt-6 p-4 bg-zinc-50 dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800">
         <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-3">
-          🛠️ Recovery Actions (Coming Soon)
+          🛠️ Recovery Actions
         </h3>
+
+        {/* Success/Error Message */}
+        {message && (
+          <div className={`mb-3 p-3 rounded-lg text-sm ${
+            message.type === 'success'
+              ? 'bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-200 border border-green-200 dark:border-green-800'
+              : 'bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-200 border border-red-200 dark:border-red-800'
+          }`}>
+            {message.text}
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
           <button
-            disabled
-            className="px-4 py-2 bg-zinc-300 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400 rounded-lg text-sm cursor-not-allowed"
+            onClick={() => handleAction(requeueNeverAttempted, 'Re-queued never attempted articles')}
+            disabled={isProcessing || data.neverAttempted === 0}
+            className="px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-zinc-300 dark:disabled:bg-zinc-700 text-white disabled:text-zinc-500 dark:disabled:text-zinc-400 rounded-lg text-sm transition-colors disabled:cursor-not-allowed"
           >
-            Re-queue Never Attempted
+            Re-queue Never Attempted ({data.neverAttempted})
           </button>
           <button
-            disabled
-            className="px-4 py-2 bg-zinc-300 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400 rounded-lg text-sm cursor-not-allowed"
+            onClick={() => handleAction(requeuePartialAttempts, 'Re-queued partially attempted articles')}
+            disabled={isProcessing || data.partiallyAttempted === 0}
+            className="px-4 py-2 bg-orange-600 hover:bg-orange-700 disabled:bg-zinc-300 dark:disabled:bg-zinc-700 text-white disabled:text-zinc-500 dark:disabled:text-zinc-400 rounded-lg text-sm transition-colors disabled:cursor-not-allowed"
           >
-            Re-queue Partial
+            Re-queue Partial ({data.partiallyAttempted})
           </button>
           <button
-            disabled
-            className="px-4 py-2 bg-zinc-300 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400 rounded-lg text-sm cursor-not-allowed"
+            onClick={() => handleAction(forceRetryFailed, 'Force retrying failed articles')}
+            disabled={isProcessing || data.permanentlyFailed === 0}
+            className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-zinc-300 dark:disabled:bg-zinc-700 text-white disabled:text-zinc-500 dark:disabled:text-zinc-400 rounded-lg text-sm transition-colors disabled:cursor-not-allowed"
           >
-            Force Retry Failed
+            Force Retry Failed ({data.permanentlyFailed})
           </button>
           <button
-            disabled
-            className="px-4 py-2 bg-zinc-300 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400 rounded-lg text-sm cursor-not-allowed"
+            onClick={() => handleAction(quarantineUnfixable, 'Quarantined unfixable articles')}
+            disabled={isProcessing}
+            className="px-4 py-2 bg-zinc-600 hover:bg-zinc-700 disabled:bg-zinc-300 dark:disabled:bg-zinc-700 text-white disabled:text-zinc-500 dark:disabled:text-zinc-400 rounded-lg text-sm transition-colors disabled:cursor-not-allowed"
           >
             Quarantine Unfixable
           </button>
         </div>
+
+        <p className="mt-3 text-xs text-zinc-500 dark:text-zinc-400">
+          💡 Tip: Re-queue actions set needs_enrichment=true. Quarantine marks articles with attempts≥3 AND no abstract.
+        </p>
       </div>
     </div>
   )

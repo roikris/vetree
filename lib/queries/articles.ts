@@ -17,6 +17,8 @@ export async function searchArticles(filters: ParsedFilters, pageSize = 20) {
       .eq('needs_enrichment', false)
       .not('summary', 'is', null)
       .not('clinical_bottom_line', 'is', null)
+      // Exclude quarantined articles
+      .or('quarantined.is.null,quarantined.eq.false')
 
     // Search across multiple fields with OR
     if (filters.search) {
@@ -105,6 +107,10 @@ export async function getUniqueJournals() {
     .from('articles')
     .select('source_journal')
     .not('source_journal', 'is', null)
+    .eq('needs_enrichment', false)
+    .not('summary', 'is', null)
+    .not('clinical_bottom_line', 'is', null)
+    .or('quarantined.is.null,quarantined.eq.false')
 
   if (!data) return []
 
@@ -117,6 +123,10 @@ export async function getDistinctEvidenceLevels() {
     .from('articles')
     .select('strength_of_evidence')
     .not('strength_of_evidence', 'is', null)
+    .eq('needs_enrichment', false)
+    .not('summary', 'is', null)
+    .not('clinical_bottom_line', 'is', null)
+    .or('quarantined.is.null,quarantined.eq.false')
 
   if (!data) return []
 

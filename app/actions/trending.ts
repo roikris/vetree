@@ -44,6 +44,7 @@ export async function getTrendingArticles() {
     .eq('needs_enrichment', false)
     .not('summary', 'is', null)
     .not('clinical_bottom_line', 'is', null)
+    .or('quarantined.is.null,quarantined.eq.false')
 
   if (articlesError) {
     console.error('Error fetching article details:', articlesError)

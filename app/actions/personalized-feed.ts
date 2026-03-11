@@ -30,6 +30,7 @@ export async function getPersonalizedArticles() {
     .eq('needs_enrichment', false)
     .not('clinical_bottom_line', 'is', null)
     .not('summary', 'is', null)
+    .or('quarantined.is.null,quarantined.eq.false')
     .overlaps('labels', followedTags)
     .order('publication_date', { ascending: false })
     .limit(5)
