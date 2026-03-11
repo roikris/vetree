@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
-import { getAnalyticsOverview, getTopPages, getVisitorsOverTime, getTopArticles, getSessionDuration, getRecentSearches, getDeviceBreakdown, getTopCountries } from '@/app/actions/analytics'
+import { getAnalyticsOverview, getTopPages, getVisitorsOverTime, getTopArticles, getSessionDuration, getRecentSearches, getDeviceBreakdown, getTopCountries, getSavedArticlesStats } from '@/app/actions/analytics'
 
 type AnalyticsClientProps = {
   initialOverview: any
@@ -13,6 +13,7 @@ type AnalyticsClientProps = {
   initialRecentSearches: any[]
   initialDeviceBreakdown: any
   initialTopCountries: any[]
+  initialSavedArticlesStats: any
 }
 
 export function AnalyticsClient({
@@ -23,7 +24,8 @@ export function AnalyticsClient({
   initialSessionDuration,
   initialRecentSearches,
   initialDeviceBreakdown,
-  initialTopCountries
+  initialTopCountries,
+  initialSavedArticlesStats
 }: AnalyticsClientProps) {
   const [dateRange, setDateRange] = useState<7 | 30 | 90>(7)
   const [overview, setOverview] = useState(initialOverview)
@@ -34,6 +36,7 @@ export function AnalyticsClient({
   const [recentSearches, setRecentSearches] = useState(initialRecentSearches || [])
   const [deviceBreakdown, setDeviceBreakdown] = useState(initialDeviceBreakdown)
   const [topCountries, setTopCountries] = useState(initialTopCountries || [])
+  const [savedArticlesStats, setSavedArticlesStats] = useState(initialSavedArticlesStats)
   const [isLoading, setIsLoading] = useState(false)
 
   const handleDateRangeChange = async (newRange: 7 | 30 | 90) => {
@@ -41,7 +44,7 @@ export function AnalyticsClient({
     setIsLoading(true)
 
     try {
-      const [overviewRes, topPagesRes, visitorsRes, articlesRes, sessionRes, searchesRes, deviceRes, countriesRes] = await Promise.all([
+      const [overviewRes, topPagesRes, visitorsRes, articlesRes, sessionRes, searchesRes, deviceRes, countriesRes, savedRes] = await Promise.all([
         getAnalyticsOverview(newRange),
         getTopPages(newRange),
         getVisitorsOverTime(newRange),
@@ -49,7 +52,8 @@ export function AnalyticsClient({
         getSessionDuration(newRange),
         getRecentSearches(newRange),
         getDeviceBreakdown(newRange),
-        getTopCountries(newRange)
+        getTopCountries(newRange),
+        getSavedArticlesStats(newRange)
       ])
 
       setOverview(overviewRes.data)
@@ -60,6 +64,7 @@ export function AnalyticsClient({
       setRecentSearches(searchesRes.data || [])
       setDeviceBreakdown(deviceRes.data)
       setTopCountries(countriesRes.data || [])
+      setSavedArticlesStats(savedRes.data)
     } catch (error) {
       console.error('Error loading analytics:', error)
     } finally {
@@ -123,7 +128,7 @@ export function AnalyticsClient({
 
       {/* Overview Cards */}
       {overview && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
           <div className="bg-white dark:bg-[#1A1A1A] border border-zinc-200 dark:border-zinc-800 rounded-lg p-6">
             <div className="text-sm text-zinc-600 dark:text-zinc-400 mb-2">Total Pageviews</div>
             <div className="text-3xl font-bold text-[#3D7A5F] dark:text-[#4E9A78]">
@@ -161,6 +166,18 @@ export function AnalyticsClient({
                 : '0%'}
             </div>
           </div>
+
+          {savedArticlesStats && (
+            <div className="bg-white dark:bg-[#1A1A1A] border border-zinc-200 dark:border-zinc-800 rounded-lg p-6">
+              <div className="text-sm text-zinc-600 dark:text-zinc-400 mb-2">Saved Articles</div>
+              <div className="text-3xl font-bold text-purple-600 dark:text-purple-500">
+                {savedArticlesStats.totalSaved.toLocaleString()}
+              </div>
+              <div className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+                {savedArticlesStats.uniqueUsers} users
+              </div>
+            </div>
+          )}
         </div>
       )}
 

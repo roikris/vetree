@@ -445,3 +445,45 @@ export async function getTopCountries(days: number = 7, limit: number = 10) {
 
   return { data: topCountries, error: null }
 }
+
+export async function getSavedArticlesStats(days: number = 7) {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const { data: roleData } = await supabase
+    .from('user_roles')
+    .select('role')
+    .eq('user_id', user.id)
+    .single()
+
+  if (roleData?.role !== 'admin') {
+    return { error: 'Unauthorized' }
+  }
+
+  const startDate = new Date()
+  startDate.setDate(startDate.getDate() - days)
+
+  // Total saved articles count
+  const { count: totalSaved } = await supabase
+    .from('saved_articles')
+    .select('*', { count: 'exact', head: true })
+    .gte('created_at', startDate.toISOString())
+
+  // Unique users who saved at least one article
+  const { data: savedArticles } = await supabase
+    .from('saved_articles')
+    .select('user_id')
+    .gte('created_at', startDate.toISOString())
+
+  const uniqueUsers = savedArticles ? [...new Set(savedArticles.map(s => s.user_id))].length : 0
+
+  return {
+    data: {
+      totalSaved: totalSaved || 0,
+      uniqueUsers
+    },
+    error: null
+  }
+}

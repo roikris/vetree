@@ -40,12 +40,42 @@ export async function POST(request: NextRequest) {
 
     // Get user agent and parse device type
     const userAgent = request.headers.get('user-agent') || ''
-    const isMobile = /Mobile|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent)
-    const deviceType = isMobile ? 'mobile' : 'desktop'
 
-    // Get country and city from Vercel headers
-    const country = request.headers.get('x-vercel-ip-country') || 'Unknown'
+    // Check Vercel's built-in headers first (most reliable)
+    const secChUaMobile = request.headers.get('sec-ch-ua-mobile')
+
+    let deviceType = 'desktop' // default
+
+    if (secChUaMobile === '?1') {
+      deviceType = 'mobile'
+    } else if (secChUaMobile === '?0') {
+      deviceType = 'desktop'
+    } else {
+      // Fallback: parse user agent string
+      const mobileRegex = /Mobile|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|webOS|Windows Phone/i
+      const tabletRegex = /iPad|Android(?!.*Mobile)|Tablet/i
+
+      if (tabletRegex.test(userAgent)) {
+        deviceType = 'tablet'
+      } else if (mobileRegex.test(userAgent)) {
+        deviceType = 'mobile'
+      } else {
+        deviceType = 'desktop'
+      }
+    }
+
+    // Get country and city from Vercel headers - check all possible headers
+    const country =
+      request.headers.get('x-vercel-ip-country') ||
+      request.headers.get('cf-ipcountry') ||
+      request.headers.get('x-country-code') ||
+      'Unknown'
     const city = request.headers.get('x-vercel-ip-city') || undefined
+
+    // Temporary logging for debugging
+    console.log('[analytics/track] UA:', userAgent.slice(0, 100))
+    console.log('[analytics/track] device:', deviceType, 'country:', country)
+    console.log('[analytics/track] sec-ch-ua-mobile:', secChUaMobile)
 
     // Insert page view
     const { error } = await supabase
