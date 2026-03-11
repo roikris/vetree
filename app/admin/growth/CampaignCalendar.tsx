@@ -88,7 +88,7 @@ export function CampaignCalendar() {
         return
       }
 
-      setGeneratedPost(data.post)
+      setGeneratedPost(data.post_content)
       setMessage({ type: 'success', text: 'Post generated successfully!' })
     } catch (error) {
       setMessage({ type: 'error', text: 'Failed to generate post' })
