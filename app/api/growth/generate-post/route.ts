@@ -132,10 +132,28 @@ export async function POST(request: NextRequest) {
     const Anthropic = (await import('@anthropic-ai/sdk')).default
     const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
+    // Platform-specific formatting rules
+    const platformRules = {
+      twitter: 'MAX 280 characters total including link. One hook sentence + one insight. Be ruthless with brevity.',
+      linkedin: 'Long form. Rhythm: short line → longer paragraph → short line. 150-300 words. No bullet points. Human voice.',
+      facebook: 'Conversational, 100-200 words. Can use emoji sparingly. Personal tone.',
+      facebook_il: 'Same as Facebook but in Hebrew. Natural clinical Hebrew, not translated.',
+      facebook_intl: 'International Facebook. Conversational, 100-200 words. Personal tone.',
+      whatsapp: 'Very short, casual, direct. 50-80 words max. Hebrew preferred for IL group.',
+      instagram: 'Visual-first caption. Hook + insight + hashtags at end. 100-150 words.',
+      telegram: 'Medium length, informative. 100-150 words. Can be slightly more technical.',
+      reddit: 'Informative, evidence-based. 150-250 words. Avoid marketing tone.'
+    }
+
+    const platformRule = platformRules[platform as keyof typeof platformRules] || platformRules.telegram
+
     // Build platform-specific prompt
     let promptContent: string
     if (platform === 'twitter') {
-      promptContent = `Write a ${language} tweet for Twitter.
+      promptContent = `PLATFORM: Twitter
+PLATFORM RULE: ${platformRule}
+
+Write a ${language} tweet for Twitter.
 
 Article: ${article.title}
 Clinical Bottom Line: ${article.clinical_bottom_line}
@@ -143,8 +161,11 @@ Labels: ${article.labels?.join(', ') || 'N/A'}
 
 IMPORTANT: This post is for small animal first opinion practice only. If the article is about large animals, equine, livestock, or poultry - do not generate a post and return ONLY the text: SKIP_LARGE_ANIMAL
 
-TWITTER RULES: Total post must be UNDER 280 characters including the link.
-Count every character. Be ruthless with brevity.
+TWITTER RULES (CRITICAL):
+- Total post must be UNDER 280 characters including the link
+- Count every character. Be ruthless with brevity
+- One hook sentence + one clinical insight
+- No fluff, no adjectives, just facts
 
 Format:
 [Hook - max 1 sentence]
@@ -153,7 +174,10 @@ Format:
 
 Return ONLY the tweet text. Count characters carefully - MUST be under 280 total.`
     } else if (platform === 'linkedin') {
-      promptContent = `Write a ${language} LinkedIn post.
+      promptContent = `PLATFORM: LinkedIn
+PLATFORM RULE: ${platformRule}
+
+Write a ${language} LinkedIn post.
 
 Article: ${article.title}
 Clinical Bottom Line: ${article.clinical_bottom_line}
@@ -187,13 +211,19 @@ LinkedIn post structure:
 
 Return ONLY the post text following this exact rhythm pattern.`
     } else {
-      promptContent = `Write a ${language} social media post for ${platform}.
+      promptContent = `PLATFORM: ${platform}
+PLATFORM RULE: ${platformRule}
+
+Write a ${language} social media post for ${platform}.
 
 Article: ${article.title}
 Clinical Bottom Line: ${article.clinical_bottom_line}
 Labels: ${article.labels?.join(', ') || 'N/A'}
 
 IMPORTANT: This post is for small animal first opinion practice only. If the article is about large animals, equine, livestock, or poultry - do not generate a post and return ONLY the text: SKIP_LARGE_ANIMAL
+
+FORMATTING REQUIREMENTS:
+${platformRule}
 
 Format:
 [Hook line]
@@ -204,7 +234,7 @@ Format:
 🔗 vetree.app/article/${article.id}
 🌿 vetree.app
 
-Return ONLY the post text.`
+Return ONLY the post text. Follow the platform rule exactly.`
     }
 
     const message = await anthropic.messages.create({

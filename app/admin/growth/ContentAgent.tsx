@@ -69,10 +69,13 @@ export function ContentAgent() {
     }
   }
 
-  const generatePost = async (skipReason?: string, articleId?: string) => {
+  const generatePost = async (skipReason?: string, articleId?: string, customPlatform?: string) => {
     setIsLoading(true)
     setError(null)
     setIsEditing(false)
+
+    // Use custom platform if provided (for redesign), otherwise use state
+    const targetPlatform = customPlatform || platform
 
     try {
       const response = await fetch('/api/growth/generate-post', {
@@ -81,7 +84,7 @@ export function ContentAgent() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          platform,
+          platform: targetPlatform,
           language,
           skip_reason: skipReason,
           article_id: articleId
@@ -187,11 +190,11 @@ export function ContentAgent() {
 
     setShowRedesignModal(false)
 
-    // Update platform selection
+    // Update platform selection for UI
     setPlatform(newPlatform)
 
-    // Generate new post with same article
-    await generatePost(undefined, generatedPost.article_id)
+    // Generate new post with same article - pass platform explicitly
+    await generatePost(undefined, generatedPost.article_id, newPlatform)
   }
 
   return (
