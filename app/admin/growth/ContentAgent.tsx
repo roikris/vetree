@@ -48,6 +48,7 @@ export function ContentAgent() {
   const [isEditing, setIsEditing] = useState(false)
   const [editedContent, setEditedContent] = useState('')
   const [showSkipModal, setShowSkipModal] = useState(false)
+  const [showRedesignModal, setShowRedesignModal] = useState(false)
   const [stats, setStats] = useState<AgentStats | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -68,7 +69,7 @@ export function ContentAgent() {
     }
   }
 
-  const generatePost = async (skipReason?: string) => {
+  const generatePost = async (skipReason?: string, articleId?: string) => {
     setIsLoading(true)
     setError(null)
     setIsEditing(false)
@@ -82,7 +83,8 @@ export function ContentAgent() {
         body: JSON.stringify({
           platform,
           language,
-          skip_reason: skipReason
+          skip_reason: skipReason,
+          article_id: articleId
         })
       })
 
@@ -178,6 +180,18 @@ export function ContentAgent() {
       console.error('Error skipping post:', error)
       alert('Failed to skip post')
     }
+  }
+
+  const handleRedesign = async (newPlatform: string) => {
+    if (!generatedPost) return
+
+    setShowRedesignModal(false)
+
+    // Update platform selection
+    setPlatform(newPlatform)
+
+    // Generate new post with same article
+    await generatePost(undefined, generatedPost.article_id)
   }
 
   return (
@@ -310,7 +324,7 @@ export function ContentAgent() {
           </div>
 
           {/* Action Buttons */}
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-3">
             <button
               onClick={handleApprove}
               className="px-6 py-2 bg-green-600 dark:bg-green-700 text-white rounded-lg hover:bg-green-700 dark:hover:bg-green-800 transition-colors font-medium"
@@ -322,6 +336,12 @@ export function ContentAgent() {
               className="px-6 py-2 bg-amber-500 dark:bg-amber-600 text-white rounded-lg hover:bg-amber-600 dark:hover:bg-amber-700 transition-colors font-medium"
             >
               ⏭ Skip
+            </button>
+            <button
+              onClick={() => setShowRedesignModal(true)}
+              className="px-6 py-2 bg-blue-500 dark:bg-blue-600 text-white rounded-lg hover:bg-blue-600 dark:hover:bg-blue-700 transition-colors font-medium"
+            >
+              🔄 Redesign for...
             </button>
             {isEditing && (
               <button
@@ -435,6 +455,40 @@ export function ContentAgent() {
             </div>
             <button
               onClick={() => setShowSkipModal(false)}
+              className="mt-4 w-full px-4 py-2 bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300 rounded-lg hover:bg-zinc-300 dark:hover:bg-zinc-600 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Redesign Modal */}
+      {showRedesignModal && generatedPost && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={() => setShowRedesignModal(false)}
+        >
+          <div
+            className="bg-white dark:bg-[#1A1A1A] rounded-lg p-6 max-w-md w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold text-[#1A1A1A] dark:text-[#E8E8E8] mb-4">
+              Redesign for which platform?
+            </h3>
+            <div className="space-y-2">
+              {PLATFORMS.filter(p => p.value !== platform).map((p) => (
+                <button
+                  key={p.value}
+                  onClick={() => handleRedesign(p.value)}
+                  className="w-full px-4 py-2 text-left bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-lg text-zinc-900 dark:text-zinc-100 transition-colors"
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() => setShowRedesignModal(false)}
               className="mt-4 w-full px-4 py-2 bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300 rounded-lg hover:bg-zinc-300 dark:hover:bg-zinc-600 transition-colors"
             >
               Cancel

@@ -16,6 +16,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const platform = body.platform || 'general'
     const language = body.language || 'en'
+    const articleId = body.article_id // Optional - reuse specific article
 
     // Retry logic for large animal detection
     const MAX_RETRIES = 3
@@ -33,7 +34,25 @@ export async function POST(request: NextRequest) {
       'Food Animal', 'food animal'
     ]
 
-    while (retryCount < MAX_RETRIES) {
+    // If article_id is provided, fetch that specific article and skip selection
+    if (articleId) {
+      const { data: specificArticle, error } = await supabase
+        .from('articles')
+        .select('id, title, clinical_bottom_line, summary, labels, source_journal, publication_date')
+        .eq('id', articleId)
+        .single()
+
+      if (error || !specificArticle) {
+        return NextResponse.json({
+          error: 'Article not found',
+          details: error?.message
+        }, { status: 404 })
+      }
+
+      article = specificArticle
+    }
+
+    while (retryCount < MAX_RETRIES && !article) {
       // Get articles already used for this platform+language combo
       const { data: usedArticleIds } = await supabase
         .from('growth_agent_memory')
@@ -97,14 +116,26 @@ export async function POST(request: NextRequest) {
 
       article = selected
 
-      // Call Anthropic API
-      const Anthropic = (await import('@anthropic-ai/sdk')).default
-      const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+      // Success - break out of retry loop after selecting article
+      break
+    }
 
-      // Build platform-specific prompt
-      let promptContent: string
-      if (platform === 'twitter') {
-        promptContent = `Write a ${language} tweet for Twitter.
+    // If no article found after retries (shouldn't happen if articleId was provided)
+    if (!article) {
+      return NextResponse.json({
+        error: 'No suitable article found',
+        details: 'Unable to find an article after retries'
+      }, { status: 500 })
+    }
+
+    // Call Anthropic API to generate post for the selected article
+    const Anthropic = (await import('@anthropic-ai/sdk')).default
+    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+
+    // Build platform-specific prompt
+    let promptContent: string
+    if (platform === 'twitter') {
+      promptContent = `Write a ${language} tweet for Twitter.
 
 Article: ${article.title}
 Clinical Bottom Line: ${article.clinical_bottom_line}
@@ -121,8 +152,8 @@ Format:
 🔗 vetree.app/article/${article.id}
 
 Return ONLY the tweet text. Count characters carefully - MUST be under 280 total.`
-      } else if (platform === 'linkedin') {
-        promptContent = `Write a ${language} LinkedIn post.
+    } else if (platform === 'linkedin') {
+      promptContent = `Write a ${language} LinkedIn post.
 
 Article: ${article.title}
 Clinical Bottom Line: ${article.clinical_bottom_line}
@@ -155,8 +186,8 @@ LinkedIn post structure:
 🌿 vetree.app
 
 Return ONLY the post text following this exact rhythm pattern.`
-      } else {
-        promptContent = `Write a ${language} social media post for ${platform}.
+    } else {
+      promptContent = `Write a ${language} social media post for ${platform}.
 
 Article: ${article.title}
 Clinical Bottom Line: ${article.clinical_bottom_line}
@@ -174,72 +205,55 @@ Format:
 🌿 vetree.app
 
 Return ONLY the post text.`
-      }
+    }
 
-      const message = await anthropic.messages.create({
+    const message = await anthropic.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1000,
+      messages: [{
+        role: 'user',
+        content: promptContent
+      }],
+      system: `You are a veterinary content writer. Write specific, clinically relevant posts for DVMs in small animal practice. ${language === 'he' ? 'Write in natural Hebrew.' : 'Write in English.'}`
+    })
+
+    postContent = message.content[0].type === 'text' ? message.content[0].text : ''
+
+    // Twitter-specific length check
+    if (platform === 'twitter' && postContent.length > 280 && !postContent.includes('SKIP_LARGE_ANIMAL')) {
+      console.log(`[generate-post] Tweet too long (${postContent.length} chars), asking Claude to shorten...`)
+
+      const shortenMessage = await anthropic.messages.create({
         model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
+        max_tokens: 500,
         messages: [{
           role: 'user',
-          content: promptContent
-        }],
-        system: `You are a veterinary content writer. Write specific, clinically relevant posts for DVMs in small animal practice. ${language === 'he' ? 'Write in natural Hebrew.' : 'Write in English.'}`
-      })
-
-      postContent = message.content[0].type === 'text' ? message.content[0].text : ''
-
-      // Twitter-specific length check
-      if (platform === 'twitter' && postContent.length > 280 && !postContent.includes('SKIP_LARGE_ANIMAL')) {
-        console.log(`[generate-post] Tweet too long (${postContent.length} chars), asking Claude to shorten...`)
-
-        const shortenMessage = await anthropic.messages.create({
-          model: 'claude-sonnet-4-20250514',
-          max_tokens: 500,
-          messages: [{
-            role: 'user',
-            content: `This tweet is ${postContent.length} characters but must be under 280. Shorten it ruthlessly while keeping the clinical insight and link:
+          content: `This tweet is ${postContent.length} characters but must be under 280. Shorten it ruthlessly while keeping the clinical insight and link:
 
 ${postContent}
 
 Return ONLY the shortened tweet (under 280 chars).`
-          }]
-        })
+        }]
+      })
 
-        const shortenedContent = shortenMessage.content[0].type === 'text' ? shortenMessage.content[0].text : postContent
+      const shortenedContent = shortenMessage.content[0].type === 'text' ? shortenMessage.content[0].text : postContent
 
-        // If still too long, truncate intelligently
-        if (shortenedContent.length <= 280) {
-          postContent = shortenedContent
-        } else {
-          console.log(`[generate-post] Still too long after shortening, truncating...`)
-          // Keep first part and ensure we keep the link
-          const linkMatch = postContent.match(/🔗 vetree\.app\/article\/[\w-]+/)
-          const link = linkMatch ? linkMatch[0] : `🔗 vetree.app/article/${article.id}`
-          const maxTextLength = 280 - link.length - 3 // -3 for newlines
-          const textPart = postContent.split('🔗')[0].trim()
-          postContent = textPart.slice(0, maxTextLength).trim() + '\n' + link
-        }
+      // If still too long, truncate intelligently
+      if (shortenedContent.length <= 280) {
+        postContent = shortenedContent
+      } else {
+        console.log(`[generate-post] Still too long after shortening, truncating...`)
+        // Keep first part and ensure we keep the link
+        const linkMatch = postContent.match(/🔗 vetree\.app\/article\/[\w-]+/)
+        const link = linkMatch ? linkMatch[0] : `🔗 vetree.app/article/${article.id}`
+        const maxTextLength = 280 - link.length - 3 // -3 for newlines
+        const textPart = postContent.split('🔗')[0].trim()
+        postContent = textPart.slice(0, maxTextLength).trim() + '\n' + link
       }
-
-      // Check if Claude detected large animal content
-      if (postContent.includes('SKIP_LARGE_ANIMAL')) {
-        console.log(`[generate-post] Large animal detected in article ${article.id}, retrying... (${retryCount + 1}/${MAX_RETRIES})`)
-        retryCount++
-        continue
-      }
-
-      // Success - break out of retry loop
-      hookLine = postContent.split('\n')[0].trim()
-      break
     }
 
-    // If all retries failed
-    if (postContent.includes('SKIP_LARGE_ANIMAL')) {
-      return NextResponse.json({
-        error: 'All articles were large animal focused. Please try again.',
-        details: 'After 3 retries, only large animal articles were found'
-      }, { status: 500 })
-    }
+    // Extract hook line from generated content
+    hookLine = postContent.split('\n')[0].trim()
 
     return NextResponse.json({
       post_content: postContent,

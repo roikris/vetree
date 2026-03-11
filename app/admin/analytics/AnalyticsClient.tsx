@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
-import { getAnalyticsOverview, getTopPages, getVisitorsOverTime, getTopArticles, getSessionDuration, getRecentSearches } from '@/app/actions/analytics'
+import { getAnalyticsOverview, getTopPages, getVisitorsOverTime, getTopArticles, getSessionDuration, getRecentSearches, getDeviceBreakdown, getTopCountries } from '@/app/actions/analytics'
 
 type AnalyticsClientProps = {
   initialOverview: any
@@ -11,6 +11,8 @@ type AnalyticsClientProps = {
   initialTopArticles: any[]
   initialSessionDuration: any
   initialRecentSearches: any[]
+  initialDeviceBreakdown: any
+  initialTopCountries: any[]
 }
 
 export function AnalyticsClient({
@@ -19,7 +21,9 @@ export function AnalyticsClient({
   initialVisitorsOverTime,
   initialTopArticles,
   initialSessionDuration,
-  initialRecentSearches
+  initialRecentSearches,
+  initialDeviceBreakdown,
+  initialTopCountries
 }: AnalyticsClientProps) {
   const [dateRange, setDateRange] = useState<7 | 30 | 90>(7)
   const [overview, setOverview] = useState(initialOverview)
@@ -28,6 +32,8 @@ export function AnalyticsClient({
   const [topArticles, setTopArticles] = useState(initialTopArticles || [])
   const [sessionDuration, setSessionDuration] = useState(initialSessionDuration)
   const [recentSearches, setRecentSearches] = useState(initialRecentSearches || [])
+  const [deviceBreakdown, setDeviceBreakdown] = useState(initialDeviceBreakdown)
+  const [topCountries, setTopCountries] = useState(initialTopCountries || [])
   const [isLoading, setIsLoading] = useState(false)
 
   const handleDateRangeChange = async (newRange: 7 | 30 | 90) => {
@@ -35,13 +41,15 @@ export function AnalyticsClient({
     setIsLoading(true)
 
     try {
-      const [overviewRes, topPagesRes, visitorsRes, articlesRes, sessionRes, searchesRes] = await Promise.all([
+      const [overviewRes, topPagesRes, visitorsRes, articlesRes, sessionRes, searchesRes, deviceRes, countriesRes] = await Promise.all([
         getAnalyticsOverview(newRange),
         getTopPages(newRange),
         getVisitorsOverTime(newRange),
         getTopArticles(newRange),
         getSessionDuration(newRange),
-        getRecentSearches(newRange)
+        getRecentSearches(newRange),
+        getDeviceBreakdown(newRange),
+        getTopCountries(newRange)
       ])
 
       setOverview(overviewRes.data)
@@ -50,6 +58,8 @@ export function AnalyticsClient({
       setTopArticles(articlesRes.data || [])
       setSessionDuration(sessionRes.data)
       setRecentSearches(searchesRes.data || [])
+      setDeviceBreakdown(deviceRes.data)
+      setTopCountries(countriesRes.data || [])
     } catch (error) {
       console.error('Error loading analytics:', error)
     } finally {
@@ -64,13 +74,32 @@ export function AnalyticsClient({
     return `${mins}:${secs.toString().padStart(2, '0')}`
   }
 
-  // Prepare pie chart data
-  const pieData = sessionDuration ? [
+  // Convert country code to flag emoji
+  const getCountryFlag = (countryCode: string) => {
+    if (countryCode === 'Unknown' || !countryCode || countryCode.length !== 2) {
+      return '🌐'
+    }
+    const codePoints = countryCode
+      .toUpperCase()
+      .split('')
+      .map(char => 127397 + char.charCodeAt(0))
+    return String.fromCodePoint(...codePoints)
+  }
+
+  // Prepare pie chart data for session duration
+  const sessionPieData = sessionDuration ? [
     { name: '<1 min', value: sessionDuration.distribution.under1min, color: '#ef4444' },
     { name: '1-3 min', value: sessionDuration.distribution.between1and3, color: '#f59e0b' },
     { name: '3-10 min', value: sessionDuration.distribution.between3and10, color: '#3b82f6' },
     { name: '10+ min', value: sessionDuration.distribution.over10min, color: '#10b981' }
   ] : []
+
+  // Prepare pie chart data for device breakdown
+  const devicePieData = deviceBreakdown ? [
+    { name: 'Mobile', value: deviceBreakdown.mobile, color: '#3b82f6' },
+    { name: 'Desktop', value: deviceBreakdown.desktop, color: '#10b981' },
+    { name: 'Unknown', value: deviceBreakdown.unknown, color: '#6b7280' }
+  ].filter(d => d.value > 0) : []
 
   return (
     <div className="space-y-8">
@@ -257,11 +286,11 @@ export function AnalyticsClient({
             <h2 className="text-xl font-semibold text-[#1A1A1A] dark:text-[#E8E8E8] mb-4">
               Session Duration Distribution
             </h2>
-            {pieData.some(d => d.value > 0) ? (
+            {sessionPieData.some(d => d.value > 0) ? (
               <ResponsiveContainer width="100%" height={250}>
                 <PieChart>
                   <Pie
-                    data={pieData}
+                    data={sessionPieData}
                     cx="50%"
                     cy="50%"
                     labelLine={false}
@@ -269,7 +298,7 @@ export function AnalyticsClient({
                     outerRadius={80}
                     dataKey="value"
                   >
-                    {pieData.map((entry, index) => (
+                    {sessionPieData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                   </Pie>
@@ -284,6 +313,74 @@ export function AnalyticsClient({
           </div>
         </div>
       )}
+
+      {/* Device Breakdown & Top Countries */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Device Breakdown Pie Chart */}
+        {deviceBreakdown && (
+          <div className="bg-white dark:bg-[#1A1A1A] border border-zinc-200 dark:border-zinc-800 rounded-lg p-6">
+            <h2 className="text-xl font-semibold text-[#1A1A1A] dark:text-[#E8E8E8] mb-4">
+              Device Breakdown
+            </h2>
+            {devicePieData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={250}>
+                <PieChart>
+                  <Pie
+                    data={devicePieData}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, percent }) => `${name}: ${((percent || 0) * 100).toFixed(0)}%`}
+                    outerRadius={80}
+                    dataKey="value"
+                  >
+                    {devicePieData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-[250px] text-zinc-500 dark:text-zinc-400">
+                No device data yet
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Top Countries */}
+        {topCountries && topCountries.length > 0 && (
+          <div className="bg-white dark:bg-[#1A1A1A] border border-zinc-200 dark:border-zinc-800 rounded-lg p-6">
+            <h2 className="text-xl font-semibold text-[#1A1A1A] dark:text-[#E8E8E8] mb-4">
+              Top Countries
+            </h2>
+            <div className="space-y-2">
+              {topCountries.map((country, idx) => (
+                <div
+                  key={idx}
+                  className="flex items-center justify-between py-2 border-b border-zinc-200 dark:border-zinc-800 last:border-0"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">{getCountryFlag(country.country)}</span>
+                    <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                      {country.country}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-4 text-sm">
+                    <span className="text-zinc-700 dark:text-zinc-300">
+                      <span className="font-medium">{country.views}</span> views
+                    </span>
+                    <span className="text-zinc-500 dark:text-zinc-400">
+                      {country.uniqueVisitors} unique
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Recent Searches */}
       <div className="bg-white dark:bg-[#1A1A1A] border border-zinc-200 dark:border-zinc-800 rounded-lg p-6">

@@ -30,7 +30,7 @@ export function ArticleSummary({
           onClick={() => setIsExpanded(!isExpanded)}
           className="text-[#3D7A5F] dark:text-[#4E9A78] hover:text-[#2F5F4A] dark:hover:text-[#5FAA88] text-sm mt-2 font-medium transition-colors"
         >
-          {isExpanded ? 'Show less' : 'Read more'}
+          {isExpanded ? 'Show less ↑' : 'Show more ↓'}
         </button>
       )}
     </div>

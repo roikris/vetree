@@ -345,3 +345,103 @@ export async function getRecentSearches(days: number = 7, limit: number = 20) {
 
   return { data: recentSearches, error: null }
 }
+
+export async function getDeviceBreakdown(days: number = 7) {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const { data: roleData } = await supabase
+    .from('user_roles')
+    .select('role')
+    .eq('user_id', user.id)
+    .single()
+
+  if (roleData?.role !== 'admin') {
+    return { error: 'Unauthorized' }
+  }
+
+  const startDate = new Date()
+  startDate.setDate(startDate.getDate() - days)
+
+  const { data: pageViews } = await supabase
+    .from('page_views')
+    .select('device_type')
+    .gte('created_at', startDate.toISOString())
+    .or('user_id.is.null,user_id.neq.90cb8294-b593-4144-a9f5-23ca52dd5e35')
+
+  if (!pageViews) return { data: { mobile: 0, desktop: 0, unknown: 0 }, error: null }
+
+  // Count by device type
+  const breakdown = {
+    mobile: 0,
+    desktop: 0,
+    unknown: 0
+  }
+
+  pageViews.forEach(view => {
+    const device = view.device_type?.toLowerCase() || 'unknown'
+    if (device === 'mobile') {
+      breakdown.mobile++
+    } else if (device === 'desktop') {
+      breakdown.desktop++
+    } else {
+      breakdown.unknown++
+    }
+  })
+
+  return { data: breakdown, error: null }
+}
+
+export async function getTopCountries(days: number = 7, limit: number = 10) {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const { data: roleData } = await supabase
+    .from('user_roles')
+    .select('role')
+    .eq('user_id', user.id)
+    .single()
+
+  if (roleData?.role !== 'admin') {
+    return { error: 'Unauthorized' }
+  }
+
+  const startDate = new Date()
+  startDate.setDate(startDate.getDate() - days)
+
+  const { data: pageViews } = await supabase
+    .from('page_views')
+    .select('country, ip_hash')
+    .gte('created_at', startDate.toISOString())
+    .or('user_id.is.null,user_id.neq.90cb8294-b593-4144-a9f5-23ca52dd5e35')
+
+  if (!pageViews) return { data: [], error: null }
+
+  // Group by country
+  const countryStats: Record<string, { views: number, uniqueVisitors: Set<string> }> = {}
+
+  pageViews.forEach(view => {
+    const country = view.country || 'Unknown'
+    if (!countryStats[country]) {
+      countryStats[country] = { views: 0, uniqueVisitors: new Set() }
+    }
+    countryStats[country].views++
+    countryStats[country].uniqueVisitors.add(view.ip_hash)
+  })
+
+  // Convert to array and sort by views
+  const topCountries = Object.entries(countryStats)
+    .map(([country, stats]) => ({
+      country,
+      views: stats.views,
+      uniqueVisitors: stats.uniqueVisitors.size
+    }))
+    .sort((a, b) => b.views - a.views)
+    .slice(0, limit)
+
+  return { data: topCountries, error: null }
+}

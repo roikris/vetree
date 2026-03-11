@@ -102,18 +102,6 @@ export function ArticleCard({ article }: ArticleCardProps) {
               {article.title}
             </h3>
           )}
-
-          {/* Clinical Bottom Line Preview */}
-          {article.clinical_bottom_line && (
-            <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400 italic flex items-start gap-1.5">
-              <span className="text-emerald-500 flex-shrink-0">●</span>
-              <span>
-                {article.clinical_bottom_line.length > 120
-                  ? `${article.clinical_bottom_line.substring(0, 120)}...`
-                  : article.clinical_bottom_line}
-              </span>
-            </p>
-          )}
         </div>
 
         {/* 4. Authors */}
@@ -134,7 +122,7 @@ export function ArticleCard({ article }: ArticleCardProps) {
 
         {/* 6. Summary */}
         {article.summary && (
-          <ArticleSummary summary={article.summary} expandedByDefault={true} />
+          <ArticleSummary summary={article.summary} expandedByDefault={false} />
         )}
 
         {/* 7. Labels with pastel colors + follow buttons */}

@@ -38,11 +38,14 @@ export async function POST(request: NextRequest) {
     // Hash IP for privacy (never store raw IP)
     const ipHash = createHash('sha256').update(ip + process.env.IP_HASH_SALT || 'vetree-salt').digest('hex')
 
-    // Get user agent
-    const userAgent = request.headers.get('user-agent') || undefined
+    // Get user agent and parse device type
+    const userAgent = request.headers.get('user-agent') || ''
+    const isMobile = /Mobile|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent)
+    const deviceType = isMobile ? 'mobile' : 'desktop'
 
-    // Get country from Vercel headers
-    const country = request.headers.get('x-vercel-ip-country') || undefined
+    // Get country and city from Vercel headers
+    const country = request.headers.get('x-vercel-ip-country') || 'Unknown'
+    const city = request.headers.get('x-vercel-ip-city') || undefined
 
     // Insert page view
     const { error } = await supabase
@@ -50,10 +53,12 @@ export async function POST(request: NextRequest) {
       .insert({
         path,
         referrer: referrer || undefined,
-        user_agent: userAgent,
+        user_agent: userAgent || undefined,
         ip_hash: ipHash,
         user_id: user?.id || null,
         country,
+        city,
+        device_type: deviceType,
         session_id: session_id || undefined,
         duration_seconds: duration_seconds || undefined
       })

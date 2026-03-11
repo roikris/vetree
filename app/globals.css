@@ -67,3 +67,10 @@ body {
 .animate-slide-up {
   animation: slide-up 0.3s ease-out;
 }
+
+/* PWA standalone mode adjustments */
+@media (display-mode: standalone) {
+  .hero-section {
+    padding-top: max(env(safe-area-inset-top), 1rem);
+  }
+}
