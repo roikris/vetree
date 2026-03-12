@@ -1,76 +1,89 @@
 # Vetree — Claude Code Guide
+## WORK STYLE
+- Read this file + app/api/CLAUDE.md + supabase/CLAUDE.md before every task
+- Show only changed code, never entire files
+- After committing, explain what changed and why — this helps catch mismatches
+- Keep explanations focused: what changed, what it affects, what to watch for
+- Always run `npm run build` before committing
 
 ## Project Overview
-Vetree (vetree.app) is an evidence-based veterinary research platform built by a solo DVM developer.
-It aggregates PubMed articles, enriches them with AI-generated clinical summaries, and serves them to veterinary professionals.
+Vetree (vetree.app) is an evidence-based veterinary research platform.
+Aggregates PubMed articles, enriches with AI clinical summaries, serves to veterinary professionals.
+Solo DVM developer. Target: Israeli + international vets.
 
 ## Stack
-- **Frontend/Backend:** Next.js (App Router) hosted on Vercel
-- **Database:** Supabase (PostgreSQL + Auth + Storage)
-- **AI:** Claude Haiku (article enrichment), Claude Sonnet (content agent)
+- **Frontend/Backend:** Next.js (App Router) on Vercel
+- **Database:** Supabase (PostgreSQL + Auth + Storage + RLS)
+- **AI enrichment:** Claude Haiku (articles), Claude Sonnet (content agent)
+- **Email:** Resend (domain: digest.vetree.app)
 - **Monitoring:** Sentry (@sentry/nextjs@7)
 - **Rate limiting:** Upstash Redis (@upstash/ratelimit)
 - **Analytics:** Vercel Analytics + custom Supabase page_views table
 
 ## Repo & Services
 - GitHub: `roikris/vetree`
-- Supabase project: `gnykidzijppxvrvvchxq`
-- Vercel project: `vetree`
-- Live URL: `vetree.app`
+- Supabase: `gnykidzijppxvrvvchxq`
+- Live: `vetree.app`
+- Admin: `vetree.app/admin`
 
-## Critical Architecture Rules
+## CRITICAL RULES — Never violate these
 
-### 1. API Routes — ALWAYS add these exports
+### 1. API Routes — always add
 ```ts
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 ```
-Edge runtime breaks Supabase client and @anthropic-ai/sdk. Never use edge runtime.
 
-### 2. Client Initialization — ALWAYS inside the function
+### 2. Client init — always INSIDE the function
 ```ts
-// ❌ WRONG - breaks serverless cold starts, causes 404
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
-export async function POST() { ... }
+// ❌ WRONG - causes 404 in serverless
+const anthropic = new Anthropic(...)
+export async function POST() {}
 
 // ✅ CORRECT
 export async function POST() {
-  const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
-  ...
+  const anthropic = new Anthropic(...)
 }
 ```
 
-### 3. Admin Routes — Use service role key
+### 3. Admin routes — service role key
 ```ts
-import { createClient } from '@supabase/supabase-js'
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY! // bypasses RLS
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 ```
 
-### 4. Supabase Array Filtering
+### 4. Large animal filtering — JS only, NOT Supabase
 ```ts
-// ✅ CORRECT syntax for array contains
-.not('labels', 'cs', '["equine"]')   // JSON array string format
-// ❌ WRONG
-.not('labels', 'cs', '{"equine"}')   // curly braces don't work
+// Supabase array syntax unreliable for this
+// Always fetch broader set, filter in JS:
+const LARGE_ANIMAL = ['Equine','equine','Large Animal','large animal','Livestock','livestock','Poultry','poultry','Food Animal','food animal']
+const filtered = articles.filter(a => !a.labels?.some((l: string) => LARGE_ANIMAL.includes(l)))
 ```
-When filtering is complex, fetch broader set and filter in JavaScript.
 
-### 5. GitHub Actions — PAT Required
-Workflow dispatch via API requires `GITHUB_PAT` with `workflow` scope.
-Stored in Vercel env vars and GitHub Secrets.
+### 5. Supabase nullable columns — use .or() not .neq()
+```ts
+// ❌ .neq() also excludes NULL rows
+.neq('user_id', adminId)
 
-### 6. generateStaticParams incompatible with edge runtime
-OG images use Node.js runtime + ISR hybrid (pre-builds top 100 articles).
+// ✅ Correct
+.or(`user_id.is.null,user_id.neq.${adminId}`)
+```
 
-## Environment Variables (Vercel + GitHub Secrets)
+### 6. HTTP status codes
+- 404 = route not found ONLY (never use for "no data")
+- 500 = application/data errors
+- 429 = rate limited
+
+## Environment Variables
 ```
 NEXT_PUBLIC_SUPABASE_URL
 NEXT_PUBLIC_SUPABASE_ANON_KEY
 SUPABASE_SERVICE_ROLE_KEY
 ANTHROPIC_API_KEY
+RESEND_API_KEY
+DIGEST_SECRET
 SENTRY_DSN
 UPSTASH_REDIS_REST_URL
 UPSTASH_REDIS_REST_TOKEN
@@ -79,33 +92,65 @@ GITHUB_PAT
 SLACK_WEBHOOK_URL
 ```
 
-## Commands
-```bash
-npm run dev        # local dev
-npm run build      # verify before pushing
-git add . && git commit -m "..." && git push  # deploy to Vercel
-```
-Always run `npm run build` and confirm it passes before committing.
-
-## Auth & Admin
-- Admin user ID: `90cb8294-b593-4144-a9f5-23ca52dd5e35` (Roi)
-- Admin check: query `user_roles` table WHERE `role = 'admin'`
+## Auth & Roles
+- Admin ID: `90cb8294-b593-4144-a9f5-23ca52dd5e35`
+- Admin check: `user_roles` table WHERE `role = 'admin'`
 - `useAdmin` hook: `lib/hooks/useAdmin.ts`
 - Email verification enforced in `middleware.ts`
 
-## Enrichment Pipeline
-- GitHub Action: `enrich-articles.yml` runs every 4 hours
-- Cap: `enrichment_attempts < 3` (normal) OR `force_retry = true` (admin override)
-- Articles hidden from public until: `needs_enrichment = false` AND `summary IS NOT NULL`
-- Failed enrichment tools at `/admin/pipeline`
+## Key Features Built
+- Article enrichment pipeline (GitHub Action, 6x daily)
+- Admin dashboard: /admin (overview, users, reports, pipeline, analytics, growth)
+- Growth OS: Content Agent + 90-day campaign calendar
+- Weekly email digest (Resend, Friday 12:00 Israel)
+- PWA support (manifest, service worker, install prompt)
+- Analytics: page_views, search_logs, UTM tracking
+- Follow tags + personalized feed
+- Evidence badges (gold/silver/bronze)
+- Schema.org structured data
+- Mobile UI: bottom nav + responsive cards
+- Soft registration wall (3 articles free)
+- Hero section for guests
 
-## Growth Tools (`/admin/growth`)
-- **Content Agent**: On-demand social media post generation using Claude Sonnet
-  - Generates platform-specific posts (Twitter, LinkedIn, Facebook, Instagram, WhatsApp, Telegram)
-  - Auto-includes UTM tracking parameters in article links
-  - Weighted random article selection (prefers newer articles)
-  - Redesign feature regenerates posts for different platforms
-- **UTM Links**: Campaign link generator with QR codes for tracking traffic sources
-- **Growth Tasks (DEPRECATED)**: Daily task system replaced by Content Agent
-  - `growth_tasks` table still exists but is no longer actively used
-  - `growth-daily-reminder.yml` workflow disabled (kept for reference)
+## UTM Pattern
+Content Agent auto-embeds UTM in article links:
+```ts
+const utmParams = {
+  twitter: 'utm_source=twitter&utm_medium=social',
+  linkedin: 'utm_source=linkedin&utm_medium=social',
+  facebook: 'utm_source=facebook&utm_medium=social',
+  facebook_il: 'utm_source=facebook&utm_medium=social&utm_campaign=il',
+  whatsapp: 'utm_source=whatsapp&utm_medium=social',
+  instagram: 'utm_source=instagram&utm_medium=social',
+  telegram: 'utm_source=telegram&utm_medium=social',
+}
+const articleUrl = `https://vetree.app/article/${article.id}?${utmParams[platform]}`
+```
+
+## Campaign Calendar
+- 90-day rotation: facebook_il → whatsapp → reddit → linkedin → facebook_intl → twitter → instagram → telegram
+- Posts generated by Content Agent (not pre-written)
+- Persisted in localStorage key: `vetree_campaign_post_YYYY-MM-DD`
+- GitHub Action: growth-daily-reminder.yml (6:00 AM Israel = 03:00 UTC)
+
+## Rate Limiting (Upstash)
+Applied to: /api/delete-account, /api/growth/generate-post, /api/analytics/track, /api/digest/send
+```ts
+import { ratelimitStrict/Moderate/Loose } from '@/lib/ratelimit'
+const ip = request.headers.get('x-forwarded-for') ?? '127.0.0.1'
+const { success } = await ratelimit.limit(ip)
+if (!success) return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
+```
+
+## Enrichment Rules
+- Cap: enrichment_attempts < 3 (normal) OR force_retry = true
+- Mark needs_enrichment = false ONLY when BOTH summary AND clinical_bottom_line are populated
+- Articles hidden until: needs_enrichment=false AND summary IS NOT NULL AND clinical_bottom_line IS NOT NULL AND (quarantined=false OR quarantined IS NULL)
+- ~1039 articles had needs_enrichment=false but missing clinical_bottom_line — re-queued
+
+## Commands
+```bash
+npm run dev
+npm run build   # always run before commit
+git add . && git commit -m "..." && git push
+```
