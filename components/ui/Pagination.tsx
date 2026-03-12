@@ -21,6 +21,9 @@ export function Pagination({ currentPage, totalPages, filters }: PaginationProps
     const newFilters = { ...filters, page }
     const params = buildSearchParams(newFilters)
     router.push(`/?${params}`)
+
+    // FIX 1: Scroll to top on page change
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   const getPageNumbers = () => {
@@ -62,12 +65,18 @@ export function Pagination({ currentPage, totalPages, filters }: PaginationProps
 
   return (
     <div className="flex items-center justify-center gap-2 mt-8">
+      {/* FIX 3: Previous button - prominent sage green styling */}
       <button
         onClick={() => goToPage(currentPage - 1)}
         disabled={currentPage === 1}
-        className="px-3 py-2 text-sm font-medium text-[#1A1A1A] dark:text-[#E8E8E8] bg-white dark:bg-[#1A1A1A] border border-[#E5E5E5] dark:border-[#2A2A2A] rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-900 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white dark:disabled:hover:bg-[#1A1A1A]"
+        className={`px-4 py-2.5 text-sm font-semibold rounded-lg transition-colors flex items-center gap-2 ${
+          currentPage === 1
+            ? 'bg-zinc-200 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-600 cursor-not-allowed'
+            : 'bg-[#3D7A5F] hover:bg-[#2F5F4A] dark:bg-[#4E9A78] dark:hover:bg-[#3D7A5F] text-white'
+        }`}
       >
-        Previous
+        <span>←</span>
+        <span>Previous</span>
       </button>
 
       <div className="flex items-center gap-1">
@@ -90,10 +99,10 @@ export function Pagination({ currentPage, totalPages, filters }: PaginationProps
             <button
               key={pageNum}
               onClick={() => goToPage(pageNum)}
-              className={`px-3 py-2 text-sm font-medium rounded-lg ${
+              className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
                 isActive
                   ? 'bg-[#3D7A5F] dark:bg-[#4E9A78] text-white'
-                  : 'text-[#1A1A1A] dark:text-[#E8E8E8] bg-white dark:bg-[#1A1A1A] border border-[#E5E5E5] dark:border-[#2A2A2A] hover:bg-zinc-50 dark:hover:bg-zinc-900'
+                  : 'text-[#1A1A1A] dark:text-[#E8E8E8] border border-[#E5E5E5] dark:border-[#2A2A2A] hover:bg-[#3D7A5F] hover:text-white hover:border-[#3D7A5F] dark:hover:bg-[#4E9A78] dark:hover:border-[#4E9A78]'
               }`}
             >
               {pageNum}
@@ -102,12 +111,18 @@ export function Pagination({ currentPage, totalPages, filters }: PaginationProps
         })}
       </div>
 
+      {/* FIX 3: Next button - prominent sage green styling */}
       <button
         onClick={() => goToPage(currentPage + 1)}
         disabled={currentPage === totalPages}
-        className="px-3 py-2 text-sm font-medium text-[#1A1A1A] dark:text-[#E8E8E8] bg-white dark:bg-[#1A1A1A] border border-[#E5E5E5] dark:border-[#2A2A2A] rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-900 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white dark:disabled:hover:bg-[#1A1A1A]"
+        className={`px-4 py-2.5 text-sm font-semibold rounded-lg transition-colors flex items-center gap-2 ${
+          currentPage === totalPages
+            ? 'bg-zinc-200 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-600 cursor-not-allowed'
+            : 'bg-[#3D7A5F] hover:bg-[#2F5F4A] dark:bg-[#4E9A78] dark:hover:bg-[#3D7A5F] text-white'
+        }`}
       >
-        Next
+        <span>Next</span>
+        <span>→</span>
       </button>
     </div>
   )

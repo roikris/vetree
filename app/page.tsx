@@ -151,8 +151,16 @@ export default async function Home({ searchParams }: HomeProps) {
             filters={filters}
           />
 
+          {/* FIX 2: Pagination at top */}
+          <Pagination
+            currentPage={filters.page}
+            totalPages={totalPages}
+            filters={filters}
+          />
+
           <ArticleList articles={deduplicatedArticles} />
 
+          {/* FIX 2: Pagination at bottom */}
           <Pagination
             currentPage={filters.page}
             totalPages={totalPages}
