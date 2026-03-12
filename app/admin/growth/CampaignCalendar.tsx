@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { getCurrentCampaignDay, getWeekSchedule, getTodaysPlatform, CAMPAIGN_TOTAL_DAYS } from '@/lib/growth-campaign'
+import { getCurrentCampaignDay, getWeekSchedule, getTodaysPlatform, CAMPAIGN_TOTAL_DAYS, PLATFORM_ROTATION } from '@/lib/growth-campaign'
 import { getTodaysTask, createTodaysTask, markTaskComplete, getCampaignStats } from '@/app/actions/admin'
 
 type Task = {
@@ -21,9 +21,20 @@ type CampaignStats = {
   platformsThisWeek: string[]
 }
 
+type SavedPost = {
+  post_content: string
+  article_id: string
+  article_title?: string
+  labels?: string[]
+  platform: string
+  language: string
+  generated_at: string
+}
+
 export function CampaignCalendar() {
   const [todaysTask, setTodaysTask] = useState<Task | null>(null)
   const [generatedPost, setGeneratedPost] = useState<string | null>(null)
+  const [savedPostData, setSavedPostData] = useState<SavedPost | null>(null)
   const [isGenerating, setIsGenerating] = useState(false)
   const [isApproving, setIsApproving] = useState(false)
   const [stats, setStats] = useState<CampaignStats | null>(null)
@@ -33,7 +44,51 @@ export function CampaignCalendar() {
   const todaysPlatform = getTodaysPlatform()
   const weekSchedule = getWeekSchedule()
 
+  // Cleanup old localStorage keys (>3 days)
+  const cleanupOldPosts = () => {
+    const threeDaysAgo = new Date()
+    threeDaysAgo.setDate(threeDaysAgo.getDate() - 3)
+    const threeDaysAgoStr = threeDaysAgo.toISOString().split('T')[0]
+
+    Object.keys(localStorage)
+      .filter(k => k.startsWith('vetree_campaign_post_'))
+      .filter(k => k < `vetree_campaign_post_${threeDaysAgoStr}`)
+      .forEach(k => localStorage.removeItem(k))
+  }
+
+  // Load saved post from localStorage for today
+  const loadSavedPost = () => {
+    const today = new Date().toISOString().split('T')[0]
+    const saved = localStorage.getItem(`vetree_campaign_post_${today}`)
+
+    if (saved) {
+      try {
+        const data: SavedPost = JSON.parse(saved)
+        setGeneratedPost(data.post_content)
+        setSavedPostData(data)
+      } catch (e) {
+        console.error('Failed to parse saved post', e)
+      }
+    }
+  }
+
+  // Save post to localStorage
+  const savePostToStorage = (postData: SavedPost) => {
+    const today = new Date().toISOString().split('T')[0]
+    localStorage.setItem(`vetree_campaign_post_${today}`, JSON.stringify(postData))
+    setSavedPostData(postData)
+  }
+
+  // Clear today's saved post
+  const clearSavedPost = () => {
+    const today = new Date().toISOString().split('T')[0]
+    localStorage.removeItem(`vetree_campaign_post_${today}`)
+    setSavedPostData(null)
+  }
+
   useEffect(() => {
+    cleanupOldPosts()
+    loadSavedPost()
     loadTodaysTask()
     loadStats()
   }, [])
@@ -89,9 +144,68 @@ export function CampaignCalendar() {
       }
 
       setGeneratedPost(data.post_content)
+
+      // Save to localStorage
+      const postData: SavedPost = {
+        post_content: data.post_content,
+        article_id: data.article_id,
+        article_title: data.article_title,
+        labels: data.article_labels,
+        platform: todaysPlatform.platform,
+        language: todaysPlatform.language,
+        generated_at: new Date().toISOString()
+      }
+      savePostToStorage(postData)
+
       setMessage({ type: 'success', text: 'Post generated successfully!' })
     } catch (error) {
       setMessage({ type: 'error', text: 'Failed to generate post' })
+    } finally {
+      setIsGenerating(false)
+    }
+  }
+
+  const handleRedesign = async (platform: string, language: string) => {
+    if (!savedPostData?.article_id) return
+
+    setIsGenerating(true)
+    setMessage(null)
+
+    try {
+      const response = await fetch('/api/growth/generate-post', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          platform,
+          language,
+          article_id: savedPostData.article_id
+        })
+      })
+
+      const data = await response.json()
+
+      if (data.error) {
+        setMessage({ type: 'error', text: data.error })
+        return
+      }
+
+      setGeneratedPost(data.post_content)
+
+      // Update localStorage with redesigned post
+      const postData: SavedPost = {
+        post_content: data.post_content,
+        article_id: data.article_id,
+        article_title: data.article_title,
+        labels: data.article_labels,
+        platform,
+        language,
+        generated_at: new Date().toISOString()
+      }
+      savePostToStorage(postData)
+
+      setMessage({ type: 'success', text: `Post redesigned for ${platform}!` })
+    } catch (error) {
+      setMessage({ type: 'error', text: 'Failed to redesign post' })
     } finally {
       setIsGenerating(false)
     }
@@ -112,6 +226,7 @@ export function CampaignCalendar() {
       }
 
       setMessage({ type: 'success', text: '✅ Post approved and marked as done!' })
+      clearSavedPost() // Clear localStorage on approve
       await loadTodaysTask()
       await loadStats()
     } catch (error) {
@@ -131,6 +246,7 @@ export function CampaignCalendar() {
     }
 
     setMessage({ type: 'success', text: 'Task skipped' })
+    clearSavedPost() // Clear localStorage on skip
     await loadTodaysTask()
   }
 
@@ -234,7 +350,7 @@ export function CampaignCalendar() {
         )}
 
         {/* Actions */}
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3">
           {todaysTask?.status !== 'done' && (
             <>
               {!generatedPost ? (
@@ -261,11 +377,42 @@ export function CampaignCalendar() {
                   >
                     🔄 Regenerate
                   </button>
+
+                  {/* Redesign for platform dropdown */}
+                  <div className="relative group">
+                    <button
+                      disabled={isGenerating || !savedPostData?.article_id}
+                      className="px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    >
+                      🔄 Redesign for...
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+
+                    {/* Dropdown menu */}
+                    <div className="absolute left-0 mt-2 w-48 bg-white dark:bg-[#1A1A1A] border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
+                      {PLATFORM_ROTATION
+                        .filter(p => p.platform !== todaysPlatform.platform)
+                        .map(platform => (
+                          <button
+                            key={platform.platform}
+                            onClick={() => handleRedesign(platform.platform, platform.language)}
+                            disabled={isGenerating}
+                            className="w-full px-4 py-2 text-left text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors first:rounded-t-lg last:rounded-b-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <span className="mr-2">{platform.icon}</span>
+                            {platform.name}
+                          </button>
+                        ))}
+                    </div>
+                  </div>
+
                   <button
                     onClick={handleSkip}
                     className="px-4 py-3 bg-zinc-300 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300 rounded-lg hover:bg-zinc-400 dark:hover:bg-zinc-600 transition-colors"
                   >
-                    Skip
+                    ⏭ Skip
                   </button>
                 </>
               )}
