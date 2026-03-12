@@ -629,12 +629,15 @@ export async function quarantineUnfixable() {
     return { error: 'Unauthorized' }
   }
 
-  // Quarantine articles with 3+ attempts AND no abstract (nothing to enrich)
-  const { count, error } = await supabase
+  // Use admin client to bypass RLS for quarantine update
+  const adminSupabase = createAdminClient()
+
+  // Quarantine articles with 3+ attempts AND no clinical_bottom_line (enrichment failed)
+  const { count, error } = await adminSupabase
     .from('articles')
     .update({ quarantined: true })
     .gte('enrichment_attempts', 3)
-    .is('abstract', null)
+    .is('clinical_bottom_line', null)
 
   if (error) {
     return { error: error.message }

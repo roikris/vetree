@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import Link from 'next/link'
 
 export default async function DiagnosticsPage() {
   const supabase = createClient(
@@ -110,6 +111,17 @@ export default async function DiagnosticsPage() {
   return (
     <div className="min-h-screen bg-white dark:bg-[#0F0F0F] p-8">
       <div className="max-w-6xl mx-auto">
+        {/* Back Button */}
+        <Link
+          href="/admin/pipeline"
+          className="inline-flex items-center gap-2 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors mb-6"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+          Back to Pipeline
+        </Link>
+
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-semibold text-[#1A1A1A] dark:text-[#E8E8E8] mb-2">
