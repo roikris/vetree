@@ -1,8 +1,6 @@
 # API Routes Guide
 
-## Standard Route Template
-Every API route in this directory must follow this pattern:
-
+## Standard Template
 ```ts
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -12,22 +10,15 @@ import { createClient } from '@supabase/supabase-js'
 
 export async function POST(request: NextRequest) {
   try {
-    // Initialize clients INSIDE the function (never at module level)
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
-
     const body = await request.json()
-
-    // ... logic ...
-
+    // logic
     return NextResponse.json({ success: true })
   } catch (error) {
-    return NextResponse.json(
-      { error: 'Internal server error', details: String(error) },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: String(error) }, { status: 500 })
   }
 }
 
@@ -37,21 +28,24 @@ export async function OPTIONS() {
 ```
 
 ## Route Index
-
 | Route | Method | Purpose | Auth |
 |-------|--------|---------|------|
-| `/api/enrich-articles` | POST | Trigger PubMed enrichment pipeline | GitHub Action |
-| `/api/enrich-failed` | POST | Re-queue failed articles (force_retry) | Admin |
-| `/api/delete-account` | POST | GDPR full account deletion | User session |
-| `/api/growth/generate-post` | POST | AI content agent — generates social post | Admin |
-| `/api/growth/feedback` | POST | Save approve/skip feedback for agent | Admin |
+| `/api/enrich-articles` | POST | PubMed enrichment | GitHub Action |
+| `/api/enrich-failed` | POST | Re-queue failed articles | Admin |
+| `/api/delete-account` | POST | GDPR deletion | User session |
+| `/api/growth/generate-post` | POST | AI content agent | Admin |
+| `/api/growth/feedback` | POST | Approve/skip feedback | Admin |
 | `/api/growth/stats` | GET | Agent learning stats | Admin |
-| `/api/analytics/track` | POST | Log page view (hashed IP) | Public |
+| `/api/analytics/track` | POST | Log page view | Public |
 | `/api/analytics/search` | POST | Log search query | Public |
+| `/api/digest/send` | POST | Send weekly email | DIGEST_SECRET |
+| `/api/tags/follow` | POST | Follow a tag | User |
+| `/api/tags/unfollow` | DELETE | Unfollow a tag | User |
+| `/api/stats/public` | GET | Public user/article counts | Public |
 
 ## Common Patterns
 
-### Get authenticated user
+### Get user
 ```ts
 const { data: { user } } = await supabase.auth.getUser()
 if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -60,10 +54,7 @@ if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 ### Check admin
 ```ts
 const { data: role } = await supabase
-  .from('user_roles')
-  .select('role')
-  .eq('user_id', user.id)
-  .single()
+  .from('user_roles').select('role').eq('user_id', user.id).single()
 if (role?.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 ```
 
@@ -71,30 +62,50 @@ if (role?.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { s
 ```ts
 await fetch(`https://api.github.com/repos/roikris/vetree/actions/workflows/WORKFLOW.yml/dispatches`, {
   method: 'POST',
-  headers: {
-    Authorization: `Bearer ${process.env.GITHUB_PAT}`,
-    'Content-Type': 'application/json',
-  },
+  headers: { Authorization: `Bearer ${process.env.GITHUB_PAT}`, 'Content-Type': 'application/json' },
   body: JSON.stringify({ ref: 'main' }),
 })
 ```
 
-### Rate limiting (Upstash)
+### Rate limiting
 ```ts
-import { Ratelimit } from '@upstash/ratelimit'
-import { Redis } from '@upstash/redis'
-const ratelimit = new Ratelimit({
-  redis: Redis.fromEnv(),
-  limiter: Ratelimit.slidingWindow(5, '1 m'),
-})
-const { success } = await ratelimit.limit(ip)
+import { ratelimitModerate } from '@/lib/ratelimit'
+const ip = request.headers.get('x-forwarded-for') ?? '127.0.0.1'
+const { success } = await ratelimitModerate.limit(ip)
 if (!success) return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
 ```
 
-## Error Status Codes
-- `400` — Bad request (missing/invalid params)
-- `401` — Not authenticated
-- `403` — Not authorized (not admin)
-- `404` — Resource not found (NOT for application logic errors)
-- `429` — Rate limited
-- `500` — Server/DB/API error (use this for application logic failures)
+### Send email (Resend)
+```ts
+import { Resend } from 'resend'
+const resend = new Resend(process.env.RESEND_API_KEY)
+await resend.emails.send({
+  from: 'Vetree <digest@digest.vetree.app>',
+  to: user.email,
+  subject: '🌿 Your Vetree Weekly Digest',
+  html: emailHtml,
+})
+```
+
+## Content Agent — generate-post flow
+1. Fetch preferences from `growth_agent_preferences`
+2. Fetch articles (exclude shown, exclude large animal in JS)
+3. Weighted random by recency (exponential decay)
+4. Call Claude Sonnet with platform-specific prompt
+5. Check for SKIP_LARGE_ANIMAL response → retry up to 3x
+6. Check length limits (twitter ≤ 280, whatsapp ≤ 400)
+7. Embed UTM in article URL
+8. Return { post_content, article_id, article_title, article_url, labels, hook_line }
+
+## Platform Rules (for prompts)
+```ts
+const platformRules = {
+  twitter: 'MAX 280 chars total. One hook + one insight. Ruthless brevity.',
+  linkedin: 'Rhythm: short→long→short. 150-300 words. No bullets. Human voice.',
+  facebook: 'Conversational, 100-200 words. Personal tone.',
+  facebook_il: 'Same as facebook but Hebrew. Natural clinical Hebrew.',
+  whatsapp: 'Very short, casual. 50-80 words max. Hebrew for IL.',
+  instagram: 'Hook + insight + hashtags. 100-150 words.',
+  telegram: 'Informative. 100-150 words. Slightly technical ok.',
+}
+```
