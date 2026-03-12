@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
       // Send email
       try {
         await resend.emails.send({
-          from: 'Vetree <digest@vetree.app>',
+          from: 'Vetree <digest@digest.vetree.app>',
           to: userData.user.email,
           subject: `🌿 Your Vetree Weekly Digest — ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`,
           html: generateEmailHTML(userData.user.email, tags, articles)
