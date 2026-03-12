@@ -2,9 +2,17 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
+import { ratelimitModerate, getClientIP } from '@/lib/ratelimit'
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limiting - 10 requests per minute per IP
+    const ip = getClientIP(request)
+    const { success } = await ratelimitModerate.limit(ip)
+    if (!success) {
+      return NextResponse.json({ error: 'Too many requests. Please try again later.' }, { status: 429 })
+    }
+
     // Import Supabase client
     const { createClient } = await import('@supabase/supabase-js')
     const supabase = createClient(

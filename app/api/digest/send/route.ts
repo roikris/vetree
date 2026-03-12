@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { Resend } from 'resend'
+import { ratelimitStrict, getClientIP } from '@/lib/ratelimit'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -8,6 +9,13 @@ export const maxDuration = 300 // 5 minutes for sending emails
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limiting - 3 requests per minute per IP
+    const ip = getClientIP(request)
+    const { success } = await ratelimitStrict.limit(ip)
+    if (!success) {
+      return NextResponse.json({ error: 'Too many requests. Please try again later.' }, { status: 429 })
+    }
+
     // Check authorization
     const authHeader = request.headers.get('authorization')
     const expectedAuth = `Bearer ${process.env.DIGEST_SECRET}`

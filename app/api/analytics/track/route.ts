@@ -1,12 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createHash } from 'crypto'
+import { ratelimitLoose, getClientIP } from '@/lib/ratelimit'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limiting - 60 requests per minute per IP
+    const rateLimitIP = getClientIP(request)
+    const { success } = await ratelimitLoose.limit(rateLimitIP)
+    if (!success) {
+      return NextResponse.json({ error: 'Too many requests. Please try again later.' }, { status: 429 })
+    }
+
     const supabase = await createClient()
     const body = await request.json()
     const { path, referrer, session_id, duration_seconds, utm_source, utm_medium, utm_campaign } = body
