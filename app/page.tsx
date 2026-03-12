@@ -11,6 +11,7 @@ import { HeroSection } from '@/components/home/HeroSection'
 import { getTrendingArticles } from '@/app/actions/trending'
 import { getPersonalizedArticles } from '@/app/actions/personalized-feed'
 import { createClient } from '@/lib/supabase/server'
+import { SynthesisWrapper } from '@/components/synthesis/SynthesisWrapper'
 
 // Force dynamic rendering to ensure searchParams are always fresh
 export const dynamic = 'force-dynamic'
@@ -151,21 +152,24 @@ export default async function Home({ searchParams }: HomeProps) {
             filters={filters}
           />
 
-          {/* FIX 2: Pagination at top */}
-          <Pagination
-            currentPage={filters.page}
-            totalPages={totalPages}
-            filters={filters}
-          />
+          {/* Synthesis wrapper - shows synthesis button and panel when search query exists */}
+          <SynthesisWrapper searchQuery={filters.search}>
+            {/* FIX 2: Pagination at top */}
+            <Pagination
+              currentPage={filters.page}
+              totalPages={totalPages}
+              filters={filters}
+            />
 
-          <ArticleList articles={deduplicatedArticles} />
+            <ArticleList articles={deduplicatedArticles} />
 
-          {/* FIX 2: Pagination at bottom */}
-          <Pagination
-            currentPage={filters.page}
-            totalPages={totalPages}
-            filters={filters}
-          />
+            {/* FIX 2: Pagination at bottom */}
+            <Pagination
+              currentPage={filters.page}
+              totalPages={totalPages}
+              filters={filters}
+            />
+          </SynthesisWrapper>
         </div>
       )}
       </SearchControls>
