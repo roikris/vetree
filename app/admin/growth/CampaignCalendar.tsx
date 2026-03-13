@@ -39,10 +39,12 @@ export function CampaignCalendar() {
   const [isApproving, setIsApproving] = useState(false)
   const [stats, setStats] = useState<CampaignStats | null>(null)
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
+  const [approvedPosts, setApprovedPosts] = useState<Record<string, boolean>>({})
 
   const currentDay = getCurrentCampaignDay()
   const todaysPlatform = getTodaysPlatform()
   const weekSchedule = getWeekSchedule()
+  const today = new Date().toISOString().split('T')[0]
 
   // Cleanup old localStorage keys (>3 days)
   const cleanupOldPosts = () => {
@@ -51,9 +53,32 @@ export function CampaignCalendar() {
     const threeDaysAgoStr = threeDaysAgo.toISOString().split('T')[0]
 
     Object.keys(localStorage)
-      .filter(k => k.startsWith('vetree_campaign_post_'))
-      .filter(k => k < `vetree_campaign_post_${threeDaysAgoStr}`)
+      .filter(k => k.startsWith('vetree_campaign_post_') || k.startsWith('vetree_campaign_approved_'))
+      .filter(k => k < `vetree_campaign_post_${threeDaysAgoStr}` || k < `vetree_campaign_approved_${threeDaysAgoStr}`)
       .forEach(k => localStorage.removeItem(k))
+  }
+
+  // Load approved posts from localStorage
+  const loadApprovedPosts = () => {
+    console.log('[loadApprovedPosts] Loading approved posts from localStorage...')
+    const approved: Record<string, boolean> = {}
+
+    Object.keys(localStorage)
+      .filter(k => k.startsWith('vetree_campaign_approved_'))
+      .forEach(key => {
+        const dateKey = key.replace('vetree_campaign_approved_', '')
+        approved[dateKey] = localStorage.getItem(key) === 'true'
+      })
+
+    console.log('[loadApprovedPosts] Loaded approved posts:', approved)
+    setApprovedPosts(approved)
+  }
+
+  // Mark post as approved in localStorage
+  const markAsApproved = (dateKey: string) => {
+    console.log('[markAsApproved] Marking post as approved:', dateKey)
+    localStorage.setItem(`vetree_campaign_approved_${dateKey}`, 'true')
+    setApprovedPosts(prev => ({ ...prev, [dateKey]: true }))
   }
 
   // Load saved post from localStorage for today
@@ -88,27 +113,33 @@ export function CampaignCalendar() {
 
   useEffect(() => {
     cleanupOldPosts()
+    loadApprovedPosts()
     loadSavedPost()
     loadTodaysTask()
     loadStats()
   }, [])
 
   const loadTodaysTask = async () => {
+    console.log('[loadTodaysTask] Fetching today\'s task...')
     // Try to get existing task
     const { task } = await getTodaysTask()
+    console.log('[loadTodaysTask] Received task:', task)
 
     if (task) {
+      console.log('[loadTodaysTask] Task found with status:', task.status)
       setTodaysTask(task)
       if (task.content) {
         setGeneratedPost(task.content)
       }
     } else {
+      console.log('[loadTodaysTask] No task found, creating new one...')
       // Create today's task if it doesn't exist
       const { task: newTask } = await createTodaysTask(
         currentDay,
         todaysPlatform.platform,
         todaysPlatform.language
       )
+      console.log('[loadTodaysTask] Created new task:', newTask)
       if (newTask) {
         setTodaysTask(newTask)
       }
@@ -212,27 +243,56 @@ export function CampaignCalendar() {
   }
 
   const handleApprove = async () => {
-    if (!todaysTask || !generatedPost) return
+    if (!todaysTask || !generatedPost) {
+      console.log('[handleApprove] Missing todaysTask or generatedPost', { todaysTask, generatedPost })
+      return
+    }
 
+    console.log('[handleApprove] Starting approval for task:', todaysTask.id)
     setIsApproving(true)
     setMessage(null)
 
+    // Optimistic update: mark as approved immediately in localStorage
+    markAsApproved(today)
+
     try {
       const result = await markTaskComplete(todaysTask.id, generatedPost)
+      console.log('[handleApprove] markTaskComplete result:', result)
 
       if (result.error) {
+        console.error('[handleApprove] Error from markTaskComplete:', result.error)
+        // Revert optimistic update on error
+        localStorage.removeItem(`vetree_campaign_approved_${today}`)
+        setApprovedPosts(prev => {
+          const updated = { ...prev }
+          delete updated[today]
+          return updated
+        })
         setMessage({ type: 'error', text: result.error })
         return
       }
 
+      console.log('[handleApprove] Success! Clearing saved post and reloading...')
       setMessage({ type: 'success', text: '✅ Post approved and marked as done!' })
       clearSavedPost() // Clear localStorage on approve
+
       await loadTodaysTask()
       await loadStats()
+
+      console.log('[handleApprove] Task and stats reloaded.')
     } catch (error) {
+      console.error('[handleApprove] Exception caught:', error)
+      // Revert optimistic update on error
+      localStorage.removeItem(`vetree_campaign_approved_${today}`)
+      setApprovedPosts(prev => {
+        const updated = { ...prev }
+        delete updated[today]
+        return updated
+      })
       setMessage({ type: 'error', text: 'Failed to approve post' })
     } finally {
       setIsApproving(false)
+      console.log('[handleApprove] Finished approval flow')
     }
   }
 
@@ -300,7 +360,11 @@ export function CampaignCalendar() {
       )}
 
       {/* Today's Task */}
-      <div className="bg-white dark:bg-[#1A1A1A] border border-zinc-200 dark:border-zinc-800 rounded-lg p-6">
+      <div className={`bg-white dark:bg-[#1A1A1A] border-2 rounded-lg p-6 transition-colors ${
+        approvedPosts[today] || todaysTask?.status === 'done'
+          ? 'border-green-500 dark:border-green-600'
+          : 'border-zinc-200 dark:border-zinc-800'
+      }`}>
         <div className="flex items-center justify-between mb-4">
           <div>
             <h2 className="text-xl font-semibold text-[#1A1A1A] dark:text-[#E8E8E8]">
@@ -318,13 +382,13 @@ export function CampaignCalendar() {
         {/* Status */}
         <div className="mb-4">
           <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium ${
-            todaysTask?.status === 'done'
+            approvedPosts[today] || todaysTask?.status === 'done'
               ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
               : generatedPost
               ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
               : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400'
           }`}>
-            {todaysTask?.status === 'done' ? '✅ Done' : generatedPost ? '📝 Generated - Pending Approval' : '⏳ Not generated yet'}
+            {approvedPosts[today] || todaysTask?.status === 'done' ? '✅ Approved' : generatedPost ? '📝 Generated - Pending Approval' : '⏳ Not generated yet'}
           </div>
         </div>
 
@@ -351,7 +415,7 @@ export function CampaignCalendar() {
 
         {/* Actions */}
         <div className="flex flex-wrap gap-3">
-          {todaysTask?.status !== 'done' && (
+          {!approvedPosts[today] && todaysTask?.status !== 'done' && (
             <>
               {!generatedPost ? (
                 <button
@@ -417,6 +481,14 @@ export function CampaignCalendar() {
                 </>
               )}
             </>
+          )}
+          {(approvedPosts[today] || todaysTask?.status === 'done') && (
+            <button
+              disabled
+              className="px-6 py-3 bg-green-600 text-white rounded-lg opacity-75 cursor-not-allowed font-medium"
+            >
+              ✅ Approved
+            </button>
           )}
         </div>
       </div>
