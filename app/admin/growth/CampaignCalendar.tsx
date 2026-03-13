@@ -119,6 +119,13 @@ export function CampaignCalendar() {
     loadStats()
   }, [])
 
+  // Debug: Log whenever approvedPosts changes
+  useEffect(() => {
+    console.log('[CampaignCalendar] approvedPosts changed:', approvedPosts)
+    console.log('[CampaignCalendar] today:', today)
+    console.log('[CampaignCalendar] approvedPosts[today]:', approvedPosts[today])
+  }, [approvedPosts, today])
+
   const loadTodaysTask = async () => {
     console.log('[loadTodaysTask] Fetching today\'s task...')
     // Try to get existing task
@@ -323,6 +330,15 @@ export function CampaignCalendar() {
     }
     return icons[platform] || '📱'
   }
+
+  // Debug: Log render state
+  console.log('[CampaignCalendar] Rendering with:', {
+    today,
+    approvedPostsForToday: approvedPosts[today],
+    taskStatus: todaysTask?.status,
+    hasGeneratedPost: !!generatedPost,
+    shouldShowActions: !approvedPosts[today] && todaysTask?.status !== 'done'
+  })
 
   return (
     <div className="space-y-6">
