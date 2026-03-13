@@ -8,6 +8,9 @@ export const dynamic = 'force-dynamic'
 export const maxDuration = 300 // 5 minutes for sending emails
 
 export async function POST(request: NextRequest) {
+  const startTime = Date.now()
+  let triggeredBy = 'github-action' // default
+
   try {
     // Rate limiting - 3 requests per minute per IP
     const ip = getClientIP(request)
@@ -22,6 +25,12 @@ export async function POST(request: NextRequest) {
 
     if (authHeader !== expectedAuth) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Check if manually triggered (from admin UI)
+    const body = await request.json().catch(() => ({}))
+    if (body.triggered_by) {
+      triggeredBy = body.triggered_by
     }
 
     const resend = new Resend(process.env.RESEND_API_KEY!)
@@ -107,6 +116,21 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Log the digest run
+    const runTime = Date.now() - startTime
+    const { error: logError } = await supabase.from('digest_runs').insert({
+      triggered_by: triggeredBy,
+      sent_count: sentCount,
+      skipped_count: skippedCount,
+      total_users: uniqueUserIds.length,
+      run_time_ms: runTime,
+      status: 'success'
+    })
+
+    if (logError) {
+      console.error('[digest] Failed to log run:', logError)
+    }
+
     return NextResponse.json({
       success: true,
       sentCount,
@@ -116,6 +140,27 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('[digest] Error:', error)
+
+    // Log failed run
+    const runTime = Date.now() - startTime
+    const supabaseForLog = createSupabaseClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+    const { error: logError } = await supabaseForLog.from('digest_runs').insert({
+      triggered_by: triggeredBy,
+      sent_count: 0,
+      skipped_count: 0,
+      total_users: 0,
+      run_time_ms: runTime,
+      status: 'failed',
+      error_message: String(error)
+    })
+
+    if (logError) {
+      console.error('[digest] Failed to log failed run:', logError)
+    }
+
     return NextResponse.json({
       error: 'Failed to send digests',
       details: String(error)

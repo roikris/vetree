@@ -665,7 +665,7 @@ export async function getFailedArticles(limit: number = 20) {
   // Fetch failed articles (attempts >= 3) with error details
   const { data: articles, error } = await supabase
     .from('articles')
-    .select('id, title, enrichment_attempts, last_enrichment_error, last_enrichment_at')
+    .select('id, title, enrichment_attempts, last_enrichment_error, last_enrichment_at, labels')
     .gte('enrichment_attempts', 3)
     .eq('needs_enrichment', true)
     .order('last_enrichment_at', { ascending: false, nullsFirst: false })
@@ -853,4 +853,35 @@ export async function createTodaysTask(dayNumber: number, platform: string, lang
   }
 
   return { task: newTask, error: null }
+}
+
+export async function getDigestRuns() {
+  const supabase = await createClient()
+
+  // Check if user is admin
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated', data: [] }
+
+  const { data: roleData } = await supabase
+    .from('user_roles')
+    .select('role')
+    .eq('user_id', user.id)
+    .single()
+
+  if (roleData?.role !== 'admin') {
+    return { error: 'Unauthorized', data: [] }
+  }
+
+  // Fetch last 5 digest runs
+  const { data: runs, error } = await supabase
+    .from('digest_runs')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(5)
+
+  if (error) {
+    return { error: error.message, data: [] }
+  }
+
+  return { data: runs || [], error: null }
 }

@@ -4,6 +4,7 @@ import { PipelineStats } from './PipelineStats'
 import { ArticleHealth } from './ArticleHealth'
 import { FailedArticles } from './FailedArticles'
 import { IncompleteEnrichment } from './IncompleteEnrichment'
+import { ScheduledJobs } from './ScheduledJobs'
 import Link from 'next/link'
 
 export default async function AdminPipelinePage() {
@@ -42,8 +43,15 @@ export default async function AdminPipelinePage() {
       {/* Failed Articles Table */}
       <FailedArticles />
 
+      {/* Scheduled Jobs */}
+      <div className="mt-8">
+        <ScheduledJobs />
+      </div>
+
       {/* Stats Cards */}
-      <PipelineStats initialStats={stats} initialError={error} />
+      <div className="mt-8">
+        <PipelineStats initialStats={stats} initialError={error} />
+      </div>
 
       {/* Pipeline Controls */}
       <PipelineClient pendingCount={stats?.pendingEnrichment || 0} />
