@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import { ParsedFilters } from '@/types/search'
+import { normalizeQuery } from '@/lib/utils/normalizeQuery'
 
 // Sanitize search terms to prevent PostgREST query parsing errors
 function sanitizeSearchTerm(term: string): string {
@@ -8,23 +9,36 @@ function sanitizeSearchTerm(term: string): string {
   return term.replace(/[(),.%_[\]*?\\]/g, ' ').trim()
 }
 
-export async function searchArticles(filters: ParsedFilters, pageSize = 20) {
+type SearchResult = {
+  data: any[] | null
+  count: number | null
+  error?: any
+  searchTier?: 'exact' | 'ilike' | 'fuzzy'
+}
+
+export async function searchArticles(filters: ParsedFilters, pageSize = 20): Promise<SearchResult> {
   try {
-    let query = supabase.from('articles').select('*', { count: 'exact' })
+    // Apply misspelling correction first
+    const correctedSearch = filters.search ? normalizeQuery(filters.search) : filters.search
 
-    // Filter: Only show fully enriched articles to public
-    query = query
-      .eq('needs_enrichment', false)
-      .not('summary', 'is', null)
-      .not('clinical_bottom_line', 'is', null)
-      // Exclude quarantined articles
-      .or('quarantined.is.null,quarantined.eq.false')
+    // Base query builder function
+    const buildBaseQuery = () => {
+      return supabase
+        .from('articles')
+        .select('*', { count: 'exact' })
+        .eq('needs_enrichment', false)
+        .not('summary', 'is', null)
+        .not('clinical_bottom_line', 'is', null)
+        .or('quarantined.is.null,quarantined.eq.false')
+    }
 
-    // Search across multiple fields with OR
-    if (filters.search) {
-      const sanitizedSearch = sanitizeSearchTerm(filters.search)
+    let searchResult: SearchResult | null = null
+    let searchTier: 'exact' | 'ilike' | 'fuzzy' = 'exact'
 
-      // Skip search if sanitized term is empty
+    // Perform 3-tier search if search query exists
+    if (filters.search && correctedSearch) {
+      const sanitizedSearch = sanitizeSearchTerm(correctedSearch)
+
       if (!sanitizedSearch) {
         return {
           data: [],
@@ -33,45 +47,105 @@ export async function searchArticles(filters: ParsedFilters, pageSize = 20) {
         }
       }
 
-      query = query.or(
-        `title.ilike.%${sanitizedSearch}%,summary.ilike.%${sanitizedSearch}%,clinical_bottom_line.ilike.%${sanitizedSearch}%,authors.ilike.%${sanitizedSearch}%`
-      )
-    }
+      // TIER 1: Full-text search (fastest, most precise)
+      try {
+        const ftsQuery = buildBaseQuery()
+          .textSearch('title', sanitizedSearch, { type: 'websearch' })
 
-  // Quick filter (Small Animal or Large Animal)
-  if (filters.quickFilter !== 'all') {
-    const quickLabel = filters.quickFilter === 'small-animal' ? 'Small Animal' : 'Large Animal'
-    // Use overlaps to check if the array contains this label
-    query = query.overlaps('labels', [quickLabel])
-  }
+        const { data: ftsData, count: ftsCount } = await ftsQuery
 
-  // Filter by labels (specialty checkboxes)
-  if (filters.labels.length > 0) {
-    if (filters.labelOperator === 'AND') {
-      // AND: article must have ALL selected labels
-      query = query.contains('labels', filters.labels)
+        if (ftsData && ftsData.length >= 3) {
+          searchResult = { data: ftsData, count: ftsCount, searchTier: 'exact' }
+          searchTier = 'exact'
+        }
+      } catch (e) {
+        console.log('[Search] FTS failed, trying ILIKE')
+      }
+
+      // TIER 2: ILIKE fallback (handles partial matches)
+      if (!searchResult) {
+        const ilikeQuery = buildBaseQuery()
+          .or(
+            `title.ilike.%${sanitizedSearch}%,summary.ilike.%${sanitizedSearch}%,clinical_bottom_line.ilike.%${sanitizedSearch}%,authors.ilike.%${sanitizedSearch}%`
+          )
+
+        const { data: ilikeData, count: ilikeCount } = await ilikeQuery
+
+        if (ilikeData && ilikeData.length >= 3) {
+          searchResult = { data: ilikeData, count: ilikeCount, searchTier: 'ilike' }
+          searchTier = 'ilike'
+        }
+      }
+
+      // TIER 3: Trigram fuzzy search (handles typos)
+      if (!searchResult) {
+        try {
+          const { data: fuzzyData, error: fuzzyError } = await supabase
+            .rpc('search_articles_fuzzy', {
+              search_query: sanitizedSearch,
+              similarity_threshold: 0.3
+            })
+
+          if (fuzzyData && fuzzyData.length > 0) {
+            searchResult = { data: fuzzyData, count: fuzzyData.length, searchTier: 'fuzzy' }
+            searchTier = 'fuzzy'
+          }
+        } catch (e) {
+          console.log('[Search] Fuzzy search not available:', e)
+        }
+      }
+
+      // If no results from any tier
+      if (!searchResult) {
+        return {
+          data: [],
+          count: 0,
+          error: { message: 'No articles found. Try different search terms.' },
+          searchTier
+        }
+      }
+
+      // Use the best result we found
+      var query = supabase
+        .from('articles')
+        .select('*', { count: 'exact' })
+        .in('id', searchResult.data!.map((a: any) => a.id))
     } else {
-      // OR: article must have AT LEAST ONE of the selected labels
-      query = query.overlaps('labels', filters.labels)
+      // No search query - use base query
+      query = buildBaseQuery()
     }
-  }
 
-  // Filter by evidence
-  if (filters.evidence.length > 0) {
-    query = query.in('strength_of_evidence', filters.evidence)
-  }
+    // Quick filter (Small Animal or Large Animal)
+    if (filters.quickFilter !== 'all') {
+      const quickLabel = filters.quickFilter === 'small-animal' ? 'Small Animal' : 'Large Animal'
+      query = query.overlaps('labels', [quickLabel])
+    }
 
-  // Filter by journals
-  if (filters.journals.length > 0) {
-    query = query.in('source_journal', filters.journals)
-  }
+    // Filter by labels (specialty checkboxes)
+    if (filters.labels.length > 0) {
+      if (filters.labelOperator === 'AND') {
+        query = query.contains('labels', filters.labels)
+      } else {
+        query = query.overlaps('labels', filters.labels)
+      }
+    }
 
-  // Sort
-  if (filters.sort === 'newest' || filters.sort === 'relevance') {
-    query = query.order('publication_date', { ascending: false })
-  } else if (filters.sort === 'oldest') {
-    query = query.order('publication_date', { ascending: true })
-  }
+    // Filter by evidence
+    if (filters.evidence.length > 0) {
+      query = query.in('strength_of_evidence', filters.evidence)
+    }
+
+    // Filter by journals
+    if (filters.journals.length > 0) {
+      query = query.in('source_journal', filters.journals)
+    }
+
+    // Sort
+    if (filters.sort === 'newest' || filters.sort === 'relevance') {
+      query = query.order('publication_date', { ascending: false })
+    } else if (filters.sort === 'oldest') {
+      query = query.order('publication_date', { ascending: true })
+    }
 
     // Pagination
     const from = (filters.page - 1) * pageSize
@@ -86,13 +160,16 @@ export async function searchArticles(filters: ParsedFilters, pageSize = 20) {
       return {
         data: [],
         count: 0,
-        error: { message: 'No articles found. Try different search terms.' }
+        error: { message: 'No articles found. Try different search terms.' },
+        searchTier
       }
     }
 
-    return result
+    return {
+      ...result,
+      searchTier
+    }
   } catch (error) {
-    // Catch any unexpected errors and return a friendly message
     console.error('Unexpected search error:', error)
     return {
       data: [],

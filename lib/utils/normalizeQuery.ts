@@ -1,8 +1,31 @@
 /**
  * Normalizes veterinary search queries for caching and synonym matching.
- * Expands common acronyms and removes stopwords.
+ * Expands common acronyms, fixes misspellings, and removes stopwords.
  */
 export function normalizeQuery(query: string): string {
+  // Common veterinary misspellings → correct spelling
+  const misspellings: Record<string, string> = {
+    'astma': 'asthma',
+    'diabetis': 'diabetes',
+    'lyphoma': 'lymphoma',
+    'lymphona': 'lymphoma',
+    'pancreatits': 'pancreatitis',
+    'stomatits': 'stomatitis',
+    'pyelonephirtis': 'pyelonephritis',
+    'hypothyroidsm': 'hypothyroidism',
+    'hyperthyroidsm': 'hyperthyroidism',
+    'leishmaniasis': 'leishmaniasis',
+    'leishmania': 'leishmania',
+    'pyometria': 'pyometra',
+    'cushings': 'cushing',
+    'addisons': 'addison',
+    'parvo': 'parvovirus',
+    'distemper': 'distemper',
+    'leptospirosis': 'leptospirosis',
+    'ehrlichia': 'ehrlichiosis',
+    'anaplasmosis': 'anaplasmosis',
+  }
+
   // Veterinary acronym → full term mappings
   const synonyms: Record<string, string> = {
     'teca': 'total ear canal ablation',
@@ -24,6 +47,12 @@ export function normalizeQuery(query: string): string {
   }
 
   let normalized = query.toLowerCase().trim()
+
+  // Fix common misspellings FIRST (before synonym expansion)
+  Object.entries(misspellings).forEach(([wrong, correct]) => {
+    const regex = new RegExp(`\\b${wrong}\\b`, 'gi')
+    normalized = normalized.replace(regex, correct)
+  })
 
   // Replace acronyms with full terms (word boundaries to avoid partial matches)
   Object.entries(synonyms).forEach(([abbr, full]) => {
