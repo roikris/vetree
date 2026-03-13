@@ -128,9 +128,12 @@ export function CampaignCalendar() {
 
   const loadTodaysTask = async () => {
     console.log('[loadTodaysTask] Fetching today\'s task...')
+    console.log('[loadTodaysTask] Current day:', currentDay, 'Platform:', todaysPlatform)
+    console.log('[loadTodaysTask] Today\'s date:', today)
+
     // Try to get existing task
-    const { task } = await getTodaysTask()
-    console.log('[loadTodaysTask] Received task:', task)
+    const { task, error } = await getTodaysTask()
+    console.log('[loadTodaysTask] Received task:', task, 'Error:', error)
 
     if (task) {
       console.log('[loadTodaysTask] Task found with status:', task.status)
@@ -140,15 +143,27 @@ export function CampaignCalendar() {
       }
     } else {
       console.log('[loadTodaysTask] No task found, creating new one...')
-      // Create today's task if it doesn't exist
-      const { task: newTask } = await createTodaysTask(
-        currentDay,
-        todaysPlatform.platform,
-        todaysPlatform.language
-      )
-      console.log('[loadTodaysTask] Created new task:', newTask)
-      if (newTask) {
-        setTodaysTask(newTask)
+      console.log('[loadTodaysTask] Creating with:', {
+        day: currentDay,
+        platform: todaysPlatform?.platform,
+        language: todaysPlatform?.language
+      })
+
+      // Create today's task if it doesn't exist (only if we have platform info)
+      if (todaysPlatform?.platform && todaysPlatform?.language) {
+        const { task: newTask, error: createError } = await createTodaysTask(
+          currentDay,
+          todaysPlatform.platform,
+          todaysPlatform.language
+        )
+        console.log('[loadTodaysTask] Created new task:', newTask, 'Error:', createError)
+        if (newTask) {
+          setTodaysTask(newTask)
+        } else {
+          console.warn('[loadTodaysTask] Failed to create task - will operate without todaysTask')
+        }
+      } else {
+        console.warn('[loadTodaysTask] No platform info available - cannot create task')
       }
     }
   }
@@ -161,6 +176,11 @@ export function CampaignCalendar() {
   }
 
   const handleGenerate = async () => {
+    if (!todaysPlatform?.platform || !todaysPlatform?.language) {
+      setMessage({ type: 'error', text: 'Platform information not available' })
+      return
+    }
+
     setIsGenerating(true)
     setMessage(null)
 
@@ -250,12 +270,13 @@ export function CampaignCalendar() {
   }
 
   const handleApprove = async () => {
-    if (!todaysTask || !generatedPost) {
-      console.log('[handleApprove] Missing todaysTask or generatedPost', { todaysTask, generatedPost })
+    // Only require generatedPost, not todaysTask
+    if (!generatedPost) {
+      console.log('[handleApprove] Missing generatedPost')
       return
     }
 
-    console.log('[handleApprove] Starting approval for task:', todaysTask.id)
+    console.log('[handleApprove] Starting approval. todaysTask:', todaysTask ? todaysTask.id : 'null')
     setIsApproving(true)
     setMessage(null)
 
@@ -263,30 +284,34 @@ export function CampaignCalendar() {
     markAsApproved(today)
 
     try {
-      const result = await markTaskComplete(todaysTask.id, generatedPost)
-      console.log('[handleApprove] markTaskComplete result:', result)
+      // Only update database if todaysTask exists
+      if (todaysTask) {
+        const result = await markTaskComplete(todaysTask.id, generatedPost)
+        console.log('[handleApprove] markTaskComplete result:', result)
 
-      if (result.error) {
-        console.error('[handleApprove] Error from markTaskComplete:', result.error)
-        // Revert optimistic update on error
-        localStorage.removeItem(`vetree_campaign_approved_${today}`)
-        setApprovedPosts(prev => {
-          const updated = { ...prev }
-          delete updated[today]
-          return updated
-        })
-        setMessage({ type: 'error', text: result.error })
-        return
+        if (result.error) {
+          console.error('[handleApprove] Error from markTaskComplete:', result.error)
+          // Revert optimistic update on error
+          localStorage.removeItem(`vetree_campaign_approved_${today}`)
+          setApprovedPosts(prev => {
+            const updated = { ...prev }
+            delete updated[today]
+            return updated
+          })
+          setMessage({ type: 'error', text: result.error })
+          return
+        }
+
+        await loadTodaysTask()
+        await loadStats()
+      } else {
+        console.log('[handleApprove] No todaysTask - skipping database update')
       }
 
-      console.log('[handleApprove] Success! Clearing saved post and reloading...')
+      console.log('[handleApprove] Success! Post approved.')
       setMessage({ type: 'success', text: '✅ Post approved and marked as done!' })
       clearSavedPost() // Clear localStorage on approve
 
-      await loadTodaysTask()
-      await loadStats()
-
-      console.log('[handleApprove] Task and stats reloaded.')
     } catch (error) {
       console.error('[handleApprove] Exception caught:', error)
       // Revert optimistic update on error
@@ -387,11 +412,11 @@ export function CampaignCalendar() {
               Today's Post
             </h2>
             <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1">
-              Day {currentDay} - {todaysPlatform.name} ({todaysPlatform.language.toUpperCase()})
+              Day {currentDay} - {todaysPlatform?.name ?? 'Campaign'} ({(todaysPlatform?.language ?? 'en').toUpperCase()})
             </p>
           </div>
           <div className="text-4xl">
-            {todaysPlatform.icon}
+            {todaysPlatform?.icon ?? '📱'}
           </div>
         </div>
 
@@ -431,7 +456,7 @@ export function CampaignCalendar() {
 
         {/* Actions */}
         <div className="flex flex-wrap gap-3">
-          {!approvedPosts[today] && todaysTask?.status !== 'done' && (
+          {!approvedPosts[today] && (!todaysTask || todaysTask.status !== 'done') && (
             <>
               {!generatedPost ? (
                 <button
@@ -498,7 +523,7 @@ export function CampaignCalendar() {
               )}
             </>
           )}
-          {(approvedPosts[today] || todaysTask?.status === 'done') && (
+          {(approvedPosts[today] || (todaysTask && todaysTask.status === 'done')) && (
             <button
               disabled
               className="px-6 py-3 bg-green-600 text-white rounded-lg opacity-75 cursor-not-allowed font-medium"
