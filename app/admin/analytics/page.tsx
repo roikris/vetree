@@ -1,5 +1,6 @@
 import { getAnalyticsOverview, getTopPages, getVisitorsOverTime, getTopArticles, getSessionDuration, getRecentSearches, getDeviceBreakdown, getTopCountries, getSavedArticlesStats, getTrafficSources } from '@/app/actions/analytics'
 import { AnalyticsClient } from './AnalyticsClient'
+import { UserRetention } from './UserRetention'
 
 export default async function AdminAnalyticsPage() {
   const days = 7 // Default to 7 days
@@ -42,6 +43,11 @@ export default async function AdminAnalyticsPage() {
         initialSavedArticlesStats={savedArticlesStats.data}
         initialTrafficSources={trafficSources.data || []}
       />
+
+      {/* User Retention */}
+      <div className="mt-8">
+        <UserRetention />
+      </div>
     </div>
   )
 }
