@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { SynthesisPanel } from './SynthesisPanel'
+import { useFeatureFlags, isFeatureEnabled } from '@/lib/hooks/useFeatureFlags'
 
 type SynthesisWrapperProps = {
   searchQuery: string
@@ -10,14 +11,18 @@ type SynthesisWrapperProps = {
 
 export function SynthesisWrapper({ searchQuery, children }: SynthesisWrapperProps) {
   const [showSynthesis, setShowSynthesis] = useState(false)
+  const { flags, loading } = useFeatureFlags()
 
-  // Only show synthesis button if query has 2+ words
-  const shouldShowButton = searchQuery.trim().split(/\s+/).length >= 2
+  // Check if feature is enabled
+  const synthesisEnabled = isFeatureEnabled(flags, 'topic_synthesis')
+
+  // Only show synthesis button if query has 2+ words AND feature is enabled
+  const shouldShowButton = searchQuery.trim().split(/\s+/).length >= 2 && synthesisEnabled
 
   return (
     <>
       {/* Synthesis trigger button */}
-      {shouldShowButton && !showSynthesis && (
+      {shouldShowButton && !showSynthesis && !loading && (
         <div className="mb-6 flex justify-center">
           <button
             onClick={() => setShowSynthesis(true)}

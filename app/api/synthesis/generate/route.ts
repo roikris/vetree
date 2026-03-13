@@ -29,6 +29,20 @@ export async function POST(request: NextRequest) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
 
+    // Check if feature is enabled
+    const { data: flag } = await supabase
+      .from('feature_flags')
+      .select('enabled')
+      .eq('flag_name', 'topic_synthesis')
+      .single()
+
+    if (!flag?.enabled) {
+      return NextResponse.json(
+        { error: 'Topic synthesis is currently unavailable' },
+        { status: 503 }
+      )
+    }
+
     // STEP 1: Check cache for existing synthesis
     const { data: cached } = await supabase
       .from('topic_syntheses')

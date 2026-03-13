@@ -1,6 +1,7 @@
 import { getAdminStats } from '@/app/actions/admin'
 import { getReports } from '@/app/actions/reports'
 import Link from 'next/link'
+import { FeatureFlags } from './FeatureFlags'
 
 export default async function AdminOverviewPage() {
   const { stats, error: statsError } = await getAdminStats()
@@ -69,6 +70,11 @@ export default async function AdminOverviewPage() {
             {stats?.pendingEnrichment || 0}
           </div>
         </div>
+      </div>
+
+      {/* Feature Flags Section */}
+      <div className="mb-8">
+        <FeatureFlags />
       </div>
 
       {/* Two Column Layout */}
