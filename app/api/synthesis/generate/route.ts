@@ -66,6 +66,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         synthesis_html: cached.synthesis_html,
         article_ids: cached.article_ids,
+        articles: cached.articles || [], // BUG 2 FIX: Include cached articles
         study_type_breakdown: cached.study_type_breakdown,
         from_cache: true,
         model_used: cached.model_used,
@@ -248,6 +249,7 @@ Synthesize the evidence for this veterinary clinical topic.`
         query_original: queryOriginal,
         synthesis_html: synthesisHtml,
         article_ids: articlesForSynthesis.map(a => a.id),
+        articles: packets, // BUG 2 FIX: Cache article data for display
         article_count: articlesForSynthesis.length,
         study_type_breakdown: studyTypeBreakdown,
         model_used: modelToUse,
@@ -262,6 +264,7 @@ Synthesize the evidence for this veterinary clinical topic.`
     return NextResponse.json({
       synthesis_html: synthesisHtml,
       article_ids: articlesForSynthesis.map(a => a.id),
+      articles: packets, // BUG 2 FIX: Include article data for frontend display
       study_type_breakdown: studyTypeBreakdown,
       from_cache: false,
       model_used: modelToUse,

@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import ReactMarkdown from 'react-markdown'
+import { normalizeQuery } from '@/lib/utils/normalizeQuery'
 
 type SynthesisPanelProps = {
   query: string
@@ -15,9 +17,21 @@ type StudyBreakdown = {
   total: number
 }
 
+type ArticlePacket = {
+  citation_id: number
+  id: string
+  title: string
+  journal: string
+  year: number
+  clinical_bottom_line: string
+  labels: string
+}
+
 type SynthesisData = {
   synthesis_html: string
+  synthesis_text?: string
   article_ids: string[]
+  articles?: ArticlePacket[]
   study_type_breakdown: StudyBreakdown
   from_cache: boolean
   model_used?: string
@@ -33,8 +47,26 @@ export function SynthesisPanel({ query, onClose }: SynthesisPanelProps) {
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false)
   const [showFeedbackNote, setShowFeedbackNote] = useState(false)
   const [feedbackNote, setFeedbackNote] = useState('')
+  const [showSources, setShowSources] = useState(false)
 
+  // BUG 3 FIX: sessionStorage key for persistence
+  const SYNTHESIS_KEY = `vetree_synthesis_${normalizeQuery(query)}`
+
+  // BUG 3 FIX: On mount, check sessionStorage for saved synthesis
   useEffect(() => {
+    const saved = sessionStorage.getItem(SYNTHESIS_KEY)
+    if (saved) {
+      try {
+        const savedData = JSON.parse(saved)
+        setData(savedData)
+        setLoading(false)
+        return // Don't fetch if we have cached data
+      } catch (e) {
+        console.error('[SynthesisPanel] Failed to parse saved data:', e)
+      }
+    }
+
+    // If no saved data, fetch from API
     async function fetchSynthesis() {
       setLoading(true)
       setError(null)
@@ -53,6 +85,9 @@ export function SynthesisPanel({ query, onClose }: SynthesisPanelProps) {
 
         const result = await response.json()
         setData(result)
+
+        // BUG 3 FIX: Save to sessionStorage
+        sessionStorage.setItem(SYNTHESIS_KEY, JSON.stringify(result))
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Unknown error')
       } finally {
@@ -63,7 +98,7 @@ export function SynthesisPanel({ query, onClose }: SynthesisPanelProps) {
     if (query && query.trim().length >= 3) {
       fetchSynthesis()
     }
-  }, [query])
+  }, [query, SYNTHESIS_KEY])
 
   const submitFeedback = async (feedback: 'helpful' | 'not_relevant') => {
     try {
@@ -136,6 +171,46 @@ export function SynthesisPanel({ query, onClose }: SynthesisPanelProps) {
 
   const breakdown = data.study_type_breakdown
   const hasConflictingEvidence = data.synthesis_html.toLowerCase().includes('conflicting evidence')
+
+  // BUG 1 FIX: Extract plain text from synthesis_html (remove <a> tags for markdown rendering)
+  const synthesisText = data.synthesis_html.replace(/<a[^>]*>(\[(\d+)\])<\/a>/g, '[$2]')
+
+  // BUG 2 FIX: Get articles from API response
+  const synthesisArticles = data.articles || []
+
+  // BUG 1 FIX: Custom markdown components with citation link handler
+  const CitationLink = (props: any) => {
+    const { href, children } = props
+    const citationMatch = children?.toString().match(/\[(\d+)\]/)
+    if (citationMatch) {
+      const citationId = parseInt(citationMatch[1])
+      const article = synthesisArticles.find(a => a.citation_id === citationId)
+      if (article) {
+        return (
+          <a
+            href={`/article/${article.id}`}
+            className="citation-link text-[#3D7A5F] dark:text-[#4E9A78] hover:underline font-medium"
+            title={article.title}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {children}
+          </a>
+        )
+      }
+    }
+
+    return (
+      <a
+        href={href}
+        className="text-blue-600 dark:text-blue-400 hover:underline"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        {children}
+      </a>
+    )
+  }
 
   return (
     <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 border border-blue-200 dark:border-blue-800 rounded-lg mb-8 overflow-hidden">
@@ -223,20 +298,93 @@ export function SynthesisPanel({ query, onClose }: SynthesisPanelProps) {
       {/* Content */}
       {expanded && (
         <div className="p-6">
-          {/* Synthesis content */}
-          <div
-            className="prose prose-blue dark:prose-invert max-w-none mb-6 synthesis-content"
-            dangerouslySetInnerHTML={{ __html: data.synthesis_html }}
-          />
+          {/* BUG 1 FIX: Synthesis content with ReactMarkdown */}
+          <div className="prose prose-blue dark:prose-invert max-w-none mb-6">
+            <ReactMarkdown
+              components={{
+                h2: ({ children }) => (
+                  <h2 className="text-lg font-semibold text-blue-900 dark:text-blue-100 mt-6 mb-3 first:mt-0 border-b border-blue-200 dark:border-blue-800 pb-2">
+                    {children}
+                  </h2>
+                ),
+                h3: ({ children }) => (
+                  <h3 className="text-base font-semibold text-blue-800 dark:text-blue-200 mt-4 mb-2">
+                    {children}
+                  </h3>
+                ),
+                p: ({ children }) => (
+                  <p className="text-zinc-700 dark:text-zinc-300 leading-relaxed mb-3">
+                    {children}
+                  </p>
+                ),
+                ul: ({ children }) => (
+                  <ul className="list-disc list-inside space-y-2 mb-4 text-zinc-700 dark:text-zinc-300">
+                    {children}
+                  </ul>
+                ),
+                li: ({ children }) => (
+                  <li className="ml-4 leading-relaxed">{children}</li>
+                ),
+                strong: ({ children }) => (
+                  <strong className="text-zinc-900 dark:text-zinc-100 font-semibold">
+                    {children}
+                  </strong>
+                ),
+                a: CitationLink,
+              }}
+            >
+              {synthesisText}
+            </ReactMarkdown>
+          </div>
 
           {/* Disclaimer */}
           <div className="bg-blue-100 dark:bg-blue-900/30 border border-blue-300 dark:border-blue-700 rounded-lg p-4 mb-4 text-sm text-blue-800 dark:text-blue-200">
             <strong>ℹ️ AI-generated synthesis.</strong> Always verify with original sources. Click citation numbers to read full articles.
           </div>
 
+          {/* BUG 2 FIX: View source articles button with toggle */}
+          {synthesisArticles.length > 0 && (
+            <div className="mb-4">
+              <button
+                onClick={() => setShowSources(!showSources)}
+                className="text-blue-700 dark:text-blue-300 hover:underline text-sm font-medium flex items-center gap-1"
+              >
+                📚 {showSources ? 'Hide' : 'View'} source articles ({synthesisArticles.length})
+                <svg className={`w-4 h-4 transition-transform ${showSources ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              {/* BUG 2 FIX: Show articles from synthesis API response */}
+              {showSources && (
+                <div className="mt-3 space-y-2">
+                  {synthesisArticles.map((article) => (
+                    <a
+                      key={article.id}
+                      href={`/article/${article.id}`}
+                      className="block p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-950/50 transition"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <span className="text-[#3D7A5F] dark:text-[#4E9A78] text-sm font-mono font-semibold">
+                        [{article.citation_id}]
+                      </span>
+                      <span className="text-zinc-900 dark:text-zinc-100 text-sm ml-2">
+                        {article.title}
+                      </span>
+                      <span className="text-zinc-500 dark:text-zinc-400 text-xs ml-2">
+                        · {article.journal} ({article.year})
+                      </span>
+                    </a>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Feedback buttons */}
           {!feedbackSubmitted && !showFeedbackNote && (
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 mb-4">
               <span className="text-sm text-zinc-600 dark:text-zinc-400">Was this synthesis helpful?</span>
               <button
                 onClick={() => submitFeedback('helpful')}
@@ -255,7 +403,7 @@ export function SynthesisPanel({ query, onClose }: SynthesisPanelProps) {
 
           {/* Feedback note input */}
           {showFeedbackNote && (
-            <div className="bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg p-4">
+            <div className="bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg p-4 mb-4">
               <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
                 What was wrong with this synthesis?
               </label>
@@ -285,26 +433,10 @@ export function SynthesisPanel({ query, onClose }: SynthesisPanelProps) {
 
           {/* Feedback confirmation */}
           {feedbackSubmitted && (
-            <div className="bg-green-100 dark:bg-green-900/30 border border-green-300 dark:border-green-700 rounded-lg p-3 text-sm text-green-800 dark:text-green-200">
+            <div className="bg-green-100 dark:bg-green-900/30 border border-green-300 dark:border-green-700 rounded-lg p-3 text-sm text-green-800 dark:text-green-200 mb-4">
               ✓ Thank you for your feedback!
             </div>
           )}
-
-          {/* View source articles button */}
-          <button
-            onClick={() => {
-              const articlesSection = document.getElementById('articles')
-              if (articlesSection) {
-                articlesSection.scrollIntoView({ behavior: 'smooth', block: 'start' })
-              }
-            }}
-            className="mt-4 text-blue-700 dark:text-blue-300 hover:underline text-sm font-medium flex items-center gap-1"
-          >
-            📚 View source articles ({data.article_ids.length})
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
         </div>
       )}
     </div>
