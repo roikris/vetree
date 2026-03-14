@@ -225,6 +225,28 @@ async function main() {
       const overallIndex = stats.totalProcessed + i + 1;
       console.log(`[${overallIndex}/${Math.min(stats.totalProcessed + articles.length, MAX_ARTICLES_PER_RUN)}] Processing...`);
 
+      // FIX 2: Auto-quarantine articles with no abstract after 3 failed attempts
+      const enrichmentAttempts = article.enrichment_attempts || 0;
+      const hasAbstract = article.summary && article.summary.trim().length > 0;
+      const hasLabels = article.labels && article.labels.length > 0;
+
+      if (enrichmentAttempts >= 3 && !hasAbstract && !hasLabels) {
+        console.log(`  ⊗ Auto-quarantining: No abstract available (${article.title.substring(0, 60)}...)`);
+
+        await supabase
+          .from('articles')
+          .update({
+            quarantined: true,
+            needs_enrichment: false,
+            force_retry: false,
+            last_enrichment_error: 'no_abstract_available - auto_quarantined'
+          })
+          .eq('id', article.id);
+
+        stats.failCount++;
+        continue; // Skip to next article
+      }
+
       const success = await enrichArticle(supabase, anthropic, article);
 
       if (success) {

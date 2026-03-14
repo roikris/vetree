@@ -41,11 +41,27 @@ async function importArticles(csvFilePath: string) {
 
     console.log(`Found ${records.length} articles to import`)
 
+    // Fetch blacklist to prevent re-importing deleted articles
+    const { data: blacklist } = await supabase
+      .from('articles_blacklist')
+      .select('pubmed_id')
+
+    const blacklistedIds = new Set(blacklist?.map(b => b.pubmed_id) || [])
+    console.log(`Blacklisted articles: ${blacklistedIds.size}`)
+
     let successCount = 0
     let errorCount = 0
+    let skippedCount = 0
 
     for (const record of records) {
       try {
+        // Skip blacklisted articles
+        if (record.pubmed_id && blacklistedIds.has(record.pubmed_id)) {
+          console.log(`⊘ Skipping blacklisted article: ${record.pubmed_id} - ${record.title.substring(0, 60)}...`)
+          skippedCount++
+          continue
+        }
+
         // Parse labels - handle both JSON array strings and comma-separated strings
         let labelsArray: string[] = []
         if (record.labels) {
@@ -101,6 +117,7 @@ async function importArticles(csvFilePath: string) {
 
     console.log(`\nImport complete!`)
     console.log(`✓ Successfully imported: ${successCount}`)
+    console.log(`⊘ Skipped (blacklisted): ${skippedCount}`)
     console.log(`✗ Errors: ${errorCount}`)
   } catch (error) {
     console.error('Error reading or parsing CSV file:', error)

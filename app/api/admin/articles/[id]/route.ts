@@ -38,6 +38,32 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
 
+    // First, fetch the article to get its pubmed_id
+    const { data: article } = await adminSupabase
+      .from('articles')
+      .select('pubmed_id')
+      .eq('id', id)
+      .single()
+
+    // Add to blacklist if pubmed_id exists
+    if (article?.pubmed_id) {
+      const { error: blacklistError } = await adminSupabase
+        .from('articles_blacklist')
+        .insert({
+          pubmed_id: article.pubmed_id,
+          reason: 'admin_deleted'
+        })
+        .select()
+
+      if (blacklistError && blacklistError.code !== '23505') { // Ignore duplicate key errors
+        console.error('[admin/articles] Blacklist error:', blacklistError)
+        // Don't fail the delete if blacklist insertion fails
+      } else {
+        console.log('[admin/articles] Added to blacklist:', article.pubmed_id)
+      }
+    }
+
+    // Delete the article
     const { error } = await adminSupabase
       .from('articles')
       .delete()
