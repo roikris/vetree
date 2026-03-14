@@ -129,13 +129,13 @@ export function CampaignCalendar() {
   }, [approvedPosts, today])
 
   const loadTodaysTask = async () => {
-    console.log('[loadTodaysTask] Fetching today\'s task...')
+    console.log('[loadTodaysTask] Checking for existing task...')
     console.log('[loadTodaysTask] Current day:', currentDay, 'Platform:', todaysPlatform)
     console.log('[loadTodaysTask] Today\'s date:', today)
 
-    // Try to get existing task
-    const { task, error } = await getTodaysTask()
-    console.log('[loadTodaysTask] Received task:', task, 'Error:', error)
+    // Try to get existing task from DB (only for checking status)
+    const { task } = await getTodaysTask()
+    console.log('[loadTodaysTask] Received task from DB:', task)
 
     if (task) {
       console.log('[loadTodaysTask] Task found with status:', task.status)
@@ -144,29 +144,10 @@ export function CampaignCalendar() {
         setGeneratedPost(task.content)
       }
     } else {
-      console.log('[loadTodaysTask] No task found, creating new one...')
-      console.log('[loadTodaysTask] Creating with:', {
-        day: currentDay,
-        platform: todaysPlatform?.platform,
-        language: todaysPlatform?.language
-      })
-
-      // Create today's task if it doesn't exist (only if we have platform info)
-      if (todaysPlatform?.platform && todaysPlatform?.language) {
-        const { task: newTask, error: createError } = await createTodaysTask(
-          currentDay,
-          todaysPlatform.platform,
-          todaysPlatform.language
-        )
-        console.log('[loadTodaysTask] Created new task:', newTask, 'Error:', createError)
-        if (newTask) {
-          setTodaysTask(newTask)
-        } else {
-          console.warn('[loadTodaysTask] Failed to create task - will operate without todaysTask')
-        }
-      } else {
-        console.warn('[loadTodaysTask] No platform info available - cannot create task')
-      }
+      console.log('[loadTodaysTask] No task in DB - operating without DB persistence')
+      // Don't create a task in DB - just use platform info from rotation
+      // The task will be created only when the user approves the post
+      setTodaysTask(null)
     }
   }
 
@@ -286,9 +267,29 @@ export function CampaignCalendar() {
     markAsApproved(today)
 
     try {
-      // Only update database if todaysTask exists
-      if (todaysTask) {
-        const result = await markTaskComplete(todaysTask.id, generatedPost)
+      let taskId = todaysTask?.id
+
+      // Create task if it doesn't exist yet
+      if (!taskId && todaysPlatform?.platform && todaysPlatform?.language) {
+        console.log('[handleApprove] Creating task for approval...')
+        const { task: newTask, error: createError } = await createTodaysTask(
+          currentDay,
+          todaysPlatform.platform,
+          todaysPlatform.language
+        )
+
+        if (createError || !newTask) {
+          console.error('[handleApprove] Failed to create task:', createError)
+          // Continue with localStorage-only approval
+        } else {
+          taskId = newTask.id
+          setTodaysTask(newTask)
+        }
+      }
+
+      // Update database if we have a task ID
+      if (taskId) {
+        const result = await markTaskComplete(taskId, generatedPost)
         console.log('[handleApprove] markTaskComplete result:', result)
 
         if (result.error) {
@@ -307,7 +308,7 @@ export function CampaignCalendar() {
         await loadTodaysTask()
         await loadStats()
       } else {
-        console.log('[handleApprove] No todaysTask - skipping database update')
+        console.log('[handleApprove] No task ID - localStorage-only approval')
       }
 
       console.log('[handleApprove] Success! Post approved.')
@@ -460,8 +461,9 @@ export function CampaignCalendar() {
             <div className="text-xs text-zinc-500 dark:text-zinc-400 mb-2">Generated Post:</div>
             <button
               onClick={handleCopy}
-              className="absolute top-2 right-2 p-1.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 transition text-zinc-400 dark:text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
+              className="absolute top-2 right-2 p-1.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 transition text-zinc-400 dark:text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 z-10 pointer-events-auto"
               title="Copy to clipboard"
+              type="button"
             >
               {copied ? <Check size={16} className="text-green-500 dark:text-green-400" /> : <Copy size={16} />}
             </button>
