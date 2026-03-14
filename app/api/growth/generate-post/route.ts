@@ -61,14 +61,14 @@ export async function POST(request: NextRequest) {
     }
 
     while (retryCount < MAX_RETRIES && !article) {
-      // Get articles already used for this platform+language combo
-      const { data: usedArticleIds } = await supabase
+      // Get articles already used in the last 30 days (across all platforms)
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+      const { data: recentMemory } = await supabase
         .from('growth_agent_memory')
         .select('article_id')
-        .eq('platform', platform)
-        .eq('language', language)
+        .gte('created_at', thirtyDaysAgo)
 
-      const usedIds = usedArticleIds?.map(row => row.article_id) || []
+      const usedIds = recentMemory?.map(row => row.article_id) || []
 
       // Query for enriched articles - fetch top 50 most recent by publication date
       // NOTE: GIN index exists on labels column (idx_articles_labels_gin) for efficient array operations.

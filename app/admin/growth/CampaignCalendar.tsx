@@ -457,19 +457,21 @@ export function CampaignCalendar() {
 
         {/* Generated Post */}
         {generatedPost && (
-          <div className="mb-4 p-4 bg-zinc-50 dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 relative">
-            <div className="text-xs text-zinc-500 dark:text-zinc-400 mb-2">Generated Post:</div>
-            <button
-              onClick={handleCopy}
-              className="absolute top-2 right-2 p-1.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 transition text-zinc-400 dark:text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 z-10 pointer-events-auto"
-              title="Copy to clipboard"
-              type="button"
-            >
-              {copied ? <Check size={16} className="text-green-500 dark:text-green-400" /> : <Copy size={16} />}
-            </button>
-            <div className="text-sm text-zinc-900 dark:text-zinc-100 whitespace-pre-wrap font-mono pr-8">
-              {generatedPost}
+          <div className="mb-4">
+            <div className="p-4 bg-zinc-50 dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800">
+              <div className="text-xs text-zinc-500 dark:text-zinc-400 mb-2">Generated Post:</div>
+              <div className="text-sm text-zinc-900 dark:text-zinc-100 whitespace-pre-wrap font-mono">
+                {generatedPost}
+              </div>
             </div>
+            <button
+              type="button"
+              onClick={handleCopy}
+              className="mt-2 flex items-center gap-1.5 text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 cursor-pointer bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 px-3 py-1.5 rounded-md transition w-fit"
+            >
+              {copied ? <Check size={14} className="text-green-500 dark:text-green-400" /> : <Copy size={14} />}
+              <span>{copied ? 'Copied!' : 'Copy post'}</span>
+            </button>
           </div>
         )}
 
