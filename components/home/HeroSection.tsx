@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { Article } from '@/lib/supabase'
+import { AnnouncementBanner } from './AnnouncementBanner'
 
 type HeroSectionProps = {
   exampleArticle: Article | null
@@ -22,6 +23,9 @@ export function HeroSection({ exampleArticle, stats }: HeroSectionProps) {
   return (
     <div className="hero-section bg-gradient-to-b from-[#3D7A5F]/5 to-white dark:from-[#3D7A5F]/10 dark:to-[#0F0F0F] border-b border-[#3D7A5F]/10 dark:border-[#4E9A78]/10">
       <div className="max-w-4xl mx-auto px-4 md:px-8 py-12 md:py-16 pt-[max(env(safe-area-inset-top),3rem)]">
+        {/* Announcement Banner */}
+        <AnnouncementBanner />
+
         {/* Headline */}
         <h1 className="text-3xl md:text-5xl font-bold text-[#1A1A1A] dark:text-[#E8E8E8] mb-4 text-center">
           Evidence-based veterinary research, distilled.
