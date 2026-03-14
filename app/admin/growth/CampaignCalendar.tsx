@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { Copy, Check } from 'lucide-react'
 import { getCurrentCampaignDay, getWeekSchedule, getTodaysPlatform, CAMPAIGN_TOTAL_DAYS, PLATFORM_ROTATION } from '@/lib/growth-campaign'
 import { getTodaysTask, createTodaysTask, markTaskComplete, getCampaignStats } from '@/app/actions/admin'
 
@@ -40,6 +41,7 @@ export function CampaignCalendar() {
   const [stats, setStats] = useState<CampaignStats | null>(null)
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
   const [approvedPosts, setApprovedPosts] = useState<Record<string, boolean>>({})
+  const [copied, setCopied] = useState(false)
 
   const currentDay = getCurrentCampaignDay()
   const todaysPlatform = getTodaysPlatform()
@@ -342,6 +344,14 @@ export function CampaignCalendar() {
     await loadTodaysTask()
   }
 
+  const handleCopy = async () => {
+    if (!generatedPost) return
+
+    await navigator.clipboard.writeText(generatedPost)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
   const getPlatformIcon = (platform: string) => {
     const icons: Record<string, string> = {
       facebook_il: '📘',
@@ -446,9 +456,16 @@ export function CampaignCalendar() {
 
         {/* Generated Post */}
         {generatedPost && (
-          <div className="mb-4 p-4 bg-zinc-50 dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800">
+          <div className="mb-4 p-4 bg-zinc-50 dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 relative">
             <div className="text-xs text-zinc-500 dark:text-zinc-400 mb-2">Generated Post:</div>
-            <div className="text-sm text-zinc-900 dark:text-zinc-100 whitespace-pre-wrap font-mono">
+            <button
+              onClick={handleCopy}
+              className="absolute top-2 right-2 p-1.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 transition text-zinc-400 dark:text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
+              title="Copy to clipboard"
+            >
+              {copied ? <Check size={16} className="text-green-500 dark:text-green-400" /> : <Copy size={16} />}
+            </button>
+            <div className="text-sm text-zinc-900 dark:text-zinc-100 whitespace-pre-wrap font-mono pr-8">
               {generatedPost}
             </div>
           </div>
