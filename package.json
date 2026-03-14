@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "import-articles": "tsx scripts/import-articles.ts"
+    "import-articles": "tsx scripts/import-articles.ts",
+    "backfill-2025-2026": "node .github/workflows/scripts/backfill-articles-2025-2026.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.32.1",
