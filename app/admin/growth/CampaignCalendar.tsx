@@ -42,6 +42,7 @@ export function CampaignCalendar() {
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
   const [approvedPosts, setApprovedPosts] = useState<Record<string, boolean>>({})
   const [copied, setCopied] = useState(false)
+  const [showRedesignMenu, setShowRedesignMenu] = useState(false)
 
   const currentDay = getCurrentCampaignDay()
   const todaysPlatform = getTodaysPlatform()
@@ -127,6 +128,20 @@ export function CampaignCalendar() {
     console.log('[CampaignCalendar] today:', today)
     console.log('[CampaignCalendar] approvedPosts[today]:', approvedPosts[today])
   }, [approvedPosts, today])
+
+  // Close redesign menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => {
+      if (showRedesignMenu) {
+        setShowRedesignMenu(false)
+      }
+    }
+
+    if (showRedesignMenu) {
+      document.addEventListener('click', handleClickOutside)
+      return () => document.removeEventListener('click', handleClickOutside)
+    }
+  }, [showRedesignMenu])
 
   const loadTodaysTask = async () => {
     console.log('[loadTodaysTask] Checking for existing task...')
@@ -505,10 +520,17 @@ export function CampaignCalendar() {
                   </button>
 
                   {/* Redesign for platform dropdown */}
-                  <div className="relative group">
+                  <div className="relative">
                     <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        if (!isGenerating && savedPostData?.article_id) {
+                          setShowRedesignMenu(!showRedesignMenu)
+                        }
+                      }}
                       disabled={isGenerating || !savedPostData?.article_id}
-                      className="px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                      className="px-4 py-3 min-h-[44px] bg-purple-600 text-white rounded-lg hover:bg-purple-700 active:bg-purple-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                     >
                       🔄 Redesign for...
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -517,21 +539,28 @@ export function CampaignCalendar() {
                     </button>
 
                     {/* Dropdown menu */}
-                    <div className="absolute left-0 mt-2 w-48 bg-white dark:bg-[#1A1A1A] border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
-                      {PLATFORM_ROTATION
-                        .filter(p => p.platform !== todaysPlatform.platform)
-                        .map(platform => (
-                          <button
-                            key={platform.platform}
-                            onClick={() => handleRedesign(platform.platform, platform.language)}
-                            disabled={isGenerating}
-                            className="w-full px-4 py-2 text-left text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors first:rounded-t-lg last:rounded-b-lg disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            <span className="mr-2">{platform.icon}</span>
-                            {platform.name}
-                          </button>
-                        ))}
-                    </div>
+                    {showRedesignMenu && (
+                      <div className="absolute left-0 mt-2 w-48 bg-white dark:bg-[#1A1A1A] border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-xl z-50">
+                        {PLATFORM_ROTATION
+                          .filter(p => p.platform !== todaysPlatform.platform)
+                          .map(platform => (
+                            <button
+                              key={platform.platform}
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleRedesign(platform.platform, platform.language)
+                                setShowRedesignMenu(false)
+                              }}
+                              disabled={isGenerating}
+                              className="w-full px-4 py-3 min-h-[44px] text-left text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-900 active:bg-zinc-200 dark:active:bg-zinc-800 transition-colors first:rounded-t-lg last:rounded-b-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              <span className="mr-2">{platform.icon}</span>
+                              {platform.name}
+                            </button>
+                          ))}
+                      </div>
+                    )}
                   </div>
 
                   <button
