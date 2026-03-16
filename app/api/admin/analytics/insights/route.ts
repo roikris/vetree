@@ -179,13 +179,21 @@ Generate 4-6 insights maximum. Quality over quantity.`
     const rawText = response.content[0].type === 'text' ? response.content[0].text : ''
     console.log('[insights] Raw response preview:', rawText.slice(0, 200))
 
+    // Strip markdown code fences if present
+    const cleanText = rawText
+      .replace(/^```json\s*/i, '')
+      .replace(/^```\s*/i, '')
+      .replace(/\s*```$/i, '')
+      .trim()
+
     let insightsData
     try {
-      insightsData = JSON.parse(rawText)
+      insightsData = JSON.parse(cleanText)
       console.log('[insights] JSON parsed successfully, insights count:', insightsData.insights?.length || 0)
     } catch (parseError) {
       console.error('[insights] JSON parse failed:', parseError)
       console.error('[insights] Raw text was:', rawText)
+      console.error('[insights] Clean text was:', cleanText)
       throw new Error(`Failed to parse Claude response: ${parseError}`)
     }
 
@@ -211,13 +219,24 @@ ${JSON.stringify(insightsData, null, 2)}`
 
     console.log('[insights] Critique response received, tokens:', critiqueResponse.usage.input_tokens, 'in /', critiqueResponse.usage.output_tokens, 'out')
 
-    const finalText = critiqueResponse.content[0].type === 'text' ? critiqueResponse.content[0].text : rawText
+    const critiqueRaw = critiqueResponse.content[0].type === 'text'
+      ? critiqueResponse.content[0].text
+      : rawText
+
+    // Strip markdown code fences (Haiku sometimes wraps JSON in ```json ... ```)
+    const cleanCritique = critiqueRaw
+      .replace(/^```json\s*/i, '')
+      .replace(/^```\s*/i, '')
+      .replace(/\s*```$/i, '')
+      .trim()
+
     let finalInsights
     try {
-      finalInsights = JSON.parse(finalText)
+      finalInsights = JSON.parse(cleanCritique)
       console.log('[insights] Critique parsed successfully, final insights:', finalInsights.insights?.length || 0)
     } catch (critiqueParseError) {
       console.error('[insights] Critique parse failed, using original:', critiqueParseError)
+      console.error('[insights] Attempted to parse:', cleanCritique.slice(0, 200))
       finalInsights = insightsData // fallback to uncritiqued if parse fails
     }
 
