@@ -67,14 +67,12 @@ export class CSRFProtection {
   private cookieOptions: Required<CSRFTokenOptions['cookieOptions']>
 
   constructor(options: CSRFTokenOptions = {}) {
-    // Use centralized config for security settings
-    const config = require('./config').getConfig()
-    this.secret = options.secret || config.security.csrfSecret
+    this.secret = options.secret || process.env.CSRF_SECRET || this.generateSecret()
     this.tokenLength = options.tokenLength || 32
     this.cookieName = options.cookieName || '__csrf_token'
     this.cookieOptions = {
       httpOnly: true,
-      secure: config.site.nodeEnv === 'production',
+      secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 24 * 60 * 60, // 24 hours
       path: '/',
