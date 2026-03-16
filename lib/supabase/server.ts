@@ -1,6 +1,11 @@
 import { createServerClient } from '@supabase/ssr'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
+import { getConfig } from '@/lib/config'
+
+// Connection pool for admin operations
+let adminClientPool: ReturnType<typeof createSupabaseClient> | null = null
+let pooledReadOnlyClient: ReturnType<typeof createSupabaseClient> | null = null
 
 export async function createClient() {
   const cookieStore = await cookies()
@@ -29,11 +34,14 @@ export async function createClient() {
   )
 }
 
-// Admin client with service role key for admin operations
+// Pooled admin client with service role key for admin operations
 export function createAdminClient() {
-  return createSupabaseClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  if (adminClientPool) return adminClientPool
+
+  const config = getConfig()
+  adminClientPool = createSupabaseClient(
+    config.supabase.url,
+    config.supabase.serviceRoleKey,
     {
       auth: {
         autoRefreshToken: false,
@@ -41,4 +49,25 @@ export function createAdminClient() {
       }
     }
   )
+  
+  return adminClientPool
+}
+
+// Pooled read-only client for optimized queries
+export function createReadOnlyClient() {
+  if (pooledReadOnlyClient) return pooledReadOnlyClient
+
+  const config = getConfig()
+  pooledReadOnlyClient = createSupabaseClient(
+    config.supabase.url,
+    config.supabase.anonKey,
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    }
+  )
+  
+  return pooledReadOnlyClient
 }
