@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createHash } from 'crypto'
 import { ratelimitLoose, getClientIP } from '@/lib/ratelimit'
-import { getConfig } from '@/lib/config'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -16,7 +15,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Too many requests. Please try again later.' }, { status: 429 })
     }
 
-    const config = getConfig()
     const supabase = await createClient()
     const body = await request.json()
     const { path, referrer, session_id, duration_seconds, utm_source, utm_medium, utm_campaign } = body
@@ -46,7 +44,7 @@ export async function POST(request: NextRequest) {
     const ip = forwarded ? forwarded.split(',')[0].trim() : request.headers.get('x-real-ip') || 'unknown'
 
     // Hash IP for privacy (never store raw IP)
-    const ipHash = createHash('sha256').update(ip + config.security.ipHashSalt).digest('hex')
+    const ipHash = createHash('sha256').update(ip + process.env.IP_HASH_SALT || 'vetree-salt').digest('hex')
 
     // Get user agent and parse device type
     const userAgent = request.headers.get('user-agent') || ''
