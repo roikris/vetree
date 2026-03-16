@@ -258,9 +258,22 @@ async function main() {
         .in('pubmed_id', pmids);
 
       const existingPmids = new Set((existing || []).map(a => a.pubmed_id));
-      const newPmids = pmids.filter(pmid => !existingPmids.has(pmid));
+
+      // Check blacklist
+      const { data: blacklisted } = await supabase
+        .from('articles_blacklist')
+        .select('pubmed_id')
+        .in('pubmed_id', pmids);
+
+      const blacklistedPmids = new Set((blacklisted || []).map(b => b.pubmed_id));
+
+      // Filter out both existing and blacklisted
+      const newPmids = pmids.filter(pmid => !existingPmids.has(pmid) && !blacklistedPmids.has(pmid));
 
       stats.totalExisting += existingPmids.size;
+      if (blacklistedPmids.size > 0) {
+        console.log(`  ${blacklistedPmids.size} blacklisted articles skipped`);
+      }
       console.log(`  ${newPmids.length} new articles to fetch`);
 
       if (newPmids.length === 0) continue;
@@ -278,8 +291,14 @@ async function main() {
             .insert(articles);
 
           if (error) {
-            console.error('  Error inserting articles:', error.message);
-            stats.totalFailed += articles.length;
+            // Silently skip unique constraint violations (23505 = duplicate key)
+            if (error.code === '23505') {
+              console.log(`  ${articles.length} articles skipped (already exist or blacklisted)`);
+              stats.totalExisting += articles.length;
+            } else {
+              console.error('  Error inserting articles:', error.message);
+              stats.totalFailed += articles.length;
+            }
           } else {
             console.log(`  Inserted ${articles.length} articles`);
             stats.totalAdded += articles.length;
