@@ -1,0 +1,23 @@
+[general]
+concurrency = 2
+max_generations = 3
+model = "claude-sonnet-4-20250514"
+worker_timeout_minutes = 30
+project_context_file = "EVOLVER_CONTEXT.md"
+
+[budget]
+max_cost_per_generation = 8.0
+explore_exploit_ratio = [60, 40]
+adaptive_ratio = true
+
+[merge]
+mode = "manual"
+
+[phases]
+discovery_frequency = 1
+research_frequency = 3
+research_on_plateau = true
+
+[validation]
+require_integration_tests = true
+require_chaos_tests = true

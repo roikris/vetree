@@ -1,6 +1,7 @@
 import { getAnalyticsOverview, getTopPages, getVisitorsOverTime, getTopArticles, getSessionDuration, getRecentSearches, getDeviceBreakdown, getTopCountries, getSavedArticlesStats, getTrafficSources } from '@/app/actions/analytics'
 import { AnalyticsClient } from './AnalyticsClient'
 import { UserRetention } from './UserRetention'
+import { AnalysisAgent } from './AnalysisAgent'
 
 export default async function AdminAnalyticsPage() {
   const days = 7 // Default to 7 days
@@ -28,6 +29,11 @@ export default async function AdminAnalyticsPage() {
         <p className="text-zinc-600 dark:text-zinc-400">
           Track user engagement and content performance
         </p>
+      </div>
+
+      {/* Analysis Agent */}
+      <div className="mb-8">
+        <AnalysisAgent />
       </div>
 
       {/* Main Content */}

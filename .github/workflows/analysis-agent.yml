@@ -1,0 +1,42 @@
+name: Analysis Agent - Daily Aggregation + Weekly Insights
+
+on:
+  schedule:
+    # Daily aggregation: 02:00 UTC every day
+    - cron: '0 2 * * *'
+    # Weekly insights: Sunday 06:00 UTC
+    - cron: '0 6 * * 0'
+  workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  aggregate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Daily Aggregation
+        run: |
+          curl -X POST https://vetree.app/api/admin/analytics/aggregate \
+            -H "Authorization: Bearer ${{ secrets.DIGEST_SECRET }}" \
+            -H "Content-Type: application/json" \
+            --fail-with-body
+
+      - name: Signal Extraction
+        run: |
+          curl -X POST https://vetree.app/api/admin/analytics/signals \
+            -H "Authorization: Bearer ${{ secrets.DIGEST_SECRET }}" \
+            -H "Content-Type: application/json" \
+            --fail-with-body
+
+  insights:
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '0 6 * * 0' || github.event_name == 'workflow_dispatch'
+    needs: aggregate
+    steps:
+      - name: Generate Weekly Insights
+        run: |
+          curl -X POST https://vetree.app/api/admin/analytics/insights \
+            -H "Authorization: Bearer ${{ secrets.DIGEST_SECRET }}" \
+            -H "Content-Type: application/json" \
+            --fail-with-body
