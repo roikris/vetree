@@ -8,7 +8,25 @@
     "start": "next start",
     "lint": "eslint",
     "import-articles": "tsx scripts/import-articles.ts",
-    "backfill-2025-2026": "node .github/workflows/scripts/backfill-articles-2025-2026.js"
+    "backfill-2025-2026": "node .github/workflows/scripts/backfill-articles-2025-2026.js",
+    "audit": "npm audit --audit-level=moderate",
+    "audit:fix": "npm audit fix",
+    "security:check": "npm audit && npm run license:check",
+    "security:local": "./scripts/security-check.sh",
+    "license:check": "npx license-checker --onlyAllow 'MIT;ISC;Apache-2.0;BSD-2-Clause;BSD-3-Clause;0BSD;CC0-1.0;Unlicense' --production"
+  },
+  "security": {
+    "auditLevel": "moderate",
+    "allowedLicenses": [
+      "MIT",
+      "ISC", 
+      "Apache-2.0",
+      "BSD-2-Clause",
+      "BSD-3-Clause",
+      "0BSD",
+      "CC0-1.0",
+      "Unlicense"
+    ]
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.32.1",

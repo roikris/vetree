@@ -1,0 +1,49 @@
+# Security Policy Configuration
+
+# Allowed licenses for dependencies
+allowed_licenses:
+  - MIT
+  - ISC
+  - Apache-2.0
+  - BSD-2-Clause
+  - BSD-3-Clause
+  - 0BSD
+  - CC0-1.0
+  - Unlicense
+
+# Security audit configuration
+audit_config:
+  # Minimum severity level to fail builds
+  fail_on_severity: moderate
+  
+  # Vulnerabilities to ignore (use with caution and time limits)
+  ignore_vulnerabilities: []
+  
+  # Maximum days to allow known vulnerabilities
+  max_vulnerability_age_days: 30
+
+# Dependency policies
+dependency_policies:
+  # Reject packages with these patterns
+  reject_patterns:
+    - "*-cli" # Avoid CLI tools in production dependencies
+  
+  # Require specific version ranges for critical packages
+  pinned_versions: {}
+  
+  # Maximum dependency depth
+  max_dependency_depth: 10
+  
+  # Disallow pre-release versions in production
+  allow_prerelease: false
+
+# Update policies
+update_policies:
+  # Automatically create PRs for security updates
+  auto_security_updates: true
+  
+  # Review required for major version updates
+  require_review_for_major: true
+  
+  # Maximum age for dependencies (days)
+  max_dependency_age_days: 365
