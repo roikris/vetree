@@ -47,6 +47,7 @@ export function CampaignCalendar() {
   const [allPlatformPosts, setAllPlatformPosts] = useState<Record<string, any>>({})
   const [showAllPlatforms, setShowAllPlatforms] = useState(false)
   const [activePlatformTab, setActivePlatformTab] = useState('')
+  const [regenerating, setRegenerating] = useState(false)
 
   const currentDay = getCurrentCampaignDay()
   const todaysPlatform = getTodaysPlatform()
@@ -448,18 +449,144 @@ export function CampaignCalendar() {
     }
   }
 
-  const handleSkip = async () => {
-    if (!todaysTask) return
+  const handleRegenerate = async () => {
+    const today = new Date().toISOString().split('T')[0]
 
-    const result = await markTaskComplete(todaysTask.id, 'SKIPPED')
-    if (result.error) {
-      setMessage({ type: 'error', text: result.error })
-      return
+    if (showAllPlatforms && activePlatformTab) {
+      // Regenerate only the active platform's post
+      setRegenerating(true)
+      setMessage(null)
+
+      try {
+        // Find the platform details
+        const platformInfo = PLATFORM_ROTATION.find(p => p.platform === activePlatformTab)
+        if (!platformInfo) {
+          setMessage({ type: 'error', text: 'Platform not found' })
+          return
+        }
+
+        console.log(`[handleRegenerate] Regenerating ${activePlatformTab}...`)
+
+        const response = await fetch('/api/growth/generate-post', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            platform: platformInfo.platform,
+            language: platformInfo.language
+          })
+        })
+
+        const data = await response.json()
+
+        if (data.error) {
+          setMessage({ type: 'error', text: data.error })
+          return
+        }
+
+        // Update the active platform's post
+        const updatedPosts = {
+          ...allPlatformPosts,
+          [activePlatformTab]: data
+        }
+        setAllPlatformPosts(updatedPosts)
+
+        // Save to localStorage
+        localStorage.setItem(
+          `vetree_campaign_post_${today}_${activePlatformTab}`,
+          JSON.stringify(data)
+        )
+
+        // If this is today's platform, update the main post too
+        if (activePlatformTab === todaysPlatform?.platform) {
+          localStorage.setItem(
+            `vetree_campaign_post_${today}`,
+            JSON.stringify(data)
+          )
+          setGeneratedPost(data.post_content)
+          setSavedPostData(data)
+        }
+
+        setMessage({ type: 'success', text: `✅ Regenerated ${platformInfo.name} post` })
+        console.log(`[handleRegenerate] ✓ Regenerated ${activePlatformTab}`)
+
+      } catch (error) {
+        console.error('[handleRegenerate] Error:', error)
+        setMessage({ type: 'error', text: 'Failed to regenerate post' })
+      } finally {
+        setRegenerating(false)
+      }
+    } else {
+      // Single post regenerate - use existing handleGenerate
+      handleGenerate()
     }
+  }
 
-    setMessage({ type: 'success', text: 'Task skipped' })
-    clearSavedPost() // Clear localStorage on skip
-    await loadTodaysTask()
+  const handleSkip = async () => {
+    const today = new Date().toISOString().split('T')[0]
+
+    if (showAllPlatforms && activePlatformTab) {
+      // Skip the active platform's post
+      const postToSkip = allPlatformPosts[activePlatformTab]
+
+      // Remove this platform's post from state
+      const updated = { ...allPlatformPosts }
+      delete updated[activePlatformTab]
+      setAllPlatformPosts(updated)
+
+      // Clear from localStorage
+      localStorage.removeItem(`vetree_campaign_post_${today}_${activePlatformTab}`)
+
+      // If this was the main today's platform, clear that too
+      if (activePlatformTab === todaysPlatform?.platform) {
+        localStorage.removeItem(`vetree_campaign_post_${today}`)
+        setGeneratedPost('')
+        setSavedPostData(null)
+      }
+
+      // Save to growth_agent_memory as skipped (don't await)
+      if (postToSkip?.article_id) {
+        fetch('/api/growth/memory', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            article_id: postToSkip.article_id,
+            platform: activePlatformTab,
+            language: 'en',
+            outcome: 'skipped'
+          })
+        }).catch(err => console.error('Failed to log skip:', err))
+      }
+
+      // Switch to next available platform
+      const remaining = PLATFORM_ROTATION.filter(({ platform }) => updated[platform]).map(p => p.platform)
+      if (remaining.length > 0) {
+        setActivePlatformTab(remaining[0])
+      } else {
+        setShowAllPlatforms(false)
+      }
+
+      setMessage({ type: 'success', text: `Skipped ${activePlatformTab} post` })
+    } else {
+      // Single post skip - existing behavior
+      if (!todaysTask) {
+        // No DB task, just clear localStorage
+        clearSavedPost()
+        setGeneratedPost('')
+        setSavedPostData(null)
+        setMessage({ type: 'success', text: 'Post cleared' })
+        return
+      }
+
+      const result = await markTaskComplete(todaysTask.id, 'SKIPPED')
+      if (result.error) {
+        setMessage({ type: 'error', text: result.error })
+        return
+      }
+
+      setMessage({ type: 'success', text: 'Task skipped' })
+      clearSavedPost()
+      await loadTodaysTask()
+    }
   }
 
   const handleCopy = async () => {
@@ -790,11 +917,11 @@ export function CampaignCalendar() {
                     {isApproving ? 'Approving...' : '✅ Approve & Mark Done'}
                   </button>
                   <button
-                    onClick={handleGenerate}
-                    disabled={isGenerating}
+                    onClick={handleRegenerate}
+                    disabled={isGenerating || regenerating || generatingAll}
                     className="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    🔄 Regenerate
+                    {regenerating ? 'Regenerating...' : '🔄 Regenerate'}
                   </button>
 
                   {/* Redesign for platform dropdown */}
