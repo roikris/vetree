@@ -1,12 +1,33 @@
 'use client'
 
-import { useState } from 'react'
-import { SynthesisPanel } from './SynthesisPanel'
+import { useState, lazy, Suspense } from 'react'
 import { useFeatureFlags, isFeatureEnabled } from '@/lib/hooks/useFeatureFlags'
+
+// Lazy load the heavy SynthesisPanel component
+const SynthesisPanel = lazy(() => import('./SynthesisPanel').then(mod => ({ default: mod.SynthesisPanel })))
 
 type SynthesisWrapperProps = {
   searchQuery: string
   children: React.ReactNode
+}
+
+function SynthesisPanelSkeleton() {
+  return (
+    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-6 mb-8 animate-pulse">
+      <div className="flex items-center gap-3 mb-4">
+        <div className="text-2xl">🔬</div>
+        <div className="flex-1">
+          <div className="h-6 bg-blue-200 dark:bg-blue-800 rounded w-48 mb-2"></div>
+          <div className="h-4 bg-blue-100 dark:bg-blue-900 rounded w-64"></div>
+        </div>
+      </div>
+      <div className="space-y-3">
+        <div className="h-4 bg-blue-100 dark:bg-blue-900 rounded w-full"></div>
+        <div className="h-4 bg-blue-100 dark:bg-blue-900 rounded w-5/6"></div>
+        <div className="h-4 bg-blue-100 dark:bg-blue-900 rounded w-4/6"></div>
+      </div>
+    </div>
+  )
 }
 
 export function SynthesisWrapper({ searchQuery, children }: SynthesisWrapperProps) {
@@ -35,12 +56,14 @@ export function SynthesisWrapper({ searchQuery, children }: SynthesisWrapperProp
         </div>
       )}
 
-      {/* Synthesis panel */}
+      {/* Synthesis panel with lazy loading */}
       {showSynthesis && (
-        <SynthesisPanel
-          query={searchQuery}
-          onClose={() => setShowSynthesis(false)}
-        />
+        <Suspense fallback={<SynthesisPanelSkeleton />}>
+          <SynthesisPanel
+            query={searchQuery}
+            onClose={() => setShowSynthesis(false)}
+          />
+        </Suspense>
       )}
 
       {/* Original content */}
