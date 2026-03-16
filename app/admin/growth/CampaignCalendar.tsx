@@ -120,6 +120,8 @@ export function CampaignCalendar() {
     loadSavedPost()
     loadTodaysTask()
     loadStats()
+    // Calculate stats from localStorage (source of truth)
+    refreshStats()
   }, [])
 
   // Debug: Log whenever approvedPosts changes
@@ -171,6 +173,76 @@ export function CampaignCalendar() {
     if (campaignStats) {
       setStats(campaignStats)
     }
+  }
+
+  // Calculate stats from localStorage (source of truth for approvals)
+  const refreshStats = () => {
+    console.log('[refreshStats] Recalculating stats from localStorage...')
+
+    // Count all approved posts from localStorage
+    const approvedKeys = Object.keys(localStorage)
+      .filter(k => k.startsWith('vetree_campaign_approved_'))
+      .filter(k => localStorage.getItem(k) === 'true')
+
+    const totalDone = approvedKeys.length
+    console.log('[refreshStats] Total approved posts:', totalDone)
+
+    // Calculate streak: consecutive days backwards from today
+    let streak = 0
+    const today = new Date()
+
+    // Check each day going backwards from today
+    for (let i = 0; i < 90; i++) { // Max 90 days (campaign length)
+      const checkDate = new Date(today)
+      checkDate.setDate(checkDate.getDate() - i)
+      const dateKey = checkDate.toISOString().split('T')[0]
+
+      const isApproved = localStorage.getItem(`vetree_campaign_approved_${dateKey}`) === 'true'
+
+      if (isApproved) {
+        streak++
+      } else if (i > 0) {
+        // If we hit a day without approval (and it's not today), stop counting
+        break
+      }
+      // If today isn't approved yet, keep checking backwards
+    }
+
+    console.log('[refreshStats] Current streak:', streak)
+
+    // Get platforms from this week
+    const weekStart = new Date(today)
+    weekStart.setDate(weekStart.getDate() - weekStart.getDay()) // Start of week (Sunday)
+
+    const platformsThisWeek: string[] = []
+    for (let i = 0; i < 7; i++) {
+      const checkDate = new Date(weekStart)
+      checkDate.setDate(checkDate.getDate() + i)
+      const dateKey = checkDate.toISOString().split('T')[0]
+
+      if (localStorage.getItem(`vetree_campaign_approved_${dateKey}`) === 'true') {
+        // Get the platform for this day
+        const savedPost = localStorage.getItem(`vetree_campaign_post_${dateKey}`)
+        if (savedPost) {
+          try {
+            const data = JSON.parse(savedPost)
+            if (data.platform && !platformsThisWeek.includes(data.platform)) {
+              platformsThisWeek.push(data.platform)
+            }
+          } catch (e) {
+            console.error('[refreshStats] Failed to parse saved post for', dateKey)
+          }
+        }
+      }
+    }
+
+    console.log('[refreshStats] Platforms this week:', platformsThisWeek)
+
+    setStats({
+      totalDone,
+      streak,
+      platformsThisWeek
+    })
   }
 
   const handleGenerate = async () => {
@@ -329,6 +401,9 @@ export function CampaignCalendar() {
       console.log('[handleApprove] Success! Post approved.')
       setMessage({ type: 'success', text: '✅ Post approved and marked as done!' })
       clearSavedPost() // Clear localStorage on approve
+
+      // Refresh stats from localStorage
+      refreshStats()
 
     } catch (error) {
       console.error('[handleApprove] Exception caught:', error)
