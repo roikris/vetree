@@ -1,32 +1,11 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { updateSession } from '@/lib/supabase/middleware'
 import { createClient } from '@/lib/supabase/server'
-import { addSecurityHeaders, csrfProtection, createCSRFErrorResponse, isCsrfExempt } from '@/lib/security'
 
-// Middleware handles auth token refresh, email verification, security headers, and CSRF protection
+// Middleware handles auth token refresh and email verification
 export async function middleware(request: NextRequest) {
   // First, update the session
-  let response = await updateSession(request)
-
-  // Apply security headers to all responses
-  response = addSecurityHeaders(response)
-
-  // Handle CSRF protection for API routes (except exempt paths)
-  if (request.nextUrl.pathname.startsWith('/api/') && !isCsrfExempt(request.nextUrl.pathname)) {
-    const isValid = await csrfProtection.validateRequest(request)
-    
-    if (!isValid) {
-      return addSecurityHeaders(createCSRFErrorResponse())
-    }
-  }
-
-  // Set CSRF token cookie for all non-API requests
-  if (!request.nextUrl.pathname.startsWith('/api/')) {
-    const existingToken = csrfProtection.getTokenFromCookie(request)
-    if (!existingToken || !csrfProtection.verifyToken(existingToken)) {
-      response = csrfProtection.setTokenCookie(response)
-    }
-  }
+  const response = await updateSession(request)
 
   // Check email verification for authenticated users
   const supabase = await createClient()
@@ -52,8 +31,7 @@ export async function middleware(request: NextRequest) {
     // If not confirmed and not OAuth, redirect to verification page
     if (!isEmailConfirmed && !isOAuthUser) {
       const verifyUrl = new URL('/verify-email', request.url)
-      const redirectResponse = NextResponse.redirect(verifyUrl)
-      return addSecurityHeaders(redirectResponse)
+      return NextResponse.redirect(verifyUrl)
     }
   }
 
@@ -68,8 +46,8 @@ export const config = {
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - public (public files)
-     * Note: We now include API routes for CSRF protection
+     * - api (API routes)
      */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|api|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }
