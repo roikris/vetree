@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Copy, Check } from 'lucide-react'
+import { Copy, Check, Loader2 } from 'lucide-react'
 import { getCurrentCampaignDay, getWeekSchedule, getTodaysPlatform, CAMPAIGN_TOTAL_DAYS, PLATFORM_ROTATION } from '@/lib/growth-campaign'
 import { getTodaysTask, createTodaysTask, markTaskComplete, getCampaignStats } from '@/app/actions/admin'
 
@@ -43,6 +43,10 @@ export function CampaignCalendar() {
   const [approvedPosts, setApprovedPosts] = useState<Record<string, boolean>>({})
   const [copied, setCopied] = useState(false)
   const [showRedesignMenu, setShowRedesignMenu] = useState(false)
+  const [generatingAll, setGeneratingAll] = useState(false)
+  const [allPlatformPosts, setAllPlatformPosts] = useState<Record<string, any>>({})
+  const [showAllPlatforms, setShowAllPlatforms] = useState(false)
+  const [activePlatformTab, setActivePlatformTab] = useState('')
 
   const currentDay = getCurrentCampaignDay()
   const todaysPlatform = getTodaysPlatform()
@@ -144,6 +148,29 @@ export function CampaignCalendar() {
       return () => document.removeEventListener('click', handleClickOutside)
     }
   }, [showRedesignMenu])
+
+  // Load existing all-platform posts from localStorage on mount
+  useEffect(() => {
+    const today = new Date().toISOString().split('T')[0]
+    const loaded: Record<string, any> = {}
+
+    PLATFORM_ROTATION.forEach(({ platform }) => {
+      const saved = localStorage.getItem(`vetree_campaign_post_${today}_${platform}`)
+      if (saved) {
+        try {
+          loaded[platform] = JSON.parse(saved)
+        } catch (e) {
+          console.error(`Failed to parse saved post for ${platform}`)
+        }
+      }
+    })
+
+    if (Object.keys(loaded).length > 0) {
+      setAllPlatformPosts(loaded)
+      setShowAllPlatforms(true)
+      setActivePlatformTab(todaysPlatform?.platform || '')
+    }
+  }, [])
 
   const loadTodaysTask = async () => {
     console.log('[loadTodaysTask] Checking for existing task...')
@@ -443,6 +470,121 @@ export function CampaignCalendar() {
     setTimeout(() => setCopied(false), 2000)
   }
 
+  const platformEmoji = (platform: string) => {
+    const map: Record<string, string> = {
+      facebook_il: '🇮🇱',
+      facebook_intl: '🌍',
+      whatsapp: '💬',
+      reddit: '🤖',
+      linkedin: '💼',
+      twitter: '🐦',
+      instagram: '📸',
+      telegram: '✈️',
+    }
+    return map[platform] || '📱'
+  }
+
+  const handleGenerateAll = async () => {
+    if (!todaysPlatform?.platform) {
+      setMessage({ type: 'error', text: 'Platform information not available' })
+      return
+    }
+
+    setGeneratingAll(true)
+    setMessage(null)
+
+    try {
+      // Collect recent posts to help avoid repetition (last 7 days)
+      const recentPosts: string[] = []
+      for (let i = 1; i <= 7; i++) {
+        const checkDate = new Date()
+        checkDate.setDate(checkDate.getDate() - i)
+        const dateKey = checkDate.toISOString().split('T')[0]
+        const saved = localStorage.getItem(`vetree_campaign_post_${dateKey}`)
+        if (saved) {
+          try {
+            const parsed = JSON.parse(saved)
+            if (parsed.post_content) {
+              recentPosts.push(parsed.post_content.slice(0, 100))
+            }
+          } catch (e) {
+            // Ignore parse errors
+          }
+        }
+      }
+
+      console.log('[handleGenerateAll] Generating posts for all 8 platforms...')
+
+      // Generate all 8 platforms in parallel
+      const results = await Promise.allSettled(
+        PLATFORM_ROTATION.map(({ platform, language }) =>
+          fetch('/api/growth/generate-post', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              platform,
+              language
+            })
+          })
+          .then(r => r.json())
+          .then(data => ({ platform, language, ...data }))
+        )
+      )
+
+      // Save all results to localStorage
+      const today = new Date().toISOString().split('T')[0]
+      const allPosts: Record<string, any> = {}
+      let successCount = 0
+      let errorCount = 0
+
+      results.forEach((result, i) => {
+        const platform = PLATFORM_ROTATION[i].platform
+
+        if (result.status === 'fulfilled' && result.value.post_content) {
+          allPosts[platform] = result.value
+
+          // Save to localStorage with platform-specific key
+          localStorage.setItem(
+            `vetree_campaign_post_${today}_${platform}`,
+            JSON.stringify(result.value)
+          )
+          successCount++
+          console.log(`[handleGenerateAll] ✓ Generated ${platform}`)
+        } else {
+          errorCount++
+          console.error(`[handleGenerateAll] ✗ Failed ${platform}:`, result)
+        }
+      })
+
+      // Also save today's platform post as the main post
+      if (allPosts[todaysPlatform.platform]) {
+        const todaysPost = allPosts[todaysPlatform.platform]
+        localStorage.setItem(
+          `vetree_campaign_post_${today}`,
+          JSON.stringify(todaysPost)
+        )
+        setGeneratedPost(todaysPost.post_content)
+        setSavedPostData(todaysPost)
+        console.log('[handleGenerateAll] Set today\'s platform post:', todaysPlatform.platform)
+      }
+
+      setAllPlatformPosts(allPosts)
+      setShowAllPlatforms(true)
+      setActivePlatformTab(todaysPlatform.platform)
+
+      setMessage({
+        type: 'success',
+        text: `✅ Generated ${successCount}/8 posts${errorCount > 0 ? ` (${errorCount} failed)` : ''}`
+      })
+
+    } catch (error) {
+      console.error('[handleGenerateAll] Error:', error)
+      setMessage({ type: 'error', text: 'Failed to generate posts' })
+    } finally {
+      setGeneratingAll(false)
+    }
+  }
+
   const getPlatformIcon = (platform: string) => {
     const icons: Record<string, string> = {
       facebook_il: '📘',
@@ -565,18 +707,79 @@ export function CampaignCalendar() {
           </div>
         )}
 
+        {/* All Platforms Tabs */}
+        {showAllPlatforms && Object.keys(allPlatformPosts).length > 0 && (
+          <div className="mt-4 mb-4">
+            <h3 className="text-sm font-medium text-zinc-600 dark:text-zinc-400 mb-2">
+              All Platforms — {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+            </h3>
+
+            {/* Tab headers */}
+            <div className="flex flex-wrap gap-1 mb-3">
+              {PLATFORM_ROTATION.filter(({ platform }) => allPlatformPosts[platform]).map(({ platform, name }) => (
+                <button
+                  key={platform}
+                  type="button"
+                  onClick={() => setActivePlatformTab(platform)}
+                  className={`px-3 py-1 text-xs rounded-full transition ${
+                    activePlatformTab === platform
+                      ? 'bg-emerald-700 text-white'
+                      : 'bg-zinc-700 dark:bg-zinc-800 text-zinc-300 hover:bg-zinc-600 dark:hover:bg-zinc-700'
+                  }`}
+                >
+                  {platformEmoji(platform)} {name}
+                </button>
+              ))}
+            </div>
+
+            {/* Active tab content */}
+            {activePlatformTab && allPlatformPosts[activePlatformTab] && (
+              <div className="relative bg-zinc-900 dark:bg-zinc-950 rounded-lg p-4 border border-zinc-700 dark:border-zinc-800">
+                <pre className="whitespace-pre-wrap text-sm font-mono text-zinc-200 dark:text-zinc-300 pr-8">
+                  {allPlatformPosts[activePlatformTab].post_content}
+                </pre>
+                {/* Copy button */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(allPlatformPosts[activePlatformTab].post_content)
+                    setMessage({ type: 'success', text: '✅ Copied to clipboard!' })
+                    setTimeout(() => setMessage(null), 2000)
+                  }}
+                  className="mt-2 flex items-center gap-1.5 text-sm text-zinc-400 hover:text-white cursor-pointer bg-zinc-700 hover:bg-zinc-600 px-3 py-1.5 rounded-md transition"
+                >
+                  <Copy size={14} />
+                  Copy
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Actions */}
         <div className="flex flex-wrap gap-3">
           {!approvedPosts[today] && (!todaysTask || todaysTask.status !== 'done') && (
             <>
               {!generatedPost ? (
-                <button
-                  onClick={handleGenerate}
-                  disabled={isGenerating}
-                  className="px-6 py-3 bg-[#3D7A5F] dark:bg-[#4E9A78] text-white rounded-lg hover:bg-[#2F5F4A] dark:hover:bg-[#5FAA88] transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
-                >
-                  {isGenerating ? 'Generating...' : '✨ Generate Today\'s Post'}
-                </button>
+                <>
+                  <button
+                    onClick={handleGenerate}
+                    disabled={isGenerating || generatingAll}
+                    className="px-6 py-3 bg-[#3D7A5F] dark:bg-[#4E9A78] text-white rounded-lg hover:bg-[#2F5F4A] dark:hover:bg-[#5FAA88] transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                  >
+                    {isGenerating ? 'Generating...' : '✨ Generate Today\'s Post'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleGenerateAll}
+                    disabled={generatingAll || isGenerating}
+                    className="px-4 py-2 bg-emerald-800 hover:bg-emerald-700 text-white rounded-md text-sm transition flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {generatingAll
+                      ? <><Loader2 size={14} className="animate-spin" /> Generating all...</>
+                      : '⚡ Generate All Platforms'}
+                  </button>
+                </>
               ) : (
                 <>
                   <button
