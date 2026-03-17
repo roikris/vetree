@@ -10,6 +10,8 @@ type FailedArticle = {
   last_enrichment_error: string | null
   last_enrichment_at: string | null
   labels: string[] | null
+  article_url: string | null
+  doi: string | null
 }
 
 export function FailedArticles() {
@@ -227,10 +229,20 @@ export function FailedArticles() {
             {/* Title row */}
             <div className="flex items-start justify-between gap-4 mb-3">
               <div className="flex-1">
-                {/* ISSUE 1c FIX: Plain text title, not a link */}
-                <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100 line-clamp-2">
-                  {article.title}
-                </h3>
+                {article.article_url || article.doi ? (
+                  <a
+                    href={article.article_url || `https://doi.org/${article.doi}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm font-medium text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 underline line-clamp-2"
+                  >
+                    {article.title}
+                  </a>
+                ) : (
+                  <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100 line-clamp-2">
+                    {article.title}
+                  </h3>
+                )}
               </div>
               <div className="flex items-center gap-2">
                 <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 text-sm font-semibold flex-shrink-0">
