@@ -77,11 +77,13 @@ export function AnalyticsClient({
     }
   }
 
-  // Format session duration as MM:SS
+  // Format session duration as "X min Y sec"
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60)
     const secs = seconds % 60
-    return `${mins}:${secs.toString().padStart(2, '0')}`
+    if (mins === 0) return `${secs} sec`
+    if (secs === 0) return `${mins} min`
+    return `${mins} min ${secs} sec`
   }
 
   // Convert country code to flag emoji
@@ -290,16 +292,27 @@ export function AnalyticsClient({
       {/* Session Duration */}
       {sessionDuration && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Average Duration Card */}
+          {/* Average & Median Duration Card */}
           <div className="bg-white dark:bg-[#1A1A1A] border border-zinc-200 dark:border-zinc-800 rounded-lg p-6">
             <h2 className="text-xl font-semibold text-[#1A1A1A] dark:text-[#E8E8E8] mb-4">
-              Average Session Duration
+              Session Duration
             </h2>
-            <div className="text-5xl font-bold text-[#3D7A5F] dark:text-[#4E9A78]">
-              {formatDuration(sessionDuration.average)}
+            <div className="space-y-4">
+              <div>
+                <div className="text-sm text-zinc-600 dark:text-zinc-400 mb-1">Average (filtered)</div>
+                <div className="text-4xl font-bold text-[#3D7A5F] dark:text-[#4E9A78]">
+                  {formatDuration(sessionDuration.average)}
+                </div>
+              </div>
+              <div>
+                <div className="text-sm text-zinc-600 dark:text-zinc-400 mb-1">Median</div>
+                <div className="text-4xl font-bold text-blue-600 dark:text-blue-500">
+                  {formatDuration(sessionDuration.median || 0)}
+                </div>
+              </div>
             </div>
-            <div className="text-sm text-zinc-600 dark:text-zinc-400 mt-2">
-              minutes:seconds
+            <div className="text-xs text-zinc-500 dark:text-zinc-400 mt-4 italic">
+              * Sessions capped at 30 min (longer = tab left open)
             </div>
           </div>
 

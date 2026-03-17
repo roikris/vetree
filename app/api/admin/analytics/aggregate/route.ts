@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
       .slice(0, 5)
       .map(([id]) => id)
 
-    // Avg session duration
+    // Avg session duration - filter outliers (cap at 30 min = 1800 seconds)
     const { data: sessionData } = await supabase
       .from('page_views')
       .select('duration_seconds')
@@ -120,8 +120,20 @@ export async function POST(request: NextRequest) {
       .not('duration_seconds', 'is', null)
       .or(`user_id.is.null,user_id.neq.${adminId}`)
 
-    const avgDuration = sessionData?.length
-      ? Math.round(sessionData.reduce((sum, s) => sum + (s.duration_seconds || 0), 0) / sessionData.length)
+    // Filter valid sessions: 0 < duration <= 1800 seconds (30 min cap)
+    const validSessions = sessionData?.filter(s =>
+      s.duration_seconds > 0 &&
+      s.duration_seconds <= 1800  // cap at 30 min - anything longer = tab left open
+    ) || []
+
+    const avgDuration = validSessions.length
+      ? Math.round(validSessions.reduce((sum, s) => sum + s.duration_seconds, 0) / validSessions.length)
+      : 0
+
+    // Calculate median
+    const sortedDurations = validSessions.map(s => s.duration_seconds).sort((a, b) => a - b)
+    const medianDuration = sortedDurations.length
+      ? sortedDurations[Math.floor(sortedDurations.length / 2)]
       : 0
 
     // Traffic sources
@@ -150,6 +162,7 @@ export async function POST(request: NextRequest) {
       synthesis_not_relevant: synthesisNotRelevant || 0,
       articles_saved: articlesSaved || 0,
       avg_session_duration_seconds: avgDuration,
+      median_session_duration_seconds: medianDuration,
       top_searches: topSearches,
       top_saved_articles: topSavedIds,
       device_breakdown: {},

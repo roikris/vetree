@@ -247,6 +247,7 @@ export async function getSessionDuration(days: number = 7) {
     return {
       data: {
         average: 0,
+        median: 0,
         distribution: {
           under1min: 0,
           between1and3: 0,
@@ -258,11 +259,38 @@ export async function getSessionDuration(days: number = 7) {
     }
   }
 
-  // Calculate average
-  const total = sessions.reduce((sum, s) => sum + (s.duration_seconds || 0), 0)
-  const average = Math.round(total / sessions.length)
+  // Filter valid sessions: 0 < duration <= 1800 seconds (30 min cap)
+  // Sessions longer than 30 min = user left tab open, not real engagement
+  const validSessions = sessions.filter(s =>
+    s.duration_seconds > 0 &&
+    s.duration_seconds <= 1800  // cap at 30 min
+  )
 
-  // Calculate distribution
+  if (validSessions.length === 0) {
+    return {
+      data: {
+        average: 0,
+        median: 0,
+        distribution: {
+          under1min: 0,
+          between1and3: 0,
+          between3and10: 0,
+          over10min: 0
+        }
+      },
+      error: null
+    }
+  }
+
+  // Calculate average (filtered)
+  const total = validSessions.reduce((sum, s) => sum + s.duration_seconds, 0)
+  const average = Math.round(total / validSessions.length)
+
+  // Calculate median
+  const sortedDurations = validSessions.map(s => s.duration_seconds).sort((a, b) => a - b)
+  const median = sortedDurations[Math.floor(sortedDurations.length / 2)]
+
+  // Calculate distribution (use ALL sessions for distribution, not just filtered)
   const distribution = {
     under1min: 0,
     between1and3: 0,
@@ -278,7 +306,7 @@ export async function getSessionDuration(days: number = 7) {
     else distribution.over10min++
   })
 
-  return { data: { average, distribution }, error: null }
+  return { data: { average, median, distribution }, error: null }
 }
 
 export async function getRecentSearches(days: number = 7, limit: number = 20) {
