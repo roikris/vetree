@@ -642,15 +642,56 @@ export function CampaignCalendar() {
 
       console.log('[handleGenerateAll] Generating posts for all 8 platforms...')
 
-      // Generate all 8 platforms in parallel
+      // STEP 1: Generate first post for today's platform to select article
+      console.log('[handleGenerateAll] Step 1: Generate for today\'s platform to select article')
+      const firstResponse = await fetch('/api/growth/generate-post', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          platform: todaysPlatform.platform,
+          language: todaysPlatform.language,
+          recentPosts
+        })
+      })
+
+      const firstData = await firstResponse.json()
+
+      if (firstData.error || !firstData.article_id) {
+        setMessage({ type: 'error', text: firstData.error || 'Failed to generate initial post' })
+        setGeneratingAll(false)
+        return
+      }
+
+      const sharedArticleId = firstData.article_id
+      console.log('[handleGenerateAll] Selected article:', sharedArticleId)
+
+      // Save first post
+      const today = new Date().toISOString().split('T')[0]
+      const allPosts: Record<string, any> = {
+        [todaysPlatform.platform]: firstData
+      }
+
+      localStorage.setItem(
+        `vetree_campaign_post_${today}_${todaysPlatform.platform}`,
+        JSON.stringify(firstData)
+      )
+
+      // STEP 2: Generate remaining 7 platforms with same article_id
+      console.log('[handleGenerateAll] Step 2: Generate remaining platforms with same article')
+      const remainingPlatforms = PLATFORM_ROTATION.filter(
+        ({ platform }) => platform !== todaysPlatform.platform
+      )
+
       const results = await Promise.allSettled(
-        PLATFORM_ROTATION.map(({ platform, language }) =>
+        remainingPlatforms.map(({ platform, language }) =>
           fetch('/api/growth/generate-post', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               platform,
-              language
+              language,
+              recentPosts,
+              article_id: sharedArticleId  // Force same article for all
             })
           })
           .then(r => r.json())
@@ -659,13 +700,11 @@ export function CampaignCalendar() {
       )
 
       // Save all results to localStorage
-      const today = new Date().toISOString().split('T')[0]
-      const allPosts: Record<string, any> = {}
-      let successCount = 0
+      let successCount = 1 // Already counted today's platform
       let errorCount = 0
 
       results.forEach((result, i) => {
-        const platform = PLATFORM_ROTATION[i].platform
+        const platform = remainingPlatforms[i].platform
 
         if (result.status === 'fulfilled' && result.value.post_content) {
           allPosts[platform] = result.value
@@ -684,16 +723,13 @@ export function CampaignCalendar() {
       })
 
       // Also save today's platform post as the main post
-      if (allPosts[todaysPlatform.platform]) {
-        const todaysPost = allPosts[todaysPlatform.platform]
-        localStorage.setItem(
-          `vetree_campaign_post_${today}`,
-          JSON.stringify(todaysPost)
-        )
-        setGeneratedPost(todaysPost.post_content)
-        setSavedPostData(todaysPost)
-        console.log('[handleGenerateAll] Set today\'s platform post:', todaysPlatform.platform)
-      }
+      localStorage.setItem(
+        `vetree_campaign_post_${today}`,
+        JSON.stringify(firstData)
+      )
+      setGeneratedPost(firstData.post_content)
+      setSavedPostData(firstData)
+      console.log('[handleGenerateAll] Set today\'s platform post:', todaysPlatform.platform)
 
       setAllPlatformPosts(allPosts)
       setShowAllPlatforms(true)
@@ -701,7 +737,7 @@ export function CampaignCalendar() {
 
       setMessage({
         type: 'success',
-        text: `✅ Generated ${successCount}/8 posts${errorCount > 0 ? ` (${errorCount} failed)` : ''}`
+        text: `✅ Generated ${successCount}/8 posts${errorCount > 0 ? ` (${errorCount} failed)` : ''} — all using same article`
       })
 
     } catch (error) {
