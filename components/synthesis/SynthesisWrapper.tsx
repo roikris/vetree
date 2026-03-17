@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { SynthesisPanel } from './SynthesisPanel'
 import { useFeatureFlags, isFeatureEnabled } from '@/lib/hooks/useFeatureFlags'
 
@@ -12,9 +13,26 @@ type SynthesisWrapperProps = {
 export function SynthesisWrapper({ searchQuery, children }: SynthesisWrapperProps) {
   const [showSynthesis, setShowSynthesis] = useState(false)
   const { flags, loading } = useFeatureFlags()
+  const searchParams = useSearchParams()
+  const router = useRouter()
 
   // Check if feature is enabled
   const synthesisEnabled = isFeatureEnabled(flags, 'topic_synthesis')
+
+  // Auto-trigger synthesis from URL params
+  useEffect(() => {
+    const synthesize = searchParams.get('synthesize')
+
+    if (synthesize === 'true' && searchQuery && synthesisEnabled) {
+      // Auto-trigger synthesis after a short delay
+      setTimeout(() => {
+        setShowSynthesis(true)
+      }, 1500)
+
+      // Clean URL without reload
+      router.replace('/', { scroll: false })
+    }
+  }, []) // Run once on mount only
 
   // Only show synthesis button if query has 2+ words AND feature is enabled
   const shouldShowButton = searchQuery.trim().split(/\s+/).length >= 2 && synthesisEnabled
