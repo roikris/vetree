@@ -150,7 +150,8 @@ export async function POST(request: NextRequest) {
       whatsapp: 'utm_source=whatsapp&utm_medium=social',
       instagram: 'utm_source=instagram&utm_medium=social',
       telegram: 'utm_source=telegram&utm_medium=social',
-      reddit: 'utm_source=reddit&utm_medium=social'
+      reddit: 'utm_source=reddit&utm_medium=social',
+      tiktok: 'utm_source=tiktok&utm_medium=social'
     }
 
     const articleUrl = `https://vetree.app/article/${article.id}?${utmParams[platform as keyof typeof utmParams] || 'utm_source=social&utm_medium=social'}`
@@ -169,7 +170,8 @@ export async function POST(request: NextRequest) {
       whatsapp: 'Very short, casual, direct. 50-80 words max. Hebrew preferred for IL group.',
       instagram: 'Visual-first caption. Hook + insight + hashtags at end. 100-150 words.',
       telegram: 'Medium length, informative. 100-150 words. Can be slightly more technical.',
-      reddit: 'Informative, evidence-based. 150-250 words. Avoid marketing tone.'
+      reddit: 'Informative, evidence-based. 150-250 words. Avoid marketing tone.',
+      tiktok: 'Spoken voiceover script, 150-200 words. Conversational and warm — written to be HEARD not read. No hashtags, no bullet points. Start with a hook question or surprising fact. End with a clear takeaway. Natural pauses implied by sentence breaks. Think: vet educator talking to a colleague over coffee.'
     }
 
     const platformRule = platformRules[platform as keyof typeof platformRules] || platformRules.telegram
@@ -237,6 +239,38 @@ LinkedIn post structure:
 🌿 vetree.app
 
 Return ONLY the post text following this exact rhythm pattern.`
+    } else if (platform === 'tiktok') {
+      promptContent = `PLATFORM: TikTok
+PLATFORM RULE: ${platformRule}
+
+Write a ${language} TikTok voiceover script.
+
+Article: ${article.title}
+Clinical Bottom Line: ${article.clinical_bottom_line}
+Labels: ${article.labels?.join(', ') || 'N/A'}
+
+IMPORTANT: This post is for small animal first opinion practice only. If the article is about large animals, equine, livestock, or poultry - do not generate a post and return ONLY the text: SKIP_LARGE_ANIMAL
+
+TIKTOK SCRIPT RULES (CRITICAL):
+- Write to be SPOKEN, not read
+- 150-200 words
+- Start with a hook question or surprising fact
+- Conversational and warm - like talking to a colleague over coffee
+- Natural sentence breaks create pauses
+- No hashtags, no bullet points
+- End with a clear takeaway
+- After the script, add the link on a new line
+
+Format:
+[Hook question or surprising fact - 1-2 sentences]
+
+[Main insight - conversational explanation, 3-4 sentences]
+
+[Clinical takeaway - what this means for practice, 2-3 sentences]
+
+🔗 vetree.app/article/${article.id}?${utmParams.tiktok}
+
+Return ONLY the voiceover script with the link at the end.`
     } else {
       promptContent = `PLATFORM: ${platform}
 PLATFORM RULE: ${platformRule}

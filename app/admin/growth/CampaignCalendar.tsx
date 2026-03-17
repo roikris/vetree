@@ -607,6 +607,7 @@ export function CampaignCalendar() {
       twitter: '🐦',
       instagram: '📸',
       telegram: '✈️',
+      tiktok: '🎵',
     }
     return map[platform] || '📱'
   }
@@ -757,7 +758,8 @@ export function CampaignCalendar() {
       linkedin: '💼',
       twitter: '🐦',
       instagram: '📸',
-      telegram: '✈️'
+      telegram: '✈️',
+      tiktok: '🎵'
     }
     return icons[platform] || '📱'
   }
