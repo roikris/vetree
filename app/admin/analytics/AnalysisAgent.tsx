@@ -23,14 +23,41 @@ interface AnalysisData {
   churn_risks: string[]
 }
 
+interface Todo {
+  insight_id: string
+  index: number
+  observation: string
+  recommendation: string
+  area: string
+  added_at: string
+}
+
 export function AnalysisAgent() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [latestAnalysis, setLatestAnalysis] = useState<AnalysisData | null>(null)
+  const [todos, setTodos] = useState<Todo[]>([])
+  const [rejectingIndex, setRejectingIndex] = useState<number | null>(null)
+  const [rejectReason, setRejectReason] = useState('')
+  const [showPromptModal, setShowPromptModal] = useState(false)
+  const [currentPrompt, setCurrentPrompt] = useState('')
 
   useEffect(() => {
     loadLatestAnalysis()
+    loadTodos()
   }, [])
+
+  const loadTodos = () => {
+    const stored = localStorage.getItem('vetree_analysis_todos')
+    if (stored) {
+      setTodos(JSON.parse(stored))
+    }
+  }
+
+  const saveTodos = (newTodos: Todo[]) => {
+    localStorage.setItem('vetree_analysis_todos', JSON.stringify(newTodos))
+    setTodos(newTodos)
+  }
 
   const loadLatestAnalysis = async () => {
     try {
@@ -54,7 +81,8 @@ export function AnalysisAgent() {
       if (response.ok) {
         await loadLatestAnalysis()
       } else {
-        alert('Failed to run analysis')
+        const error = await response.json()
+        alert(`Failed to run analysis: ${error.error || 'Unknown error'}`)
       }
     } catch (error) {
       console.error('Failed to run analysis:', error)
@@ -64,23 +92,108 @@ export function AnalysisAgent() {
     }
   }
 
-  const handleFeedback = async (insightId: string, index: number, action: string) => {
+  const handleApprove = async (insight: Insight, index: number) => {
+    if (!latestAnalysis) return
+
+    // Save feedback to DB
     try {
       await fetch('/api/admin/analytics/insight-feedback', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          insight_id: insightId,
+          insight_id: latestAnalysis.id,
           insight_index: index,
-          action
+          action: 'implemented'
         })
       })
-
-      // Reload analysis to show feedback
-      await loadLatestAnalysis()
     } catch (error) {
       console.error('Failed to save feedback:', error)
     }
+
+    // Add to TODO list
+    const newTodo: Todo = {
+      insight_id: latestAnalysis.id,
+      index,
+      observation: insight.observation,
+      recommendation: insight.recommendation,
+      area: insight.area,
+      added_at: new Date().toISOString()
+    }
+
+    saveTodos([...todos, newTodo])
+
+    // Generate and show action prompt
+    const actionPrompt = `In the Vetree codebase, implement the following improvement:
+
+INSIGHT: ${insight.observation}
+
+ACTION REQUIRED: ${insight.recommendation}
+
+Context: This is a Next.js app with Supabase backend.
+Time budget: ${insight.time_to_implement}.
+Please implement this change and commit.`
+
+    setCurrentPrompt(actionPrompt)
+    setShowPromptModal(true)
+  }
+
+  const handleReject = async (insight: Insight, index: number) => {
+    if (rejectingIndex === index) {
+      // Submit rejection
+      if (!rejectReason.trim()) {
+        alert('Please provide a reason')
+        return
+      }
+
+      try {
+        await fetch('/api/admin/analytics/insight-feedback', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            insight_id: latestAnalysis?.id,
+            insight_index: index,
+            action: 'ignored',
+            note: rejectReason
+          })
+        })
+
+        // Remove from UI
+        await loadLatestAnalysis()
+      } catch (error) {
+        console.error('Failed to save feedback:', error)
+      }
+
+      setRejectingIndex(null)
+      setRejectReason('')
+    } else {
+      // Show textarea
+      setRejectingIndex(index)
+    }
+  }
+
+  const completeTodo = async (todo: Todo) => {
+    // Mark as implemented in DB
+    try {
+      await fetch('/api/admin/analytics/insight-feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          insight_id: todo.insight_id,
+          insight_index: todo.index,
+          action: 'implemented'
+        })
+      })
+    } catch (error) {
+      console.error('Failed to mark as implemented:', error)
+    }
+
+    // Remove from localStorage
+    saveTodos(todos.filter(t => t !== todo))
+  }
+
+  const copyPrompt = (prompt: string) => {
+    navigator.clipboard.writeText(prompt)
+    alert('Prompt copied to clipboard!')
   }
 
   const getAreaColor = (area: string) => {
@@ -125,6 +238,46 @@ export function AnalysisAgent() {
           </button>
         </div>
       </div>
+
+      {/* TODO List */}
+      {todos.length > 0 && (
+        <div className="bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 rounded-lg p-6">
+          <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-4">
+            📋 Implementation TODO List
+          </h3>
+          <div className="space-y-3">
+            {todos.map((todo, index) => (
+              <div key={index} className="bg-white dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-4">
+                <div className="flex items-start justify-between mb-2">
+                  <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getAreaColor(todo.area)}`}>
+                    {todo.area}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        const prompt = `In the Vetree codebase, implement the following improvement:\n\nINSIGHT: ${todo.observation}\n\nACTION REQUIRED: ${todo.recommendation}\n\nContext: This is a Next.js app with Supabase backend.\nPlease implement this change and commit.`
+                        copyPrompt(prompt)
+                      }}
+                      className="text-blue-600 hover:text-blue-700 text-xs font-medium"
+                    >
+                      Copy Prompt
+                    </button>
+                    <button
+                      onClick={() => completeTodo(todo)}
+                      className="text-green-600 hover:text-green-700 text-xs font-medium"
+                    >
+                      Done
+                    </button>
+                  </div>
+                </div>
+                <p className="text-sm text-blue-900 dark:text-blue-100 font-medium">
+                  {todo.recommendation}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Top 3 Actions */}
       {latestAnalysis && latestAnalysis.top_3_actions.length > 0 && (
@@ -173,16 +326,16 @@ export function AnalysisAgent() {
                 </div>
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => handleFeedback(latestAnalysis.id, index, 'implemented')}
-                    className="text-green-600 hover:text-green-700 text-xs"
-                    title="Mark as implemented"
+                    onClick={() => handleApprove(insight, index)}
+                    className="text-green-600 hover:text-green-700 text-lg font-bold"
+                    title="Approve and add to TODO"
                   >
                     ✓
                   </button>
                   <button
-                    onClick={() => handleFeedback(latestAnalysis.id, index, 'ignored')}
-                    className="text-zinc-400 hover:text-zinc-500 text-xs"
-                    title="Ignore"
+                    onClick={() => handleReject(insight, index)}
+                    className="text-zinc-400 hover:text-zinc-500 text-lg font-bold"
+                    title="Reject"
                   >
                     ✕
                   </button>
@@ -201,6 +354,36 @@ export function AnalysisAgent() {
                   → {insight.recommendation}
                 </p>
               </div>
+
+              {/* Reject textarea */}
+              {rejectingIndex === index && (
+                <div className="mt-4 space-y-2">
+                  <textarea
+                    value={rejectReason}
+                    onChange={(e) => setRejectReason(e.target.value)}
+                    placeholder="Why isn't this relevant?"
+                    className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-[#0F0F0F] text-zinc-900 dark:text-zinc-100"
+                    rows={2}
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleReject(insight, index)}
+                      className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm"
+                    >
+                      Submit
+                    </button>
+                    <button
+                      onClick={() => {
+                        setRejectingIndex(null)
+                        setRejectReason('')
+                      }}
+                      className="px-3 py-1 bg-zinc-500 hover:bg-zinc-600 text-white rounded text-sm"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* Confidence bar */}
               <div className="mt-4">
@@ -235,7 +418,7 @@ export function AnalysisAgent() {
                   {topic}
                 </p>
                 <button
-                  onClick={() => router.push(`/library?search=${encodeURIComponent(topic)}`)}
+                  onClick={() => router.push(`/?q=${encodeURIComponent(topic)}&synthesize=true`)}
                   className="text-emerald-600 hover:text-emerald-700 text-sm font-medium"
                 >
                   Create Synthesis →
@@ -268,6 +451,40 @@ export function AnalysisAgent() {
           <p className="text-zinc-600 dark:text-zinc-400 mb-4">
             No analysis available yet. Click "Run Analysis Now" to generate insights.
           </p>
+        </div>
+      )}
+
+      {/* Prompt Modal */}
+      {showPromptModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-[#1A1A1A] rounded-lg p-6 max-w-2xl w-full">
+            <h3 className="text-lg font-semibold text-[#1A1A1A] dark:text-[#E8E8E8] mb-4">
+              Implementation Prompt
+            </h3>
+            <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-4">
+              Here's a prompt to act on this insight:
+            </p>
+            <pre className="bg-zinc-100 dark:bg-zinc-900 p-4 rounded-lg text-sm overflow-auto max-h-96 mb-4 whitespace-pre-wrap">
+              {currentPrompt}
+            </pre>
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => {
+                  copyPrompt(currentPrompt)
+                  setShowPromptModal(false)
+                }}
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium"
+              >
+                Copy Prompt
+              </button>
+              <button
+                onClick={() => setShowPromptModal(false)}
+                className="px-4 py-2 bg-zinc-500 hover:bg-zinc-600 text-white rounded-lg text-sm font-medium"
+              >
+                Close
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

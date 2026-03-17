@@ -31,12 +31,19 @@ export async function POST(request: NextRequest) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
 
+    // Get current user ID if authenticated
+    const { createClient } = await import('@/lib/supabase/server')
+    const userSupabase = await createClient()
+    const { data: { user } } = await userSupabase.auth.getUser()
+    const userId = user?.id || null
+
     const { error } = await supabase
       .from('synthesis_feedback')
       .insert({
         query_normalized: queryNormalized,
         feedback,
-        feedback_note: feedback_note || null
+        feedback_note: feedback_note || null,
+        user_id: userId
       })
 
     if (error) {

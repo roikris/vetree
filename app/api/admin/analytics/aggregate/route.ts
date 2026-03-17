@@ -45,11 +45,12 @@ export async function POST(request: NextRequest) {
       .gte('created_at', thirtyDaysAgo)
       .or(`user_id.is.null,user_id.neq.${adminId}`)
 
-    // Total searches + zero result searches
+    // Total searches + zero result searches (exclude admin)
     const { data: searchData } = await supabase
       .from('search_logs')
-      .select('query, results_count')
+      .select('query, results_count, user_id')
       .gte('created_at', sevenDaysAgo)
+      .or(`user_id.is.null,user_id.neq.${adminId}`)
 
     const totalSearches = searchData?.length || 0
     const zeroResults = searchData?.filter(s => s.results_count === 0) || []
@@ -66,35 +67,40 @@ export async function POST(request: NextRequest) {
       .slice(0, 10)
       .map(([query, count]) => ({ query, count }))
 
-    // Synthesis runs + feedback
+    // Synthesis runs + feedback (exclude admin)
     const { count: synthesisRuns } = await supabase
       .from('topic_syntheses')
       .select('*', { count: 'exact', head: true })
       .gte('created_at', sevenDaysAgo)
+      .or(`user_id.is.null,user_id.neq.${adminId}`)
 
     const { count: synthesisHelpful } = await supabase
       .from('synthesis_feedback')
       .select('*', { count: 'exact', head: true })
       .eq('feedback', 'helpful')
       .gte('created_at', sevenDaysAgo)
+      .or(`user_id.is.null,user_id.neq.${adminId}`)
 
     const { count: synthesisNotRelevant } = await supabase
       .from('synthesis_feedback')
       .select('*', { count: 'exact', head: true })
       .eq('feedback', 'not_relevant')
       .gte('created_at', sevenDaysAgo)
+      .or(`user_id.is.null,user_id.neq.${adminId}`)
 
-    // Articles saved
+    // Articles saved (exclude admin)
     const { count: articlesSaved } = await supabase
       .from('saved_articles')
       .select('*', { count: 'exact', head: true })
       .gte('created_at', sevenDaysAgo)
+      .neq('user_id', adminId)
 
     // Top saved articles (by saves, NOT views - avoid promotion bias)
     const { data: savedArticlesData } = await supabase
       .from('saved_articles')
       .select('article_id')
       .gte('created_at', thirtyDaysAgo)
+      .neq('user_id', adminId)
 
     const saveCounts = savedArticlesData?.reduce((acc, s) => {
       acc[s.article_id] = (acc[s.article_id] || 0) + 1

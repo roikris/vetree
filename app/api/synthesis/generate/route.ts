@@ -29,6 +29,12 @@ export async function POST(request: NextRequest) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
 
+    // Get current user ID if authenticated
+    const { createClient } = await import('@/lib/supabase/server')
+    const userSupabase = await createClient()
+    const { data: { user } } = await userSupabase.auth.getUser()
+    const userId = user?.id || null
+
     // Check if feature is enabled
     const { data: flag } = await supabase
       .from('feature_flags')
@@ -254,7 +260,8 @@ Synthesize the evidence for this veterinary clinical topic.`
         study_type_breakdown: studyTypeBreakdown,
         model_used: modelToUse,
         generation_time_ms: generationTime,
-        cache_hits: 0
+        cache_hits: 0,
+        user_id: userId
       })
 
     if (insertError) {
