@@ -749,6 +749,26 @@ export function CampaignCalendar() {
     }
   }
 
+  const handleRegenerateAll = async () => {
+    const today = new Date().toISOString().split('T')[0]
+
+    // Clear all today's posts from localStorage
+    PLATFORM_ROTATION.forEach(({ platform }) => {
+      localStorage.removeItem(`vetree_campaign_post_${today}_${platform}`)
+    })
+    localStorage.removeItem(`vetree_campaign_post_${today}`)
+
+    // Clear state
+    setGeneratedPost('')
+    setSavedPostData(null)
+    setAllPlatformPosts({})
+    setShowAllPlatforms(false)
+    setActivePlatformTab('')
+
+    // Now run Generate All (reuse existing handleGenerateAll)
+    await handleGenerateAll()
+  }
+
   const getPlatformIcon = (platform: string) => {
     const icons: Record<string, string> = {
       facebook_il: '📘',
@@ -943,6 +963,16 @@ export function CampaignCalendar() {
                     {generatingAll
                       ? <><Loader2 size={14} className="animate-spin" /> Generating all...</>
                       : '⚡ Generate All Platforms'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleRegenerateAll}
+                    disabled={generatingAll || isGenerating}
+                    className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-md text-sm transition flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {generatingAll
+                      ? <><Loader2 size={14} className="animate-spin" /> Regenerating...</>
+                      : '🔄 Regenerate All'}
                   </button>
                 </>
               ) : (
