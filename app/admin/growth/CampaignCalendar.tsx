@@ -964,16 +964,6 @@ export function CampaignCalendar() {
                       ? <><Loader2 size={14} className="animate-spin" /> Generating all...</>
                       : '⚡ Generate All Platforms'}
                   </button>
-                  <button
-                    type="button"
-                    onClick={handleRegenerateAll}
-                    disabled={generatingAll || isGenerating}
-                    className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-md text-sm transition flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {generatingAll
-                      ? <><Loader2 size={14} className="animate-spin" /> Regenerating...</>
-                      : '🔄 Regenerate All'}
-                  </button>
                 </>
               ) : (
                 <>
@@ -991,6 +981,20 @@ export function CampaignCalendar() {
                   >
                     {regenerating ? 'Regenerating...' : '🔄 Regenerate'}
                   </button>
+
+                  {/* Regenerate All - only show when posts exist */}
+                  {(generatedPost || Object.keys(allPlatformPosts).length > 0) && (
+                    <button
+                      type="button"
+                      onClick={handleRegenerateAll}
+                      disabled={generatingAll || isGenerating}
+                      className="px-4 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    >
+                      {generatingAll
+                        ? <><Loader2 size={14} className="animate-spin" /> Regenerating...</>
+                        : '🔄 Regenerate All'}
+                    </button>
+                  )}
 
                   {/* Redesign for platform dropdown */}
                   <div className="relative">
