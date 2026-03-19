@@ -43,11 +43,12 @@ export async function POST(request: NextRequest) {
     ]
 
     // If article_id is provided, fetch that specific article and skip selection
-    if (articleId) {
+    let forcedArticleId = articleId
+    if (forcedArticleId) {
       const { data: specificArticle, error } = await supabase
         .from('articles')
         .select('id, title, clinical_bottom_line, summary, labels, source_journal, publication_date')
-        .eq('id', articleId)
+        .eq('id', forcedArticleId)
         .single()
 
       if (error || !specificArticle) {
@@ -57,7 +58,19 @@ export async function POST(request: NextRequest) {
         }, { status: 404 })
       }
 
-      article = specificArticle
+      // Check if forced article is large animal
+      const isLargeAnimal = specificArticle?.labels?.some((l: string) =>
+        largeAnimalLabels.includes(l)
+      )
+
+      if (isLargeAnimal) {
+        // Fall back to random selection - don't use this large animal article
+        console.log('[generate-post] Forced article is large animal, falling back to random selection')
+        forcedArticleId = null
+        article = null
+      } else {
+        article = specificArticle
+      }
     }
 
     while (retryCount < MAX_RETRIES && !article) {
@@ -163,7 +176,21 @@ export async function POST(request: NextRequest) {
     // Platform-specific formatting rules
     const platformRules = {
       twitter: 'MAX 280 characters total including link. One hook sentence + one insight. Be ruthless with brevity.',
-      linkedin: 'Long form. Rhythm: short line → longer paragraph → short line. 150-300 words. No bullet points. Human voice.',
+      linkedin: `Rhythm: short→long→short. 150-300 words. No bullet points. Human voice.
+
+BANNED PHRASES — never use these or similar:
+- "game changer" / "game-changing"
+- "major upgrade"
+- "revolutionary" / "revolutionize"
+- "groundbreaking"
+- "exciting new"
+- "I'm thrilled"
+- "delighted to share"
+- "proud to announce"
+- "unlock the potential"
+- "take it to the next level"
+
+Instead use: specific clinical language, numbers, direct observations, questions that make vets think. Write like a colleague sharing a finding over coffee, not a marketer.`,
       facebook: 'Conversational, 100-200 words. Can use emoji sparingly. Personal tone.',
       facebook_il: 'Same as Facebook but in Hebrew. Natural clinical Hebrew, not translated.',
       facebook_intl: 'International Facebook. Conversational, 100-200 words. Personal tone.',

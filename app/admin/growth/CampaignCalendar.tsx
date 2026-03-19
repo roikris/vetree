@@ -641,24 +641,38 @@ export function CampaignCalendar() {
         }
       }
 
-      console.log('[handleGenerateAll] Generating posts for all 8 platforms...')
+      console.log('[handleGenerateAll] Generating posts for all 9 platforms...')
 
       // STEP 1: Generate first post for today's platform to select article
+      // Retry up to 3 times if we get SKIP_LARGE_ANIMAL
       console.log('[handleGenerateAll] Step 1: Generate for today\'s platform to select article')
-      const firstResponse = await fetch('/api/growth/generate-post', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          platform: todaysPlatform.platform,
-          language: todaysPlatform.language,
-          recentPosts
+      let firstData = null
+      let attempts = 0
+
+      while (attempts < 3) {
+        const firstResponse = await fetch('/api/growth/generate-post', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            platform: todaysPlatform.platform,
+            language: todaysPlatform.language,
+            recentPosts
+          })
         })
-      })
 
-      const firstData = await firstResponse.json()
+        const data = await firstResponse.json()
 
-      if (firstData.error || !firstData.article_id) {
-        setMessage({ type: 'error', text: firstData.error || 'Failed to generate initial post' })
+        if (data.post_content && !data.post_content.includes('SKIP_LARGE_ANIMAL') && data.article_id) {
+          firstData = data
+          break
+        }
+
+        attempts++
+        console.log(`[handleGenerateAll] Attempt ${attempts} failed, retrying...`)
+      }
+
+      if (!firstData) {
+        setMessage({ type: 'error', text: 'Could not find suitable article after 3 attempts' })
         setGeneratingAll(false)
         return
       }
@@ -677,28 +691,74 @@ export function CampaignCalendar() {
         JSON.stringify(firstData)
       )
 
-      // STEP 2: Generate remaining 7 platforms with same article_id
+      // STEP 2: Generate remaining 8 platforms with same article_id
+      // Use batching to avoid rate limits - 3 platforms at a time with 500ms delay
       console.log('[handleGenerateAll] Step 2: Generate remaining platforms with same article')
       const remainingPlatforms = PLATFORM_ROTATION.filter(
         ({ platform }) => platform !== todaysPlatform.platform
       )
 
-      const results = await Promise.allSettled(
-        remainingPlatforms.map(({ platform, language }) =>
-          fetch('/api/growth/generate-post', {
+      // Helper function to generate for a platform with retry logic
+      const generateForPlatform = async (platformInfo: any, articleId: string, recentPostsList: string[]) => {
+        try {
+          const res = await fetch('/api/growth/generate-post', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              platform,
-              language,
-              recentPosts,
-              article_id: sharedArticleId  // Force same article for all
+              platform: platformInfo.platform,
+              language: platformInfo.language,
+              recentPosts: recentPostsList,
+              article_id: articleId
             })
           })
-          .then(r => r.json())
-          .then(data => ({ platform, language, ...data }))
+          const data = await res.json()
+
+          if (!data.post_content || data.post_content.includes('SKIP_LARGE_ANIMAL')) {
+            throw new Error('Invalid post content')
+          }
+
+          return { platform: platformInfo.platform, language: platformInfo.language, ...data }
+        } catch (error) {
+          // Retry once after 1 second delay
+          console.log(`[handleGenerateAll] Retrying ${platformInfo.platform} after error`)
+          await new Promise(r => setTimeout(r, 1000))
+
+          const res = await fetch('/api/growth/generate-post', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              platform: platformInfo.platform,
+              language: platformInfo.language,
+              recentPosts: recentPostsList,
+              article_id: articleId
+            })
+          })
+          const data = await res.json()
+          return { platform: platformInfo.platform, language: platformInfo.language, ...data }
+        }
+      }
+
+      // Process platforms in batches of 3 to avoid rate limits
+      const batches = [
+        remainingPlatforms.slice(0, 3),
+        remainingPlatforms.slice(3, 6),
+        remainingPlatforms.slice(6)
+      ]
+
+      const allResults = []
+      for (const batch of batches) {
+        const batchResults = await Promise.allSettled(
+          batch.map(platformInfo => generateForPlatform(platformInfo, sharedArticleId, recentPosts))
         )
-      )
+        allResults.push(...batchResults)
+
+        // Add delay between batches (except after last batch)
+        if (batch !== batches[batches.length - 1]) {
+          await new Promise(r => setTimeout(r, 500))
+        }
+      }
+
+      const results = allResults
 
       // Save all results to localStorage
       let successCount = 1 // Already counted today's platform
