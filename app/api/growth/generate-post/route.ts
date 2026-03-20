@@ -74,16 +74,35 @@ export async function POST(request: NextRequest) {
     }
 
     while (retryCount < MAX_RETRIES && !article) {
-      // Get articles already used in the last 30 days (across all platforms)
-      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+      // FIX 1 + 2: Only exclude APPROVED articles from last 14 days (not skipped ones)
+      const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString()
       const { data: recentMemory } = await supabase
         .from('growth_agent_memory')
         .select('article_id')
-        .gte('created_at', thirtyDaysAgo)
+        .eq('outcome', 'approved')  // Only exclude published articles
+        .gte('created_at', fourteenDaysAgo)
 
-      const usedIds = recentMemory?.map(row => row.article_id) || []
+      const recentArticleIds = recentMemory?.map(row => row.article_id) || []
 
-      // Query for enriched articles - fetch top 50 most recent by publication date
+      // FIX 5: Also exclude articles already generated TODAY (session-level check)
+      const today = new Date().toISOString().split('T')[0]
+      const { data: todayMemory } = await supabase
+        .from('growth_agent_memory')
+        .select('article_id')
+        .gte('created_at', today)
+
+      const todayArticleIds = new Set(todayMemory?.map(m => m.article_id) || [])
+
+      // FIX 4: On 3rd attempt, disable memory exclusion entirely (fallback)
+      let allExcludedIds: string[] = []
+      if (retryCount >= 2) {
+        console.log('[generate-post] Attempt 3: Fallback - ignoring memory exclusion')
+        allExcludedIds = [] // Last resort: no exclusions except large animals
+      } else {
+        allExcludedIds = Array.from(new Set([...recentArticleIds, ...todayArticleIds]))
+      }
+
+      // FIX 3: Query for enriched articles - fetch top 200 most recent by publication date
       // NOTE: GIN index exists on labels column (idx_articles_labels_gin) for efficient array operations.
       // Ideally we'd filter large animals server-side with .not('labels', 'ov', largeAnimalLabels),
       // but Supabase PostgREST doesn't reliably support .not() with overlap operators.
@@ -94,7 +113,7 @@ export async function POST(request: NextRequest) {
         .eq('needs_enrichment', false)
         .not('clinical_bottom_line', 'is', null)
         .not('summary', 'is', null)
-        .limit(50)
+        .limit(200)  // Increased from 50 to 200
         .order('publication_date', { ascending: false })
 
       if (error || !articles || articles.length === 0) {
@@ -104,21 +123,31 @@ export async function POST(request: NextRequest) {
         }, { status: 500 })
       }
 
+      // Debug logging
+      console.log('[generate-post] Total articles fetched:', articles.length)
+      console.log('[generate-post] Excluded from memory:', allExcludedIds.length)
+
       // Filter out large animal articles and already-used articles (JS filtering)
       const filteredArticles = articles.filter(article => {
         const labels = article.labels || []
         const isLargeAnimal = labels.some((label: string) =>
           largeAnimalLabels.includes(label)
         )
-        const alreadyUsed = usedIds.includes(article.id)
+        const alreadyUsed = allExcludedIds.includes(article.id)
         return !isLargeAnimal && !alreadyUsed
       })
 
+      console.log('[generate-post] After large animal filter:', filteredArticles.length)
+
       if (filteredArticles.length === 0) {
-        return NextResponse.json({
-          error: 'No small animal articles found',
-          details: 'All recent articles are large animal focused or already used'
-        }, { status: 500 })
+        retryCount++
+        if (retryCount >= MAX_RETRIES) {
+          return NextResponse.json({
+            error: 'No small animal articles found',
+            details: 'All recent articles are large animal focused or already used'
+          }, { status: 500 })
+        }
+        continue // Retry with next attempt
       }
 
       // Weighted random selection - newer articles get higher probability
