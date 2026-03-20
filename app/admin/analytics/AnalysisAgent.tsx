@@ -41,11 +41,32 @@ export function AnalysisAgent() {
   const [rejectReason, setRejectReason] = useState('')
   const [showPromptModal, setShowPromptModal] = useState(false)
   const [currentPrompt, setCurrentPrompt] = useState('')
+  const [dismissedIndices, setDismissedIndices] = useState<Set<number>>(new Set())
 
   useEffect(() => {
     loadLatestAnalysis()
     loadTodos()
   }, [])
+
+  // Restore dismissed insights from sessionStorage
+  useEffect(() => {
+    if (latestAnalysis?.run_id) {
+      const saved = sessionStorage.getItem(`vetree_dismissed_insights_${latestAnalysis.run_id}`)
+      if (saved) {
+        setDismissedIndices(new Set(JSON.parse(saved)))
+      }
+    }
+  }, [latestAnalysis?.run_id])
+
+  // Persist dismissed insights to sessionStorage
+  useEffect(() => {
+    if (latestAnalysis?.run_id && dismissedIndices.size > 0) {
+      sessionStorage.setItem(
+        `vetree_dismissed_insights_${latestAnalysis.run_id}`,
+        JSON.stringify([...dismissedIndices])
+      )
+    }
+  }, [dismissedIndices, latestAnalysis?.run_id])
 
   const loadTodos = () => {
     const stored = localStorage.getItem('vetree_analysis_todos')
@@ -122,6 +143,9 @@ export function AnalysisAgent() {
 
     saveTodos([...todos, newTodo])
 
+    // Add to dismissed (remove from visible list)
+    setDismissedIndices(prev => new Set([...prev, index]))
+
     // Generate and show action prompt
     const actionPrompt = `In the Vetree codebase, implement the following improvement:
 
@@ -157,8 +181,8 @@ Please implement this change and commit.`
           })
         })
 
-        // Remove from UI
-        await loadLatestAnalysis()
+        // Add to dismissed (remove from visible list)
+        setDismissedIndices(prev => new Set([...prev, index]))
       } catch (error) {
         console.error('Failed to save feedback:', error)
       }
@@ -306,9 +330,12 @@ Please implement this change and commit.`
           <h3 className="text-lg font-semibold text-[#1A1A1A] dark:text-[#E8E8E8]">
             Insights
           </h3>
-          {latestAnalysis.insights_json.map((insight, index) => (
+          {latestAnalysis.insights_json
+            .map((insight, originalIndex) => ({ insight, originalIndex }))
+            .filter(({ originalIndex }) => !dismissedIndices.has(originalIndex))
+            .map(({ insight, originalIndex }) => (
             <div
-              key={index}
+              key={originalIndex}
               className="bg-white dark:bg-[#1A1A1A] border border-zinc-200 dark:border-zinc-800 rounded-lg p-6"
             >
               {/* Header */}
@@ -326,14 +353,14 @@ Please implement this change and commit.`
                 </div>
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => handleApprove(insight, index)}
+                    onClick={() => handleApprove(insight, originalIndex)}
                     className="text-green-600 hover:text-green-700 text-lg font-bold"
                     title="Approve and add to TODO"
                   >
                     ✓
                   </button>
                   <button
-                    onClick={() => handleReject(insight, index)}
+                    onClick={() => handleReject(insight, originalIndex)}
                     className="text-zinc-400 hover:text-zinc-500 text-lg font-bold"
                     title="Reject"
                   >
@@ -356,7 +383,7 @@ Please implement this change and commit.`
               </div>
 
               {/* Reject textarea */}
-              {rejectingIndex === index && (
+              {rejectingIndex === originalIndex && (
                 <div className="mt-4 space-y-2">
                   <textarea
                     value={rejectReason}
@@ -367,7 +394,7 @@ Please implement this change and commit.`
                   />
                   <div className="flex gap-2">
                     <button
-                      onClick={() => handleReject(insight, index)}
+                      onClick={() => handleReject(insight, originalIndex)}
                       className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm"
                     >
                       Submit
