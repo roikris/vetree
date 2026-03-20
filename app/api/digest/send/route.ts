@@ -76,6 +76,39 @@ export async function POST(request: NextRequest) {
       const { data: userData } = await supabase.auth.admin.getUserById(userId)
       if (!userData.user?.email) continue
 
+      // Check last page view for re-engagement eligibility (5-14 days inactive)
+      const { data: lastView } = await supabase
+        .from('page_views')
+        .select('viewed_at')
+        .eq('user_id', userId)
+        .order('viewed_at', { ascending: false })
+        .limit(1)
+        .single()
+
+      const daysSinceLastView = lastView
+        ? Math.floor((Date.now() - new Date(lastView.viewed_at).getTime()) / (1000 * 60 * 60 * 24))
+        : 999 // No views = treat as inactive
+
+      const isAtRisk = daysSinceLastView >= 5 && daysSinceLastView <= 14
+
+      // Fetch re-engagement articles if user is at-risk
+      let reEngagementArticles = null
+      if (isAtRisk) {
+        const { data: reEngageArticles } = await supabase
+          .from('articles')
+          .select('id, title, clinical_bottom_line, source_journal, publication_date, labels')
+          .eq('needs_enrichment', false)
+          .not('clinical_bottom_line', 'is', null)
+          .or('quarantined.is.null,quarantined.eq.false')
+          .overlaps('labels', tags)
+          .order('publication_date', { ascending: false })
+          .limit(3)
+
+        if (reEngageArticles && reEngageArticles.length > 0) {
+          reEngagementArticles = reEngageArticles
+        }
+      }
+
       // Fetch recent articles matching user's tags
       const { data: articles } = await supabase
         .from('articles')
@@ -100,7 +133,7 @@ export async function POST(request: NextRequest) {
           from: 'Vetree <digest@digest.vetree.app>',
           to: userData.user.email,
           subject: `🌿 Your Vetree Weekly Digest — ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`,
-          html: generateEmailHTML(userData.user.email, tags, articles)
+          html: generateEmailHTML(userData.user.email, tags, articles, reEngagementArticles ?? undefined)
         })
 
         // Log the digest
@@ -168,7 +201,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-function generateEmailHTML(email: string, tags: string[], articles: any[]): string {
+function generateEmailHTML(email: string, tags: string[], articles: any[], reEngagementArticles?: any[]): string {
   const articlesHTML = articles.map(article => `
     <div style="margin-bottom: 24px; padding: 20px; background: #f9fafb; border-radius: 8px; border-left: 4px solid #3D7A5F;">
       <h3 style="margin: 0 0 8px 0; font-size: 18px; color: #1a1a1a;">
@@ -193,6 +226,33 @@ function generateEmailHTML(email: string, tags: string[], articles: any[]): stri
     </div>
   `).join('')
 
+  // Re-engagement section for at-risk users (5-14 days inactive)
+  const reEngagementHTML = reEngagementArticles && reEngagementArticles.length > 0 ? `
+    <div style="margin-bottom: 40px; padding: 24px; background: #fef3e2; border-radius: 12px; border: 2px solid #f59e0b;">
+      <h2 style="margin: 0 0 12px 0; font-size: 20px; color: #92400e;">
+        👋 Haven't seen you in a while! Here's what you missed:
+      </h2>
+      <p style="margin: 0 0 20px 0; font-size: 14px; color: #78350f;">
+        We've enriched some new articles in your followed topics:
+      </p>
+      ${reEngagementArticles.map(article => `
+        <div style="margin-bottom: 16px; padding: 16px; background: #ffffff; border-radius: 8px; border-left: 4px solid #f59e0b;">
+          <h3 style="margin: 0 0 6px 0; font-size: 16px; color: #1a1a1a;">
+            <a href="https://vetree.app/article/${article.id}?utm_source=digest&utm_medium=email&utm_campaign=reengagement" style="color: #f59e0b; text-decoration: none;">
+              ${article.title}
+            </a>
+          </h3>
+          <p style="margin: 4px 0 8px 0; font-size: 13px; color: #6b7280;">
+            ${article.source_journal || 'Unknown Journal'} · ${new Date(article.publication_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+          </p>
+          <p style="margin: 0; font-size: 14px; color: #451a03; line-height: 1.5;">
+            ${article.clinical_bottom_line}
+          </p>
+        </div>
+      `).join('')}
+    </div>
+  ` : ''
+
   return `
     <!DOCTYPE html>
     <html>
@@ -215,6 +275,9 @@ function generateEmailHTML(email: string, tags: string[], articles: any[]): stri
           <p style="font-size: 16px; color: #1a1a1a; margin-bottom: 24px;">
             Here's this week's research in ${tags.slice(0, 3).join(', ')}${tags.length > 3 ? `, and ${tags.length - 3} more` : ''}:
           </p>
+
+          <!-- Re-engagement Section (for at-risk users) -->
+          ${reEngagementHTML}
 
           <!-- Articles -->
           ${articlesHTML}
