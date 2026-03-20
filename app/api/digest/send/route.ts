@@ -39,51 +39,112 @@ export async function POST(request: NextRequest) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
 
-    // Get all users with followed tags
-    const { data: usersWithTags } = await supabase
-      .from('followed_tags')
-      .select('user_id')
-      .order('user_id')
+    // Admin ID to exclude from digest
+    const adminId = '90cb8294-b593-4144-a9f5-23ca52dd5e35'
 
-    if (!usersWithTags || usersWithTags.length === 0) {
+    // Get ALL registered users with confirmed emails
+    const { data: allUsersData } = await supabase.auth.admin.listUsers()
+    const users = allUsersData.users.filter(u =>
+      u.email_confirmed_at !== null &&
+      u.id !== adminId
+    )
+
+    if (!users || users.length === 0) {
       return NextResponse.json({
         success: true,
-        message: 'No users with followed tags',
+        message: 'No confirmed users found',
         sentCount: 0
       })
     }
 
-    // Get unique user IDs
-    const uniqueUserIds = [...new Set(usersWithTags.map(u => u.user_id))]
-
     let sentCount = 0
     let skippedCount = 0
-    const sevenDaysAgo = new Date()
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+    const fiveDaysAgo = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000)
+    const fiveDaysAgoISO = fiveDaysAgo.toISOString()
+    const fiveDaysAgoDate = fiveDaysAgo.toISOString().split('T')[0]
+
+    // Define large animal labels to filter (as per CLAUDE.md)
+    const LARGE_ANIMAL = ['Equine','equine','Large Animal','large animal','Livestock','livestock','Poultry','poultry','Food Animal','food animal']
 
     // Process each user
-    for (const userId of uniqueUserIds) {
-      // Get user's followed tags
-      const { data: userTags } = await supabase
+    for (const user of users) {
+      if (!user.email) continue
+
+      // DEDUP CHECK: Skip if user got an email in the last 5 days
+      const { data: recentDigest } = await supabase
+        .from('digest_logs')
+        .select('id')
+        .eq('user_id', user.id)
+        .gte('sent_at', fiveDaysAgoISO)
+        .limit(1)
+        .maybeSingle()
+
+      if (recentDigest) {
+        console.log(`[digest] Skipping ${user.email} - already sent in last 5 days`)
+        skippedCount++
+        continue
+      }
+
+      // Check if user has followed tags
+      const { data: followedTags } = await supabase
         .from('followed_tags')
         .select('tag')
-        .eq('user_id', userId)
+        .eq('user_id', user.id)
 
-      const tags = userTags?.map(t => t.tag) || []
-      if (tags.length === 0) continue
+      const tags = followedTags?.map(t => t.tag) || []
 
-      // Get user email
-      const { data: userData } = await supabase.auth.admin.getUserById(userId)
-      if (!userData.user?.email) continue
+      // Article selection logic
+      let articles
+      if (tags.length > 0) {
+        // User has followed tags → show articles matching their tags
+        const { data } = await supabase
+          .from('articles')
+          .select('id, title, clinical_bottom_line, labels, source_journal, publication_date, strength_of_evidence')
+          .eq('needs_enrichment', false)
+          .not('clinical_bottom_line', 'is', null)
+          .or('quarantined.is.null,quarantined.eq.false')
+          .overlaps('labels', tags)
+          .order('publication_date', { ascending: false })
+          .limit(5)
+        articles = data || []
+      } else {
+        // User has no tags → show 5 most recent articles from last 5 days
+        const { data } = await supabase
+          .from('articles')
+          .select('id, title, clinical_bottom_line, labels, source_journal, publication_date, strength_of_evidence')
+          .eq('needs_enrichment', false)
+          .not('clinical_bottom_line', 'is', null)
+          .or('quarantined.is.null,quarantined.eq.false')
+          .gte('publication_date', fiveDaysAgoDate)
+          .order('publication_date', { ascending: false })
+          .limit(5)
+        articles = data || []
+      }
+
+      // Skip user if no articles found
+      if (!articles || articles.length === 0) {
+        console.log(`[digest] Skipping ${user.email} - no articles found`)
+        skippedCount++
+        continue
+      }
+
+      // Filter large animals in JS (as per CLAUDE.md)
+      articles = articles.filter(a => !a.labels?.some((l: string) => LARGE_ANIMAL.includes(l)))
+
+      if (articles.length === 0) {
+        console.log(`[digest] Skipping ${user.email} - only large animal articles`)
+        skippedCount++
+        continue
+      }
 
       // Check last page view for re-engagement eligibility (5-14 days inactive)
       const { data: lastView } = await supabase
         .from('page_views')
         .select('viewed_at')
-        .eq('user_id', userId)
+        .eq('user_id', user.id)
         .order('viewed_at', { ascending: false })
         .limit(1)
-        .single()
+        .maybeSingle()
 
       const daysSinceLastView = lastView
         ? Math.floor((Date.now() - new Date(lastView.viewed_at).getTime()) / (1000 * 60 * 60 * 24))
@@ -91,9 +152,9 @@ export async function POST(request: NextRequest) {
 
       const isAtRisk = daysSinceLastView >= 5 && daysSinceLastView <= 14
 
-      // Fetch re-engagement articles if user is at-risk
+      // Fetch re-engagement articles if user is at-risk AND has followed tags
       let reEngagementArticles = null
-      if (isAtRisk) {
+      if (isAtRisk && tags.length > 0) {
         const { data: reEngageArticles } = await supabase
           .from('articles')
           .select('id, title, clinical_bottom_line, source_journal, publication_date, labels')
@@ -105,47 +166,40 @@ export async function POST(request: NextRequest) {
           .limit(3)
 
         if (reEngageArticles && reEngageArticles.length > 0) {
-          reEngagementArticles = reEngageArticles
+          // Filter large animals
+          const filtered = reEngageArticles.filter(a => !a.labels?.some((l: string) => LARGE_ANIMAL.includes(l)))
+          if (filtered.length > 0) {
+            reEngagementArticles = filtered
+          }
         }
       }
 
-      // Fetch recent articles matching user's tags
-      const { data: articles } = await supabase
-        .from('articles')
-        .select('id, title, clinical_bottom_line, source_journal, publication_date, strength_of_evidence, labels')
-        .eq('needs_enrichment', false)
-        .not('clinical_bottom_line', 'is', null)
-        .or('quarantined.is.null,quarantined.eq.false')
-        .overlaps('labels', tags)
-        .gte('publication_date', sevenDaysAgo.toISOString().split('T')[0])
-        .order('publication_date', { ascending: false })
-        .limit(5)
-
-      // Skip if fewer than 3 articles
-      if (!articles || articles.length < 3) {
-        skippedCount++
-        continue
-      }
+      // Build email subject
+      const formattedDate = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+      const subject = tags.length > 0
+        ? `🌿 Your Vetree Weekly Digest — ${tags.slice(0, 3).join(', ')}${tags.length > 3 ? `, +${tags.length - 3}` : ''}`
+        : `🌿 This Week on Vetree — Fresh Research (${formattedDate})`
 
       // Send email
       try {
         await resend.emails.send({
           from: 'Vetree <digest@digest.vetree.app>',
-          to: userData.user.email,
-          subject: `🌿 Your Vetree Weekly Digest — ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`,
-          html: generateEmailHTML(userData.user.email, tags, articles, reEngagementArticles ?? undefined)
+          to: user.email,
+          subject,
+          html: generateEmailHTML(user.email, tags, articles, reEngagementArticles ?? undefined)
         })
 
         // Log the digest
         await supabase.from('digest_logs').insert({
-          user_id: userId,
+          user_id: user.id,
+          sent_at: new Date().toISOString(),
           articles_count: articles.length,
-          tags: tags
+          tags: tags.length > 0 ? tags : null
         })
 
         sentCount++
       } catch (emailError) {
-        console.error(`[digest] Failed to send to ${userData.user.email}:`, emailError)
+        console.error(`[digest] Failed to send to ${user.email}:`, emailError)
       }
     }
 
@@ -155,7 +209,7 @@ export async function POST(request: NextRequest) {
       triggered_by: triggeredBy,
       sent_count: sentCount,
       skipped_count: skippedCount,
-      total_users: uniqueUserIds.length,
+      total_users: users.length,
       run_time_ms: runTime,
       status: 'success'
     })
@@ -168,7 +222,7 @@ export async function POST(request: NextRequest) {
       success: true,
       sentCount,
       skippedCount,
-      totalUsers: uniqueUserIds.length
+      totalUsers: users.length
     })
 
   } catch (error) {
