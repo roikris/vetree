@@ -5,6 +5,8 @@ import { Article } from '@/lib/supabase'
 import { ArticleCard } from '@/components/articles/ArticleCard'
 import { ArticleViewTracker } from '@/components/articles/ArticleViewTracker'
 import { RegistrationWall } from '@/components/ui/RegistrationWall'
+import { FollowTopicButtons } from '@/components/articles/FollowTopicButtons'
+import { SoftRegistrationPrompt } from '@/components/articles/SoftRegistrationPrompt'
 import Link from 'next/link'
 import type { Metadata } from 'next'
 
@@ -56,6 +58,26 @@ async function getArticle(id: string): Promise<Article | null> {
   return data as Article
 }
 
+async function getRelatedArticles(labels: string[] | null, currentArticleId: string): Promise<Article[]> {
+  if (!labels || labels.length === 0) return []
+
+  const supabase = await createClient()
+
+  const { data } = await supabase
+    .from('articles')
+    .select('*')
+    .neq('id', currentArticleId)
+    .eq('needs_enrichment', false)
+    .not('summary', 'is', null)
+    .not('clinical_bottom_line', 'is', null)
+    .or('quarantined.is.null,quarantined.eq.false')
+    .overlaps('labels', labels)
+    .order('publication_date', { ascending: false })
+    .limit(4)
+
+  return (data || []) as Article[]
+}
+
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { id } = await params
   const article = await getArticle(id)
@@ -104,6 +126,9 @@ export default async function ArticlePage({ params }: PageProps) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   const isLoggedIn = !!user
+
+  // Fetch related articles
+  const relatedArticles = await getRelatedArticles(article.labels, article.id)
 
   // JSON-LD structured data for SEO
   const structuredData = {
@@ -168,9 +193,30 @@ export default async function ArticlePage({ params }: PageProps) {
         </header>
 
         {/* Article Card */}
-        <div className="mb-12">
+        <div className="mb-8">
           <ArticleCard article={article} />
         </div>
+
+        {/* Follow Topic Buttons */}
+        {article.labels && article.labels.length > 0 && (
+          <div className="mb-12">
+            <FollowTopicButtons labels={article.labels} isLoggedIn={isLoggedIn} />
+          </div>
+        )}
+
+        {/* Related Articles */}
+        {relatedArticles.length > 0 && (
+          <div className="mb-12">
+            <h2 className="text-2xl font-semibold text-[#1A1A1A] dark:text-[#E8E8E8] mb-6">
+              More research on {article.labels?.[0] || 'related topics'}
+            </h2>
+            <div className="grid gap-6 md:grid-cols-2">
+              {relatedArticles.map((relatedArticle) => (
+                <ArticleCard key={relatedArticle.id} article={relatedArticle} />
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Invitational Banner */}
         <div className="bg-gradient-to-r from-[#3D7A5F]/5 to-[#4E9A78]/5 dark:from-[#3D7A5F]/10 dark:to-[#4E9A78]/10 border border-[#3D7A5F]/20 dark:border-[#4E9A78]/20 rounded-xl p-8 text-center">
@@ -193,6 +239,9 @@ export default async function ArticlePage({ params }: PageProps) {
             Explore More Articles
           </Link>
         </div>
+
+        {/* Soft Registration Prompt (scroll-triggered for non-logged-in users) */}
+        {!isLoggedIn && <SoftRegistrationPrompt labels={article.labels} />}
       </div>
       </div>
     </>
