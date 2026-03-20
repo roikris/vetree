@@ -245,10 +245,10 @@ ${JSON.stringify(insightsData, null, 2)}`
     const runId = `analysis_${Date.now()}`
     const { error: insertError } = await supabase.from('analytics_insights').insert({
       run_id: runId,
-      insights_json: finalInsights.insights,
-      top_3_actions: finalInsights.top_3_actions,
-      content_roadmap: finalInsights.content_roadmap,
-      churn_risks: finalInsights.churn_risks,
+      insights_json: finalInsights.insights || [],
+      top_3_actions: finalInsights.top_3_actions || [],
+      content_roadmap: finalInsights.content_roadmap || [],
+      churn_risks: finalInsights.churn_risks || [],
       model_used: 'claude-sonnet-4-20250514',
       tokens_used: response.usage.input_tokens + response.usage.output_tokens
     })
@@ -262,25 +262,39 @@ ${JSON.stringify(insightsData, null, 2)}`
     // Send to Slack
     if (process.env.SLACK_WEBHOOK_URL) {
       console.log('[insights] Sending Slack notification...')
-      const slackMessage = {
-        text: `🧠 *Vetree Weekly Analysis*\n\n${finalInsights.weekly_summary}\n\n*TOP 3 ACTIONS:*\n${finalInsights.top_3_actions.map((a: string, i: number) => `${i+1}. ${a}`).join('\n')}\n\n*CONTENT ROADMAP:*\n${finalInsights.content_roadmap.map((t: string) => `• ${t}`).join('\n')}\n\n<https://vetree.app/admin/analytics|View Full Report →>`
-      }
 
-      try {
-        const slackResponse = await fetch(process.env.SLACK_WEBHOOK_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(slackMessage)
-        })
-
-        if (!slackResponse.ok) {
-          console.error('[insights] Slack response not ok:', slackResponse.status, slackResponse.statusText)
-        } else {
-          console.log('[insights] Slack notification sent successfully')
+      // Safety check before building message
+      if (!finalInsights || typeof finalInsights !== 'object') {
+        console.error('[insights] finalInsights is invalid, skipping Slack')
+      } else {
+        const slackMessage = {
+          text: `🧠 *Vetree Weekly Analysis*\n\n${finalInsights.weekly_summary || 'Weekly analysis complete.'}\n\n*TOP 3 ACTIONS:*\n${
+            (finalInsights.top_3_actions || []).map((a: string, i: number) => `${i+1}. ${a}`).join('\n') || 'None'
+          }\n\n*CONTENT ROADMAP:*\n${
+            (finalInsights.content_roadmap || []).map((t: string) => `• ${t}`).join('\n') || 'None'
+          }\n\n*CHURN RISKS:*\n${
+            (finalInsights.churn_risks || []).length > 0
+              ? (finalInsights.churn_risks || []).map((r: string) => `⚠️ ${r}`).join('\n')
+              : 'None detected'
+          }\n\n<https://vetree.app/admin/analytics|View Full Report →>`
         }
-      } catch (slackError) {
-        console.error('[insights] Slack error:', slackError)
-        // Non-critical, continue
+
+        try {
+          const slackResponse = await fetch(process.env.SLACK_WEBHOOK_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(slackMessage)
+          })
+
+          if (!slackResponse.ok) {
+            console.error('[insights] Slack response not ok:', slackResponse.status, slackResponse.statusText)
+          } else {
+            console.log('[insights] Slack notification sent successfully')
+          }
+        } catch (slackError) {
+          console.error('[insights] Slack error:', slackError)
+          // Non-critical, continue
+        }
       }
     } else {
       console.log('[insights] No Slack webhook configured, skipping notification')
