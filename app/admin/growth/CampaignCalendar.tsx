@@ -49,6 +49,10 @@ export function CampaignCalendar() {
   const [activePlatformTab, setActivePlatformTab] = useState('')
   const [regenerating, setRegenerating] = useState(false)
   const [failedPlatforms, setFailedPlatforms] = useState<string[]>([])
+  const [articleSearch, setArticleSearch] = useState('')
+  const [articleResults, setArticleResults] = useState<any[]>([])
+  const [selectedArticle, setSelectedArticle] = useState<{id: string, title: string} | null>(null)
+  const [showArticleDropdown, setShowArticleDropdown] = useState(false)
 
   const currentDay = getCurrentCampaignDay()
   const todaysPlatform = getTodaysPlatform()
@@ -150,6 +154,20 @@ export function CampaignCalendar() {
       return () => document.removeEventListener('click', handleClickOutside)
     }
   }, [showRedesignMenu])
+
+  // Close article dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => {
+      if (showArticleDropdown) {
+        setShowArticleDropdown(false)
+      }
+    }
+
+    if (showArticleDropdown) {
+      document.addEventListener('click', handleClickOutside)
+      return () => document.removeEventListener('click', handleClickOutside)
+    }
+  }, [showArticleDropdown])
 
   // Load existing all-platform posts from localStorage on mount
   useEffect(() => {
@@ -274,6 +292,25 @@ export function CampaignCalendar() {
     })
   }
 
+  // Search articles (debounced)
+  const searchArticles = async (query: string) => {
+    if (query.length < 3) {
+      setArticleResults([])
+      setShowArticleDropdown(false)
+      return
+    }
+
+    try {
+      const res = await fetch(`/api/articles/search-quick?q=${encodeURIComponent(query)}&limit=5`)
+      const data = await res.json()
+      setArticleResults(data.articles || [])
+      setShowArticleDropdown(true)
+    } catch (error) {
+      console.error('[searchArticles] Error:', error)
+      setArticleResults([])
+    }
+  }
+
   const handleGenerate = async () => {
     if (!todaysPlatform?.platform || !todaysPlatform?.language) {
       setMessage({ type: 'error', text: 'Platform information not available' })
@@ -289,7 +326,8 @@ export function CampaignCalendar() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           platform: todaysPlatform.platform,
-          language: todaysPlatform.language
+          language: todaysPlatform.language,
+          article_id: selectedArticle?.id || undefined
         })
       })
 
@@ -657,7 +695,8 @@ export function CampaignCalendar() {
           body: JSON.stringify({
             platform: todaysPlatform.platform,
             language: todaysPlatform.language,
-            recentPosts
+            recentPosts,
+            article_id: selectedArticle?.id || undefined
           })
         })
 
@@ -1078,6 +1117,20 @@ export function CampaignCalendar() {
                 {generatedPost}
               </div>
             </div>
+            {savedPostData?.article_id && savedPostData?.article_title && (
+              <a
+                href={`/article/${savedPostData.article_id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-2 mb-2 flex items-center gap-2 text-xs text-zinc-600 dark:text-zinc-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+              >
+                <span>📄</span>
+                <span className="truncate">Based on: {savedPostData.article_title}</span>
+                <svg className="w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                </svg>
+              </a>
+            )}
             <button
               type="button"
               onClick={handleCopy}
@@ -1133,6 +1186,60 @@ export function CampaignCalendar() {
                   <Copy size={14} />
                   Copy
                 </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Article Search (Optional) */}
+        {!approvedPosts[today] && (!todaysTask || todaysTask.status !== 'done') && !generatedPost && (
+          <div className="relative mb-3">
+            {selectedArticle ? (
+              <div className="flex items-center gap-2 px-3 py-2 bg-emerald-900/30 border border-emerald-700 rounded-lg text-sm">
+                <span className="text-emerald-300">📄</span>
+                <span className="text-emerald-200 flex-1 truncate">{selectedArticle.title}</span>
+                <button
+                  onClick={() => {
+                    setSelectedArticle(null)
+                    setArticleSearch('')
+                  }}
+                  className="text-gray-400 hover:text-white transition-colors text-lg leading-none"
+                  aria-label="Clear selection"
+                >
+                  ×
+                </button>
+              </div>
+            ) : (
+              <div className="relative">
+                <input
+                  type="text"
+                  value={articleSearch}
+                  onChange={(e) => {
+                    setArticleSearch(e.target.value)
+                    searchArticles(e.target.value)
+                  }}
+                  placeholder="🔍 Search for specific article (optional)"
+                  className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:border-emerald-600"
+                />
+                {showArticleDropdown && articleResults.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-gray-800 border border-gray-600 rounded-lg shadow-xl z-50 max-h-48 overflow-y-auto">
+                    {articleResults.map((article: any) => (
+                      <button
+                        key={article.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedArticle({ id: article.id, title: article.title })
+                          setArticleSearch('')
+                          setShowArticleDropdown(false)
+                        }}
+                        className="w-full text-left px-4 py-3 hover:bg-gray-700 transition border-b border-gray-700 last:border-0"
+                      >
+                        <p className="text-sm text-white truncate">{article.title}</p>
+                        <p className="text-xs text-gray-400 mt-0.5">{article.source_journal}</p>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>
