@@ -225,6 +225,23 @@ async function main() {
       const overallIndex = stats.totalProcessed + i + 1;
       console.log(`[${overallIndex}/${Math.min(stats.totalProcessed + articles.length, MAX_ARTICLES_PER_RUN)}] Processing...`);
 
+      // Check abstract exists and has meaningful content
+      if (!article.summary || article.summary.trim().length < 50) {
+        console.log(`  ⊗ Skipping: No abstract (${article.title.substring(0, 60)}...)`);
+
+        await supabase
+          .from('articles')
+          .update({
+            needs_enrichment: false,
+            quarantined: true,
+            last_enrichment_error: 'no_abstract'
+          })
+          .eq('id', article.id);
+
+        stats.failCount++;
+        continue; // Skip to next article
+      }
+
       // FIX 2: Auto-quarantine articles with no abstract after 3 failed attempts
       const enrichmentAttempts = article.enrichment_attempts || 0;
       const hasAbstract = article.summary && article.summary.trim().length > 0;

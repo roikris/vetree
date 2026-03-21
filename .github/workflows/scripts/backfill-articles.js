@@ -275,18 +275,28 @@ async function main() {
 
         const articles = await fetchArticleDetails(batch);
 
-        if (articles.length > 0) {
+        // Filter out articles with no abstract
+        const articlesToInsert = articles.filter(a =>
+          a.summary && a.summary.trim().length >= 50
+        );
+
+        const skippedCount = articles.length - articlesToInsert.length;
+        if (skippedCount > 0) {
+          console.log(`  Skipped ${skippedCount} articles with no abstract`);
+        }
+
+        if (articlesToInsert.length > 0) {
           const { error } = await supabase
             .from('articles')
-            .insert(articles);
+            .insert(articlesToInsert);
 
           if (error) {
             console.error('  Error inserting articles:', error.message);
-            stats.totalFailed += articles.length;
+            stats.totalFailed += articlesToInsert.length;
           } else {
-            console.log(`  Inserted ${articles.length} articles`);
-            stats.totalAdded += articles.length;
-            stats.byJournal[journal] += articles.length;
+            console.log(`  Inserted ${articlesToInsert.length} articles`);
+            stats.totalAdded += articlesToInsert.length;
+            stats.byJournal[journal] += articlesToInsert.length;
           }
         }
 
