@@ -48,6 +48,7 @@ export function CampaignCalendar() {
   const [showAllPlatforms, setShowAllPlatforms] = useState(false)
   const [activePlatformTab, setActivePlatformTab] = useState('')
   const [regenerating, setRegenerating] = useState(false)
+  const [failedPlatforms, setFailedPlatforms] = useState<string[]>([])
 
   const currentDay = getCurrentCampaignDay()
   const todaysPlatform = getTodaysPlatform()
@@ -796,6 +797,10 @@ export function CampaignCalendar() {
       setShowAllPlatforms(true)
       setActivePlatformTab(todaysPlatform.platform)
 
+      // Track which platforms failed for retry button
+      const failed = PLATFORM_ROTATION.filter(p => !allPosts[p.platform]).map(p => p.platform)
+      setFailedPlatforms(failed)
+
       setMessage({
         type: 'success',
         text: `✅ Generated ${successCount}/8 posts${errorCount > 0 ? ` (${errorCount} failed)` : ''} — all using same article`
@@ -824,9 +829,141 @@ export function CampaignCalendar() {
     setAllPlatformPosts({})
     setShowAllPlatforms(false)
     setActivePlatformTab('')
+    setFailedPlatforms([])
 
     // Now run Generate All (reuse existing handleGenerateAll)
     await handleGenerateAll()
+  }
+
+  const handleRetryFailed = async () => {
+    if (failedPlatforms.length === 0) return
+
+    setGeneratingAll(true)
+    setMessage(null)
+
+    try {
+      // Get the article_id from an existing successful post
+      const existingPost = Object.values(allPlatformPosts)[0] as any
+      const sharedArticleId = existingPost?.article_id
+
+      if (!sharedArticleId) {
+        setMessage({ type: 'error', text: 'Could not find article ID from existing posts' })
+        setGeneratingAll(false)
+        return
+      }
+
+      console.log('[handleRetryFailed] Retrying failed platforms with article:', sharedArticleId)
+
+      // Collect recent posts for context
+      const recentPosts = PLATFORM_ROTATION
+        .filter(p => allPlatformPosts[p.platform])
+        .map(p => (allPlatformPosts[p.platform] as any).post_content?.slice(0, 100))
+
+      // Helper function to generate for a platform with retry logic
+      const generateForPlatform = async (platform: string, articleId: string, recentPostsList: string[]) => {
+        const platformInfo = PLATFORM_ROTATION.find(p => p.platform === platform)
+        if (!platformInfo) throw new Error(`Platform ${platform} not found`)
+
+        try {
+          const res = await fetch('/api/growth/generate-post', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              platform: platformInfo.platform,
+              language: platformInfo.language,
+              recentPosts: recentPostsList,
+              article_id: articleId
+            })
+          })
+          const data = await res.json()
+
+          if (!data.post_content || data.post_content.includes('SKIP_LARGE_ANIMAL')) {
+            throw new Error('Invalid post content')
+          }
+
+          return { platform: platformInfo.platform, language: platformInfo.language, ...data }
+        } catch (error) {
+          // Retry once after 1 second delay
+          console.log(`[handleRetryFailed] Retrying ${platformInfo.platform} after error`)
+          await new Promise(r => setTimeout(r, 1000))
+
+          const res = await fetch('/api/growth/generate-post', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              platform: platformInfo.platform,
+              language: platformInfo.language,
+              recentPosts: recentPostsList,
+              article_id: articleId
+            })
+          })
+          const data = await res.json()
+          return { platform: platformInfo.platform, language: platformInfo.language, ...data }
+        }
+      }
+
+      // Retry in batches of 3
+      const batches = []
+      for (let i = 0; i < failedPlatforms.length; i += 3) {
+        batches.push(failedPlatforms.slice(i, i + 3))
+      }
+
+      const today = new Date().toISOString().split('T')[0]
+      const newPosts = { ...allPlatformPosts }
+      const stillFailed: string[] = []
+      let newSuccessCount = 0
+
+      for (const batch of batches) {
+        const results = await Promise.allSettled(
+          batch.map(platform => generateForPlatform(platform, sharedArticleId, recentPosts))
+        )
+
+        results.forEach((result, i) => {
+          const platform = batch[i]
+
+          if (result.status === 'fulfilled' && result.value.post_content) {
+            newPosts[platform] = result.value
+
+            // Save to localStorage with platform-specific key
+            localStorage.setItem(
+              `vetree_campaign_post_${today}_${platform}`,
+              JSON.stringify(result.value)
+            )
+            newSuccessCount++
+            console.log(`[handleRetryFailed] ✓ Generated ${platform}`)
+          } else {
+            stillFailed.push(platform)
+            console.error(`[handleRetryFailed] ✗ Failed ${platform}:`, result)
+          }
+        })
+
+        // Add delay between batches (except after last batch)
+        if (batch !== batches[batches.length - 1]) {
+          await new Promise(r => setTimeout(r, 500))
+        }
+      }
+
+      setAllPlatformPosts(newPosts)
+      setFailedPlatforms(stillFailed)
+
+      if (stillFailed.length === 0) {
+        setMessage({
+          type: 'success',
+          text: `✅ Retry successful! Generated ${newSuccessCount}/${failedPlatforms.length} missing posts`
+        })
+      } else {
+        setMessage({
+          type: 'success',
+          text: `⚠️ Generated ${newSuccessCount}/${failedPlatforms.length} posts (${stillFailed.length} still failed)`
+        })
+      }
+
+    } catch (error) {
+      console.error('[handleRetryFailed] Error:', error)
+      setMessage({ type: 'error', text: 'Failed to retry posts' })
+    } finally {
+      setGeneratingAll(false)
+    }
   }
 
   const getPlatformIcon = (platform: string) => {
@@ -1053,6 +1190,20 @@ export function CampaignCalendar() {
                       {generatingAll
                         ? <><Loader2 size={14} className="animate-spin" /> Regenerating...</>
                         : '🔄 Regenerate All'}
+                    </button>
+                  )}
+
+                  {/* Retry Failed - only show when there are failed platforms AND posts exist */}
+                  {failedPlatforms.length > 0 && Object.keys(allPlatformPosts).length > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleRetryFailed}
+                      disabled={generatingAll || isGenerating}
+                      className="px-4 py-3 bg-orange-700 hover:bg-orange-600 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    >
+                      {generatingAll
+                        ? <><Loader2 size={14} className="animate-spin" /> Retrying...</>
+                        : `🔁 Retry Failed (${failedPlatforms.length})`}
                     </button>
                   )}
 
