@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { Copy, Check } from 'lucide-react'
 
 interface Insight {
   area: string
@@ -21,6 +22,7 @@ interface AnalysisData {
   top_3_actions: string[]
   content_roadmap: string[]
   churn_risks: string[]
+  report_markdown?: string
 }
 
 interface Todo {
@@ -42,6 +44,7 @@ export function AnalysisAgent() {
   const [showPromptModal, setShowPromptModal] = useState(false)
   const [currentPrompt, setCurrentPrompt] = useState('')
   const [dismissedIndices, setDismissedIndices] = useState<Set<number>>(new Set())
+  const [reportCopied, setReportCopied] = useState(false)
 
   useEffect(() => {
     loadLatestAnalysis()
@@ -469,6 +472,43 @@ Please implement this change and commit.`
               </li>
             ))}
           </ul>
+        </div>
+      )}
+
+      {/* Full Metrics Report */}
+      {latestAnalysis?.report_markdown && (
+        <div className="bg-white dark:bg-[#1A1A1A] border border-zinc-200 dark:border-zinc-800 rounded-lg p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-[#1A1A1A] dark:text-[#E8E8E8]">
+              📋 Full Metrics Report
+            </h3>
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(latestAnalysis.report_markdown!)
+                setReportCopied(true)
+                setTimeout(() => setReportCopied(false), 2000)
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg text-sm font-medium transition-colors"
+            >
+              {reportCopied ? (
+                <>
+                  <Check size={14} />
+                  Copied!
+                </>
+              ) : (
+                <>
+                  <Copy size={14} />
+                  Copy Report
+                </>
+              )}
+            </button>
+          </div>
+          <p className="text-zinc-600 dark:text-zinc-400 text-sm mb-4">
+            Paste this into Claude.ai for a full strategic briefing
+          </p>
+          <pre className="text-zinc-700 dark:text-zinc-300 text-sm whitespace-pre-wrap font-mono bg-zinc-50 dark:bg-zinc-900 rounded-lg p-4 max-h-96 overflow-y-auto border border-zinc-200 dark:border-zinc-800">
+            {latestAnalysis.report_markdown}
+          </pre>
         </div>
       )}
 
