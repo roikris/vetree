@@ -162,7 +162,7 @@ export default async function Home({ searchParams }: HomeProps) {
           )}
 
           {/* Synthesis wrapper - shows synthesis button and panel when search query exists */}
-          <SynthesisWrapper searchQuery={filters.search}>
+          <SynthesisWrapper searchQuery={filters.search} isLoggedIn={isLoggedIn}>
             {/* FIX 2: Pagination at top */}
             <Pagination
               currentPage={filters.page}
@@ -170,7 +170,7 @@ export default async function Home({ searchParams }: HomeProps) {
               filters={filters}
             />
 
-            <ArticleList articles={deduplicatedArticles} />
+            <ArticleList articles={deduplicatedArticles} searchQuery={filters.search || undefined} />
 
             {/* FIX 2: Pagination at bottom */}
             <Pagination

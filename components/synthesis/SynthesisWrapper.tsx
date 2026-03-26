@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { SynthesisPanel } from './SynthesisPanel'
 import { useFeatureFlags, isFeatureEnabled } from '@/lib/hooks/useFeatureFlags'
@@ -8,14 +8,16 @@ import { useFeatureFlags, isFeatureEnabled } from '@/lib/hooks/useFeatureFlags'
 type SynthesisWrapperProps = {
   searchQuery: string
   children: React.ReactNode
+  isLoggedIn?: boolean
 }
 
-export function SynthesisWrapper({ searchQuery, children }: SynthesisWrapperProps) {
+export function SynthesisWrapper({ searchQuery, children, isLoggedIn }: SynthesisWrapperProps) {
   const [showSynthesis, setShowSynthesis] = useState(false)
   const [showTip, setShowTip] = useState(false)
   const { flags, loading } = useFeatureFlags()
   const searchParams = useSearchParams()
   const router = useRouter()
+  const synthesisPanelRef = useRef<HTMLDivElement>(null)
 
   // Check if feature is enabled
   const synthesisEnabled = isFeatureEnabled(flags, 'topic_synthesis')
@@ -41,7 +43,7 @@ export function SynthesisWrapper({ searchQuery, children }: SynthesisWrapperProp
     }
   }, [shouldShowButton, showSynthesis])
 
-  // Auto-trigger synthesis from URL params
+  // Auto-trigger synthesis from URL params (e.g. from zero-results CTA)
   useEffect(() => {
     const synthesize = searchParams.get('synthesize')
 
@@ -49,10 +51,17 @@ export function SynthesisWrapper({ searchQuery, children }: SynthesisWrapperProp
       // Auto-trigger synthesis after a short delay
       setTimeout(() => {
         setShowSynthesis(true)
-      }, 1500)
+        // Scroll to synthesis panel after it opens
+        setTimeout(() => {
+          synthesisPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }, 100)
+      }, 500)
 
-      // Clean URL without reload
-      router.replace('/', { scroll: false })
+      // Clean URL — preserve search param, remove only synthesize
+      const cleanParams = new URLSearchParams(window.location.search)
+      cleanParams.delete('synthesize')
+      const newUrl = cleanParams.toString() ? `/?${cleanParams.toString()}` : '/'
+      router.replace(newUrl, { scroll: false })
     }
   }, []) // Run once on mount only
 
@@ -89,10 +98,13 @@ export function SynthesisWrapper({ searchQuery, children }: SynthesisWrapperProp
 
       {/* Synthesis panel */}
       {showSynthesis && (
-        <SynthesisPanel
-          query={searchQuery}
-          onClose={() => setShowSynthesis(false)}
-        />
+        <div ref={synthesisPanelRef}>
+          <SynthesisPanel
+            query={searchQuery}
+            onClose={() => setShowSynthesis(false)}
+            isLoggedIn={isLoggedIn}
+          />
+        </div>
       )}
 
       {/* Original content */}

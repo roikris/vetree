@@ -1,12 +1,17 @@
 import { Article } from '@/lib/supabase'
 import { ArticleCard } from './ArticleCard'
+import { ZeroResultsCTA } from './ZeroResultsCTA'
 
 type ArticleListProps = {
   articles: Article[]
+  searchQuery?: string
 }
 
-export function ArticleList({ articles }: ArticleListProps) {
+export function ArticleList({ articles, searchQuery }: ArticleListProps) {
   if (articles.length === 0) {
+    if (searchQuery) {
+      return <ZeroResultsCTA searchQuery={searchQuery} />
+    }
     return (
       <div className="bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-12 text-center">
         <svg
@@ -26,7 +31,7 @@ export function ArticleList({ articles }: ArticleListProps) {
           No articles found
         </h3>
         <p className="text-zinc-600 dark:text-zinc-400">
-          Try adjusting your search or filters to find what you're looking for.
+          Try adjusting your search or filters to find what you&apos;re looking for.
         </p>
       </div>
     )

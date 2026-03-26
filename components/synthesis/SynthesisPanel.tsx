@@ -7,6 +7,7 @@ import { normalizeQuery } from '@/lib/utils/normalizeQuery'
 type SynthesisPanelProps = {
   query: string
   onClose?: () => void
+  isLoggedIn?: boolean
 }
 
 type StudyBreakdown = {
@@ -39,7 +40,7 @@ type SynthesisData = {
   cache_hits?: number
 }
 
-export function SynthesisPanel({ query, onClose }: SynthesisPanelProps) {
+export function SynthesisPanel({ query, onClose, isLoggedIn }: SynthesisPanelProps) {
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState<SynthesisData | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -435,6 +436,21 @@ export function SynthesisPanel({ query, onClose }: SynthesisPanelProps) {
           {feedbackSubmitted && (
             <div className="bg-green-100 dark:bg-green-900/30 border border-green-300 dark:border-green-700 rounded-lg p-3 text-sm text-green-800 dark:text-green-200 mb-4">
               ✓ Thank you for your feedback!
+            </div>
+          )}
+
+          {/* Soft sign-up nudge for anonymous users */}
+          {!isLoggedIn && (
+            <div className="mt-4 flex items-center justify-between gap-4 bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 rounded-lg px-4 py-3">
+              <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                📌 Save this synthesis to your profile
+              </p>
+              <a
+                href="/signup"
+                className="shrink-0 px-4 py-1.5 bg-[#3D7A5F] hover:bg-[#2F5F4A] text-white rounded-lg text-sm font-medium transition-colors"
+              >
+                Sign up free →
+              </a>
             </div>
           )}
         </div>
