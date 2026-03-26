@@ -40,11 +40,7 @@ export async function searchArticles(filters: ParsedFilters, pageSize = 20): Pro
       const sanitizedSearch = sanitizeSearchTerm(correctedSearch)
 
       if (!sanitizedSearch) {
-        return {
-          data: [],
-          count: 0,
-          error: { message: 'No articles found. Try different search terms.' }
-        }
+        return { data: [], count: 0 }
       }
 
       // TIER 1: Full-text search (fastest, most precise)
@@ -95,14 +91,9 @@ export async function searchArticles(filters: ParsedFilters, pageSize = 20): Pro
         }
       }
 
-      // If no results from any tier
+      // If no results from any tier — not an error, just empty
       if (!searchResult) {
-        return {
-          data: [],
-          count: 0,
-          error: { message: 'No articles found. Try different search terms.' },
-          searchTier
-        }
+        return { data: [], count: 0, searchTier }
       }
 
       // Use the best result we found
@@ -154,13 +145,13 @@ export async function searchArticles(filters: ParsedFilters, pageSize = 20): Pro
 
     const result = await query
 
-    // If there's an error, return a user-friendly message
+    // Genuine DB error — surface it so the UI can show an appropriate message
     if (result.error) {
       console.error('Search error:', result.error)
       return {
         data: [],
         count: 0,
-        error: { message: 'No articles found. Try different search terms.' },
+        error: { message: 'Search is temporarily unavailable. Please try again.' },
         searchTier
       }
     }
@@ -174,7 +165,7 @@ export async function searchArticles(filters: ParsedFilters, pageSize = 20): Pro
     return {
       data: [],
       count: 0,
-      error: { message: 'No articles found. Try different search terms.' }
+      error: { message: 'Search is temporarily unavailable. Please try again.' }
     }
   }
 }

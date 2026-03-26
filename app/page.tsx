@@ -115,11 +115,7 @@ export default async function Home({ searchParams }: HomeProps) {
       {error && (
         <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-8">
           <p className="text-red-800 dark:text-red-200">
-            Error loading articles: {error.message}
-          </p>
-          <p className="text-sm text-red-600 dark:text-red-300 mt-2">
-            Make sure you have run the SQL migration in your Supabase dashboard.
-            See SETUP.md for instructions.
+            {error.message}
           </p>
         </div>
       )}

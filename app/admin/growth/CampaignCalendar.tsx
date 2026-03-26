@@ -883,7 +883,15 @@ export function CampaignCalendar() {
     try {
       // Get the article_id from an existing successful post
       const existingPost = Object.values(allPlatformPosts)[0] as any
-      const sharedArticleId = existingPost?.article_id
+      console.log('[handleRetryFailed] existingPost keys:', existingPost ? Object.keys(existingPost) : 'null')
+
+      // Try all possible nesting paths for article_id
+      const sharedArticleId =
+        existingPost?.article_id ||
+        existingPost?.data?.article_id ||
+        existingPost?.post?.article_id
+
+      console.log('[handleRetryFailed] Resolved article_id:', sharedArticleId)
 
       if (!sharedArticleId) {
         setMessage({ type: 'error', text: 'Could not find article ID from existing posts' })
@@ -903,6 +911,9 @@ export function CampaignCalendar() {
         const platformInfo = PLATFORM_ROTATION.find(p => p.platform === platform)
         if (!platformInfo) throw new Error(`Platform ${platform} not found`)
 
+        console.log('[retry] Attempting platform:', platform)
+        console.log('[retry] Using article_id:', articleId)
+
         try {
           const res = await fetch('/api/growth/generate-post', {
             method: 'POST',
@@ -915,15 +926,16 @@ export function CampaignCalendar() {
             })
           })
           const data = await res.json()
+          console.log('[retry] Response for', platform, ':', data.post_content ? '✓ has content' : `✗ error: ${data.error}`)
 
           if (!data.post_content || data.post_content.includes('SKIP_LARGE_ANIMAL')) {
-            throw new Error('Invalid post content')
+            throw new Error(data.error || 'Invalid post content')
           }
 
           return { platform: platformInfo.platform, language: platformInfo.language, ...data }
         } catch (error) {
           // Retry once after 1 second delay
-          console.log(`[handleRetryFailed] Retrying ${platformInfo.platform} after error`)
+          console.log(`[retry] Retrying ${platformInfo.platform} after error:`, error)
           await new Promise(r => setTimeout(r, 1000))
 
           const res = await fetch('/api/growth/generate-post', {
@@ -937,6 +949,7 @@ export function CampaignCalendar() {
             })
           })
           const data = await res.json()
+          console.log('[retry] Retry response for', platform, ':', data.post_content ? '✓ has content' : `✗ error: ${data.error}`)
           return { platform: platformInfo.platform, language: platformInfo.language, ...data }
         }
       }

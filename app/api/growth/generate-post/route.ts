@@ -25,6 +25,7 @@ export async function POST(request: NextRequest) {
     const platform = body.platform || 'general'
     const language = body.language || 'en'
     const articleId = body.article_id // Optional - reuse specific article
+    console.log('[generate-post] platform:', platform, 'forced article_id:', articleId || '(none)')
 
     // Retry logic for large animal detection
     const MAX_RETRIES = 3
@@ -52,11 +53,14 @@ export async function POST(request: NextRequest) {
         .single()
 
       if (error || !specificArticle) {
+        console.log('[generate-post] Forced article not found:', forcedArticleId, error?.message)
         return NextResponse.json({
           error: 'Article not found',
           details: error?.message
         }, { status: 404 })
       }
+
+      console.log('[generate-post] Forced article found:', specificArticle.id, specificArticle.title?.slice(0, 60))
 
       // Check if forced article is large animal
       const isLargeAnimal = specificArticle?.labels?.some((l: string) =>
@@ -70,6 +74,7 @@ export async function POST(request: NextRequest) {
         article = null
       } else {
         article = specificArticle
+        console.log('[generate-post] Using forced article (small animal)')
       }
     }
 
