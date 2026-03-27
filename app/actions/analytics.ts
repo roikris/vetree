@@ -604,3 +604,32 @@ export async function getTrafficSources(days: number = 7) {
 
   return { data: trafficSources, error: null }
 }
+
+export async function getSynthesisStats(days: number = 7) {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const { data: roleData } = await supabase
+    .from('user_roles')
+    .select('role')
+    .eq('user_id', user.id)
+    .single()
+
+  if (roleData?.role !== 'admin') return { error: 'Unauthorized' }
+
+  const sevenDaysAgo = new Date()
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - days)
+  const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0]
+
+  const { data } = await supabase
+    .from('analytics_daily_snapshot')
+    .select('synthesis_runs, synthesis_helpful')
+    .gte('date', sevenDaysAgoStr)
+
+  const totalRuns = data?.reduce((sum, d) => sum + (d.synthesis_runs || 0), 0) || 0
+  const totalHelpful = data?.reduce((sum, d) => sum + (d.synthesis_helpful || 0), 0) || 0
+
+  return { data: { totalRuns, totalHelpful }, error: null }
+}

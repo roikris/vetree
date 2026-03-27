@@ -1,4 +1,4 @@
-import { getAnalyticsOverview, getTopPages, getVisitorsOverTime, getTopArticles, getSessionDuration, getRecentSearches, getDeviceBreakdown, getTopCountries, getSavedArticlesStats, getTrafficSources } from '@/app/actions/analytics'
+import { getAnalyticsOverview, getTopPages, getVisitorsOverTime, getTopArticles, getSessionDuration, getRecentSearches, getDeviceBreakdown, getTopCountries, getSavedArticlesStats, getTrafficSources, getSynthesisStats } from '@/app/actions/analytics'
 import { AnalyticsClient } from './AnalyticsClient'
 import { UserRetention } from './UserRetention'
 import { AnalysisAgent } from './AnalysisAgent'
@@ -6,7 +6,7 @@ import { AnalysisAgent } from './AnalysisAgent'
 export default async function AdminAnalyticsPage() {
   const days = 7 // Default to 7 days
 
-  const [overview, topPages, visitorsOverTime, topArticles, sessionDuration, recentSearches, deviceBreakdown, topCountries, savedArticlesStats, trafficSources] = await Promise.all([
+  const [overview, topPages, visitorsOverTime, topArticles, sessionDuration, recentSearches, deviceBreakdown, topCountries, savedArticlesStats, trafficSources, synthesisStats] = await Promise.all([
     getAnalyticsOverview(days),
     getTopPages(days),
     getVisitorsOverTime(days),
@@ -16,7 +16,8 @@ export default async function AdminAnalyticsPage() {
     getDeviceBreakdown(days),
     getTopCountries(days),
     getSavedArticlesStats(days),
-    getTrafficSources(days)
+    getTrafficSources(days),
+    getSynthesisStats(days)
   ])
 
   return (
@@ -48,6 +49,7 @@ export default async function AdminAnalyticsPage() {
         initialTopCountries={topCountries.data || []}
         initialSavedArticlesStats={savedArticlesStats.data}
         initialTrafficSources={trafficSources.data || []}
+        initialSynthesisStats={synthesisStats.data || null}
       />
 
       {/* User Retention */}

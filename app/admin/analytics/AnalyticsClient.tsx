@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
-import { getAnalyticsOverview, getTopPages, getVisitorsOverTime, getTopArticles, getSessionDuration, getRecentSearches, getDeviceBreakdown, getTopCountries, getSavedArticlesStats, getTrafficSources } from '@/app/actions/analytics'
+import { getAnalyticsOverview, getTopPages, getVisitorsOverTime, getTopArticles, getSessionDuration, getRecentSearches, getDeviceBreakdown, getTopCountries, getSavedArticlesStats, getTrafficSources, getSynthesisStats } from '@/app/actions/analytics'
 
 type AnalyticsClientProps = {
   initialOverview: any
@@ -15,6 +15,7 @@ type AnalyticsClientProps = {
   initialTopCountries: any[]
   initialSavedArticlesStats: any
   initialTrafficSources: any[]
+  initialSynthesisStats: { totalRuns: number; totalHelpful: number } | null
 }
 
 export function AnalyticsClient({
@@ -27,7 +28,8 @@ export function AnalyticsClient({
   initialDeviceBreakdown,
   initialTopCountries,
   initialSavedArticlesStats,
-  initialTrafficSources
+  initialTrafficSources,
+  initialSynthesisStats
 }: AnalyticsClientProps) {
   const [dateRange, setDateRange] = useState<7 | 30 | 90>(7)
   const [overview, setOverview] = useState(initialOverview)
@@ -40,6 +42,7 @@ export function AnalyticsClient({
   const [topCountries, setTopCountries] = useState(initialTopCountries || [])
   const [savedArticlesStats, setSavedArticlesStats] = useState(initialSavedArticlesStats)
   const [trafficSources, setTrafficSources] = useState(initialTrafficSources || [])
+  const [synthesisStats, setSynthesisStats] = useState(initialSynthesisStats)
   const [isLoading, setIsLoading] = useState(false)
 
   const handleDateRangeChange = async (newRange: 7 | 30 | 90) => {
@@ -47,7 +50,7 @@ export function AnalyticsClient({
     setIsLoading(true)
 
     try {
-      const [overviewRes, topPagesRes, visitorsRes, articlesRes, sessionRes, searchesRes, deviceRes, countriesRes, savedRes, trafficRes] = await Promise.all([
+      const [overviewRes, topPagesRes, visitorsRes, articlesRes, sessionRes, searchesRes, deviceRes, countriesRes, savedRes, trafficRes, synthesisRes] = await Promise.all([
         getAnalyticsOverview(newRange),
         getTopPages(newRange),
         getVisitorsOverTime(newRange),
@@ -57,7 +60,8 @@ export function AnalyticsClient({
         getDeviceBreakdown(newRange),
         getTopCountries(newRange),
         getSavedArticlesStats(newRange),
-        getTrafficSources(newRange)
+        getTrafficSources(newRange),
+        getSynthesisStats(newRange)
       ])
 
       setOverview(overviewRes.data)
@@ -70,6 +74,7 @@ export function AnalyticsClient({
       setTopCountries(countriesRes.data || [])
       setSavedArticlesStats(savedRes.data)
       setTrafficSources(trafficRes.data || [])
+      setSynthesisStats(synthesisRes.data || null)
     } catch (error) {
       console.error('Error loading analytics:', error)
     } finally {
@@ -135,7 +140,7 @@ export function AnalyticsClient({
 
       {/* Overview Cards */}
       {overview && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6">
           <div className="bg-white dark:bg-[#1A1A1A] border border-zinc-200 dark:border-zinc-800 rounded-lg p-6">
             <div className="text-sm text-zinc-600 dark:text-zinc-400 mb-2">Total Pageviews</div>
             <div className="text-3xl font-bold text-[#3D7A5F] dark:text-[#4E9A78]">
@@ -185,6 +190,18 @@ export function AnalyticsClient({
               </div>
             </div>
           )}
+
+          <div className="bg-white dark:bg-[#1A1A1A] border border-zinc-200 dark:border-zinc-800 rounded-lg p-6">
+            <div className="text-sm text-zinc-600 dark:text-zinc-400 mb-2">Synthesis Runs ({dateRange}d)</div>
+            <div className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">
+              {synthesisStats?.totalRuns ?? 0}
+            </div>
+            <div className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+              {synthesisStats && synthesisStats.totalRuns > 0 && synthesisStats.totalHelpful > 0
+                ? `${Math.round(synthesisStats.totalHelpful / synthesisStats.totalRuns * 100)}% helpful`
+                : 'No feedback yet'}
+            </div>
+          </div>
         </div>
       )}
 
