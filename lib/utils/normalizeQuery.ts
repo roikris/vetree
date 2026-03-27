@@ -6,6 +6,7 @@ export function normalizeQuery(query: string): string {
   // Common veterinary misspellings → correct spelling
   const misspellings: Record<string, string> = {
     'astma': 'asthma',
+    'pnumonia': 'pneumonia',
     'diabetis': 'diabetes',
     'lyphoma': 'lymphoma',
     'lymphona': 'lymphoma',
@@ -28,22 +29,83 @@ export function normalizeQuery(query: string): string {
 
   // Veterinary acronym → full term mappings
   const synonyms: Record<string, string> = {
+    // General / existing
     'teca': 'total ear canal ablation',
     'crcl': 'cranial cruciate ligament',
     'tplo': 'tibial plateau leveling osteotomy',
-    'ivdd': 'intervertebral disc disease',
     'imha': 'immune mediated hemolytic anemia',
     'feline': 'cat',
     'canine': 'dog',
     'fip': 'feline infectious peritonitis',
-    'hcm': 'hypertrophic cardiomyopathy',
-    'ckd': 'chronic kidney disease',
     'dm': 'diabetes mellitus',
     'gi': 'gastrointestinal',
     'pyometra': 'pyometra',
     'foreign body': 'foreign body',
     'acl': 'anterior cruciate ligament',
     'ccl': 'cranial cruciate ligament',
+
+    // Pharmacology
+    'nsaid': 'non-steroidal anti-inflammatory',
+    'nsaids': 'non-steroidal anti-inflammatory',
+    'ppi': 'proton pump inhibitor',
+    'ppis': 'proton pump inhibitor',
+    'ace': 'angiotensin converting enzyme',
+    'ab': 'antibiotic',
+    'abx': 'antibiotic',
+
+    // Parasiticides
+    'fluralaner': 'fluralaner ectoparasiticide isoxazoline',
+    'bravecto': 'fluralaner ectoparasiticide',
+    'afoxolaner': 'nexgard ectoparasiticide isoxazoline',
+    'sarolaner': 'simparica ectoparasiticide isoxazoline',
+
+    // Clinical reasoning
+    'ddx': 'differential diagnosis',
+    'dd': 'differential diagnosis',
+    'dx': 'diagnosis',
+    'tx': 'treatment',
+    'rx': 'treatment prescription',
+    'hx': 'history',
+    'px': 'prognosis',
+    'sx': 'surgery surgical',
+    'pe': 'physical examination',
+
+    // Cardiology
+    'cardio': 'cardiology cardiac heart',
+    'chf': 'congestive heart failure',
+    'dcm': 'dilated cardiomyopathy',
+    'hcm': 'hypertrophic cardiomyopathy',
+    'mvd': 'mitral valve disease',
+    'avb': 'atrioventricular block',
+
+    // Oncology
+    'onco': 'oncology cancer tumor',
+    'mct': 'mast cell tumor',
+    'osc': 'osteosarcoma',
+    'lsa': 'lymphoma lymphosarcoma',
+
+    // Orthopedics
+    'oa': 'osteoarthritis degenerative joint disease',
+    'cclr': 'cranial cruciate ligament rupture',
+    'fhne': 'femoral head neck excision',
+
+    // Neurology
+    'ivdd': 'intervertebral disc disease',
+    'gme': 'granulomatous meningoencephalitis',
+    'cva': 'cerebrovascular accident stroke',
+
+    // Emergency / Internal medicine
+    'gdv': 'gastric dilatation volvulus bloat',
+    'gvd': 'gastric dilatation volvulus bloat',
+    'hge': 'hemorrhagic gastroenteritis',
+    'arf': 'acute renal failure kidney',
+    'ckd': 'chronic kidney disease renal',
+    'dka': 'diabetic ketoacidosis',
+
+    // Species abbreviations
+    'k9': 'canine dog',
+    'fel': 'feline cat',
+    'eq': 'equine horse',
   }
 
   let normalized = query.toLowerCase().trim()
