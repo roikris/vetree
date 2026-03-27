@@ -78,6 +78,37 @@ export async function POST(request: NextRequest) {
         }, { onConflict: 'topic' })
       }
 
+      // Signal 2b: Low-result queries as content gap fallback (results > 0 but < 10)
+      // Only surface these when zero-result signals are sparse (< 3), so they fill the gap
+      if (topZeroQueries.length < 3) {
+        const { data: lowResultSearches } = await supabase
+          .from('search_logs')
+          .select('query, results_count')
+          .gt('results_count', 0)
+          .lt('results_count', 10)
+          .gte('created_at', sevenDaysAgo)
+
+        const lowQueryCounts = lowResultSearches?.reduce((acc, s) => {
+          acc[s.query] = (acc[s.query] || 0) + 1
+          return acc
+        }, {} as Record<string, number>)
+
+        const topLowResultQueries = Object.entries(lowQueryCounts || {})
+          .filter(([, count]) => count >= 2)
+          .sort(([,a], [,b]) => b - a)
+          .slice(0, 5)
+
+        for (const [query, count] of topLowResultQueries) {
+          signals.push({
+            date: latest.date,
+            type: 'content_opportunity',
+            severity: Math.min(count / 15, 0.7), // lower severity than zero-result
+            description: `"${query}" searched ${count}x with fewer than 10 results — thin content area`,
+            data_json: { query, search_count: count, results: 'low (<10)' }
+          })
+        }
+      }
+
       // Signal 3: DAU/MAU ratio (stickiness)
       if (latest.mau && latest.mau > 0) {
         const stickiness = (latest.dau || 0) / latest.mau

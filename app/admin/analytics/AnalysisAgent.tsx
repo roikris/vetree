@@ -436,7 +436,7 @@ Please implement this change and commit.`
       )}
 
       {/* Content Roadmap */}
-      {latestAnalysis && latestAnalysis.content_roadmap.length > 0 && (
+      {latestAnalysis && (latestAnalysis.content_roadmap?.length ?? 0) > 0 && (
         <div className="bg-white dark:bg-[#1A1A1A] border border-zinc-200 dark:border-zinc-800 rounded-lg p-6">
           <h3 className="text-lg font-semibold text-[#1A1A1A] dark:text-[#E8E8E8] mb-4">
             📚 Content Roadmap

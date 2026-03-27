@@ -192,7 +192,10 @@ Return this exact JSON structure:
   "weekly_summary": "2-3 sentence summary for Slack notification"
 }
 
-Generate 4-6 insights maximum. Quality over quantity.`
+Generate 4-6 insights maximum. Quality over quantity.
+
+CONTENT ROADMAP RULE: Always populate content_roadmap with 3-5 specific veterinary topics.
+Source priority: (1) signals with type=content_opportunity and results=0 (zero-result queries), (2) signals with type=content_opportunity and results=low (<10) — thin content areas, (3) if no content_opportunity signals exist, derive topics from top_searches in the snapshot that likely have sparse coverage. Never return an empty content_roadmap array.`
 
     console.log('[insights] Calling Claude Sonnet for analysis...')
     console.log('[insights] Prompt length:', userPrompt.length, 'chars')
