@@ -232,25 +232,41 @@ Instead use: specific clinical language, numbers, direct observations, questions
       instagram: 'Visual-first caption. Hook + insight + hashtags at end. 100-150 words.',
       telegram: 'Medium length, informative. 100-150 words. Can be slightly more technical.',
       reddit: 'Informative, evidence-based. 150-250 words. Avoid marketing tone.',
-      tiktok: `Spoken voiceover script, 150-200 words. Conversational and warm — written to be HEARD not read. No hashtags, no bullet points. End with a clear takeaway and the article link.
+      tiktok: `Spoken voiceover script, 80-100 words MAX (not 150-200).
+Must be completable in 30-45 seconds when spoken aloud.
+Conversational and warm — written to be HEARD not read.
+No hashtags, no bullet points, no URLs in the script body.
 
-BANNED HOOKS — never start with these:
+STRUCTURE (strict):
+1. HOOK (seconds 1-3): One punchy sentence that creates urgency or curiosity.
+   Must be a clinical decision, surprising finding, or practice-changing fact.
+   Examples: "This changes how I grade sarcomas before surgery."
+             "Most vets are missing this before anesthesia."
+             "A 12-week diet change achieved diabetic remission in cats."
+
+2. CORE (seconds 4-35): 2-3 sentences of clinical evidence. Specific numbers
+   when available. What did the study find? What changes in practice?
+
+3. TAKEAWAY (seconds 36-45): One sentence. What does the vet do differently
+   tomorrow because of this?
+
+HOOK VARIETY — rotate, never repeat the same style:
+- Surprising statistic: "X% of cats with [condition]..."
+- Practice-changing finding: "This study just changed my [X] protocol."
+- Clinical scenario: "A 6-year-old Lab came in with [X]..."
+- Misconception: "We've been wrong about [X]. Here's the data."
+- Urgency: "If you're still doing [X], read this first."
+- Bold statement: "The evidence on [X] is clearer than we thought."
+
+BANNED OPENINGS:
 - "Did you know"
 - "Have you ever"
-- "Let me tell you"
-- "Today I want to share"
-- "I'm excited to"
+- "Today we're talking about"
+- "Let's talk about"
+- "In this video"
 
-HOOK VARIETY — choose one style per script, never repeat the same type twice in a row:
-- A surprising statistic: "X% of cats with [condition]..."
-- A clinical scenario: "You're in the middle of a consult and..."
-- A misconception challenge: "Most vets still think [X]. Here's what the research actually shows."
-- A direct question to the viewer: "When did you last reconsider your [X] protocol?"
-- A patient outcome: "A 6-year-old Lab came in with [X]..."
-- A research reveal: "A new study just changed how I think about [X]..."
-- A bold statement: "The evidence on [X] is clearer than we thought."
-
-Think: vet educator talking to a colleague over coffee, not a content creator.`
+Think: vet educator, 45 seconds, colleague over coffee, clinical and specific.
+Shorter = more completions = more reach.`
     }
 
     const platformRule = platformRules[platform as keyof typeof platformRules] || platformRules.telegram
@@ -331,25 +347,21 @@ Labels: ${article.labels?.join(', ') || 'N/A'}
 IMPORTANT: This post is for small animal first opinion practice only. If the article is about large animals, equine, livestock, or poultry - do not generate a post and return ONLY the text: SKIP_LARGE_ANIMAL
 
 TIKTOK SCRIPT RULES (CRITICAL):
-- Write to be SPOKEN, not read
-- 150-200 words
-- Start with a hook question or surprising fact
-- Conversational and warm - like talking to a colleague over coffee
-- Natural sentence breaks create pauses
-- No hashtags, no bullet points
-- End with a clear takeaway
-- After the script, add the link on a new line
+- 80-100 words MAX — completable in 30-45 seconds spoken aloud
+- No URLs, hashtags, or bullet points in the script body
+- Natural sentence breaks create spoken pauses
+- After the script, add the link on a new line (not inside the script)
 
 Format:
-[Hook question or surprising fact - 1-2 sentences]
+[HOOK — 1 punchy sentence, seconds 1-3]
 
-[Main insight - conversational explanation, 3-4 sentences]
+[CORE — 2-3 sentences of clinical evidence with specific numbers, seconds 4-35]
 
-[Clinical takeaway - what this means for practice, 2-3 sentences]
+[TAKEAWAY — 1 sentence, what the vet does differently tomorrow, seconds 36-45]
 
 🔗 vetree.app/article/${article.id}?${utmParams.tiktok}
 
-Return ONLY the voiceover script with the link at the end.`
+Return ONLY the voiceover script followed by the link on a new line.`
     } else {
       promptContent = `PLATFORM: ${platform}
 PLATFORM RULE: ${platformRule}
