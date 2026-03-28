@@ -7,6 +7,23 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 300 // 5 minutes for sending emails
 
+async function sendSlackNotification(sentCount: number, skippedCount: number, errorCount: number, totalUsers: number) {
+  const webhookUrl = process.env.SLACK_WEBHOOK_URL
+  if (!webhookUrl) return
+
+  try {
+    await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        text: `🌿 *Vetree Weekly Digest Sent*\n• Emails sent: ${sentCount}\n• Skipped: ${skippedCount}\n• Errors: ${errorCount}\n• Total users: ${totalUsers}`
+      })
+    })
+  } catch (error) {
+    console.error('[digest] Slack notification error:', error)
+  }
+}
+
 export async function POST(request: NextRequest) {
   const startTime = Date.now()
   let triggeredBy = 'github-action' // default
@@ -59,6 +76,7 @@ export async function POST(request: NextRequest) {
 
     let sentCount = 0
     let skippedCount = 0
+    let errorCount = 0
     const fiveDaysAgo = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000)
     const fiveDaysAgoISO = fiveDaysAgo.toISOString()
     const fiveDaysAgoDate = fiveDaysAgo.toISOString().split('T')[0]
@@ -200,6 +218,7 @@ export async function POST(request: NextRequest) {
         sentCount++
       } catch (emailError) {
         console.error(`[digest] Failed to send to ${user.email}:`, emailError)
+        errorCount++
       }
     }
 
@@ -217,6 +236,8 @@ export async function POST(request: NextRequest) {
     if (logError) {
       console.error('[digest] Failed to log run:', logError)
     }
+
+    await sendSlackNotification(sentCount, skippedCount, errorCount, users.length)
 
     return NextResponse.json({
       success: true,
