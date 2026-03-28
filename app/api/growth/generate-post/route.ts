@@ -232,7 +232,25 @@ Instead use: specific clinical language, numbers, direct observations, questions
       instagram: 'Visual-first caption. Hook + insight + hashtags at end. 100-150 words.',
       telegram: 'Medium length, informative. 100-150 words. Can be slightly more technical.',
       reddit: 'Informative, evidence-based. 150-250 words. Avoid marketing tone.',
-      tiktok: 'Spoken voiceover script, 150-200 words. Conversational and warm — written to be HEARD not read. No hashtags, no bullet points. Start with a hook question or surprising fact. End with a clear takeaway. Natural pauses implied by sentence breaks. Think: vet educator talking to a colleague over coffee.'
+      tiktok: `Spoken voiceover script, 150-200 words. Conversational and warm — written to be HEARD not read. No hashtags, no bullet points. End with a clear takeaway and the article link.
+
+BANNED HOOKS — never start with these:
+- "Did you know"
+- "Have you ever"
+- "Let me tell you"
+- "Today I want to share"
+- "I'm excited to"
+
+HOOK VARIETY — choose one style per script, never repeat the same type twice in a row:
+- A surprising statistic: "X% of cats with [condition]..."
+- A clinical scenario: "You're in the middle of a consult and..."
+- A misconception challenge: "Most vets still think [X]. Here's what the research actually shows."
+- A direct question to the viewer: "When did you last reconsider your [X] protocol?"
+- A patient outcome: "A 6-year-old Lab came in with [X]..."
+- A research reveal: "A new study just changed how I think about [X]..."
+- A bold statement: "The evidence on [X] is clearer than we thought."
+
+Think: vet educator talking to a colleague over coffee, not a content creator.`
     }
 
     const platformRule = platformRules[platform as keyof typeof platformRules] || platformRules.telegram
