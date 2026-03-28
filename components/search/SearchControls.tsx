@@ -12,6 +12,34 @@ import { Onboarding } from '@/components/onboarding/Onboarding'
 import { Footer } from '@/components/ui/Footer'
 import { BottomNav } from '@/components/ui/BottomNav'
 import { useCallback, useRef, useEffect, ReactNode } from 'react'
+import { Facebook, Instagram, Twitter } from 'lucide-react'
+
+const socialLinks = [
+  {
+    name: 'Facebook',
+    url: 'https://www.facebook.com/profile.php?id=61580762360451',
+    icon: <Facebook size={16} />,
+  },
+  {
+    name: 'Instagram',
+    url: 'https://www.instagram.com/vetreeapp/',
+    icon: <Instagram size={16} />,
+  },
+  {
+    name: 'X / Twitter',
+    url: 'https://x.com/Vetree_app',
+    icon: <Twitter size={16} />,
+  },
+  {
+    name: 'TikTok',
+    url: 'https://www.tiktok.com/@vetreeapp',
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.33-6.34V8.69a8.18 8.18 0 0 0 4.78 1.52V6.75a4.85 4.85 0 0 1-1.01-.06z"/>
+      </svg>
+    ),
+  },
+]
 
 type SearchControlsProps = {
   initialFilters: ParsedFilters
@@ -113,6 +141,21 @@ export function SearchControls({
 
               {/* Auth and dark mode toggle */}
               <div className="absolute top-0 right-0 flex items-center gap-2 md:gap-3">
+                {/* Social icons — desktop only */}
+                <div className="hidden md:flex items-center gap-3 mr-1">
+                  {socialLinks.map(social => (
+                    <a
+                      key={social.name}
+                      href={social.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={social.name}
+                      className="text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors"
+                    >
+                      {social.icon}
+                    </a>
+                  ))}
+                </div>
                 <AuthButton />
                 <DarkModeToggle />
               </div>
