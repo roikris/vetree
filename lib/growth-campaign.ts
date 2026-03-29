@@ -14,7 +14,8 @@ export const PLATFORM_ROTATION = [
   { platform: 'twitter', language: 'en', icon: '🐦', name: 'Twitter/X' },
   { platform: 'instagram', language: 'en', icon: '📸', name: 'Instagram' },
   { platform: 'telegram', language: 'en', icon: '✈️', name: 'Telegram' },
-  { platform: 'tiktok', language: 'en', icon: '🎵', name: 'TikTok' }
+  { platform: 'tiktok', language: 'en', icon: '🎵', name: 'TikTok' },
+  { platform: 'threads', language: 'en', icon: '🧵', name: 'Threads' }
 ]
 
 // Calculate which day of the campaign we're on (1-90)

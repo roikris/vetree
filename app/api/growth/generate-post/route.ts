@@ -198,7 +198,8 @@ export async function POST(request: NextRequest) {
       instagram: 'utm_source=instagram&utm_medium=social',
       telegram: 'utm_source=telegram&utm_medium=social',
       reddit: 'utm_source=reddit&utm_medium=social',
-      tiktok: 'utm_source=tiktok&utm_medium=social'
+      tiktok: 'utm_source=tiktok&utm_medium=social',
+      threads: 'utm_source=threads&utm_medium=social'
     }
 
     const articleUrl = `https://vetree.app/article/${article.id}?${utmParams[platform as keyof typeof utmParams] || 'utm_source=social&utm_medium=social'}`
@@ -232,6 +233,31 @@ Instead use: specific clinical language, numbers, direct observations, questions
       instagram: 'Visual-first caption. Hook + insight + hashtags at end. 100-150 words.',
       telegram: 'Medium length, informative. 100-150 words. Can be slightly more technical.',
       reddit: 'Informative, evidence-based. 150-250 words. Avoid marketing tone.',
+      threads: `Conversational text post, 150-300 words. Threads is personality-driven and rewards replies over likes. Pick ONE of these formats per generation (rotate between them, never use the same format twice in a row):
+
+FORMAT A — Hot Take:
+A strong clinical opinion or evidence-based stance that invites discussion.
+End with a direct question to the reader.
+Example structure: "[Bold claim about clinical practice]. Here's why: [evidence]. Do you agree, or is your experience different?"
+
+FORMAT B — Micro-Story:
+A short 2-3 paragraph relatable clinical moment. Small win, surprising finding, or case that made you think differently. Personal and warm tone.
+
+FORMAT C — Mini Thread (list):
+Hook line + numbered list of 3-5 clinical insights from the article.
+Make the first line strong enough to make people click "Show more."
+Example: "3 things this study changed about how I [X]:"
+
+FORMAT D — Direct Question:
+Open with the clinical finding, then ask the community a specific question related to their practice. Invites replies.
+Example: "New data on [X]. How are you handling this in your clinic?"
+
+RULES FOR ALL FORMATS:
+- Conversational, not polished — write like you're thinking out loud
+- No hashtags (they underperform on Threads)
+- No bullet points with dashes — use numbers or plain prose
+- Reference the specific finding from the article
+- Small animal first opinion focus`,
       tiktok: `Spoken voiceover script, 80-100 words MAX (not 150-200).
 Must be completable in 30-45 seconds when spoken aloud.
 Conversational and warm — written to be HEARD not read.
@@ -362,6 +388,46 @@ Format:
 🔗 vetree.app/article/${article.id}?${utmParams.tiktok}
 
 Return ONLY the voiceover script followed by the link on a new line.`
+    } else if (platform === 'threads') {
+      // Fetch last Threads post to avoid repeating the same format
+      const { data: lastThreads } = await supabase
+        .from('growth_agent_memory')
+        .select('hook_line')
+        .eq('platform', 'threads')
+        .eq('outcome', 'approved')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      const formatHint = lastThreads?.hook_line
+        ? `\n\nLast Threads post style used: "${lastThreads.hook_line.slice(0, 80)}..."\nUse a DIFFERENT format this time.`
+        : ''
+
+      promptContent = `PLATFORM: Threads
+PLATFORM RULE: ${platformRule}
+
+Write a ${language} Threads post.
+
+Article: ${article.title}
+Clinical Bottom Line: ${article.clinical_bottom_line}
+Labels: ${article.labels?.join(', ') || 'N/A'}
+
+IMPORTANT: This post is for small animal first opinion practice only. If the article is about large animals, equine, livestock, or poultry - do not generate a post and return ONLY the text: SKIP_LARGE_ANIMAL
+
+THREADS RULES (CRITICAL):
+- 150-300 words
+- Choose ONE format (A, B, C, or D) as described in the platform rule
+- Conversational, not polished — write like thinking out loud
+- No hashtags, no dashes for bullet points
+- End with the article link on its own line
+${formatHint}
+
+Format:
+[Your chosen format post — 150-300 words]
+
+🔗 ${articleUrl}
+
+Return ONLY the post text. Do not label which format you chose.`
     } else {
       promptContent = `PLATFORM: ${platform}
 PLATFORM RULE: ${platformRule}
