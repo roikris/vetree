@@ -25,15 +25,19 @@ export default async function Home({ searchParams }: HomeProps) {
   const filters = parseSearchParams(params)
 
   // Check if user is logged in
+  // Use getSession() for UI gating (reads local cookie, no network round-trip — reliable even during token refresh)
+  // Use getUser() where needed for security-sensitive checks
   const supabase = await createClient()
+  const { data: { session } } = await supabase.auth.getSession()
   const { data: { user } } = await supabase.auth.getUser()
-  const isLoggedIn = !!user
+  const isLoggedIn = !!(session || user)
 
-  // Fetch public stats for hero section
-  const statsResponse = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://vetree.app'}/api/stats/public`, {
-    next: { revalidate: 3600 }
-  })
-  const stats = await statsResponse.json().catch(() => ({ confirmed_users: 0, articles_count: 8000 }))
+  // Fetch public stats for hero section (only needed for guests)
+  const stats = !isLoggedIn
+    ? await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://vetree.app'}/api/stats/public`, {
+        next: { revalidate: 3600 }
+      }).then(r => r.json()).catch(() => ({ confirmed_users: 0, articles_count: 8000 }))
+    : { confirmed_users: 0, articles_count: 0 }
 
   // Fetch most recent article for hero example (only if not logged in and on first page)
   let exampleArticle = null
