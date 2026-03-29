@@ -1,0 +1,21 @@
+name: Security Agent - Weekly Scan
+
+on:
+  schedule:
+    # Thursday 19:00 UTC = Thursday 21:00 Israel (UTC+2) / 22:00 (UTC+3 summer)
+    - cron: '0 19 * * 4'
+  workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run Security Scan
+        run: |
+          curl -X POST https://vetree.app/api/admin/security/scan \
+            -H "Authorization: Bearer ${{ secrets.DIGEST_SECRET }}" \
+            -H "Content-Type: application/json" \
+            --max-time 120

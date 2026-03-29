@@ -10,6 +10,7 @@ const navItems = [
   { href: '/admin/reports', label: 'Reports', icon: '🐛' },
   { href: '/admin/users', label: 'Users', icon: '👥' },
   { href: '/admin/pipeline', label: 'Pipeline', icon: '⚙️' },
+  { href: '/admin/security', label: 'Security', icon: '🔒' },
   { href: '/admin/growth', label: 'Growth OS', icon: '🌿' },
 ]
 
