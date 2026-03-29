@@ -44,6 +44,42 @@ export function AnalyticsClient({
   const [trafficSources, setTrafficSources] = useState(initialTrafficSources || [])
   const [synthesisStats, setSynthesisStats] = useState(initialSynthesisStats)
   const [isLoading, setIsLoading] = useState(false)
+  const [sortColumn, setSortColumn] = useState<'query' | 'count' | 'avg_results' | 'last_searched'>('count')
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
+
+  const handleSort = (column: typeof sortColumn) => {
+    if (sortColumn === column) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortColumn(column)
+      setSortDirection('desc')
+    }
+  }
+
+  const sortedSearches = [...recentSearches].sort((a, b) => {
+    const dir = sortDirection === 'asc' ? 1 : -1
+    switch (sortColumn) {
+      case 'query': return dir * a.query.localeCompare(b.query)
+      case 'count': return dir * (a.count - b.count)
+      case 'avg_results': return dir * (a.avgResults - b.avgResults)
+      case 'last_searched': return dir * (new Date(a.lastSearched).getTime() - new Date(b.lastSearched).getTime())
+      default: return 0
+    }
+  })
+
+  const SortableHeader = ({ column, label }: { column: typeof sortColumn, label: string }) => (
+    <th
+      onClick={() => handleSort(column)}
+      className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer hover:text-white select-none group"
+    >
+      <div className="flex items-center gap-1">
+        {label}
+        <span className="text-gray-600 group-hover:text-gray-400">
+          {sortColumn === column ? (sortDirection === 'asc' ? ' ↑' : ' ↓') : ' ↕'}
+        </span>
+      </div>
+    </th>
+  )
 
   const handleDateRangeChange = async (newRange: 7 | 30 | 90) => {
     setDateRange(newRange)
@@ -513,23 +549,15 @@ export function AnalyticsClient({
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-zinc-200 dark:border-zinc-800">
-                  <th className="text-left py-3 px-4 text-sm font-medium text-zinc-600 dark:text-zinc-400">
-                    Query
-                  </th>
-                  <th className="text-right py-3 px-4 text-sm font-medium text-zinc-600 dark:text-zinc-400">
-                    Times Searched
-                  </th>
-                  <th className="text-right py-3 px-4 text-sm font-medium text-zinc-600 dark:text-zinc-400">
-                    Avg Results
-                  </th>
-                  <th className="text-right py-3 px-4 text-sm font-medium text-zinc-600 dark:text-zinc-400">
-                    Last Searched
-                  </th>
+                <tr className="border-b border-gray-700">
+                  <SortableHeader column="query" label="Query" />
+                  <SortableHeader column="count" label="Searches" />
+                  <SortableHeader column="avg_results" label="Avg. Results" />
+                  <SortableHeader column="last_searched" label="Last Searched" />
                 </tr>
               </thead>
               <tbody>
-                {recentSearches.map((search, idx) => (
+                {sortedSearches.map((search, idx) => (
                   <tr
                     key={idx}
                     className="border-b border-zinc-200 dark:border-zinc-800 last:border-0"
