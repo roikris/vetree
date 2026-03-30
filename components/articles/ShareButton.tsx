@@ -139,6 +139,7 @@ export function ShareButton({ articleId, title, clinicalBottomLine }: ShareButto
             {/* Copy Link */}
             <button
               onClick={handleCopyLink}
+              aria-label={copied ? 'Link copied!' : 'Copy link to clipboard'}
               className="p-2 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors relative"
               title="Copy link"
             >

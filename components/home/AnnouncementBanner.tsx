@@ -27,6 +27,7 @@ export function AnnouncementBanner() {
         </span>
         <button
           onClick={handleTryIt}
+          aria-label="Try evidence synthesis — scroll to search bar"
           className="text-emerald-400 font-medium cursor-pointer hover:text-white transition"
         >
           Try it →

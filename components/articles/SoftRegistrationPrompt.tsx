@@ -68,12 +68,14 @@ export function SoftRegistrationPrompt({ labels }: SoftRegistrationPromptProps) 
         <div className="flex items-center gap-3">
           <button
             onClick={handleFollowTopic}
+            aria-label="Follow this topic to get updates"
             className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-medium transition-colors whitespace-nowrap"
           >
             Follow this topic
           </button>
           <button
             onClick={handleSubscribeDigest}
+            aria-label="Subscribe to weekly veterinary research digest"
             className="px-4 py-2 bg-white text-[#3D7A5F] hover:bg-white/90 rounded-lg text-sm font-medium transition-colors whitespace-nowrap"
           >
             Subscribe to digest

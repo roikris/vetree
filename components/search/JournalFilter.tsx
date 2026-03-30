@@ -32,6 +32,8 @@ export function JournalFilter({ availableJournals, selected, onChange }: Journal
     <div className="space-y-2">
       <button
         onClick={() => setIsExpanded(!isExpanded)}
+        aria-label={isExpanded ? 'Collapse journals filter' : 'Expand journals filter'}
+        aria-expanded={isExpanded}
         className="flex items-center justify-between w-full text-left text-sm font-semibold text-zinc-900 dark:text-white"
       >
         <span>

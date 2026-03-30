@@ -58,6 +58,8 @@ export function FollowTopicButtons({ labels, isLoggedIn }: FollowTopicButtonsPro
             key={label}
             onClick={() => handleFollow(label)}
             disabled={isFollowed || isLoading}
+            aria-label={isFollowed ? `Following ${label}` : `Follow ${label} topic`}
+            aria-pressed={isFollowed}
             className={`px-3 py-1 rounded-full text-sm font-medium border transition-colors ${
               isFollowed
                 ? 'bg-[#3D7A5F]/10 text-[#3D7A5F] border-[#3D7A5F]/20 cursor-default'

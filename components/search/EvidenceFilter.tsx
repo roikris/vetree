@@ -27,6 +27,8 @@ export function EvidenceFilter({ availableLevels, selected, onChange }: Evidence
     <div className="space-y-2">
       <button
         onClick={() => setIsExpanded(!isExpanded)}
+        aria-label={isExpanded ? 'Collapse strength of evidence filter' : 'Expand strength of evidence filter'}
+        aria-expanded={isExpanded}
         className="flex items-center justify-between w-full text-left text-sm font-semibold text-zinc-900 dark:text-white"
       >
         <span>

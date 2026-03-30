@@ -28,6 +28,8 @@ export function ArticleSummary({
       {shouldTruncate && (
         <button
           onClick={() => setIsExpanded(!isExpanded)}
+          aria-label={isExpanded ? 'Show less of article summary' : 'Show more of article summary'}
+          aria-expanded={isExpanded}
           className="text-[#3D7A5F] dark:text-[#4E9A78] hover:text-[#2F5F4A] dark:hover:text-[#5FAA88] text-sm mt-2 font-medium transition-colors"
         >
           {isExpanded ? 'Show less ↑' : 'Show more ↓'}

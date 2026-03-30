@@ -69,6 +69,7 @@ export function Pagination({ currentPage, totalPages, filters }: PaginationProps
       <button
         onClick={() => goToPage(currentPage - 1)}
         disabled={currentPage === 1}
+        aria-label="Go to previous page"
         className={`px-4 py-2.5 text-sm font-semibold rounded-lg transition-colors flex items-center gap-2 ${
           currentPage === 1
             ? 'bg-zinc-200 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-600 cursor-not-allowed'
@@ -99,6 +100,8 @@ export function Pagination({ currentPage, totalPages, filters }: PaginationProps
             <button
               key={pageNum}
               onClick={() => goToPage(pageNum)}
+              aria-label={`Go to page ${pageNum}`}
+              aria-current={isActive ? 'page' : undefined}
               className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
                 isActive
                   ? 'bg-[#3D7A5F] dark:bg-[#4E9A78] text-white'
@@ -115,6 +118,7 @@ export function Pagination({ currentPage, totalPages, filters }: PaginationProps
       <button
         onClick={() => goToPage(currentPage + 1)}
         disabled={currentPage === totalPages}
+        aria-label="Go to next page"
         className={`px-4 py-2.5 text-sm font-semibold rounded-lg transition-colors flex items-center gap-2 ${
           currentPage === totalPages
             ? 'bg-zinc-200 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-600 cursor-not-allowed'

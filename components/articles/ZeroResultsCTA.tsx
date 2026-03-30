@@ -45,6 +45,7 @@ export function ZeroResultsCTA({ searchQuery }: ZeroResultsCTAProps) {
 
       <button
         onClick={handleSynthesis}
+        aria-label={`Synthesize evidence for "${searchQuery}"`}
         className="inline-flex items-center gap-2 px-6 py-3
                    bg-emerald-700 hover:bg-emerald-600 text-white
                    rounded-lg font-medium text-lg transition mb-4"
@@ -65,6 +66,7 @@ export function ZeroResultsCTA({ searchQuery }: ZeroResultsCTAProps) {
               <button
                 key={term}
                 onClick={() => handleSearch(term)}
+                aria-label={`Search for ${term}`}
                 className="px-3 py-1.5 bg-gray-700 hover:bg-gray-600
                            text-gray-300 rounded-full text-sm transition"
               >

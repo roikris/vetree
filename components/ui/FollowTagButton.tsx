@@ -43,6 +43,8 @@ export function FollowTagButton({ tag }: FollowTagButtonProps) {
     <button
       onClick={toggleFollow}
       disabled={isLoading}
+      aria-label={following ? `Unfollow ${tag} topic` : `Follow ${tag} topic`}
+      aria-pressed={following}
       className={`ml-1.5 text-xs px-2 py-0.5 rounded-full transition-colors ${
         following
           ? 'text-[#3D7A5F] dark:text-[#4E9A78] hover:text-[#2F5F4A] dark:hover:text-[#5FAA88]'
