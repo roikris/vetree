@@ -227,19 +227,46 @@ export async function POST(request: NextRequest) {
             max_tokens: 500,
             messages: [{
               role: 'user',
-              content: `Generate a specific Claude Code prompt to fix this security issue in Vetree:
+              content: `You are generating a Claude Code prompt to fix a security issue in Vetree, a Next.js + Supabase veterinary platform.
 
-Issue: ${finding.title}
+VETREE EXISTING PATTERNS — fixes MUST follow these, never invent new ones:
+
+AUTH PATTERN (use this for any auth fix):
+- Use createClient from @/lib/supabase/server to get session from cookies
+- Check user_roles table for admin: .from('user_roles').select('role').eq('user_id', user.id)
+- Return 401 if no user, 403 if not admin
+- Never create new auth utility files
+
+ADMIN ROUTES PATTERN:
+- Always add: export const runtime = 'nodejs' and export const dynamic = 'force-dynamic'
+- Initialize Supabase client INSIDE the handler function, never at module level
+- Use SUPABASE_SERVICE_ROLE_KEY for admin routes
+
+RLS PATTERN:
+- Enable RLS: ALTER TABLE x ENABLE ROW LEVEL SECURITY
+- Admin policy: USING (EXISTS (SELECT 1 FROM user_roles WHERE user_id = auth.uid() AND role = 'admin'))
+- Public read: USING (true)
+- Public insert (analytics): WITH CHECK (true)
+
+RATE LIMITING PATTERN:
+- Import from @/lib/ratelimit (ratelimitStrict/Moderate/Loose already exist)
+- const ip = request.headers.get('x-forwarded-for') ?? '127.0.0.1'
+
+DO NOT suggest:
+- Creating new auth utility files
+- Using middleware for route protection
+- Any pattern not listed above
+
+SECURITY ISSUE TO FIX:
+Title: ${finding.title}
 Description: ${finding.description}
 Affected: ${finding.affected.join(', ')}
 
-The fix prompt should:
-- Be ready to paste directly into Claude Code
-- Reference specific files in the Vetree codebase
-- Be actionable in under 1 hour
-- Follow Vetree patterns (Next.js App Router, Supabase, service role key for admin routes)
-
-Return ONLY the prompt text, nothing else.`
+Generate a ready-to-paste Claude Code prompt that:
+1. Starts with: "Read CLAUDE.md, app/api/CLAUDE.md, supabase/CLAUDE.md first. Then:"
+2. References specific existing files and patterns above
+3. Is achievable in under 1 hour
+4. Returns ONLY the prompt text, nothing else.`
             }]
           })
           return {
