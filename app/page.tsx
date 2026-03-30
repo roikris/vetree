@@ -2,8 +2,7 @@ import { parseSearchParams } from '@/lib/utils/searchParams'
 import { searchArticles, getUniqueJournals, getDistinctEvidenceLevels } from '@/lib/queries/articles'
 import { SearchControls } from '@/components/search/SearchControls'
 import { ResultsCount } from '@/components/ui/ResultsCount'
-import { ArticleList } from '@/components/articles/ArticleList'
-import { Pagination } from '@/components/ui/Pagination'
+import { ArticleFeedWrapper } from '@/components/articles/ArticleFeedWrapper'
 import { DisclaimerBanner } from '@/components/ui/DisclaimerBanner'
 import { TrendingArticles } from '@/components/articles/TrendingArticles'
 import { PersonalizedFeed } from '@/components/articles/PersonalizedFeed'
@@ -163,17 +162,9 @@ export default async function Home({ searchParams }: HomeProps) {
 
           {/* Synthesis wrapper - shows synthesis button and panel when search query exists */}
           <SynthesisWrapper searchQuery={filters.search} isLoggedIn={isLoggedIn}>
-            {/* FIX 2: Pagination at top */}
-            <Pagination
-              currentPage={filters.page}
-              totalPages={totalPages}
-              filters={filters}
-            />
-
-            <ArticleList articles={deduplicatedArticles} searchQuery={filters.search || undefined} />
-
-            {/* FIX 2: Pagination at bottom */}
-            <Pagination
+            <ArticleFeedWrapper
+              articles={deduplicatedArticles}
+              searchQuery={filters.search || undefined}
               currentPage={filters.page}
               totalPages={totalPages}
               filters={filters}

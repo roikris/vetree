@@ -1,5 +1,5 @@
 import { Article } from '@/lib/supabase'
-import { ArticleSummary } from './ArticleSummary'
+import { LazySummary } from './LazySummary'
 import { getLabelColor } from '@/lib/constants/labelColors'
 import { BookmarkButton } from './BookmarkButton'
 import { SaveCount } from './SaveCount'
@@ -120,10 +120,8 @@ export function ArticleCard({ article }: ArticleCardProps) {
           />
         </div>
 
-        {/* 6. Summary */}
-        {article.summary && (
-          <ArticleSummary summary={article.summary} expandedByDefault={false} />
-        )}
+        {/* 6. Summary — lazy loaded on demand */}
+        <LazySummary articleId={article.id} initialSummary={article.summary} />
 
         {/* 7. Labels with pastel colors + follow buttons */}
         {cleanLabels.length > 0 && (

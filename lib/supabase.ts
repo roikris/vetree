@@ -6,7 +6,7 @@ export const supabase = createClient()
 export type Article = {
   id: string
   title: string
-  summary: string
+  summary?: string | null
   clinical_bottom_line: string
   strength_of_evidence: string
   labels: string[]

@@ -7,10 +7,11 @@ import { ParsedFilters } from '@/types/search'
 type PaginationProps = {
   currentPage: number
   totalPages: number
-  filters: ParsedFilters
+  filters?: ParsedFilters
+  onPageChange?: (page: number) => void
 }
 
-export function Pagination({ currentPage, totalPages, filters }: PaginationProps) {
+export function Pagination({ currentPage, totalPages, filters, onPageChange }: PaginationProps) {
   const router = useRouter()
 
   if (totalPages <= 1) {
@@ -18,11 +19,13 @@ export function Pagination({ currentPage, totalPages, filters }: PaginationProps
   }
 
   const goToPage = (page: number) => {
-    const newFilters = { ...filters, page }
+    if (onPageChange) {
+      onPageChange(page)
+      return
+    }
+    const newFilters = { ...filters!, page }
     const params = buildSearchParams(newFilters)
     router.push(`/?${params}`)
-
-    // FIX 1: Scroll to top on page change
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
