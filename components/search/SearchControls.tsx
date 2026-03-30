@@ -131,9 +131,9 @@ export function SearchControls({
               </svg>
 
               <div className="flex-1">
-                <h1 className="text-2xl md:text-4xl font-semibold text-[#1A1A1A] dark:text-[#E8E8E8] mb-0.5 md:mb-1">
+                <p className="text-2xl md:text-4xl font-semibold text-[#1A1A1A] dark:text-[#E8E8E8] mb-0.5 md:mb-1">
                   Vetree
-                </h1>
+                </p>
                 <p className="text-sm md:text-base text-zinc-500 dark:text-zinc-400">
                   Evidence-based veterinary research, distilled.
                 </p>

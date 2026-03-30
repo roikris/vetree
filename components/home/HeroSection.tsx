@@ -43,9 +43,9 @@ export function HeroSection({ exampleArticle, stats }: HeroSectionProps) {
             <div className="text-sm text-zinc-500 dark:text-zinc-400 mb-2">
               {exampleArticle.source_journal}
             </div>
-            <h3 className="text-lg font-semibold text-[#3D7A5F] dark:text-[#4E9A78] mb-3">
+            <h2 className="text-lg font-semibold text-[#3D7A5F] dark:text-[#4E9A78] mb-3">
               {exampleArticle.title}
-            </h3>
+            </h2>
             {exampleArticle.clinical_bottom_line && (
               <div className="flex gap-2 items-start">
                 <span className="text-emerald-500 text-sm mt-1">●</span>

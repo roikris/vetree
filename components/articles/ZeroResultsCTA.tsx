@@ -35,9 +35,9 @@ export function ZeroResultsCTA({ searchQuery }: ZeroResultsCTAProps) {
     <div className="text-center py-12 px-6">
       <div className="text-5xl mb-4">🔍</div>
 
-      <h3 className="text-xl font-semibold text-white mb-2">
+      <h2 className="text-xl font-semibold text-white mb-2">
         No articles found for &ldquo;{searchQuery}&rdquo;
-      </h3>
+      </h2>
       <p className="text-gray-400 mb-8 max-w-md mx-auto">
         We don&apos;t have articles matching this exact term yet —
         but our AI can synthesize evidence from related research.

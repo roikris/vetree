@@ -17,8 +17,30 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Vetree - Veterinary Research Platform",
-  description: "Search and browse veterinary research articles",
+  title: 'Vetree — Evidence-Based Veterinary Research',
+  description: 'AI-powered summaries of peer-reviewed veterinary research. Search 15,000+ articles from top journals and get the clinical bottom line instantly. Free for veterinary professionals.',
+  metadataBase: new URL('https://vetree.app'),
+  alternates: {
+    canonical: '/',
+  },
+  openGraph: {
+    title: 'Vetree — Evidence-Based Veterinary Research',
+    description: 'AI-powered summaries of peer-reviewed veterinary research. Get the clinical bottom line from 15,000+ articles instantly.',
+    url: 'https://vetree.app',
+    siteName: 'Vetree',
+    type: 'website',
+    images: [{
+      url: 'https://vetree.app/icons/icon-512x512.png',
+      width: 512,
+      height: 512,
+      alt: 'Vetree — Veterinary Research Platform',
+    }],
+  },
+  twitter: {
+    card: 'summary',
+    title: 'Vetree — Evidence-Based Veterinary Research',
+    description: 'AI-powered clinical summaries from 15,000+ peer-reviewed veterinary articles.',
+  },
   manifest: '/manifest.json',
   themeColor: '#3D7A5F',
   appleWebApp: {
