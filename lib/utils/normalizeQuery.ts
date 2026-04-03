@@ -106,6 +106,18 @@ export function normalizeQuery(query: string): string {
     'k9': 'canine dog',
     'fel': 'feline cat',
     'eq': 'equine horse',
+
+    // Integrative / CAM — multi-word phrases first (processed before single-word keys)
+    'integrative veterinary': 'holistic alternative complementary',
+    'alternative medicine': 'integrative holistic complementary',
+    'pain management': 'analgesia analgesic nsaid opioid',
+    'integrative': 'holistic alternative complementary acupuncture',
+    'holistic': 'integrative alternative complementary',
+    'complementary': 'integrative holistic alternative',
+    'analgesic': 'pain management nsaid analgesia',
+    'anti-inflammatory': 'nsaid pain management inflammation',
+    'oncology': 'cancer tumor neoplasia lymphoma',
+    'quantum': '',
   }
 
   let normalized = query.toLowerCase().trim()
