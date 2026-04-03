@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { Article } from '@/lib/supabase'
 import { AnnouncementBanner } from './AnnouncementBanner'
+import { ExampleSearchChips } from './ExampleSearchChips'
 
 type HeroSectionProps = {
   exampleArticle: Article | null
@@ -77,6 +78,9 @@ export function HeroSection({ exampleArticle, stats }: HeroSectionProps) {
             Browse articles ↓
           </a>
         </div>
+
+        {/* Example search chips */}
+        <ExampleSearchChips />
 
         {/* Trust Line */}
         <div className="text-center space-y-2">
