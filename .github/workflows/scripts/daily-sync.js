@@ -25,7 +25,9 @@ const JOURNAL_MAP = {
   "Journal of Small Animal Practice (JSAP)": "Journal of Small Animal Practice",
   "The Journal of small animal practice": "Journal of Small Animal Practice",
   "Vet Dermatol": "Veterinary Dermatology",
+  "Veterinary ophthalmology": "Veterinary Ophthalmology",
   "Vet Ophthalmol": "Veterinary Ophthalmology",
+  "Vet Ophthalmol.": "Veterinary Ophthalmology",
   "J Vet Cardiol": "Journal of Veterinary Cardiology",
   "Journal of veterinary cardiology : the official journal of the European Society of Veterinary Cardiology": "Journal of Veterinary Cardiology",
   "Front Vet Sci": "Frontiers in Veterinary Science",
@@ -56,7 +58,8 @@ const JOURNALS = [
   'Vet Anaesth Analg',
   'J Vet Emerg Crit Care (San Antonio)',
   'Front Vet Sci',
-  'J Vet Intern Med'
+  'J Vet Intern Med',
+  'Veterinary ophthalmology'
 ];
 
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
