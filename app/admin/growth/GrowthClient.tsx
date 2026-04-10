@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { ContentAgent } from './ContentAgent'
 import { UtmLinks } from './UtmLinks'
 import { CampaignCalendar } from './CampaignCalendar'
+import { SynthesisPosts } from './SynthesisPosts'
 
 // NOTE: Campaign uses growth_tasks table to track 90-day scheduled posts
 // Each day's content is generated fresh by Content Agent (not pre-written)
@@ -18,7 +19,7 @@ type GrowthClientProps = {
 }
 
 export function GrowthClient({}: GrowthClientProps) {
-  const [activeTab, setActiveTab] = useState<'campaign' | 'agent' | 'utm'>('campaign')
+  const [activeTab, setActiveTab] = useState<'campaign' | 'agent' | 'synthesis' | 'utm'>('campaign')
 
   return (
     <div className="space-y-8">
@@ -45,6 +46,16 @@ export function GrowthClient({}: GrowthClientProps) {
           🤖 Content Agent
         </button>
         <button
+          onClick={() => setActiveTab('synthesis')}
+          className={`px-4 py-2 font-medium transition-colors ${
+            activeTab === 'synthesis'
+              ? 'text-[#3D7A5F] dark:text-[#4E9A78] border-b-2 border-[#3D7A5F] dark:border-[#4E9A78]'
+              : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300'
+          }`}
+        >
+          🔬 Synthesis Posts
+        </button>
+        <button
           onClick={() => setActiveTab('utm')}
           className={`px-4 py-2 font-medium transition-colors ${
             activeTab === 'utm'
@@ -61,6 +72,8 @@ export function GrowthClient({}: GrowthClientProps) {
         <CampaignCalendar />
       ) : activeTab === 'agent' ? (
         <ContentAgent />
+      ) : activeTab === 'synthesis' ? (
+        <SynthesisPosts />
       ) : (
         <UtmLinks />
       )}
