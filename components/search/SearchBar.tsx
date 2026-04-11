@@ -12,12 +12,18 @@ export function SearchBar({ defaultValue, onSearch, resultsCount }: SearchBarPro
   const [query, setQuery] = useState(defaultValue)
   const onSearchRef = useRef(onSearch)
   const lastLoggedQuery = useRef('')
+  const isInitialMount = useRef(true)
 
   useEffect(() => {
     onSearchRef.current = onSearch
   }, [onSearch])
 
   useEffect(() => {
+    // Skip on initial mount — the page already reflects the URL, no navigation needed
+    if (isInitialMount.current) {
+      isInitialMount.current = false
+      return
+    }
     const timer = setTimeout(() => {
       onSearchRef.current(query)
     }, 500)
