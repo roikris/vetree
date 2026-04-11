@@ -18,6 +18,7 @@ export function SynthesisWrapper({ searchQuery, children, isLoggedIn }: Synthesi
   const searchParams = useSearchParams()
   const router = useRouter()
   const synthesisPanelRef = useRef<HTMLDivElement>(null)
+  const autoTriggeredRef = useRef(false)
 
   // Check if feature is enabled
   const synthesisEnabled = isFeatureEnabled(flags, 'topic_synthesis')
@@ -43,15 +44,18 @@ export function SynthesisWrapper({ searchQuery, children, isLoggedIn }: Synthesi
     }
   }, [shouldShowButton, showSynthesis])
 
-  // Auto-trigger synthesis from URL params (e.g. from zero-results CTA)
+  // Auto-trigger synthesis from URL params (e.g. from Content Roadmap "Create Synthesis" button)
+  // Depends on synthesisEnabled so it re-runs once the feature flag finishes loading —
+  // avoids the race where flags are still loading when this effect first fires on mount.
   useEffect(() => {
+    if (autoTriggeredRef.current) return
     const synthesize = searchParams.get('synthesize')
 
     if (synthesize === 'true' && searchQuery && synthesisEnabled) {
-      // Auto-trigger synthesis after a short delay
+      autoTriggeredRef.current = true
+
       setTimeout(() => {
         setShowSynthesis(true)
-        // Scroll to synthesis panel after it opens
         setTimeout(() => {
           synthesisPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
         }, 100)
@@ -63,7 +67,7 @@ export function SynthesisWrapper({ searchQuery, children, isLoggedIn }: Synthesi
       const newUrl = cleanParams.toString() ? `/?${cleanParams.toString()}` : '/'
       router.replace(newUrl, { scroll: false })
     }
-  }, []) // Run once on mount only
+  }, [synthesisEnabled]) // Re-runs when flag finishes loading
 
   return (
     <>

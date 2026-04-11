@@ -1,9 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import { submitReport, ReportType } from '@/app/actions/reports'
 import { useAuth } from '@/lib/hooks/useAuth'
 import { useRouter } from 'next/navigation'
+
+type ReportType = 'article_issue' | 'bug' | 'other'
 
 type ReportModalProps = {
   isOpen: boolean
@@ -45,15 +46,16 @@ export function ReportModal({ isOpen, onClose, articleId, type = 'article_issue'
       fullDescription = `[${issueTypeLabel}] ${description}`
     }
 
-    const result = await submitReport({
-      type,
-      articleId,
-      description: fullDescription
+    const res = await fetch('/api/reports', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type, articleId, description: fullDescription }),
     })
+    const result = await res.json()
 
     setLoading(false)
 
-    if (result.error) {
+    if (!res.ok || result.error) {
       setError(result.error)
     } else {
       setSuccess(true)

@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { getArticleSaveCount } from '@/app/actions/saved-articles'
 
 type SaveCountProps = {
   articleId: string
@@ -11,11 +10,10 @@ export function SaveCount({ articleId }: SaveCountProps) {
   const [count, setCount] = useState<number | null>(null)
 
   useEffect(() => {
-    async function loadCount() {
-      const { count } = await getArticleSaveCount(articleId)
-      setCount(count)
-    }
-    loadCount()
+    fetch(`/api/articles/${articleId}/save-count`)
+      .then(r => r.ok ? r.json() : { count: 0 })
+      .then(data => setCount(data.count))
+      .catch(() => setCount(0))
   }, [articleId])
 
   if (count === null || count === 0) {

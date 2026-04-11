@@ -448,7 +448,7 @@ Please implement this change and commit.`
                   {topic}
                 </p>
                 <button
-                  onClick={() => router.push(`/?q=${encodeURIComponent(topic)}&synthesize=true`)}
+                  onClick={() => router.push(`/?search=${encodeURIComponent(topic)}&synthesize=true`)}
                   className="text-emerald-600 hover:text-emerald-700 text-sm font-medium"
                 >
                   Create Synthesis →
