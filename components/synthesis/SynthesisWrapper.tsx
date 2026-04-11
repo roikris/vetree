@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { useSearchParams, useRouter } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { SynthesisPanel } from './SynthesisPanel'
 import { useFeatureFlags, isFeatureEnabled } from '@/lib/hooks/useFeatureFlags'
 
@@ -16,7 +16,6 @@ export function SynthesisWrapper({ searchQuery, children, isLoggedIn }: Synthesi
   const [showTip, setShowTip] = useState(false)
   const { flags, loading } = useFeatureFlags()
   const searchParams = useSearchParams()
-  const router = useRouter()
   const synthesisPanelRef = useRef<HTMLDivElement>(null)
   const autoTriggeredRef = useRef(false)
 
@@ -61,11 +60,11 @@ export function SynthesisWrapper({ searchQuery, children, isLoggedIn }: Synthesi
         }, 100)
       }, 500)
 
-      // Clean URL — preserve search param, remove only synthesize
+      // Clean URL without triggering RSC re-render (router.replace would reset client state)
       const cleanParams = new URLSearchParams(window.location.search)
       cleanParams.delete('synthesize')
       const newUrl = cleanParams.toString() ? `/?${cleanParams.toString()}` : '/'
-      router.replace(newUrl, { scroll: false })
+      window.history.replaceState(null, '', newUrl)
     }
   }, [synthesisEnabled]) // Re-runs when flag finishes loading
 
