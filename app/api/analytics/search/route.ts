@@ -23,6 +23,12 @@ export async function POST(request: NextRequest) {
     // Get user if logged in
     const { data: { user } } = await supabase.auth.getUser()
 
+    // Don't log admin searches
+    const adminId = '90cb8294-b593-4144-a9f5-23ca52dd5e35'
+    if (user?.id === adminId) {
+      return NextResponse.json({ success: true })
+    }
+
     // Get IP from headers (privacy-conscious: we'll hash it)
     const forwarded = request.headers.get('x-forwarded-for')
     const ip = forwarded ? forwarded.split(',')[0].trim() : request.headers.get('x-real-ip') || 'unknown'

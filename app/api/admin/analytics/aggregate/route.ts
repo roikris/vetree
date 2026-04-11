@@ -23,27 +23,33 @@ export async function POST(request: NextRequest) {
     const adminId = '90cb8294-b593-4144-a9f5-23ca52dd5e35'
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+    // DAU uses yesterday to capture a full day (aggregate runs at ~02:00 UTC)
+    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0]
 
-    // DAU - unique non-admin users today
-    const { count: dau } = await supabase
+    // DAU - unique ip_hash for yesterday (full day)
+    const { data: dauData } = await supabase
       .from('page_views')
-      .select('*', { count: 'exact', head: true })
-      .gte('created_at', today)
+      .select('ip_hash')
+      .gte('created_at', yesterday)
+      .lt('created_at', today)
       .or(`user_id.is.null,user_id.neq.${adminId}`)
+    const dau = new Set(dauData?.map(r => r.ip_hash) ?? []).size
 
-    // WAU
-    const { count: wau } = await supabase
+    // WAU - unique ip_hash last 7 days
+    const { data: wauData } = await supabase
       .from('page_views')
-      .select('user_id', { count: 'exact', head: true })
+      .select('ip_hash')
       .gte('created_at', sevenDaysAgo)
       .or(`user_id.is.null,user_id.neq.${adminId}`)
+    const wau = new Set(wauData?.map(r => r.ip_hash) ?? []).size
 
-    // MAU
-    const { count: mau } = await supabase
+    // MAU - unique ip_hash last 30 days
+    const { data: mauData } = await supabase
       .from('page_views')
-      .select('user_id', { count: 'exact', head: true })
+      .select('ip_hash')
       .gte('created_at', thirtyDaysAgo)
       .or(`user_id.is.null,user_id.neq.${adminId}`)
+    const mau = new Set(mauData?.map(r => r.ip_hash) ?? []).size
 
     // Total searches + zero result searches (exclude admin)
     const { data: searchData } = await supabase
@@ -88,18 +94,18 @@ export async function POST(request: NextRequest) {
       .gte('created_at', sevenDaysAgo)
       .or(`user_id.is.null,user_id.neq.${adminId}`)
 
-    // Articles saved (exclude admin)
+    // Articles saved (exclude admin) — column is 'saved_at', not 'created_at'
     const { count: articlesSaved } = await supabase
       .from('saved_articles')
       .select('*', { count: 'exact', head: true })
-      .gte('created_at', sevenDaysAgo)
+      .gte('saved_at', sevenDaysAgo)
       .neq('user_id', adminId)
 
     // Top saved articles (by saves, NOT views - avoid promotion bias)
     const { data: savedArticlesData } = await supabase
       .from('saved_articles')
       .select('article_id')
-      .gte('created_at', thirtyDaysAgo)
+      .gte('saved_at', thirtyDaysAgo)
       .neq('user_id', adminId)
 
     const saveCounts = savedArticlesData?.reduce((acc, s) => {
@@ -136,24 +142,38 @@ export async function POST(request: NextRequest) {
       ? sortedDurations[Math.floor(sortedDurations.length / 2)]
       : 0
 
-    // Traffic sources
+    // Traffic sources (exclude admin)
     const { data: trafficData } = await supabase
       .from('page_views')
       .select('utm_source')
       .gte('created_at', sevenDaysAgo)
       .not('utm_source', 'is', null)
+      .or(`user_id.is.null,user_id.neq.${adminId}`)
 
     const trafficSources = trafficData?.reduce((acc, t) => {
       if (t.utm_source) acc[t.utm_source] = (acc[t.utm_source] || 0) + 1
       return acc
     }, {} as Record<string, number>)
 
+    // Device breakdown (exclude admin)
+    const { data: deviceData } = await supabase
+      .from('page_views')
+      .select('device_type')
+      .gte('created_at', sevenDaysAgo)
+      .or(`user_id.is.null,user_id.neq.${adminId}`)
+
+    const deviceBreakdown = (deviceData ?? []).reduce((acc, r) => {
+      const key = r.device_type ?? 'unknown'
+      acc[key] = (acc[key] || 0) + 1
+      return acc
+    }, {} as Record<string, number>)
+
     // Upsert snapshot
     const { error } = await supabase.from('analytics_daily_snapshot').upsert({
       date: today,
-      dau: dau || 0,
-      wau: wau || 0,
-      mau: mau || 0,
+      dau: dau,
+      wau: wau,
+      mau: mau,
       total_searches: totalSearches,
       zero_result_searches: zeroResults.length,
       zero_result_rate: zeroResultRate,
@@ -165,7 +185,7 @@ export async function POST(request: NextRequest) {
       median_session_duration_seconds: medianDuration,
       top_searches: topSearches,
       top_saved_articles: topSavedIds,
-      device_breakdown: {},
+      device_breakdown: deviceBreakdown,
       traffic_sources: trafficSources || {}
     }, { onConflict: 'date' })
 

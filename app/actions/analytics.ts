@@ -332,6 +332,7 @@ export async function getRecentSearches(days: number = 7, limit: number = 20) {
     .from('search_logs')
     .select('query, results_count, created_at')
     .gte('created_at', startDate.toISOString())
+    .or('user_id.is.null,user_id.neq.90cb8294-b593-4144-a9f5-23ca52dd5e35')
 
   if (!searches || searches.length === 0) {
     return { data: [], error: null }
@@ -493,17 +494,19 @@ export async function getSavedArticlesStats(days: number = 7) {
   const startDate = new Date()
   startDate.setDate(startDate.getDate() - days)
 
-  // Total saved articles count
+  // Total saved articles count (exclude admin, column is 'saved_at')
   const { count: totalSaved } = await supabase
     .from('saved_articles')
     .select('*', { count: 'exact', head: true })
-    .gte('created_at', startDate.toISOString())
+    .gte('saved_at', startDate.toISOString())
+    .neq('user_id', '90cb8294-b593-4144-a9f5-23ca52dd5e35')
 
   // Unique users who saved at least one article
   const { data: savedArticles } = await supabase
     .from('saved_articles')
     .select('user_id')
-    .gte('created_at', startDate.toISOString())
+    .gte('saved_at', startDate.toISOString())
+    .neq('user_id', '90cb8294-b593-4144-a9f5-23ca52dd5e35')
 
   const uniqueUsers = savedArticles ? [...new Set(savedArticles.map(s => s.user_id))].length : 0
 
