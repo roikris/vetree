@@ -44,10 +44,10 @@ export function SynthesisWrapper({ searchQuery, children, isLoggedIn }: Synthesi
   }, [shouldShowButton, showSynthesis])
 
   // Auto-trigger synthesis from URL params (e.g. from Content Roadmap "Create Synthesis" button)
-  // Depends on synthesisEnabled so it re-runs once the feature flag finishes loading —
-  // avoids the race where flags are still loading when this effect first fires on mount.
   useEffect(() => {
+    if (loading) return                // wait for feature flags to finish loading
     if (autoTriggeredRef.current) return
+
     const synthesize = searchParams.get('synthesize')
 
     if (synthesize === 'true' && searchQuery && synthesisEnabled) {
@@ -55,18 +55,18 @@ export function SynthesisWrapper({ searchQuery, children, isLoggedIn }: Synthesi
 
       setTimeout(() => {
         setShowSynthesis(true)
+        // Clean URL AFTER showing synthesis so replaceState doesn't race with the param read
+        window.history.replaceState(
+          null,
+          '',
+          searchQuery ? `/?search=${encodeURIComponent(searchQuery)}` : '/'
+        )
         setTimeout(() => {
           synthesisPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
         }, 100)
       }, 500)
-
-      // Clean URL without triggering RSC re-render (router.replace would reset client state)
-      const cleanParams = new URLSearchParams(window.location.search)
-      cleanParams.delete('synthesize')
-      const newUrl = cleanParams.toString() ? `/?${cleanParams.toString()}` : '/'
-      window.history.replaceState(null, '', newUrl)
     }
-  }, [synthesisEnabled]) // Re-runs when flag finishes loading
+  }, [searchParams, searchQuery, synthesisEnabled, loading])
 
   return (
     <>
