@@ -167,7 +167,21 @@ export function SynthesisPanel({ query, onClose, isLoggedIn }: SynthesisPanelPro
   }
 
   if (!data || !data.synthesis_html) {
-    return null
+    return (
+      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-6 mb-8">
+        <div className="flex items-start gap-3">
+          <div className="text-2xl">🔬</div>
+          <div>
+            <h3 className="font-semibold text-blue-900 dark:text-blue-100 mb-1">
+              No synthesis available
+            </h3>
+            <p className="text-sm text-blue-700 dark:text-blue-300">
+              Not enough matching studies found to generate a synthesis for this query. Try a broader search term.
+            </p>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   const breakdown = data.study_type_breakdown
