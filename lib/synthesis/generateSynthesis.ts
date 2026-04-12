@@ -72,23 +72,66 @@ export async function fetchOrGenerateSynthesis(
 
   // Cache miss — fetch articles and generate
   const startTime = Date.now()
+  const SELECT_FIELDS = 'id, title, clinical_bottom_line, summary, labels, source_journal, publication_date'
 
+  // Tier 1: FTS on title using first 4 normalized keywords
+  const ftsQuery = queryNormalized.split(' ').slice(0, 4).join(' ')
   const { data: ftsArticles } = await supabase
     .from('articles')
-    .select('id, title, clinical_bottom_line, summary, labels, source_journal, publication_date')
-    .textSearch('title', queryOriginal, { type: 'websearch' })
+    .select(SELECT_FIELDS)
+    .textSearch('title', ftsQuery, { type: 'websearch' })
     .eq('needs_enrichment', false)
     .not('clinical_bottom_line', 'is', null)
     .or('quarantined.is.null,quarantined.eq.false')
     .order('publication_date', { ascending: false })
     .limit(40)
 
+  // Tier 2: ILIKE fallback if FTS returned < 3 results
+  let ilikeArticles: any[] = []
+  if (!ftsArticles || ftsArticles.length < 3) {
+    const shortQuery = queryNormalized.split(' ').slice(0, 3).join(' ')
+    const { data } = await supabase
+      .from('articles')
+      .select(SELECT_FIELDS)
+      .or(`title.ilike.%${shortQuery}%,clinical_bottom_line.ilike.%${shortQuery}%`)
+      .eq('needs_enrichment', false)
+      .not('clinical_bottom_line', 'is', null)
+      .or('quarantined.is.null,quarantined.eq.false')
+      .order('publication_date', { ascending: false })
+      .limit(40)
+    ilikeArticles = data || []
+  }
+
+  // Tier 3: trigram fuzzy RPC if still < 3
+  let fuzzyArticles: any[] = []
+  if ((!ftsArticles || ftsArticles.length < 3) && ilikeArticles.length < 3) {
+    const fuzzyQuery = queryNormalized.split(' ').slice(0, 3).join(' ')
+    const { data: fuzzyIds } = await supabase
+      .rpc('search_articles_fuzzy', {
+        search_query: fuzzyQuery,
+        similarity_threshold: 0.2,
+      })
+    if (fuzzyIds && fuzzyIds.length > 0) {
+      const { data } = await supabase
+        .from('articles')
+        .select(SELECT_FIELDS)
+        .in('id', fuzzyIds.map((a: any) => a.id))
+        .eq('needs_enrichment', false)
+        .not('clinical_bottom_line', 'is', null)
+        .or('quarantined.is.null,quarantined.eq.false')
+        .order('publication_date', { ascending: false })
+        .limit(40)
+      fuzzyArticles = data || []
+    }
+  }
+
+  // Label overlap — merged with tier results
   const keyLabels = extractKeyLabels(queryOriginal)
   let labelArticles: any[] = []
   if (keyLabels.length > 0) {
     const { data } = await supabase
       .from('articles')
-      .select('id, title, clinical_bottom_line, summary, labels, source_journal, publication_date')
+      .select(SELECT_FIELDS)
       .overlaps('labels', keyLabels)
       .eq('needs_enrichment', false)
       .not('clinical_bottom_line', 'is', null)
@@ -98,7 +141,12 @@ export async function fetchOrGenerateSynthesis(
     labelArticles = data || []
   }
 
-  const allArticles = [...(ftsArticles || []), ...labelArticles]
+  const allArticles = [
+    ...(ftsArticles || []),
+    ...ilikeArticles,
+    ...fuzzyArticles,
+    ...labelArticles,
+  ]
   const uniqueArticles = Array.from(new Map(allArticles.map(a => [a.id, a])).values())
   const smallAnimalArticles = uniqueArticles.filter(
     a => !a.labels?.some((l: string) => LARGE_ANIMAL_LABELS.includes(l))
