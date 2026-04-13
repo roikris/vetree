@@ -151,7 +151,35 @@ export async function fetchOrGenerateSynthesis(
   const smallAnimalArticles = uniqueArticles.filter(
     a => !a.labels?.some((l: string) => LARGE_ANIMAL_LABELS.includes(l))
   )
-  const articlesForSynthesis = smallAnimalArticles.slice(0, 15)
+
+  // Tier 4: keyword-in-label fallback if still < 3 small-animal articles
+  let broadLabelArticles: any[] = []
+  if (smallAnimalArticles.length < 3) {
+    const stopwords = new Set(['for','and','in','of','the','with','to','a','an','on','at','by','is','are','that','this','or','as','from','canine','feline','dog','cat','patient','patients','update','updates','management','treatment','protocol','protocols'])
+    const contentWords = queryOriginal.toLowerCase().split(/\s+/)
+      .filter(w => !stopwords.has(w) && w.length > 3)
+      .slice(0, 4)
+
+    if (contentWords.length > 0) {
+      const orClauses = contentWords.map(w => `clinical_bottom_line.ilike.%${w}%`).join(',')
+      const { data } = await supabase
+        .from('articles')
+        .select(SELECT_FIELDS)
+        .or(orClauses)
+        .eq('needs_enrichment', false)
+        .not('clinical_bottom_line', 'is', null)
+        .or('quarantined.is.null,quarantined.eq.false')
+        .order('publication_date', { ascending: false })
+        .limit(20)
+      broadLabelArticles = (data || []).filter(
+        (a: any) => !a.labels?.some((l: string) => LARGE_ANIMAL_LABELS.includes(l))
+      )
+    }
+  }
+
+  const allWithBroad = [...smallAnimalArticles, ...broadLabelArticles]
+  const finalArticles = Array.from(new Map(allWithBroad.map(a => [a.id, a])).values())
+  const articlesForSynthesis = finalArticles.slice(0, 15)
 
   if (articlesForSynthesis.length === 0) return null
 

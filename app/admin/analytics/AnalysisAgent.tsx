@@ -4,6 +4,14 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Copy, Check } from 'lucide-react'
 
+const STOPWORDS = new Set(['for','and','in','of','the','with','to','a','an','on','at','by','is','are','that','this','or','as','from'])
+
+function getSynthesisQuery(topic: string): string {
+  const words = topic.toLowerCase().split(/\s+/)
+    .filter(w => !STOPWORDS.has(w) && w.length > 2)
+  return words.slice(0, 3).join(' ')
+}
+
 interface Insight {
   area: string
   observation: string
@@ -448,7 +456,7 @@ Please implement this change and commit.`
                   {topic}
                 </p>
                 <button
-                  onClick={() => router.push(`/?search=${encodeURIComponent(topic)}&synthesize=true`)}
+                  onClick={() => router.push(`/?search=${encodeURIComponent(getSynthesisQuery(topic))}&synthesize=true`)}
                   className="text-emerald-600 hover:text-emerald-700 text-sm font-medium"
                 >
                   Create Synthesis →

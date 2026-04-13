@@ -45,7 +45,7 @@ export function DownloadFailedCSV() {
       ]
 
       // Convert articles to CSV rows
-      const rows = articles.map(article => {
+      const rows = articles.map((article: Record<string, unknown>) => {
         return headers.map(header => {
           const value = article[header as keyof typeof article]
           // Escape double quotes and wrap in quotes if contains comma or newline
