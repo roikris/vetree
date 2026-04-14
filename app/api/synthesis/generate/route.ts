@@ -84,55 +84,124 @@ export async function POST(request: NextRequest) {
     // STEP 2: Cache miss - fetch articles via FTS and label overlap
     console.log('[synthesis] Cache miss, generating new synthesis for:', queryNormalized)
 
-    // FTS search
+    const SELECT_FIELDS = 'id, title, clinical_bottom_line, summary, labels, source_journal, publication_date'
+    const LARGE_ANIMAL_LABELS = [
+      'Equine', 'equine', 'Large Animal', 'large animal',
+      'Livestock', 'livestock', 'Poultry', 'poultry',
+      'Food Animal', 'food animal',
+    ]
+
+    // Tier 1: FTS on title
+    const ftsQuery = queryNormalized.split(' ').slice(0, 4).join(' ')
     const { data: ftsArticles } = await supabase
       .from('articles')
-      .select('id, title, clinical_bottom_line, summary, labels, source_journal, publication_date')
-      .textSearch('title', queryOriginal, { type: 'websearch' })
+      .select(SELECT_FIELDS)
+      .textSearch('title', ftsQuery, { type: 'websearch' })
       .eq('needs_enrichment', false)
       .not('clinical_bottom_line', 'is', null)
       .or('quarantined.is.null,quarantined.eq.false')
       .order('publication_date', { ascending: false })
       .limit(40)
 
-    // Label-based search
+    console.log('[synthesis] ftsArticles:', ftsArticles?.length ?? 0)
+
+    // Tier 2: ILIKE fallback if FTS < 3
+    let ilikeArticles: any[] = []
+    if (!ftsArticles || ftsArticles.length < 3) {
+      const shortQuery = queryNormalized.split(' ').slice(0, 3).join(' ')
+      const { data } = await supabase
+        .from('articles')
+        .select(SELECT_FIELDS)
+        .or(`title.ilike.%${shortQuery}%,clinical_bottom_line.ilike.%${shortQuery}%`)
+        .eq('needs_enrichment', false)
+        .not('clinical_bottom_line', 'is', null)
+        .or('quarantined.is.null,quarantined.eq.false')
+        .order('publication_date', { ascending: false })
+        .limit(40)
+      ilikeArticles = data || []
+      console.log('[synthesis] ilikeArticles:', ilikeArticles.length)
+    }
+
+    // Tier 3: trigram fuzzy RPC if still < 3
+    let fuzzyArticles: any[] = []
+    if ((!ftsArticles || ftsArticles.length < 3) && ilikeArticles.length < 3) {
+      const fuzzyQuery = queryNormalized.split(' ').slice(0, 3).join(' ')
+      const { data: fuzzyIds } = await supabase
+        .rpc('search_articles_fuzzy', { search_query: fuzzyQuery, similarity_threshold: 0.2 })
+      if (fuzzyIds && fuzzyIds.length > 0) {
+        const { data } = await supabase
+          .from('articles')
+          .select(SELECT_FIELDS)
+          .in('id', fuzzyIds.map((a: any) => a.id))
+          .eq('needs_enrichment', false)
+          .not('clinical_bottom_line', 'is', null)
+          .or('quarantined.is.null,quarantined.eq.false')
+          .order('publication_date', { ascending: false })
+          .limit(40)
+        fuzzyArticles = data || []
+      }
+      console.log('[synthesis] fuzzyArticles:', fuzzyArticles.length)
+    }
+
+    // Label-based search (always runs, merged with tier results)
     const keyLabels = extractKeyLabels(queryOriginal)
     let labelArticles: any[] = []
-
     if (keyLabels.length > 0) {
       const { data } = await supabase
         .from('articles')
-        .select('id, title, clinical_bottom_line, summary, labels, source_journal, publication_date')
+        .select(SELECT_FIELDS)
         .overlaps('labels', keyLabels)
         .eq('needs_enrichment', false)
         .not('clinical_bottom_line', 'is', null)
         .or('quarantined.is.null,quarantined.eq.false')
         .order('publication_date', { ascending: false })
         .limit(20)
-
       labelArticles = data || []
+      console.log('[synthesis] labelArticles:', labelArticles.length, 'keyLabels:', keyLabels)
     }
 
     // Merge and deduplicate
-    const allArticles = [...(ftsArticles || []), ...labelArticles]
-    const uniqueArticles = Array.from(
-      new Map(allArticles.map(a => [a.id, a])).values()
-    )
-
-    // Filter out large animals (as per CLAUDE.md)
-    const LARGE_ANIMAL_LABELS = [
-      'Equine', 'equine', 'Large Animal', 'large animal',
-      'Livestock', 'livestock', 'Poultry', 'poultry',
-      'Food Animal', 'food animal'
-    ]
+    const allArticles = [...(ftsArticles || []), ...ilikeArticles, ...fuzzyArticles, ...labelArticles]
+    const uniqueArticles = Array.from(new Map(allArticles.map(a => [a.id, a])).values())
 
     const smallAnimalArticles = uniqueArticles.filter(article => {
       const labels = article.labels || []
       return !labels.some((label: string) => LARGE_ANIMAL_LABELS.includes(label))
     })
 
+    console.log('[synthesis] smallAnimalArticles:', smallAnimalArticles.length)
+
+    // Tier 4: broad keyword fallback if still < 3 small-animal articles
+    let broadArticles: any[] = []
+    if (smallAnimalArticles.length < 3) {
+      const stopwords = new Set(['for','and','in','of','the','with','to','a','an','on','at','by','is','are','that','this','or','as','from','canine','feline','dog','cat','patient','patients','update','updates','management','treatment','protocol','protocols'])
+      const contentWords = queryOriginal.toLowerCase().split(/\s+/)
+        .filter((w: string) => !stopwords.has(w) && w.length > 3)
+        .slice(0, 4)
+      if (contentWords.length > 0) {
+        const orClauses = contentWords.map((w: string) => `clinical_bottom_line.ilike.%${w}%`).join(',')
+        const { data } = await supabase
+          .from('articles')
+          .select(SELECT_FIELDS)
+          .or(orClauses)
+          .eq('needs_enrichment', false)
+          .not('clinical_bottom_line', 'is', null)
+          .or('quarantined.is.null,quarantined.eq.false')
+          .order('publication_date', { ascending: false })
+          .limit(20)
+        broadArticles = (data || []).filter(
+          (a: any) => !a.labels?.some((l: string) => LARGE_ANIMAL_LABELS.includes(l))
+        )
+        console.log('[synthesis] broadArticles (tier4):', broadArticles.length, 'contentWords:', contentWords)
+      }
+    }
+
+    const finalArticles = Array.from(
+      new Map([...smallAnimalArticles, ...broadArticles].map(a => [a.id, a])).values()
+    )
+
     // Take top 15 by recency
-    const articlesForSynthesis = smallAnimalArticles.slice(0, 15)
+    const articlesForSynthesis = finalArticles.slice(0, 15)
 
     if (articlesForSynthesis.length === 0) {
       return NextResponse.json({
