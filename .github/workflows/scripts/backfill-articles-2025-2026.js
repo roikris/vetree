@@ -281,8 +281,13 @@ async function processMonth(supabase, yearMonth, blacklistedIds) {
 }
 
 async function main() {
+  const currentDate = new Date();
+  const currentYear = currentDate.getFullYear();
+  const currentMonth = currentDate.getMonth() + 1; // 1-based
+  const currentMonthStr = currentMonth.toString().padStart(2, '0');
+
   console.log('╔══════════════════════════════════════════════════════════╗');
-  console.log('║  Vetree Backfill: 2025-2026 (Month-by-Month)            ║');
+  console.log(`║  Vetree Backfill: 2025-01 → ${currentYear}-${currentMonthStr} (Month-by-Month)  ║`);
   console.log('╚══════════════════════════════════════════════════════════╝');
 
   const supabase = createClient(
@@ -299,13 +304,9 @@ async function main() {
   const blacklistedIds = new Set(blacklist?.map(b => b.pubmed_id) || []);
   console.log(`   Blacklisted articles: ${blacklistedIds.size}`);
 
-  // Generate months: Jan 2025 to current month (Mar 2026)
-  const currentDate = new Date();
-  const currentYear = currentDate.getFullYear();
-  const currentMonth = currentDate.getMonth() + 1; // 1-based
-
+  // Generate months from Jan 2025 up to and including the current month
   const months = generateMonths(2025, 1, currentYear, currentMonth);
-  console.log(`\n📆 Processing ${months.length} months: 2025-01 to ${currentYear}-${currentMonth.toString().padStart(2, '0')}`);
+  console.log(`\n📆 Processing ${months.length} months: 2025-01 to ${currentYear}-${currentMonthStr}`);
 
   const globalStats = {
     monthsProcessed: 0,
