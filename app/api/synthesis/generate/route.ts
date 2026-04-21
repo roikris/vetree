@@ -81,8 +81,8 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // STEP 2: Cache miss - fetch articles via FTS and label overlap
-    console.log('[synthesis] Cache miss, generating new synthesis for:', queryNormalized)
+    // STEP 2: Cache miss - fetch articles
+    console.log('[synthesis] Cache miss, generating new synthesis for:', queryOriginal)
 
     const SELECT_FIELDS = 'id, title, clinical_bottom_line, summary, labels, source_journal, publication_date'
     const LARGE_ANIMAL_LABELS = [
@@ -91,8 +91,32 @@ export async function POST(request: NextRequest) {
       'Food Animal', 'food animal',
     ]
 
-    // Tier 1: FTS on title
-    const ftsQuery = queryNormalized.split(' ').slice(0, 4).join(' ')
+    // Extract content words from the ORIGINAL query (not the normalized/expanded one).
+    // normalizeQuery() adds synonyms which breaks FTS (too long, repeated terms).
+    const SYNTHESIS_STOPWORDS = new Set([
+      'for','and','in','of','the','with','to','a','an','on','at','by',
+      'is','are','that','this','or','as','from','canine','feline','dog',
+      'cat','patient','patients','update','updates','veterinary','medicine',
+      'small','animal','large','clinical',
+    ])
+
+    const contentWords = queryOriginal.toLowerCase()
+      .split(/\s+/)
+      .filter((w: string) => !SYNTHESIS_STOPWORDS.has(w) && w.length > 3)
+      .slice(0, 3)
+
+    // Also pull synonym terms from the normalized query as additional ILIKE candidates
+    const normalizedWords = queryNormalized.split(' ')
+      .filter((w: string) => !SYNTHESIS_STOPWORDS.has(w) && w.length > 3)
+      .filter((w: string) => !contentWords.includes(w))
+      .slice(0, 3)
+
+    const allSearchWords = [...new Set([...contentWords, ...normalizedWords])]
+
+    console.log('[synthesis] contentWords:', contentWords, 'normalizedWords:', normalizedWords)
+
+    // Tier 1: FTS on title — OR operator so any content word matches
+    const ftsQuery = contentWords.length > 0 ? contentWords.join(' | ') : queryOriginal
     const { data: ftsArticles } = await supabase
       .from('articles')
       .select(SELECT_FIELDS)
@@ -105,27 +129,32 @@ export async function POST(request: NextRequest) {
 
     console.log('[synthesis] ftsArticles:', ftsArticles?.length ?? 0)
 
-    // Tier 2: ILIKE fallback if FTS < 3
+    // Tier 2: ILIKE on title + CBL using all search words (content + synonyms)
     let ilikeArticles: any[] = []
     if (!ftsArticles || ftsArticles.length < 3) {
-      const shortQuery = queryNormalized.split(' ').slice(0, 3).join(' ')
-      const { data } = await supabase
-        .from('articles')
-        .select(SELECT_FIELDS)
-        .or(`title.ilike.%${shortQuery}%,clinical_bottom_line.ilike.%${shortQuery}%`)
-        .eq('needs_enrichment', false)
-        .not('clinical_bottom_line', 'is', null)
-        .or('quarantined.is.null,quarantined.eq.false')
-        .order('publication_date', { ascending: false })
-        .limit(40)
-      ilikeArticles = data || []
+      if (allSearchWords.length > 0) {
+        const orClauses = allSearchWords.flatMap((w: string) => [
+          `title.ilike.%${w}%`,
+          `clinical_bottom_line.ilike.%${w}%`,
+        ]).join(',')
+        const { data } = await supabase
+          .from('articles')
+          .select(SELECT_FIELDS)
+          .or(orClauses)
+          .eq('needs_enrichment', false)
+          .not('clinical_bottom_line', 'is', null)
+          .or('quarantined.is.null,quarantined.eq.false')
+          .order('publication_date', { ascending: false })
+          .limit(40)
+        ilikeArticles = data || []
+      }
       console.log('[synthesis] ilikeArticles:', ilikeArticles.length)
     }
 
-    // Tier 3: trigram fuzzy RPC if still < 3
+    // Tier 3: trigram fuzzy RPC if still < 3 (use first content word — short query works best)
     let fuzzyArticles: any[] = []
     if ((!ftsArticles || ftsArticles.length < 3) && ilikeArticles.length < 3) {
-      const fuzzyQuery = queryNormalized.split(' ').slice(0, 3).join(' ')
+      const fuzzyQuery = contentWords.slice(0, 2).join(' ')
       const { data: fuzzyIds } = await supabase
         .rpc('search_articles_fuzzy', { search_query: fuzzyQuery, similarity_threshold: 0.2 })
       if (fuzzyIds && fuzzyIds.length > 0) {
@@ -171,29 +200,23 @@ export async function POST(request: NextRequest) {
 
     console.log('[synthesis] smallAnimalArticles:', smallAnimalArticles.length)
 
-    // Tier 4: broad keyword fallback if still < 3 small-animal articles
+    // Tier 4: broad keyword fallback on CBL if still < 3 small-animal articles
     let broadArticles: any[] = []
-    if (smallAnimalArticles.length < 3) {
-      const stopwords = new Set(['for','and','in','of','the','with','to','a','an','on','at','by','is','are','that','this','or','as','from','canine','feline','dog','cat','patient','patients','update','updates','management','treatment','protocol','protocols'])
-      const contentWords = queryOriginal.toLowerCase().split(/\s+/)
-        .filter((w: string) => !stopwords.has(w) && w.length > 3)
-        .slice(0, 4)
-      if (contentWords.length > 0) {
-        const orClauses = contentWords.map((w: string) => `clinical_bottom_line.ilike.%${w}%`).join(',')
-        const { data } = await supabase
-          .from('articles')
-          .select(SELECT_FIELDS)
-          .or(orClauses)
-          .eq('needs_enrichment', false)
-          .not('clinical_bottom_line', 'is', null)
-          .or('quarantined.is.null,quarantined.eq.false')
-          .order('publication_date', { ascending: false })
-          .limit(20)
-        broadArticles = (data || []).filter(
-          (a: any) => !a.labels?.some((l: string) => LARGE_ANIMAL_LABELS.includes(l))
-        )
-        console.log('[synthesis] broadArticles (tier4):', broadArticles.length, 'contentWords:', contentWords)
-      }
+    if (smallAnimalArticles.length < 3 && allSearchWords.length > 0) {
+      const orClauses = allSearchWords.map((w: string) => `clinical_bottom_line.ilike.%${w}%`).join(',')
+      const { data } = await supabase
+        .from('articles')
+        .select(SELECT_FIELDS)
+        .or(orClauses)
+        .eq('needs_enrichment', false)
+        .not('clinical_bottom_line', 'is', null)
+        .or('quarantined.is.null,quarantined.eq.false')
+        .order('publication_date', { ascending: false })
+        .limit(20)
+      broadArticles = (data || []).filter(
+        (a: any) => !a.labels?.some((l: string) => LARGE_ANIMAL_LABELS.includes(l))
+      )
+      console.log('[synthesis] broadArticles (tier4):', broadArticles.length)
     }
 
     const finalArticles = Array.from(
@@ -245,6 +268,7 @@ STRICT RULES:
 - Never hallucinate citations — only cite IDs from the provided list.
 - If evidence is weak or limited, say so clearly.
 - Separate findings for dogs vs cats when relevant.
+- If fewer than 5 articles are available, synthesize what exists and note the limited evidence base. Do not refuse to synthesize.
 
 OUTPUT FORMAT (use exactly this structure):
 ## Clinical Consensus
