@@ -90,9 +90,23 @@ export async function POST(request: NextRequest) {
     // Define large animal labels to filter (as per CLAUDE.md)
     const LARGE_ANIMAL = ['Equine','equine','Large Animal','large animal','Livestock','livestock','Poultry','poultry','Food Animal','food animal']
 
+    // Fetch all opted-out users in one query (avoids N+1 per user)
+    const { data: optedOut } = await supabase
+      .from('user_preferences')
+      .select('user_id')
+      .eq('digest_opt_out', true)
+
+    const optedOutIds = new Set((optedOut || []).map(r => r.user_id))
+
     // Process each user
     for (const user of users) {
       if (!user.email) continue
+
+      // Skip users who have explicitly unsubscribed
+      if (optedOutIds.has(user.id)) {
+        skippedCount++
+        continue
+      }
 
       // DEDUP CHECK: Skip if user got an email in the last 5 days
       const { data: recentDigest } = await supabase

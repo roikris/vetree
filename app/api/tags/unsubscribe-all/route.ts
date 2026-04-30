@@ -70,15 +70,22 @@ export async function GET(request: NextRequest) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
-  const { error } = await supabase
-    .from('followed_tags')
-    .delete()
-    .eq('user_id', uid)
+  // Set digest_opt_out flag — this is the definitive opt-out,
+  // regardless of whether the user has followed tags or not
+  const { error: prefError } = await supabase
+    .from('user_preferences')
+    .upsert(
+      { user_id: uid, digest_opt_out: true, digest_opted_out_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+      { onConflict: 'user_id' }
+    )
 
-  if (error) {
-    console.error('[unsubscribe-all] DB error:', error)
+  if (prefError) {
+    console.error('[unsubscribe-all] preferences error:', prefError)
     return htmlPage(false, 'We couldn\'t process your request. Please try again or contact support.')
   }
+
+  // Also remove followed tags so they stop receiving tag-based content
+  await supabase.from('followed_tags').delete().eq('user_id', uid)
 
   return htmlPage(true, 'You\'ve been unsubscribed from all Vetree digest emails. You can re-subscribe any time from your profile.')
 }
@@ -94,15 +101,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
     }
 
-    const { error } = await supabase
-      .from('followed_tags')
-      .delete()
-      .eq('user_id', user.id)
+    const { error: prefError } = await supabase
+      .from('user_preferences')
+      .upsert(
+        { user_id: user.id, digest_opt_out: true, digest_opted_out_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+        { onConflict: 'user_id' }
+      )
 
-    if (error) {
-      console.error('[unsubscribe-all] Error:', error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
+    if (prefError) {
+      console.error('[unsubscribe-all] preferences error:', prefError)
+      return NextResponse.json({ error: prefError.message }, { status: 500 })
     }
+
+    await supabase.from('followed_tags').delete().eq('user_id', user.id)
 
     return NextResponse.json({ success: true, message: 'Unsubscribed from all tag digests' })
 
