@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { Resend } from 'resend'
 import { ratelimitStrict, getClientIP } from '@/lib/ratelimit'
+import { createHmac } from 'crypto'
+
+function generateUnsubscribeToken(userId: string): string {
+  const secret = process.env.DIGEST_SECRET || ''
+  return createHmac('sha256', secret).update(userId).digest('hex')
+}
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -204,7 +210,7 @@ export async function POST(request: NextRequest) {
           from: 'Vetree <digest@digest.vetree.app>',
           to: user.email,
           subject,
-          html: generateEmailHTML(user.email, tags, articles, reEngagementArticles ?? undefined)
+          html: generateEmailHTML(user.email, user.id, generateUnsubscribeToken(user.id), tags, articles, reEngagementArticles ?? undefined)
         })
 
         // Log the digest
@@ -276,7 +282,8 @@ export async function POST(request: NextRequest) {
   }
 }
 
-function generateEmailHTML(email: string, tags: string[], articles: any[], reEngagementArticles?: any[]): string {
+function generateEmailHTML(email: string, userId: string, unsubscribeToken: string, tags: string[], articles: any[], reEngagementArticles?: any[]): string {
+  const unsubscribeUrl = `https://vetree.app/api/tags/unsubscribe-all?uid=${encodeURIComponent(userId)}&token=${unsubscribeToken}`
   const articlesHTML = articles.map(article => `
     <div style="margin-bottom: 24px; padding: 20px; background: #f9fafb; border-radius: 8px; border-left: 4px solid #3D7A5F;">
       <h3 style="margin: 0 0 8px 0; font-size: 18px; color: #1a1a1a;">
@@ -363,7 +370,7 @@ function generateEmailHTML(email: string, tags: string[], articles: any[], reEng
               <a href="https://vetree.app" style="color: #3D7A5F; text-decoration: none;">Browse more articles →</a>
             </p>
             <p style="margin: 0; font-size: 12px; color: #9ca3af;">
-              <a href="https://vetree.app/api/tags/unsubscribe-all" style="color: #9ca3af; text-decoration: underline;">Unsubscribe from all digests</a>
+              <a href="${unsubscribeUrl}" style="color: #9ca3af; text-decoration: underline;">Unsubscribe from all digests</a>
             </p>
           </div>
         </div>
