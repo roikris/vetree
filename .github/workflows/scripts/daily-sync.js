@@ -183,7 +183,7 @@ async function fetchArticleDetails(pmids) {
   return articles;
 }
 
-async function sendSlackNotification(stats) {
+async function sendSlackNotification(stats, skippedBlacklistDetails, skippedNoAbstractDetails) {
   const webhookUrl = process.env.SLACK_WEBHOOK_URL;
 
   if (!webhookUrl) {
@@ -216,12 +216,33 @@ async function sendSlackNotification(stats) {
     stats.totalFailed > 0      ? `• Failed to add: ${stats.totalFailed}` : '',
   ].filter(Boolean).join('\n');
 
+  // Sample sections for skipped articles
+  let blacklistSamples = '';
+  if (skippedBlacklistDetails.length > 0) {
+    const samples = skippedBlacklistDetails.slice(0, 3)
+      .map(a => `• <${a.url}|${a.title || 'PMID: ' + a.pubmed_id}>`)
+      .join('\n');
+    const more = skippedBlacklistDetails.length > 3
+      ? `\n_...and ${skippedBlacklistDetails.length - 3} more_` : '';
+    blacklistSamples = `\n\n🚫 *Blacklisted samples:*\n${samples}${more}`;
+  }
+
+  let noAbstractSamples = '';
+  if (skippedNoAbstractDetails.length > 0) {
+    const samples = skippedNoAbstractDetails.slice(0, 3)
+      .map(a => `• <${a.url}|${a.title}>`)
+      .join('\n');
+    const more = skippedNoAbstractDetails.length > 3
+      ? `\n_...and ${skippedNoAbstractDetails.length - 3} more_` : '';
+    noAbstractSamples = `\n\n📭 *No abstract samples:*\n${samples}${more}`;
+  }
+
   const message = {
     text: `🌿 *Vetree Daily Sync Report*
 • New articles found on PubMed: ${stats.totalFound}
 • Already in database: ${stats.totalExisting}
 • Successfully added: ${stats.totalAdded}
-${skippedLines ? skippedLines + '\n' : ''}${balanceCheck}${journalBreakdown}`
+${skippedLines ? skippedLines + '\n' : ''}${balanceCheck}${journalBreakdown}${blacklistSamples}${noAbstractSamples}`
   };
 
   try {
@@ -249,6 +270,8 @@ async function main() {
     process.env.SUPABASE_SERVICE_ROLE_KEY
   );
 
+  const runStartTime = new Date().toISOString();
+
   const stats = {
     totalFound: 0,
     totalExisting: 0,     // already in DB (pre-insert check)
@@ -259,6 +282,9 @@ async function main() {
     totalDuplicate: 0,    // 23505 conflicts at insert time (not caught by pre-check)
     byJournal: {}
   };
+
+  const skippedBlacklistDetails = [];  // { pubmed_id, title, url }
+  const skippedNoAbstractDetails = []; // { pubmed_id, title, url }
 
   for (const journal of JOURNALS) {
     console.log(`\nSearching ${journal}...`);
@@ -292,9 +318,28 @@ async function main() {
 
       stats.totalExisting += existingPmids.size;
       stats.totalBlacklisted += blacklistedPmids.size;
+
       if (blacklistedPmids.size > 0) {
         console.log(`  ${blacklistedPmids.size} blacklisted articles skipped`);
+        // Log blacklisted to DB and collect for Slack samples
+        const blacklistRows = [...blacklistedPmids].map(pmid => ({
+          sync_run_at: runStartTime,
+          pubmed_id: pmid,
+          title: null,
+          article_url: `https://pubmed.ncbi.nlm.nih.gov/${pmid}/`,
+          reason: 'blacklisted',
+          journal,
+        }));
+        await supabase.from('sync_skipped_articles').insert(blacklistRows);
+        for (const pmid of blacklistedPmids) {
+          skippedBlacklistDetails.push({
+            pubmed_id: pmid,
+            title: null,
+            url: `https://pubmed.ncbi.nlm.nih.gov/${pmid}/`,
+          });
+        }
       }
+
       console.log(`  ${newPmids.length} new articles to fetch`);
 
       if (newPmids.length === 0) continue;
@@ -311,10 +356,30 @@ async function main() {
           a.summary && a.summary.trim().length >= 50
         );
 
-        const skippedCount = articles.length - articlesToInsert.length;
+        const noAbstractArticles = articles.filter(a =>
+          !a.summary || a.summary.trim().length < 50
+        );
+        const skippedCount = noAbstractArticles.length;
         if (skippedCount > 0) {
           console.log(`  Skipped ${skippedCount} articles with no abstract`);
           stats.totalNoAbstract += skippedCount;
+          // Log to DB and collect for Slack samples
+          const noAbstractRows = noAbstractArticles.map(a => ({
+            sync_run_at: runStartTime,
+            pubmed_id: a.pubmed_id,
+            title: a.title?.slice(0, 500) || null,
+            article_url: a.article_url || `https://pubmed.ncbi.nlm.nih.gov/${a.pubmed_id}/`,
+            reason: 'no_abstract',
+            journal: a.source_journal || journal,
+          }));
+          await supabase.from('sync_skipped_articles').insert(noAbstractRows);
+          for (const a of noAbstractArticles) {
+            skippedNoAbstractDetails.push({
+              pubmed_id: a.pubmed_id,
+              title: (a.title || 'Untitled').slice(0, 80),
+              url: a.article_url || `https://pubmed.ncbi.nlm.nih.gov/${a.pubmed_id}/`,
+            });
+          }
         }
 
         if (articlesToInsert.length > 0) {
@@ -364,8 +429,18 @@ async function main() {
     console.log(`   ⚠️ Unaccounted: ${unaccounted}`);
   }
 
+  // Auto-cleanup: delete sync_skipped_articles older than 30 days
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  const { error: cleanupError } = await supabase
+    .from('sync_skipped_articles')
+    .delete()
+    .lt('sync_run_at', thirtyDaysAgo);
+  if (!cleanupError) {
+    console.log('✓ Old skipped-article records cleaned up');
+  }
+
   // Send Slack notification
-  await sendSlackNotification(stats);
+  await sendSlackNotification(stats, skippedBlacklistDetails, skippedNoAbstractDetails);
 }
 
 main().catch(error => {

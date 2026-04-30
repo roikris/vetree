@@ -5,6 +5,7 @@ import { ArticleHealth } from './ArticleHealth'
 import { FailedArticles } from './FailedArticles'
 import { IncompleteEnrichment } from './IncompleteEnrichment'
 import { ScheduledJobs } from './ScheduledJobs'
+import { SyncSkippedArticles } from './SyncSkippedArticles'
 import Link from 'next/link'
 
 export default async function AdminPipelinePage() {
@@ -39,6 +40,11 @@ export default async function AdminPipelinePage() {
 
       {/* Article Health Diagnostics */}
       <ArticleHealth diagnostics={diagnostics} />
+
+      {/* Last Sync — Skipped Articles */}
+      <div className="mt-8">
+        <SyncSkippedArticles />
+      </div>
 
       {/* Failed Articles Table */}
       <FailedArticles />
