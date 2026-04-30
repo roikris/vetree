@@ -202,12 +202,26 @@ async function sendSlackNotification(stats) {
       journalsWithNew.map(([journal, count]) => `• ${journal}: ${count}`).join('\n');
   }
 
+  const totalAccounted = stats.totalExisting + stats.totalAdded + stats.totalFailed +
+    stats.totalBlacklisted + stats.totalNoAbstract + stats.totalDuplicate;
+  const unaccounted = stats.totalFound - totalAccounted;
+  const balanceCheck = unaccounted === 0
+    ? `✅ All ${stats.totalFound} accounted for`
+    : `⚠️ ${Math.abs(unaccounted)} article${Math.abs(unaccounted) !== 1 ? 's' : ''} unaccounted for`;
+
+  const skippedLines = [
+    stats.totalBlacklisted > 0 ? `• Skipped (blacklisted): ${stats.totalBlacklisted}` : '',
+    stats.totalNoAbstract > 0  ? `• Skipped (no abstract): ${stats.totalNoAbstract}` : '',
+    stats.totalDuplicate > 0   ? `• Skipped (duplicate at insert): ${stats.totalDuplicate}` : '',
+    stats.totalFailed > 0      ? `• Failed to add: ${stats.totalFailed}` : '',
+  ].filter(Boolean).join('\n');
+
   const message = {
     text: `🌿 *Vetree Daily Sync Report*
 • New articles found on PubMed: ${stats.totalFound}
 • Already in database: ${stats.totalExisting}
 • Successfully added: ${stats.totalAdded}
-• Failed to add: ${stats.totalFailed}${journalBreakdown}`
+${skippedLines ? skippedLines + '\n' : ''}${balanceCheck}${journalBreakdown}`
   };
 
   try {
@@ -237,9 +251,12 @@ async function main() {
 
   const stats = {
     totalFound: 0,
-    totalExisting: 0,
+    totalExisting: 0,     // already in DB (pre-insert check)
     totalAdded: 0,
     totalFailed: 0,
+    totalBlacklisted: 0,  // in articles_blacklist
+    totalNoAbstract: 0,   // abstract missing or < 50 chars
+    totalDuplicate: 0,    // 23505 conflicts at insert time (not caught by pre-check)
     byJournal: {}
   };
 
@@ -274,6 +291,7 @@ async function main() {
       const newPmids = pmids.filter(pmid => !existingPmids.has(pmid) && !blacklistedPmids.has(pmid));
 
       stats.totalExisting += existingPmids.size;
+      stats.totalBlacklisted += blacklistedPmids.size;
       if (blacklistedPmids.size > 0) {
         console.log(`  ${blacklistedPmids.size} blacklisted articles skipped`);
       }
@@ -296,6 +314,7 @@ async function main() {
         const skippedCount = articles.length - articlesToInsert.length;
         if (skippedCount > 0) {
           console.log(`  Skipped ${skippedCount} articles with no abstract`);
+          stats.totalNoAbstract += skippedCount;
         }
 
         if (articlesToInsert.length > 0) {
@@ -304,10 +323,10 @@ async function main() {
             .insert(articlesToInsert);
 
           if (error) {
-            // Silently skip unique constraint violations (23505 = duplicate key)
+            // 23505 = unique constraint — at least one article in the batch already exists
             if (error.code === '23505') {
-              console.log(`  ${articlesToInsert.length} articles skipped (already exist or blacklisted)`);
-              stats.totalExisting += articlesToInsert.length;
+              console.log(`  ${articlesToInsert.length} articles skipped (duplicate key at insert time)`);
+              stats.totalDuplicate += articlesToInsert.length;
             } else {
               console.error('  Error inserting articles:', error.message);
               stats.totalFailed += articlesToInsert.length;
@@ -329,11 +348,21 @@ async function main() {
     }
   }
 
+  const totalAccounted = stats.totalExisting + stats.totalAdded + stats.totalFailed +
+    stats.totalBlacklisted + stats.totalNoAbstract + stats.totalDuplicate;
+  const unaccounted = stats.totalFound - totalAccounted;
+
   console.log(`\n✅ Sync complete!`);
   console.log(`   Found: ${stats.totalFound}`);
-  console.log(`   Already existed: ${stats.totalExisting}`);
+  console.log(`   Already in DB: ${stats.totalExisting}`);
   console.log(`   Added: ${stats.totalAdded}`);
+  console.log(`   Blacklisted: ${stats.totalBlacklisted}`);
+  console.log(`   No abstract: ${stats.totalNoAbstract}`);
+  console.log(`   Duplicate at insert: ${stats.totalDuplicate}`);
   console.log(`   Failed: ${stats.totalFailed}`);
+  if (unaccounted !== 0) {
+    console.log(`   ⚠️ Unaccounted: ${unaccounted}`);
+  }
 
   // Send Slack notification
   await sendSlackNotification(stats);
