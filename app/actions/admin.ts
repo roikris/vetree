@@ -129,13 +129,28 @@ export async function getAllUsers() {
     (userRoles || []).map(r => [r.user_id, r.role])
   )
 
+  // Get latest marketing consent per user
+  const { data: consents } = await supabase
+    .from('user_consents')
+    .select('user_id, marketing_opted_in, consented_at')
+    .order('consented_at', { ascending: false })
+
+  // Keep only the most recent consent per user
+  const consentMap = new Map<string, boolean | null>()
+  for (const c of (consents || [])) {
+    if (!consentMap.has(c.user_id)) {
+      consentMap.set(c.user_id, c.marketing_opted_in)
+    }
+  }
+
   // Combine auth users with their roles
   const users = allAuthUsers.map(authUser => ({
     user_id: authUser.id,
     email: authUser.email,
     created_at: authUser.created_at,
     role: roleMap.get(authUser.id) || 'user', // Default to 'user' if no role set
-    confirmed: authUser.email_confirmed_at !== null
+    confirmed: authUser.email_confirmed_at !== null,
+    marketing_consent: consentMap.has(authUser.id) ? consentMap.get(authUser.id)! : null
   }))
 
   // Sort by created_at descending

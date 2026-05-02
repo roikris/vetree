@@ -11,6 +11,8 @@ export default function SignUpPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [termsAccepted, setTermsAccepted] = useState(false)
+  const [marketingOptIn, setMarketingOptIn] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -54,6 +56,13 @@ export default function SignUpPage() {
       return
     }
 
+    // Validate terms acceptance (Israeli Privacy Protection Law)
+    if (!termsAccepted) {
+      setError('יש לאשר את תנאי השימוש ומדיניות הפרטיות כדי להמשיך')
+      setLoading(false)
+      return
+    }
+
     try {
       const { data, error: signUpError } = await supabase.auth.signUp({
         email,
@@ -68,6 +77,19 @@ export default function SignUpPage() {
         }
         setLoading(false)
         return
+      }
+
+      // Save consent record (fire-and-forget — don't block on success)
+      if (data.user) {
+        fetch('/api/auth/save-consent', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: data.user.id,
+            termsAccepted,
+            marketingOptIn,
+          }),
+        }).catch(() => {/* non-critical */})
       }
 
       // Success - show confirmation message
@@ -179,9 +201,42 @@ export default function SignUpPage() {
           placeholder="Re-enter your password"
         />
 
+        {/* Consent checkboxes — required by Israeli Anti-Spam Law + Privacy Protection Law */}
+        <div className="space-y-3 text-right" dir="rtl">
+          <label className="flex items-start gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={termsAccepted}
+              onChange={(e) => setTermsAccepted(e.target.checked)}
+              className="mt-0.5 h-4 w-4 rounded border-zinc-300 text-[#3D7A5F] focus:ring-[#3D7A5F] flex-shrink-0"
+            />
+            <span className="text-sm text-zinc-700 dark:text-zinc-300 leading-snug">
+              קראתי ואני מסכים/ה ל
+              <a href="/terms" target="_blank" className="text-[#3D7A5F] dark:text-[#4E9A78] hover:underline">תנאי השימוש</a>
+              {' '}ול
+              <a href="/privacy" target="_blank" className="text-[#3D7A5F] dark:text-[#4E9A78] hover:underline">מדיניות הפרטיות</a>
+              {' '}של Vetree.{' '}
+              <span className="text-red-500">*</span>
+            </span>
+          </label>
+
+          <label className="flex items-start gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={marketingOptIn}
+              onChange={(e) => setMarketingOptIn(e.target.checked)}
+              className="mt-0.5 h-4 w-4 rounded border-zinc-300 text-[#3D7A5F] focus:ring-[#3D7A5F] flex-shrink-0"
+            />
+            <span className="text-sm text-zinc-700 dark:text-zinc-300 leading-snug">
+              אני מאשר/ת קבלת עדכונים שבועיים ומידע על מאמרים חדשים מ-Vetree בדוא"ל.
+              ניתן לבטל בכל עת.
+            </span>
+          </label>
+        </div>
+
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || !termsAccepted}
           className="w-full bg-[#3D7A5F] dark:bg-[#4E9A78] text-white hover:bg-[#2F5F4A] dark:hover:bg-[#5FAA88] disabled:opacity-50 disabled:cursor-not-allowed rounded-lg px-4 py-3 font-medium transition-colors"
         >
           {loading ? 'Creating account...' : 'Create account'}

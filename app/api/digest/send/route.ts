@@ -98,12 +98,27 @@ export async function POST(request: NextRequest) {
 
     const optedOutIds = new Set((optedOut || []).map(r => r.user_id))
 
+    // Fetch users with explicit marketing consent (Israeli Anti-Spam Law)
+    // Only users who have ticked the marketing opt-in checkbox may receive digest emails
+    const { data: consented } = await supabase
+      .from('user_consents')
+      .select('user_id')
+      .eq('marketing_opted_in', true)
+
+    const consentedIds = new Set((consented || []).map(r => r.user_id))
+
     // Process each user
     for (const user of users) {
       if (!user.email) continue
 
       // Skip users who have explicitly unsubscribed
       if (optedOutIds.has(user.id)) {
+        skippedCount++
+        continue
+      }
+
+      // Skip users without explicit marketing consent (Israeli Anti-Spam Law)
+      if (!consentedIds.has(user.id)) {
         skippedCount++
         continue
       }

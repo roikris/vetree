@@ -10,6 +10,7 @@ type User = {
   role: string
   created_at: string
   confirmed: boolean
+  marketing_consent: boolean | null
 }
 
 type UsersClientProps = {
@@ -76,6 +77,9 @@ export function UsersClient({ initialUsers }: UsersClientProps) {
                 Role
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                Consent
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
                 Actions
               </th>
             </tr>
@@ -83,7 +87,7 @@ export function UsersClient({ initialUsers }: UsersClientProps) {
           <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
             {filteredUsers.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-6 py-8 text-center text-zinc-500 dark:text-zinc-400">
+                <td colSpan={6} className="px-6 py-8 text-center text-zinc-500 dark:text-zinc-400">
                   No users found
                 </td>
               </tr>
@@ -117,6 +121,21 @@ export function UsersClient({ initialUsers }: UsersClientProps) {
                     }`}>
                       {user.role}
                     </span>
+                  </td>
+                  <td className="px-6 py-4">
+                    {user.marketing_consent === null ? (
+                      <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400">
+                        No record
+                      </span>
+                    ) : user.marketing_consent ? (
+                      <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-200">
+                        ✓ Marketing
+                      </span>
+                    ) : (
+                      <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-amber-100 dark:bg-amber-900/20 text-amber-800 dark:text-amber-200">
+                        Terms only
+                      </span>
+                    )}
                   </td>
                   <td className="px-6 py-4">
                     {user.role === 'admin' ? (

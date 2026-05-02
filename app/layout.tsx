@@ -4,6 +4,7 @@ import { Analytics } from '@vercel/analytics/react';
 import { PageTracker } from '@/components/PageTracker';
 import { PWARegister } from '@/components/PWARegister';
 import { PWAInstallPrompt } from '@/components/ui/PWAInstallPrompt';
+import { ConsentGate } from '@/components/ConsentGate';
 import "./globals.css";
 
 const geistSans = Geist({
@@ -93,6 +94,7 @@ export default function RootLayout({
         </a>
         <PWARegister />
         <PageTracker />
+        <ConsentGate />
         <main id="main-content">
           {children}
         </main>
