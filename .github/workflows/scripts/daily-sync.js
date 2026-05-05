@@ -1,4 +1,5 @@
 const { createClient } = require('@supabase/supabase-js');
+const ws = require('ws');
 const { parseStringPromise } = require('xml2js');
 
 const JOURNAL_MAP = {
@@ -267,7 +268,16 @@ async function main() {
 
   const supabase = createClient(
     process.env.SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY
+    process.env.SUPABASE_SERVICE_ROLE_KEY,
+    {
+      realtime: {
+        transport: ws,
+      },
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+      }
+    }
   );
 
   const runStartTime = new Date().toISOString();

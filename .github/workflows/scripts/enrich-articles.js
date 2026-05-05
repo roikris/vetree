@@ -1,4 +1,5 @@
 const { createClient } = require('@supabase/supabase-js');
+const ws = require('ws');
 const Anthropic = require('@anthropic-ai/sdk');
 
 const ALLOWED_LABELS = [
@@ -172,7 +173,16 @@ async function main() {
 
   const supabase = createClient(
     process.env.SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY
+    process.env.SUPABASE_SERVICE_ROLE_KEY,
+    {
+      realtime: {
+        transport: ws,
+      },
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+      }
+    }
   );
 
   const anthropic = new Anthropic({

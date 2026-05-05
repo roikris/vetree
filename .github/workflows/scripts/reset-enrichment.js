@@ -1,11 +1,21 @@
 const { createClient } = require('@supabase/supabase-js');
+const ws = require('ws');
 
 async function main() {
   console.log('Resetting enrichment flags for all articles...');
 
   const supabase = createClient(
     process.env.SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY
+    process.env.SUPABASE_SERVICE_ROLE_KEY,
+    {
+      realtime: {
+        transport: ws,
+      },
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+      }
+    }
   );
 
   let totalUpdated = 0;

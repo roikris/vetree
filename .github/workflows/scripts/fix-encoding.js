@@ -1,4 +1,5 @@
 const { createClient } = require('@supabase/supabase-js');
+const ws = require('ws');
 
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -76,7 +77,16 @@ async function main() {
 
   const supabase = createClient(
     process.env.SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY
+    process.env.SUPABASE_SERVICE_ROLE_KEY,
+    {
+      realtime: {
+        transport: ws,
+      },
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+      }
+    }
   );
 
   // Fetch articles with HTML entities (look for &#)

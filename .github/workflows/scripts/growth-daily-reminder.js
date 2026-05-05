@@ -1,4 +1,5 @@
 const { createClient } = require('@supabase/supabase-js')
+const ws = require('ws')
 
 const PLATFORM_EMOJIS = {
   facebook_il: '📘',
@@ -34,7 +35,15 @@ async function sendDailyReminder() {
     process.exit(1)
   }
 
-  const supabase = createClient(supabaseUrl, supabaseKey)
+  const supabase = createClient(supabaseUrl, supabaseKey, {
+    realtime: {
+      transport: ws,
+    },
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    }
+  })
 
   try {
     // Get today's date
