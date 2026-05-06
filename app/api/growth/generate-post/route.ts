@@ -245,7 +245,18 @@ Instead use: specific clinical language, numbers, direct observations, questions
       facebook: 'Conversational, 100-200 words. Can use emoji sparingly. Personal tone.',
       facebook_il: 'Same as Facebook but in Hebrew. Natural clinical Hebrew, not translated.',
       facebook_intl: 'International Facebook. Conversational, 100-200 words. Personal tone.',
-      whatsapp: 'Very short, casual, direct. 50-80 words max. Hebrew preferred for IL group.',
+      whatsapp: `Informative clinical post, 100-150 words. Hebrew preferred.
+Similar to Telegram but more conversational and warm —
+written for a WhatsApp group of veterinary professionals.
+Structure:
+- Opening: specific clinical finding or question (1-2 sentences)
+- Core: key evidence from the article (2-3 sentences, specific numbers when available)
+- Takeaway: what this means for daily practice (1 sentence)
+- Link at end
+
+No hashtags. No bullet points. Flowing paragraph style.
+Professional but approachable — like a colleague sharing
+a finding in a group chat, not a formal report.`,
       instagram: 'Visual-first caption. Hook + insight + hashtags at end. 100-150 words.',
       telegram: 'Medium length, informative. 100-150 words. Can be slightly more technical.',
       reddit: 'Informative, evidence-based. 150-250 words. Avoid marketing tone.',
