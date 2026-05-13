@@ -302,6 +302,15 @@ CREATE POLICY "Admins only" ON t FOR ALL USING (
 CREATE POLICY "Anyone can insert" ON t FOR INSERT WITH CHECK (true);
 ```
 
+## Required Grants (Supabase enforces from Oct 30, 2026)
+Every new table needs explicit GRANTs or gets 42501 errors. Add after RLS policies:
+```sql
+-- Adjust privileges to match the table's access pattern:
+GRANT SELECT ON public.table_name TO anon;                              -- if public read
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.table_name TO authenticated; -- adjust as needed
+GRANT ALL ON public.table_name TO service_role;
+```
+
 ## SQL Function Security (required)
 ```sql
 ALTER FUNCTION public.function_name() SET search_path = public;

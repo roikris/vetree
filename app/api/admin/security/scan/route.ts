@@ -215,6 +215,24 @@ export async function POST(request: NextRequest) {
     })
   }
 
+  // CHECK 9: Tables missing explicit grants (Supabase breaking change Oct 30, 2026)
+  try {
+    const { data: tablesWithoutGrants } = await adminSupabase.rpc('check_table_grants')
+    if (tablesWithoutGrants && (tablesWithoutGrants as Array<{ table_name: string }>).length > 0) {
+      const affected = (tablesWithoutGrants as Array<{ table_name: string }>).map(t => t.table_name)
+      findings.push({
+        id: 'missing_grants',
+        severity: 'high',
+        title: 'Tables missing explicit grants',
+        description: `${affected.length} tables lack explicit grants — will break with 42501 errors after Supabase's Oct 30, 2026 default grant change.`,
+        affected,
+        detected_at: new Date().toISOString(),
+      })
+    }
+  } catch {
+    // RPC not installed yet — skip
+  }
+
   // PART 3: Generate Claude Haiku fix prompts for each finding
   const fixes: Array<{ finding_id: string; fix_prompt: string }> = []
   if (findings.length > 0) {
