@@ -200,6 +200,30 @@ export default async function ArticlePage({ params }: PageProps) {
           <ArticleCard article={article} />
         </div>
 
+        {/* Invitational Banner — shown to guests right after the article, before they need to scroll */}
+        {!isLoggedIn && (
+          <div className="mb-10 bg-gradient-to-r from-[#3D7A5F]/5 to-[#4E9A78]/5 dark:from-[#3D7A5F]/10 dark:to-[#4E9A78]/10 border border-[#3D7A5F]/20 dark:border-[#4E9A78]/20 rounded-xl p-8 text-center">
+            <div className="flex items-center justify-center gap-2 mb-3">
+              <span className="text-2xl">🌿</span>
+              <h2 className="text-xl font-semibold text-[#1A1A1A] dark:text-[#E8E8E8]">
+                Enjoying this?
+              </h2>
+            </div>
+            <p className="text-zinc-600 dark:text-zinc-400 mb-6 max-w-2xl mx-auto">
+              Vetree distills veterinary research into clear, actionable summaries. Explore articles from top veterinary journals.
+            </p>
+            <Link
+              href="/"
+              className="inline-flex items-center gap-2 bg-[#3D7A5F] dark:bg-[#4E9A78] text-white hover:bg-[#2F5F4A] dark:hover:bg-[#5FAA88] rounded-lg px-6 py-3 font-medium transition-colors"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              Explore More Articles
+            </Link>
+          </div>
+        )}
+
         {/* Follow Topic Buttons */}
         {article.labels && article.labels.length > 0 && (
           <div className="mb-12">
@@ -220,28 +244,6 @@ export default async function ArticlePage({ params }: PageProps) {
             </div>
           </div>
         )}
-
-        {/* Invitational Banner */}
-        <div className="bg-gradient-to-r from-[#3D7A5F]/5 to-[#4E9A78]/5 dark:from-[#3D7A5F]/10 dark:to-[#4E9A78]/10 border border-[#3D7A5F]/20 dark:border-[#4E9A78]/20 rounded-xl p-8 text-center">
-          <div className="flex items-center justify-center gap-2 mb-3">
-            <span className="text-2xl">🌿</span>
-            <h2 className="text-xl font-semibold text-[#1A1A1A] dark:text-[#E8E8E8]">
-              Enjoying this?
-            </h2>
-          </div>
-          <p className="text-zinc-600 dark:text-zinc-400 mb-6 max-w-2xl mx-auto">
-            Vetree distills veterinary research into clear, actionable summaries. Explore articles from top veterinary journals.
-          </p>
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 bg-[#3D7A5F] dark:bg-[#4E9A78] text-white hover:bg-[#2F5F4A] dark:hover:bg-[#5FAA88] rounded-lg px-6 py-3 font-medium transition-colors"
-          >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            Explore More Articles
-          </Link>
-        </div>
 
         {/* Soft Registration Prompt (scroll-triggered for non-logged-in users) */}
         {!isLoggedIn && <SoftRegistrationPrompt labels={article.labels} />}
