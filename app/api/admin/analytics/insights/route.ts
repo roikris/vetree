@@ -148,6 +148,7 @@ Bad: "Add a search feature" (already have fuzzy search)
 Bad: "Send email notifications" (already have weekly digest)
 Bad: "Add related content" (already have related articles)
 Bad: "Improve mobile experience" (already mobile-optimized)
+Bad: Suggesting a content_roadmap topic not found in the signals data — fabricating topics wastes synthesis tokens and produces empty output.
 
 YOUR PRIORITIES (in order):
 1. Retention — what specific friction prevents vets from returning?
@@ -194,8 +195,7 @@ Return this exact JSON structure:
 
 Generate 4-6 insights maximum. Quality over quantity.
 
-CONTENT ROADMAP RULE: Always populate content_roadmap with 3-5 specific veterinary topics.
-Source priority: (1) signals with type=content_opportunity and results=0 (zero-result queries), (2) signals with type=content_opportunity and results=low (<10) — thin content areas, (3) if no content_opportunity signals exist, derive topics from top_searches in the snapshot that likely have sparse coverage. Never return an empty content_roadmap array.`
+CONTENT ROADMAP RULE: Populate content_roadmap ONLY from signals with type=content_opportunity (zero-result or thin-result searches). These are topics users actually searched for and found nothing. Do NOT invent topics. If no content_opportunity signals exist, return an empty array []. An empty content_roadmap is correct when there is no evidence of unmet demand.`
 
     console.log('[insights] Calling Claude Sonnet for analysis...')
     console.log('[insights] Prompt length:', userPrompt.length, 'chars')
