@@ -32,11 +32,6 @@ export default async function AdminAnalyticsPage() {
         </p>
       </div>
 
-      {/* Analysis Agent */}
-      <div className="mb-8">
-        <AnalysisAgent />
-      </div>
-
       {/* Main Content */}
       <AnalyticsClient
         initialOverview={overview.data}
@@ -55,6 +50,11 @@ export default async function AdminAnalyticsPage() {
       {/* User Retention */}
       <div className="mt-8">
         <UserRetention />
+      </div>
+
+      {/* Analysis Agent */}
+      <div className="mt-8">
+        <AnalysisAgent />
       </div>
     </div>
   )
