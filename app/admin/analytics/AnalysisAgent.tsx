@@ -456,10 +456,10 @@ Please implement this change and commit.`
                   {topic}
                 </p>
                 <button
-                  onClick={() => router.push(`/?search=${encodeURIComponent(getSynthesisQuery(topic))}&synthesize=true`)}
+                  onClick={() => router.push(`/?search=${encodeURIComponent(getSynthesisQuery(topic))}`)}
                   className="text-emerald-600 hover:text-emerald-700 text-sm font-medium"
                 >
-                  Create Synthesis →
+                  Search topic →
                 </button>
               </div>
             ))}
