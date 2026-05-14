@@ -102,6 +102,101 @@ export async function POST(request: NextRequest) {
     }
     console.log('[insights] Past insights loaded:', pastInsights?.length || 0)
 
+    // Specific row-level data for actionable insights
+    const sevenDaysAgoISO = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+    const adminId = '90cb8294-b593-4144-a9f5-23ca52dd5e35'
+
+    // Zero-result searches (exact queries users searched with no results)
+    const { data: zeroResultQueries } = await supabase
+      .from('search_logs')
+      .select('query, results_count, created_at')
+      .eq('results_count', 0)
+      .neq('user_id', adminId)
+      .gte('created_at', sevenDaysAgoISO)
+      .order('created_at', { ascending: false })
+      .limit(20)
+
+    // Thin-result searches (1-4 results — sparse coverage)
+    const { data: thinResultQueries } = await supabase
+      .from('search_logs')
+      .select('query, results_count, created_at')
+      .gt('results_count', 0)
+      .lte('results_count', 4)
+      .neq('user_id', adminId)
+      .gte('created_at', sevenDaysAgoISO)
+      .order('created_at', { ascending: false })
+      .limit(20)
+
+    // Top saved articles this week (what content resonates)
+    const { data: recentSaves } = await supabase
+      .from('saved_articles')
+      .select('article_id, created_at, articles(title, labels)')
+      .gte('created_at', sevenDaysAgoISO)
+      .order('created_at', { ascending: false })
+      .limit(20)
+
+    // Users active 8-28 days ago but not in last 7 days (churn candidates)
+    const twentyEightDaysAgoISO = new Date(Date.now() - 28 * 24 * 60 * 60 * 1000).toISOString()
+    const { data: recentActiveUsers } = await supabase
+      .from('page_views')
+      .select('user_id, viewed_at')
+      .not('user_id', 'is', null)
+      .neq('user_id', adminId)
+      .gte('viewed_at', twentyEightDaysAgoISO)
+      .lt('viewed_at', sevenDaysAgoISO)
+      .order('viewed_at', { ascending: false })
+      .limit(200)
+
+    const { data: recentReturnedUsers } = await supabase
+      .from('page_views')
+      .select('user_id')
+      .not('user_id', 'is', null)
+      .neq('user_id', adminId)
+      .gte('viewed_at', sevenDaysAgoISO)
+      .limit(500)
+
+    const returnedUserIds = new Set((recentReturnedUsers || []).map(r => r.user_id))
+    const churnCandidateIds = [...new Set((recentActiveUsers || []).map(r => r.user_id))]
+      .filter(id => !returnedUserIds.has(id))
+
+    // Aggregate zero-result queries by term
+    const zeroResultCounts = (zeroResultQueries || []).reduce((acc: Record<string, number>, row) => {
+      acc[row.query] = (acc[row.query] || 0) + 1
+      return acc
+    }, {})
+    const topZeroResults = Object.entries(zeroResultCounts)
+      .sort(([, a], [, b]) => (b as number) - (a as number))
+      .slice(0, 10)
+      .map(([query, count]) => ({ query, count }))
+
+    // Aggregate thin-result queries by term
+    const thinResultCounts = (thinResultQueries || []).reduce((acc: Record<string, number>, row) => {
+      acc[row.query] = (acc[row.query] || 0) + 1
+      return acc
+    }, {})
+    const topThinResults = Object.entries(thinResultCounts)
+      .sort(([, a], [, b]) => (b as number) - (a as number))
+      .slice(0, 10)
+      .map(([query, count]) => ({ query, count }))
+
+    console.log('[insights] Specific data — zero-result queries:', topZeroResults.length, 'thin-result:', topThinResults.length, 'churn candidates:', churnCandidateIds.length, 'recent saves:', recentSaves?.length || 0)
+
+    const specificDataSection = `
+SPECIFIC DATA — cite these exact items in your insights:
+
+ZERO-RESULT SEARCHES (users searched, found nothing — content gaps):
+${topZeroResults.length > 0 ? topZeroResults.map(r => `  "${r.query}" — searched ${r.count}x this week, 0 results`).join('\n') : '  None this week'}
+
+THIN-RESULT SEARCHES (1-4 results — sparse coverage):
+${topThinResults.length > 0 ? topThinResults.map(r => `  "${r.query}" — searched ${r.count}x, only ${(thinResultQueries || []).find(q => q.query === r.query)?.results_count ?? '<5'} results`).join('\n') : '  None this week'}
+
+CHURN CANDIDATES (active 8-28 days ago, not seen since):
+${churnCandidateIds.length > 0 ? `  ${churnCandidateIds.length} user(s) went quiet` : '  None — good retention this week'}
+
+RECENTLY SAVED ARTICLES (what content resonates):
+${recentSaves && recentSaves.length > 0 ? (recentSaves as any[]).slice(0, 5).map((s: any) => `  "${s.articles?.title || s.article_id}" — saved`).join('\n') : '  No saves this week'}
+`
+
     const pastActionsText = pastInsights?.flatMap(i =>
       (i.top_3_actions as string[]) || []
     ).slice(0, 10).join('\n- ') || 'None yet'
@@ -157,7 +252,7 @@ YOUR PRIORITIES (in order):
 4. Feature depth — which existing features are underused and why?
 
 RULES:
-- Every insight MUST cite specific numbers from the signals
+- Every insight MUST cite specific data from the SPECIFIC DATA section above — exact query strings, exact counts, exact article titles. Generic percentage observations are not acceptable.
 - Every recommendation must reference a specific file, feature, or existing system to modify — not build from scratch
 - Achievable by a solo developer in under 1 day
 - Veterinary clinical relevance > generic SaaS patterns
@@ -167,7 +262,7 @@ RULES:
 
 METRICS SNAPSHOT:
 ${JSON.stringify(snapshot, null, 2)}
-
+${specificDataSection}
 TOP SIGNALS (sorted by severity):
 ${JSON.stringify(signals, null, 2)}
 
