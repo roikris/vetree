@@ -22,10 +22,10 @@ const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env
 ## Article List Select (never use select('*') for lists)
 ```ts
 // For article cards — summary fetched lazily on expand
-.select('id, title, clinical_bottom_line, labels, source_journal, published_date, strength_of_evidence, authors, article_url, doi, pubmed_id')
+.select('id, title, clinical_bottom_line, labels, source_journal, publication_date, strength_of_evidence, authors, article_url, doi, pubmed_id')
 
 // For individual article page only
-.select('id, title, clinical_bottom_line, summary, labels, source_journal, published_date, strength_of_evidence, authors, article_url, doi, pubmed_id')
+.select('id, title, clinical_bottom_line, summary, labels, source_journal, publication_date, strength_of_evidence, authors, article_url, doi, pubmed_id')
 ```
 
 ## Large Animal Exclusion — JS ONLY (Supabase syntax unreliable)
@@ -46,12 +46,11 @@ const filtered = articles.filter(a => !a.labels?.some((l: string) => LARGE_ANIMA
 |--------|------|-------|
 | id | text PK | PubMed ID |
 | title | text | |
-| abstract | text | Must be ≥50 chars or skip enrichment |
 | summary | text | AI-generated, fetch lazily |
 | clinical_bottom_line | text | AI-generated — must exist to show publicly |
 | labels | text[] | GIN indexed |
 | source_journal | text | |
-| published_date | date | |
+| publication_date | date | |
 | article_url | text | |
 | doi | text | |
 | authors | text | |

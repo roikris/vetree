@@ -255,6 +255,13 @@ export function SynthesisPanel({ query, onClose, isLoggedIn }: SynthesisPanelPro
                 )}
               </div>
 
+              {/* Limited evidence warning */}
+              {breakdown.total < 5 && (
+                <div className="mb-3 px-3 py-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg text-xs text-amber-700 dark:text-amber-300">
+                  Found {breakdown.total} {breakdown.total === 1 ? 'study' : 'studies'} on this topic — synthesis may be limited
+                </div>
+              )}
+
               {/* Evidence quality badges */}
               <div className="flex flex-wrap gap-2 text-xs font-medium">
                 <span className="px-2 py-1 bg-white dark:bg-zinc-800 border border-blue-200 dark:border-blue-700 rounded">

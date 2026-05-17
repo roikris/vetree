@@ -82,7 +82,59 @@ export async function searchArticles(filters: ParsedFilters, pageSize = 20): Pro
         return { data: [], count: 0 }
       }
 
-      // TIER 1: Full-text search — apply all filters + pagination directly
+      const LARGE_ANIMAL = ['Equine','equine','Large Animal','large animal','Livestock','livestock','Poultry','poultry','Food Animal','food animal']
+
+      // PRIMARY: Ranked multi-field search via RPC (title A, labels B, CBL B, summary C)
+      const { data: rpcData, error: rpcError } = await supabase
+        .rpc('search_articles_ranked', {
+          search_query: sanitizedSearch,
+          result_limit: 50
+        })
+
+      if (!rpcError && rpcData && rpcData.length > 0) {
+        let filtered: any[] = rpcData.filter((a: any) =>
+          !a.labels?.some((l: string) => LARGE_ANIMAL.includes(l))
+        )
+        if (filters.quickFilter !== 'all') {
+          const quickLabel = filters.quickFilter === 'small-animal' ? 'Small Animal' : 'Large Animal'
+          filtered = filtered.filter((a: any) => a.labels?.includes(quickLabel))
+        }
+        if (filters.labels.length > 0) {
+          if (filters.labelOperator === 'AND') {
+            filtered = filtered.filter((a: any) =>
+              filters.labels.every((l: string) => a.labels?.includes(l))
+            )
+          } else {
+            filtered = filtered.filter((a: any) =>
+              filters.labels.some((l: string) => a.labels?.includes(l))
+            )
+          }
+        }
+        if (filters.evidence.length > 0) {
+          filtered = filtered.filter((a: any) => filters.evidence.includes(a.strength_of_evidence))
+        }
+        if (filters.journals.length > 0) {
+          filtered = filtered.filter((a: any) => filters.journals.includes(a.source_journal))
+        }
+        // Re-sort by date only when explicitly requested; default keeps RPC relevance order
+        if (filters.sort === 'oldest') {
+          filtered.sort((a: any, b: any) =>
+            new Date(a.publication_date).getTime() - new Date(b.publication_date).getTime()
+          )
+        } else if (filters.sort === 'newest') {
+          filtered.sort((a: any, b: any) =>
+            new Date(b.publication_date).getTime() - new Date(a.publication_date).getTime()
+          )
+        }
+        const count = filtered.length
+        const from = (filters.page - 1) * pageSize
+        return { data: filtered.slice(from, from + pageSize), count, searchTier: 'exact' }
+      }
+
+      // FALLBACK: Old 3-tier search if RPC returns 0 results
+      // (e.g. search_vector not yet populated for newly enriched articles)
+
+      // TIER 1: Full-text search on title
       try {
         const ftsBase = buildBaseQuery()
           .textSearch('title', sanitizedSearch, { type: 'websearch' })
@@ -94,7 +146,7 @@ export async function searchArticles(filters: ParsedFilters, pageSize = 20): Pro
         console.log('[Search] FTS failed, trying ILIKE')
       }
 
-      // TIER 2: ILIKE fallback — apply all filters + pagination directly
+      // TIER 2: ILIKE fallback
       const ilikeBase = buildBaseQuery().or(
         `title.ilike.%${sanitizedSearch}%,summary.ilike.%${sanitizedSearch}%,clinical_bottom_line.ilike.%${sanitizedSearch}%,authors.ilike.%${sanitizedSearch}%`
       )
@@ -103,14 +155,13 @@ export async function searchArticles(filters: ParsedFilters, pageSize = 20): Pro
         return { data: ilikeData, count: ilikeCount, searchTier: 'ilike' }
       }
 
-      // TIER 3: Trigram fuzzy search — RPC returns all IDs, then fetch with filters
+      // TIER 3: Trigram fuzzy
       try {
         const { data: fuzzyData } = await supabase
           .rpc('search_articles_fuzzy', {
             search_query: sanitizedSearch,
             similarity_threshold: 0.3
           })
-
         if (fuzzyData && fuzzyData.length > 0) {
           const fuzzyBase = supabase
             .from('articles')

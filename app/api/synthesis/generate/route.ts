@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import Anthropic from '@anthropic-ai/sdk'
-import { normalizeQuery, extractKeyLabels } from '@/lib/utils/normalizeQuery'
+import { normalizeQuery } from '@/lib/utils/normalizeQuery'
 
 export async function POST(request: NextRequest) {
   const startTime = Date.now()
@@ -81,150 +81,32 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // STEP 2: Cache miss - fetch articles
+    // STEP 2: Cache miss — fetch articles with ranked synthesis RPC
     console.log('[synthesis] Cache miss, generating new synthesis for:', queryOriginal)
 
-    const SELECT_FIELDS = 'id, title, clinical_bottom_line, summary, labels, source_journal, publication_date'
     const LARGE_ANIMAL_LABELS = [
       'Equine', 'equine', 'Large Animal', 'large animal',
       'Livestock', 'livestock', 'Poultry', 'poultry',
       'Food Animal', 'food animal',
     ]
 
-    // Extract content words from the ORIGINAL query (not the normalized/expanded one).
-    // normalizeQuery() adds synonyms which breaks FTS (too long, repeated terms).
-    const SYNTHESIS_STOPWORDS = new Set([
-      'for','and','in','of','the','with','to','a','an','on','at','by',
-      'is','are','that','this','or','as','from','canine','feline','dog',
-      'cat','patient','patients','update','updates','veterinary','medicine',
-      'small','animal','large','clinical',
-    ])
+    const { data: rpcArticles, error: rpcError } = await supabase
+      .rpc('search_articles_synthesis', {
+        search_query: queryNormalized,
+        candidate_limit: 50,
+        final_limit: 15
+      })
 
-    const contentWords = queryOriginal.toLowerCase()
-      .split(/\s+/)
-      .filter((w: string) => !SYNTHESIS_STOPWORDS.has(w) && w.length > 3)
-      .slice(0, 3)
-
-    // Also pull synonym terms from the normalized query as additional ILIKE candidates
-    const normalizedWords = queryNormalized.split(' ')
-      .filter((w: string) => !SYNTHESIS_STOPWORDS.has(w) && w.length > 3)
-      .filter((w: string) => !contentWords.includes(w))
-      .slice(0, 3)
-
-    const allSearchWords = [...new Set([...contentWords, ...normalizedWords])]
-
-    console.log('[synthesis] contentWords:', contentWords, 'normalizedWords:', normalizedWords)
-
-    // Tier 1: FTS on title — OR operator so any content word matches
-    const ftsQuery = contentWords.length > 0 ? contentWords.join(' | ') : queryOriginal
-    const { data: ftsArticles } = await supabase
-      .from('articles')
-      .select(SELECT_FIELDS)
-      .textSearch('title', ftsQuery, { type: 'websearch' })
-      .eq('needs_enrichment', false)
-      .not('clinical_bottom_line', 'is', null)
-      .or('quarantined.is.null,quarantined.eq.false')
-      .order('publication_date', { ascending: false })
-      .limit(40)
-
-    console.log('[synthesis] ftsArticles:', ftsArticles?.length ?? 0)
-
-    // Tier 2: ILIKE on title + CBL using all search words (content + synonyms)
-    let ilikeArticles: any[] = []
-    if (!ftsArticles || ftsArticles.length < 3) {
-      if (allSearchWords.length > 0) {
-        const orClauses = allSearchWords.flatMap((w: string) => [
-          `title.ilike.%${w}%`,
-          `clinical_bottom_line.ilike.%${w}%`,
-        ]).join(',')
-        const { data } = await supabase
-          .from('articles')
-          .select(SELECT_FIELDS)
-          .or(orClauses)
-          .eq('needs_enrichment', false)
-          .not('clinical_bottom_line', 'is', null)
-          .or('quarantined.is.null,quarantined.eq.false')
-          .order('publication_date', { ascending: false })
-          .limit(40)
-        ilikeArticles = data || []
-      }
-      console.log('[synthesis] ilikeArticles:', ilikeArticles.length)
+    if (rpcError) {
+      console.error('[synthesis] RPC error:', rpcError)
     }
 
-    // Tier 3: trigram fuzzy RPC if still < 3 (use first content word — short query works best)
-    let fuzzyArticles: any[] = []
-    if ((!ftsArticles || ftsArticles.length < 3) && ilikeArticles.length < 3) {
-      const fuzzyQuery = contentWords.slice(0, 2).join(' ')
-      const { data: fuzzyIds } = await supabase
-        .rpc('search_articles_fuzzy', { search_query: fuzzyQuery, similarity_threshold: 0.2 })
-      if (fuzzyIds && fuzzyIds.length > 0) {
-        const { data } = await supabase
-          .from('articles')
-          .select(SELECT_FIELDS)
-          .in('id', fuzzyIds.map((a: any) => a.id))
-          .eq('needs_enrichment', false)
-          .not('clinical_bottom_line', 'is', null)
-          .or('quarantined.is.null,quarantined.eq.false')
-          .order('publication_date', { ascending: false })
-          .limit(40)
-        fuzzyArticles = data || []
-      }
-      console.log('[synthesis] fuzzyArticles:', fuzzyArticles.length)
-    }
-
-    // Label-based search (always runs, merged with tier results)
-    const keyLabels = extractKeyLabels(queryOriginal)
-    let labelArticles: any[] = []
-    if (keyLabels.length > 0) {
-      const { data } = await supabase
-        .from('articles')
-        .select(SELECT_FIELDS)
-        .overlaps('labels', keyLabels)
-        .eq('needs_enrichment', false)
-        .not('clinical_bottom_line', 'is', null)
-        .or('quarantined.is.null,quarantined.eq.false')
-        .order('publication_date', { ascending: false })
-        .limit(20)
-      labelArticles = data || []
-      console.log('[synthesis] labelArticles:', labelArticles.length, 'keyLabels:', keyLabels)
-    }
-
-    // Merge and deduplicate
-    const allArticles = [...(ftsArticles || []), ...ilikeArticles, ...fuzzyArticles, ...labelArticles]
-    const uniqueArticles = Array.from(new Map(allArticles.map(a => [a.id, a])).values())
-
-    const smallAnimalArticles = uniqueArticles.filter(article => {
-      const labels = article.labels || []
-      return !labels.some((label: string) => LARGE_ANIMAL_LABELS.includes(label))
-    })
-
-    console.log('[synthesis] smallAnimalArticles:', smallAnimalArticles.length)
-
-    // Tier 4: broad keyword fallback on CBL if still < 3 small-animal articles
-    let broadArticles: any[] = []
-    if (smallAnimalArticles.length < 3 && allSearchWords.length > 0) {
-      const orClauses = allSearchWords.map((w: string) => `clinical_bottom_line.ilike.%${w}%`).join(',')
-      const { data } = await supabase
-        .from('articles')
-        .select(SELECT_FIELDS)
-        .or(orClauses)
-        .eq('needs_enrichment', false)
-        .not('clinical_bottom_line', 'is', null)
-        .or('quarantined.is.null,quarantined.eq.false')
-        .order('publication_date', { ascending: false })
-        .limit(20)
-      broadArticles = (data || []).filter(
-        (a: any) => !a.labels?.some((l: string) => LARGE_ANIMAL_LABELS.includes(l))
-      )
-      console.log('[synthesis] broadArticles (tier4):', broadArticles.length)
-    }
-
-    const finalArticles = Array.from(
-      new Map([...smallAnimalArticles, ...broadArticles].map(a => [a.id, a])).values()
+    // Large animal filter in JS (per CLAUDE.md)
+    const articlesForSynthesis = (rpcArticles || []).filter((a: any) =>
+      !a.labels?.some((l: string) => LARGE_ANIMAL_LABELS.includes(l))
     )
 
-    // Take top 15 by recency
-    const articlesForSynthesis = finalArticles.slice(0, 15)
+    console.log('[synthesis] articlesForSynthesis:', articlesForSynthesis.length)
 
     if (articlesForSynthesis.length === 0) {
       return NextResponse.json({
@@ -235,7 +117,7 @@ export async function POST(request: NextRequest) {
     }
 
     // STEP 3: Build evidence packets for Claude
-    const packets = articlesForSynthesis.map((a, i) => ({
+    const packets = articlesForSynthesis.map((a: any, i: number) => ({
       citation_id: i + 1,
       id: a.id,
       title: a.title,
@@ -303,7 +185,7 @@ Synthesize the evidence for this veterinary clinical topic.`
 
     // STEP 5: Validate citations
     const citedIds = [...synthesisText.matchAll(/\[(\d+)\]/g)].map(m => parseInt(m[1]))
-    const validIds = packets.map(p => p.citation_id)
+    const validIds = packets.map((p: any) => p.citation_id)
     const invalidCitations = citedIds.filter(id => !validIds.includes(id))
 
     if (invalidCitations.length > 0) {
@@ -314,7 +196,7 @@ Synthesize the evidence for this veterinary clinical topic.`
     const synthesisHtml = synthesisText.replace(
       /\[(\d+)\]/g,
       (match, id) => {
-        const article = packets.find(p => p.citation_id === parseInt(id))
+        const article = packets.find((p: any) => p.citation_id === parseInt(id))
         if (!article) return '' // strip invalid citations
 
         return `<a href="/article/${article.id}" class="citation-link text-[#3D7A5F] dark:text-[#4E9A78] hover:underline font-medium" title="${article.title}">[${id}]</a>`
@@ -323,16 +205,16 @@ Synthesize the evidence for this veterinary clinical topic.`
 
     // STEP 7: Build study type breakdown
     const studyTypeBreakdown = {
-      systematic_reviews: articlesForSynthesis.filter(a =>
+      systematic_reviews: articlesForSynthesis.filter((a: any) =>
         a.labels?.some((l: string) => l.toLowerCase().includes('systematic review'))
       ).length,
-      rct: articlesForSynthesis.filter(a =>
+      rct: articlesForSynthesis.filter((a: any) =>
         a.labels?.some((l: string) => l.toLowerCase().includes('rct') || l.toLowerCase().includes('randomized'))
       ).length,
-      retrospective: articlesForSynthesis.filter(a =>
+      retrospective: articlesForSynthesis.filter((a: any) =>
         a.labels?.some((l: string) => l.toLowerCase().includes('retrospective'))
       ).length,
-      case_reports: articlesForSynthesis.filter(a =>
+      case_reports: articlesForSynthesis.filter((a: any) =>
         a.labels?.some((l: string) => l.toLowerCase().includes('case report'))
       ).length,
       total: articlesForSynthesis.length
@@ -347,7 +229,7 @@ Synthesize the evidence for this veterinary clinical topic.`
         query_normalized: queryNormalized,
         query_original: queryOriginal,
         synthesis_html: synthesisHtml,
-        article_ids: articlesForSynthesis.map(a => a.id),
+        article_ids: articlesForSynthesis.map((a: any) => a.id),
         articles: packets, // BUG 2 FIX: Cache article data for display
         article_count: articlesForSynthesis.length,
         study_type_breakdown: studyTypeBreakdown,
@@ -363,7 +245,7 @@ Synthesize the evidence for this veterinary clinical topic.`
 
     return NextResponse.json({
       synthesis_html: synthesisHtml,
-      article_ids: articlesForSynthesis.map(a => a.id),
+      article_ids: articlesForSynthesis.map((a: any) => a.id),
       articles: packets, // BUG 2 FIX: Include article data for frontend display
       study_type_breakdown: studyTypeBreakdown,
       from_cache: false,
