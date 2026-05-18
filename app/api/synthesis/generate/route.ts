@@ -49,36 +49,42 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // STEP 1: Check cache for existing synthesis
+    // STEP 1: Check cache for existing synthesis (search_version >= 2 = new ranked search only)
     const { data: cached } = await supabase
       .from('topic_syntheses')
       .select('*')
       .eq('query_normalized', queryNormalized)
       .gt('expires_at', new Date().toISOString())
+      .gte('search_version', 2)
       .order('created_at', { ascending: false })
       .limit(1)
       .single()
 
     if (cached) {
-      // Increment cache hit count
-      await supabase
-        .from('topic_syntheses')
-        .update({
-          hit_count: (cached.hit_count || 0) + 1,
+      const articlesInCache = cached.articles as any[]
+      if (!articlesInCache || articlesInCache.length < 5) {
+        // Cache entry from broken search period — ignore and regenerate
+        console.log('[synthesis] Cache invalid (too few articles), regenerating')
+      } else {
+        await supabase
+          .from('topic_syntheses')
+          .update({
+            hit_count: (cached.hit_count || 0) + 1,
+            cache_hits: (cached.cache_hits || 0) + 1
+          })
+          .eq('id', cached.id)
+
+        return NextResponse.json({
+          synthesis_html: cached.synthesis_html,
+          article_ids: cached.article_ids,
+          articles: cached.articles || [],
+          study_type_breakdown: cached.study_type_breakdown,
+          from_cache: true,
+          model_used: cached.model_used,
+          generation_time_ms: cached.generation_time_ms,
           cache_hits: (cached.cache_hits || 0) + 1
         })
-        .eq('id', cached.id)
-
-      return NextResponse.json({
-        synthesis_html: cached.synthesis_html,
-        article_ids: cached.article_ids,
-        articles: cached.articles || [], // BUG 2 FIX: Include cached articles
-        study_type_breakdown: cached.study_type_breakdown,
-        from_cache: true,
-        model_used: cached.model_used,
-        generation_time_ms: cached.generation_time_ms,
-        cache_hits: (cached.cache_hits || 0) + 1
-      })
+      }
     }
 
     // STEP 2: Cache miss — fetch articles with ranked synthesis RPC
@@ -108,11 +114,12 @@ export async function POST(request: NextRequest) {
 
     console.log('[synthesis] articlesForSynthesis:', articlesForSynthesis.length)
 
-    if (articlesForSynthesis.length === 0) {
+    if (articlesForSynthesis.length < 3) {
       return NextResponse.json({
-        error: 'No articles found for this query',
         synthesis_html: null,
-        from_cache: false
+        articles: articlesForSynthesis,
+        insufficient: true,
+        message: `Only ${articlesForSynthesis.length} relevant ${articlesForSynthesis.length === 1 ? 'study' : 'studies'} found on this topic. Try a broader search term for synthesis.`
       })
     }
 
@@ -236,7 +243,8 @@ Synthesize the evidence for this veterinary clinical topic.`
         model_used: modelToUse,
         generation_time_ms: generationTime,
         cache_hits: 0,
-        user_id: userId
+        user_id: userId,
+        search_version: 2
       })
 
     if (insertError) {

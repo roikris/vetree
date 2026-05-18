@@ -29,15 +29,17 @@ type ArticlePacket = {
 }
 
 type SynthesisData = {
-  synthesis_html: string
+  synthesis_html: string | null
   synthesis_text?: string
-  article_ids: string[]
+  article_ids?: string[]
   articles?: ArticlePacket[]
-  study_type_breakdown: StudyBreakdown
-  from_cache: boolean
+  study_type_breakdown?: StudyBreakdown
+  from_cache?: boolean
   model_used?: string
   generation_time_ms?: number
   cache_hits?: number
+  insufficient?: boolean
+  message?: string
 }
 
 export function SynthesisPanel({ query, onClose, isLoggedIn }: SynthesisPanelProps) {
@@ -166,6 +168,24 @@ export function SynthesisPanel({ query, onClose, isLoggedIn }: SynthesisPanelPro
     )
   }
 
+  if (data?.insufficient) {
+    return (
+      <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg p-6 mb-8">
+        <div className="flex items-start gap-3">
+          <div className="text-2xl">🔬</div>
+          <div>
+            <h3 className="font-semibold text-amber-900 dark:text-amber-100 mb-1">
+              Not enough studies for synthesis
+            </h3>
+            <p className="text-sm text-amber-700 dark:text-amber-300">
+              {data.message || 'Not enough studies found for a reliable synthesis on this topic. Try searching with 1-2 broader keywords.'}
+            </p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   if (!data || !data.synthesis_html) {
     return (
       <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-6 mb-8">
@@ -184,7 +204,7 @@ export function SynthesisPanel({ query, onClose, isLoggedIn }: SynthesisPanelPro
     )
   }
 
-  const breakdown = data.study_type_breakdown
+  const breakdown = data.study_type_breakdown || { systematic_reviews: 0, rct: 0, retrospective: 0, case_reports: 0, total: 0 }
   const hasConflictingEvidence = data.synthesis_html.toLowerCase().includes('conflicting evidence')
 
   // BUG 1 FIX: Extract plain text from synthesis_html (remove <a> tags for markdown rendering)
