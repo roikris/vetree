@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
     const ai = new GoogleGenAI({ apiKey: process.env.GOOGLE_AI_API_KEY! })
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3-pro-image-preview',
+      model: 'gemini-3.1-flash-image-preview',
       contents: imagePrompt,
     })
 
