@@ -46,25 +46,27 @@ export async function POST(request: NextRequest) {
     const { GoogleGenAI } = await import('@google/genai')
     const ai = new GoogleGenAI({ apiKey: process.env.GOOGLE_AI_API_KEY! })
 
-    const response = await ai.models.generateImages({
-      model: 'gemini-3-pro-image',
-      prompt: imagePrompt,
-      config: {
-        numberOfImages: 1,
-        outputMimeType: 'image/jpeg',
-        aspectRatio: '1:1',
-      },
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-pro-image-preview',
+      contents: imagePrompt,
     })
 
-    console.log('[generate-image] generatedImages count:', response.generatedImages?.length)
+    console.log('[generate-image] candidates count:', response.candidates?.length)
 
-    const imageBytes = response.generatedImages?.[0]?.image?.imageBytes
-    if (!imageBytes) {
-      console.error('[generate-image] No imageBytes in response:', JSON.stringify(response).slice(0, 500))
-      throw new Error('Gemini returned no image')
+    let imageBase64: string | null = null
+    const parts = response.candidates?.[0]?.content?.parts || []
+    for (const part of parts) {
+      if ((part as any).inlineData) {
+        imageBase64 = (part as any).inlineData.data
+        break
+      }
     }
 
-    const imageBase64 = Buffer.from(imageBytes).toString('base64')
+    if (!imageBase64) {
+      console.error('[generate-image] No image in response. Part keys:',
+        parts.map((p: any) => Object.keys(p)))
+      throw new Error('Gemini returned no image')
+    }
 
     return NextResponse.json({
       image: `data:image/jpeg;base64,${imageBase64}`
