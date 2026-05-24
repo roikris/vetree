@@ -62,7 +62,7 @@ export function CampaignCalendar() {
   const [selectedArticle, setSelectedArticle] = useState<{id: string, title: string} | null>(null)
   const [showArticleDropdown, setShowArticleDropdown] = useState(false)
   const [rewritingPlatform, setRewritingPlatform] = useState<string | null>(null)
-  const [generatedImages, setGeneratedImages] = useState<Record<string, Array<{src: string, ratio: string}>>>({})
+  const [generatedImages, setGeneratedImages] = useState<Record<string, string>>({})
 
   const currentDay = getCurrentCampaignDay()
   const todaysPlatform = getTodaysPlatform()
@@ -1181,12 +1181,8 @@ export function CampaignCalendar() {
         })
       })
       const data = await res.json()
-      if (data.images?.length > 0) {
-        const imgs = data.images.map((img: any) => ({
-          src: `data:${img.mime_type || 'image/jpeg'};base64,${img.image_base64}`,
-          ratio: img.aspect_ratio
-        }))
-        setGeneratedImages(prev => ({ ...prev, [platform]: imgs }))
+      if (data.image) {
+        setGeneratedImages(prev => ({ ...prev, [platform]: data.image }))
       } else {
         setMessage({ type: 'error', text: data.error || 'Image generation failed' })
       }
@@ -1410,32 +1406,24 @@ export function CampaignCalendar() {
                   </button>
                 </div>
 
-                {/* Generated images grid */}
-                {generatedImages[activePlatformTab]?.length > 0 && (
+                {/* Generated image */}
+                {generatedImages[activePlatformTab] && (
                   <div className="mt-4">
-                    <p className="text-xs text-zinc-500 mb-2">
-                      {generatedImages[activePlatformTab].length} images generated — 2× 16:9, 2× 4:5
-                    </p>
-                    <div className="grid grid-cols-2 gap-3">
-                      {generatedImages[activePlatformTab].map((img, i) => (
-                        <div key={i} className="space-y-1.5">
-                          <img
-                            src={img.src}
-                            alt={`Generated image ${i + 1} (${img.ratio})`}
-                            className="rounded-lg w-full border border-zinc-700 object-cover"
-                          />
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs text-zinc-500">{img.ratio}</span>
-                            <a
-                              href={img.src}
-                              download={`vetree-${activePlatformTab}-${today}-${img.ratio.replace(':', 'x')}-${i + 1}.jpg`}
-                              className="text-xs text-zinc-400 hover:text-white bg-zinc-700 hover:bg-zinc-600 px-2 py-1 rounded transition"
-                            >
-                              ⬇️ Download
-                            </a>
-                          </div>
-                        </div>
-                      ))}
+                    <div className="space-y-1.5">
+                      <img
+                        src={generatedImages[activePlatformTab]}
+                        alt="Generated image"
+                        className="rounded-lg w-full border border-zinc-700 object-cover"
+                      />
+                      <div className="flex justify-end">
+                        <a
+                          href={generatedImages[activePlatformTab]}
+                          download={`vetree-${activePlatformTab}-${today}.jpg`}
+                          className="text-xs text-zinc-400 hover:text-white bg-zinc-700 hover:bg-zinc-600 px-2 py-1 rounded transition"
+                        >
+                          ⬇️ Download
+                        </a>
+                      </div>
                     </div>
                   </div>
                 )}

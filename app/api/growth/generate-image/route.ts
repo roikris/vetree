@@ -5,36 +5,6 @@ export const maxDuration = 60
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
-async function callImagen(prompt: string, aspectRatio: string, apiKey: string) {
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${apiKey}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        instances: [{ prompt }],
-        parameters: {
-          sampleCount: 2,
-          aspectRatio,
-          outputMimeType: 'image/jpeg'
-        }
-      })
-    }
-  )
-
-  if (!response.ok) {
-    const errText = await response.text()
-    throw new Error(`Imagen API error (${aspectRatio}): ${errText}`)
-  }
-
-  const data = await response.json()
-  return (data.predictions || []).map((p: any) => ({
-    image_base64: p.bytesBase64Encoded,
-    mime_type: p.mimeType || 'image/jpeg',
-    aspect_ratio: aspectRatio
-  }))
-}
-
 export async function POST(request: NextRequest) {
   try {
     // Admin auth check
@@ -60,6 +30,7 @@ export async function POST(request: NextRequest) {
     }
 
     const apiKey = process.env.GOOGLE_AI_API_KEY
+    console.log('[generate-image] GOOGLE_AI_API_KEY present:', !!apiKey, 'prefix:', apiKey?.slice(0, 6))
     if (!apiKey) {
       return NextResponse.json({ error: 'Image generation not configured' }, { status: 503 })
     }
@@ -69,25 +40,44 @@ export async function POST(request: NextRequest) {
       : post_text.slice(0, 400)
 
     const imagePrompt = `craft images that will pair well with the following professional oriented content on social media networks: ${content}`
+    console.log('[generate-image] prompt length:', imagePrompt.length)
 
-    // Generate 2 images at each ratio in parallel
-    const [landscape, portrait] = await Promise.all([
-      callImagen(imagePrompt, '16:9', apiKey),
-      callImagen(imagePrompt, '4:5', apiKey)
-    ])
+    // Initialize SDK inside function per CLAUDE.md
+    const { GoogleGenAI } = await import('@google/genai')
+    const ai = new GoogleGenAI({ apiKey: process.env.GOOGLE_AI_API_KEY! })
 
-    const images = [...landscape, ...portrait]
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.0-flash-preview-image-generation',
+      contents: imagePrompt,
+      config: {
+        responseModalities: ['TEXT', 'IMAGE'],
+      },
+    })
 
-    if (images.length === 0) {
-      return NextResponse.json({ error: 'No images returned from API' }, { status: 500 })
+    // Extract image part from response
+    const parts = response.candidates?.[0]?.content?.parts || []
+    const imagePart = parts.find((p: any) => p.inlineData?.data)
+
+    if (!imagePart?.inlineData) {
+      console.error('[generate-image] No image in response. Parts:',
+        parts.map((p: any) => Object.keys(p)))
+      throw new Error('Gemini returned no image')
     }
 
-    return NextResponse.json({ images })
+    const imageBase64 = imagePart.inlineData.data
+    const mimeType = imagePart.inlineData.mimeType || 'image/jpeg'
 
-  } catch (error) {
+    return NextResponse.json({
+      image: `data:${mimeType};base64,${imageBase64}`
+    })
+
+  } catch (error: any) {
     console.error('[generate-image] Error:', error)
+    console.error('[generate-image] Error name:', error?.name)
+    console.error('[generate-image] Error message:', error?.message)
+    console.error('[generate-image] Error stack:', error?.stack)
     return NextResponse.json(
-      { error: 'Failed to generate images', details: String(error) },
+      { error: 'Failed to generate images', details: String(error), message: error?.message },
       { status: 500 }
     )
   }
