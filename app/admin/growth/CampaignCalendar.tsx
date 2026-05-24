@@ -4,6 +4,14 @@ import { useState, useEffect } from 'react'
 import { Copy, Check, Loader2 } from 'lucide-react'
 import { getCurrentCampaignDay, getWeekSchedule, getTodaysPlatform, CAMPAIGN_TOTAL_DAYS, PLATFORM_ROTATION } from '@/lib/growth-campaign'
 import { getTodaysTask, createTodaysTask, markTaskComplete, getCampaignStats } from '@/app/actions/admin'
+import { createClient } from '@/lib/supabase/client'
+
+const STYLE_PROMPTS: Record<string, string> = {
+  factual: 'Rewrite this post to be more factual and precise. Stay extremely close to what the study actually found. Remove any interpretive language.',
+  engaging: 'Rewrite this post to be more engaging and compelling for a veterinary professional audience. Keep all facts accurate.',
+  concise: 'Rewrite this post to be 30% shorter while keeping the key clinical finding.',
+  clinical: 'Rewrite this post with more clinical terminology appropriate for specialist DVMs.',
+}
 
 type Task = {
   id: string
@@ -53,6 +61,8 @@ export function CampaignCalendar() {
   const [articleResults, setArticleResults] = useState<any[]>([])
   const [selectedArticle, setSelectedArticle] = useState<{id: string, title: string} | null>(null)
   const [showArticleDropdown, setShowArticleDropdown] = useState(false)
+  const [rewritingPlatform, setRewritingPlatform] = useState<string | null>(null)
+  const [generatedImages, setGeneratedImages] = useState<Record<string, string>>({})
 
   const currentDay = getCurrentCampaignDay()
   const todaysPlatform = getTodaysPlatform()
@@ -467,6 +477,12 @@ export function CampaignCalendar() {
 
       console.log('[handleApprove] Success! Post approved.')
       setMessage({ type: 'success', text: '✅ Post approved and marked as done!' })
+
+      // Record to growth_agent_memory
+      if (savedPostData?.article_id) {
+        recordToMemory(savedPostData.article_id, todaysPlatform?.platform || '', 'approved')
+      }
+
       clearSavedPost() // Clear localStorage on approve
 
       // Refresh stats from localStorage
@@ -582,18 +598,9 @@ export function CampaignCalendar() {
         setSavedPostData(null)
       }
 
-      // Save to growth_agent_memory as skipped (don't await)
+      // Record skip to growth_agent_memory
       if (postToSkip?.article_id) {
-        fetch('/api/growth/memory', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            article_id: postToSkip.article_id,
-            platform: activePlatformTab,
-            language: 'en',
-            outcome: 'skipped'
-          })
-        }).catch(err => console.error('Failed to log skip:', err))
+        recordToMemory(postToSkip.article_id, activePlatformTab, 'skipped')
       }
 
       // Switch to next available platform
@@ -606,9 +613,12 @@ export function CampaignCalendar() {
 
       setMessage({ type: 'success', text: `Skipped ${activePlatformTab} post` })
     } else {
-      // Single post skip - existing behavior
+      // Single post skip
       if (!todaysTask) {
-        // No DB task, just clear localStorage
+        // Record skip to growth_agent_memory (non-blocking)
+        if (savedPostData?.article_id) {
+          recordToMemory(savedPostData.article_id, todaysPlatform?.platform || '', 'skipped')
+        }
         clearSavedPost()
         setGeneratedPost('')
         setSavedPostData(null)
@@ -620,6 +630,11 @@ export function CampaignCalendar() {
       if (result.error) {
         setMessage({ type: 'error', text: result.error })
         return
+      }
+
+      // Record skip to growth_agent_memory
+      if (savedPostData?.article_id) {
+        recordToMemory(savedPostData.article_id, todaysPlatform?.platform || '', 'skipped')
       }
 
       setMessage({ type: 'success', text: 'Task skipped' })
@@ -646,8 +661,6 @@ export function CampaignCalendar() {
       twitter: '🐦',
       instagram: '📸',
       telegram: '✈️',
-      tiktok: '🎵',
-      threads: '🧵',
     }
     return map[platform] || '📱'
   }
@@ -681,7 +694,7 @@ export function CampaignCalendar() {
         }
       }
 
-      console.log('[handleGenerateAll] Generating posts for all 9 platforms...')
+      console.log('[handleGenerateAll] Generating posts for all 8 platforms...')
 
       // STEP 1: Generate first post for today's platform to select article
       // Retry up to 3 times if we get SKIP_LARGE_ANIMAL
@@ -843,7 +856,7 @@ export function CampaignCalendar() {
 
       setMessage({
         type: 'success',
-        text: `✅ Generated ${successCount}/8 posts${errorCount > 0 ? ` (${errorCount} failed)` : ''} — all using same article`
+        text: `✅ Generated ${successCount}/${PLATFORM_ROTATION.length} posts${errorCount > 0 ? ` (${errorCount} failed)` : ''} — all using same article`
       })
 
     } catch (error) {
@@ -1029,10 +1042,156 @@ export function CampaignCalendar() {
       twitter: '🐦',
       instagram: '📸',
       telegram: '✈️',
-      tiktok: '🎵',
-      threads: '🧵'
     }
     return icons[platform] || '📱'
+  }
+
+  // Helper: record outcome to growth_agent_memory via /api/growth/feedback
+  const recordToMemory = async (
+    articleId: string,
+    platform: string,
+    outcome: 'approved' | 'skipped',
+    skipReason?: string,
+    hookLine?: string
+  ) => {
+    try {
+      await fetch('/api/growth/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          article_id: articleId,
+          platform,
+          language: 'en',
+          outcome,
+          skip_reason: skipReason || null,
+          hook_line: hookLine || null
+        })
+      })
+    } catch (e) {
+      console.warn('[growth] Failed to record memory:', e)
+      // Non-blocking — don't break the UI
+    }
+  }
+
+  // Style rewrite: regenerate active platform's post with a tone instruction
+  const handleStyleRewrite = async (platform: string, _style: string, instruction: string) => {
+    const currentPost = allPlatformPosts[platform]
+    if (!currentPost) return
+
+    setRewritingPlatform(platform)
+
+    try {
+      const res = await fetch('/api/growth/generate-post', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          article_id: currentPost.article_id,
+          platform,
+          language: currentPost.language || 'en',
+          style_instruction: instruction,
+          existing_post: currentPost.post_content
+        })
+      })
+      const data = await res.json()
+      if (data.post_content) {
+        const updated = { ...allPlatformPosts, [platform]: { ...currentPost, post_content: data.post_content } }
+        setAllPlatformPosts(updated)
+        localStorage.setItem(`vetree_campaign_post_${today}_${platform}`, JSON.stringify(updated[platform]))
+      } else if (data.error) {
+        setMessage({ type: 'error', text: data.error })
+      }
+    } catch (e) {
+      setMessage({ type: 'error', text: 'Failed to rewrite post' })
+    } finally {
+      setRewritingPlatform(null)
+    }
+  }
+
+  // Tighten to study summary: rewrite staying faithful to actual study findings
+  const handleTightenToAbstract = async (platform: string) => {
+    const currentPost = allPlatformPosts[platform]
+    if (!currentPost?.article_id) return
+
+    setRewritingPlatform(platform)
+
+    try {
+      const supabase = createClient()
+      const { data: article } = await supabase
+        .from('articles')
+        .select('summary, clinical_bottom_line, title')
+        .eq('id', currentPost.article_id)
+        .single()
+
+      const studyText = article?.summary || article?.clinical_bottom_line
+      if (!studyText) {
+        setMessage({ type: 'error', text: 'No study summary available for this article' })
+        setRewritingPlatform(null)
+        return
+      }
+
+      const res = await fetch('/api/growth/generate-post', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          article_id: currentPost.article_id,
+          platform,
+          language: currentPost.language || 'en',
+          style_instruction: 'Rewrite this post staying strictly faithful to the following original study summary. Every factual claim must be directly supported by the summary text. Do not add interpretation beyond what the summary states.',
+          abstract_override: studyText,
+          existing_post: currentPost.post_content
+        })
+      })
+      const data = await res.json()
+      if (data.post_content) {
+        const updated = { ...allPlatformPosts, [platform]: { ...currentPost, post_content: data.post_content } }
+        setAllPlatformPosts(updated)
+        localStorage.setItem(`vetree_campaign_post_${today}_${platform}`, JSON.stringify(updated[platform]))
+      } else if (data.error) {
+        setMessage({ type: 'error', text: data.error })
+      }
+    } catch (e) {
+      setMessage({ type: 'error', text: 'Failed to tighten post' })
+    } finally {
+      setRewritingPlatform(null)
+    }
+  }
+
+  // Generate image for a platform post using Gemini Imagen
+  const handleGenerateImage = async (platform: string) => {
+    const currentPost = allPlatformPosts[platform]
+    if (!currentPost?.article_id) return
+
+    setRewritingPlatform(`img_${platform}`)
+
+    try {
+      const supabase = createClient()
+      const { data: article } = await supabase
+        .from('articles')
+        .select('summary, clinical_bottom_line')
+        .eq('id', currentPost.article_id)
+        .single()
+
+      const res = await fetch('/api/growth/generate-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          post_text: currentPost.post_content,
+          platform,
+          article_id: currentPost.article_id,
+          abstract_text: article?.summary || article?.clinical_bottom_line || null
+        })
+      })
+      const data = await res.json()
+      if (data.image_base64) {
+        setGeneratedImages(prev => ({ ...prev, [platform]: `data:${data.mime_type || 'image/jpeg'};base64,${data.image_base64}` }))
+      } else {
+        setMessage({ type: 'error', text: data.error || 'Image generation failed' })
+      }
+    } catch (e) {
+      setMessage({ type: 'error', text: 'Failed to generate image' })
+    } finally {
+      setRewritingPlatform(null)
+    }
   }
 
   // Debug: Log render state
@@ -1185,22 +1344,86 @@ export function CampaignCalendar() {
             {/* Active tab content */}
             {activePlatformTab && allPlatformPosts[activePlatformTab] && (
               <div className="relative bg-zinc-900 dark:bg-zinc-950 rounded-lg p-4 border border-zinc-700 dark:border-zinc-800">
-                <pre className="whitespace-pre-wrap text-sm font-mono text-zinc-200 dark:text-zinc-300 pr-8">
+                {/* Loading overlay for style rewrites */}
+                {rewritingPlatform === activePlatformTab && (
+                  <div className="absolute inset-0 bg-zinc-900/80 rounded-lg flex items-center justify-center z-10">
+                    <div className="flex items-center gap-2 text-zinc-300">
+                      <Loader2 size={16} className="animate-spin" />
+                      <span className="text-sm">Rewriting...</span>
+                    </div>
+                  </div>
+                )}
+
+                <pre className="whitespace-pre-wrap text-sm font-mono text-zinc-200 dark:text-zinc-300">
                   {allPlatformPosts[activePlatformTab].post_content}
                 </pre>
-                {/* Copy button */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    navigator.clipboard.writeText(allPlatformPosts[activePlatformTab].post_content)
-                    setMessage({ type: 'success', text: '✅ Copied to clipboard!' })
-                    setTimeout(() => setMessage(null), 2000)
-                  }}
-                  className="mt-2 flex items-center gap-1.5 text-sm text-zinc-400 hover:text-white cursor-pointer bg-zinc-700 hover:bg-zinc-600 px-3 py-1.5 rounded-md transition"
-                >
-                  <Copy size={14} />
-                  Copy
-                </button>
+
+                {/* Action row: Copy + Generate Image */}
+                <div className="flex items-center gap-2 mt-3 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(allPlatformPosts[activePlatformTab].post_content)
+                      setMessage({ type: 'success', text: '✅ Copied to clipboard!' })
+                      setTimeout(() => setMessage(null), 2000)
+                    }}
+                    className="flex items-center gap-1.5 text-sm text-zinc-400 hover:text-white cursor-pointer bg-zinc-700 hover:bg-zinc-600 px-3 py-1.5 rounded-md transition"
+                  >
+                    <Copy size={14} />
+                    Copy
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleGenerateImage(activePlatformTab)}
+                    disabled={rewritingPlatform === `img_${activePlatformTab}`}
+                    className="flex items-center gap-1.5 text-sm text-zinc-400 hover:text-white cursor-pointer bg-zinc-700 hover:bg-zinc-600 px-3 py-1.5 rounded-md transition disabled:opacity-50"
+                  >
+                    {rewritingPlatform === `img_${activePlatformTab}`
+                      ? <><Loader2 size={14} className="animate-spin" /> Generating...</>
+                      : '🎨 Generate Image'}
+                  </button>
+                </div>
+
+                {/* Style rewrite buttons */}
+                <div className="flex gap-2 mt-3 flex-wrap">
+                  {Object.entries(STYLE_PROMPTS).map(([key, instruction]) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => handleStyleRewrite(activePlatformTab, key, instruction)}
+                      disabled={!!rewritingPlatform}
+                      className="px-3 py-1 text-xs bg-zinc-700 hover:bg-zinc-600 text-zinc-300 rounded-full transition capitalize disabled:opacity-50"
+                    >
+                      ✏️ {key}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => handleTightenToAbstract(activePlatformTab)}
+                    disabled={!!rewritingPlatform}
+                    className="px-3 py-1 text-xs bg-emerald-900 hover:bg-emerald-800 text-emerald-300 rounded-full transition disabled:opacity-50"
+                  >
+                    📄 Tighten to abstract
+                  </button>
+                </div>
+
+                {/* Generated image */}
+                {generatedImages[activePlatformTab] && (
+                  <div className="mt-4">
+                    <img
+                      src={generatedImages[activePlatformTab]}
+                      alt="Generated for post"
+                      className="rounded-lg max-w-full border border-zinc-700"
+                    />
+                    <a
+                      href={generatedImages[activePlatformTab]}
+                      download={`vetree-${activePlatformTab}-${today}.jpg`}
+                      className="mt-2 inline-flex items-center gap-1.5 text-sm text-zinc-400 hover:text-white bg-zinc-700 hover:bg-zinc-600 px-3 py-1.5 rounded-md transition"
+                    >
+                      ⬇️ Download
+                    </a>
+                  </div>
+                )}
               </div>
             )}
           </div>

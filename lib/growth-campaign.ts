@@ -4,7 +4,9 @@
 export const CAMPAIGN_START_DATE = new Date('2026-03-10').getTime() // Configurable start date
 export const CAMPAIGN_TOTAL_DAYS = 90
 
-// 9-day platform rotation cycle
+// 8-day platform rotation cycle
+// Threads removed — shares automatically from Instagram
+// TikTok removed — requires separate manual workflow
 export const PLATFORM_ROTATION = [
   { platform: 'facebook_il', language: 'he', icon: '📘', name: 'Facebook IL' },
   { platform: 'whatsapp', language: 'he', icon: '💬', name: 'WhatsApp' },
@@ -14,8 +16,6 @@ export const PLATFORM_ROTATION = [
   { platform: 'twitter', language: 'en', icon: '🐦', name: 'Twitter/X' },
   { platform: 'instagram', language: 'en', icon: '📸', name: 'Instagram' },
   { platform: 'telegram', language: 'en', icon: '✈️', name: 'Telegram' },
-  { platform: 'tiktok', language: 'en', icon: '🎵', name: 'TikTok' },
-  { platform: 'threads', language: 'en', icon: '🧵', name: 'Threads' }
 ]
 
 // Calculate which day of the campaign we're on (1-90)

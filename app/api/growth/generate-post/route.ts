@@ -41,7 +41,10 @@ export async function POST(request: NextRequest) {
     const platform = body.platform || 'general'
     const language = body.language || 'en'
     const articleId = body.article_id // Optional - reuse specific article
-    console.log('[generate-post] platform:', platform, 'forced article_id:', articleId || '(none)')
+    const styleInstruction: string | undefined = body.style_instruction
+    const abstractOverride: string | undefined = body.abstract_override
+    const existingPost: string | undefined = body.existing_post
+    console.log('[generate-post] platform:', platform, 'forced article_id:', articleId || '(none)', 'style rewrite:', !!styleInstruction)
 
     // Retry logic for large animal detection
     const MAX_RETRIES = 3
@@ -204,6 +207,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Build article URL with UTM parameters for tracking
+    // tiktok/threads kept for backward compat (not in rotation but route still handles them)
     const utmParams = {
       twitter: 'utm_source=twitter&utm_medium=social',
       linkedin: 'utm_source=linkedin&utm_medium=social',
@@ -215,7 +219,7 @@ export async function POST(request: NextRequest) {
       telegram: 'utm_source=telegram&utm_medium=social',
       reddit: 'utm_source=reddit&utm_medium=social',
       tiktok: 'utm_source=tiktok&utm_medium=social',
-      threads: 'utm_source=threads&utm_medium=social'
+      threads: 'utm_source=threads&utm_medium=social',
     }
 
     const articleUrl = `https://vetree.app/article/${article.id}?${utmParams[platform as keyof typeof utmParams] || 'utm_source=social&utm_medium=social'}`
@@ -480,6 +484,11 @@ Format:
 🌿 vetree.app
 
 Return ONLY the post text. Follow the platform rule exactly.`
+    }
+
+    // Style rewrite: append instruction after the base platform prompt
+    if (styleInstruction && existingPost) {
+      promptContent += `\n\nREWRITE INSTRUCTION: ${styleInstruction}\n\nCURRENT POST TO REWRITE:\n${existingPost}${abstractOverride ? `\n\nORIGINAL STUDY SUMMARY (use as authoritative source):\n${abstractOverride}` : ''}\n\nRewrite the post following the instruction above. Keep the platform format rules and UTM link unchanged.`
     }
 
     const message = await anthropic.messages.create({
