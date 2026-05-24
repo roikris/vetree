@@ -5,6 +5,36 @@ export const maxDuration = 60
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
+async function callImagen(prompt: string, aspectRatio: string, apiKey: string) {
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        instances: [{ prompt }],
+        parameters: {
+          sampleCount: 2,
+          aspectRatio,
+          outputMimeType: 'image/jpeg'
+        }
+      })
+    }
+  )
+
+  if (!response.ok) {
+    const errText = await response.text()
+    throw new Error(`Imagen API error (${aspectRatio}): ${errText}`)
+  }
+
+  const data = await response.json()
+  return (data.predictions || []).map((p: any) => ({
+    image_base64: p.bytesBase64Encoded,
+    mime_type: p.mimeType || 'image/jpeg',
+    aspect_ratio: aspectRatio
+  }))
+}
+
 export async function POST(request: NextRequest) {
   try {
     // Admin auth check
@@ -23,67 +53,41 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { post_text, platform, article_id, abstract_text } = body
+    const { post_text, abstract_text } = body
 
     if (!post_text && !abstract_text) {
       return NextResponse.json({ error: 'post_text or abstract_text required' }, { status: 400 })
     }
-
-    const isSquare = platform === 'instagram'
-    const aspectRatio = isSquare ? '1:1' : '16:9'
-    const formatNote = isSquare ? 'Square 1:1 format.' : 'Landscape 16:9 format.'
-
-    const imagePrompt = abstract_text
-      ? `Professional veterinary medical image for a social media post. Style: clean, clinical, photorealistic. No text overlays. ${formatNote} Suitable for ${platform}. Based on this veterinary research: ${abstract_text.slice(0, 500)}`
-      : `Professional veterinary medical image to go with this post. Style: clean, clinical, photorealistic. No text overlays. ${formatNote} Post content: ${post_text.slice(0, 400)}`
 
     const apiKey = process.env.GOOGLE_AI_API_KEY
     if (!apiKey) {
       return NextResponse.json({ error: 'Image generation not configured' }, { status: 503 })
     }
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          instances: [{ prompt: imagePrompt }],
-          parameters: {
-            sampleCount: 1,
-            aspectRatio,
-            outputMimeType: 'image/jpeg'
-          }
-        })
-      }
-    )
+    const content = abstract_text
+      ? abstract_text.slice(0, 600)
+      : post_text.slice(0, 400)
 
-    if (!response.ok) {
-      const errText = await response.text()
-      console.error('[generate-image] Gemini error:', errText)
-      return NextResponse.json(
-        { error: 'Image generation failed', details: errText },
-        { status: 500 }
-      )
+    const imagePrompt = `craft images that will pair well with the following professional oriented content on social media networks: ${content}`
+
+    // Generate 2 images at each ratio in parallel
+    const [landscape, portrait] = await Promise.all([
+      callImagen(imagePrompt, '16:9', apiKey),
+      callImagen(imagePrompt, '4:5', apiKey)
+    ])
+
+    const images = [...landscape, ...portrait]
+
+    if (images.length === 0) {
+      return NextResponse.json({ error: 'No images returned from API' }, { status: 500 })
     }
 
-    const data = await response.json()
-    const prediction = data.predictions?.[0]
-
-    if (!prediction?.bytesBase64Encoded) {
-      return NextResponse.json({ error: 'No image returned from API' }, { status: 500 })
-    }
-
-    return NextResponse.json({
-      image_base64: prediction.bytesBase64Encoded,
-      mime_type: prediction.mimeType || 'image/jpeg',
-      aspect_ratio: aspectRatio
-    })
+    return NextResponse.json({ images })
 
   } catch (error) {
     console.error('[generate-image] Error:', error)
     return NextResponse.json(
-      { error: 'Failed to generate image', details: String(error) },
+      { error: 'Failed to generate images', details: String(error) },
       { status: 500 }
     )
   }

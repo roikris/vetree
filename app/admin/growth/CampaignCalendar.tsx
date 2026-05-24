@@ -62,7 +62,7 @@ export function CampaignCalendar() {
   const [selectedArticle, setSelectedArticle] = useState<{id: string, title: string} | null>(null)
   const [showArticleDropdown, setShowArticleDropdown] = useState(false)
   const [rewritingPlatform, setRewritingPlatform] = useState<string | null>(null)
-  const [generatedImages, setGeneratedImages] = useState<Record<string, string>>({})
+  const [generatedImages, setGeneratedImages] = useState<Record<string, Array<{src: string, ratio: string}>>>({})
 
   const currentDay = getCurrentCampaignDay()
   const todaysPlatform = getTodaysPlatform()
@@ -1176,14 +1176,17 @@ export function CampaignCalendar() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           post_text: currentPost.post_content,
-          platform,
           article_id: currentPost.article_id,
           abstract_text: article?.summary || article?.clinical_bottom_line || null
         })
       })
       const data = await res.json()
-      if (data.image_base64) {
-        setGeneratedImages(prev => ({ ...prev, [platform]: `data:${data.mime_type || 'image/jpeg'};base64,${data.image_base64}` }))
+      if (data.images?.length > 0) {
+        const imgs = data.images.map((img: any) => ({
+          src: `data:${img.mime_type || 'image/jpeg'};base64,${img.image_base64}`,
+          ratio: img.aspect_ratio
+        }))
+        setGeneratedImages(prev => ({ ...prev, [platform]: imgs }))
       } else {
         setMessage({ type: 'error', text: data.error || 'Image generation failed' })
       }
@@ -1407,21 +1410,33 @@ export function CampaignCalendar() {
                   </button>
                 </div>
 
-                {/* Generated image */}
-                {generatedImages[activePlatformTab] && (
+                {/* Generated images grid */}
+                {generatedImages[activePlatformTab]?.length > 0 && (
                   <div className="mt-4">
-                    <img
-                      src={generatedImages[activePlatformTab]}
-                      alt="Generated for post"
-                      className="rounded-lg max-w-full border border-zinc-700"
-                    />
-                    <a
-                      href={generatedImages[activePlatformTab]}
-                      download={`vetree-${activePlatformTab}-${today}.jpg`}
-                      className="mt-2 inline-flex items-center gap-1.5 text-sm text-zinc-400 hover:text-white bg-zinc-700 hover:bg-zinc-600 px-3 py-1.5 rounded-md transition"
-                    >
-                      ⬇️ Download
-                    </a>
+                    <p className="text-xs text-zinc-500 mb-2">
+                      {generatedImages[activePlatformTab].length} images generated — 2× 16:9, 2× 4:5
+                    </p>
+                    <div className="grid grid-cols-2 gap-3">
+                      {generatedImages[activePlatformTab].map((img, i) => (
+                        <div key={i} className="space-y-1.5">
+                          <img
+                            src={img.src}
+                            alt={`Generated image ${i + 1} (${img.ratio})`}
+                            className="rounded-lg w-full border border-zinc-700 object-cover"
+                          />
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-zinc-500">{img.ratio}</span>
+                            <a
+                              href={img.src}
+                              download={`vetree-${activePlatformTab}-${today}-${img.ratio.replace(':', 'x')}-${i + 1}.jpg`}
+                              className="text-xs text-zinc-400 hover:text-white bg-zinc-700 hover:bg-zinc-600 px-2 py-1 rounded transition"
+                            >
+                              ⬇️ Download
+                            </a>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
