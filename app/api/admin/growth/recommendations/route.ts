@@ -60,6 +60,8 @@ export async function GET(request: NextRequest) {
       .like('path', '/article/%')
       .or(`user_id.is.null,user_id.neq.${adminId}`)
 
+    console.log('[recs] socialViews count:', socialViews?.length)
+
     const articleSocialCounts: Record<string, {
       total: number
       by_platform: Record<string, number>
@@ -105,6 +107,8 @@ export async function GET(request: NextRequest) {
       .slice(0, 5)
       .map(([label]) => label)
 
+    console.log('[recs] topSpecialties:', topSpecialties)
+
     // SIGNAL 3: Search demand by specialty
     const { data: searches } = await supabase
       .from('search_logs')
@@ -122,17 +126,21 @@ export async function GET(request: NextRequest) {
       })
     })
 
-    // COMBINED: Find articles not recently posted in top-performing specialties
+    // FIX 2: Only exclude approved posts from last 30 days (not all memory entries)
     const { data: recentlyPosted } = await supabase
       .from('growth_agent_memory')
       .select('article_id')
-      .gte('created_at', since60)
+      .eq('outcome', 'approved')
+      .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
+      .not('article_id', 'is', null)
 
     const postedIds = new Set(recentlyPosted?.map(p => p.article_id) || [])
+    console.log('[recs] postedIds count:', postedIds.size)
 
+    // FIX 1: Broader fallback when no social signal yet
     const labelsToQuery = topSpecialties.length > 0
       ? topSpecialties
-      : ['Cardiology', 'Oncology']
+      : ['Cardiology', 'Oncology', 'Internal Medicine', 'Emergency', 'Dermatology']
 
     const { data: candidates } = await supabase
       .from('articles')
@@ -142,16 +150,27 @@ export async function GET(request: NextRequest) {
       .or('quarantined.is.null,quarantined.eq.false')
       .overlaps('labels', labelsToQuery)
       .order('published_date', { ascending: false })
-      .limit(100)
+      .limit(200)
+
+    console.log('[recs] candidates before filter:', candidates?.length)
 
     // Large animal filter in JS (per CLAUDE.md)
-    const filtered = (candidates || [])
+    const afterLargeAnimal = (candidates || [])
       .filter(a => !a.labels?.some((l: string) => LARGE_ANIMAL.includes(l)))
-      .filter(a => !postedIds.has(a.id))
 
-    // Score each candidate
-    const maxSocial = Math.max(...Object.values(specialtyPerformance), 1)
-    const maxDemand = Math.max(...Object.values(searchDemand), 1)
+    console.log('[recs] after LARGE_ANIMAL filter:', afterLargeAnimal.length)
+
+    const filtered = afterLargeAnimal.filter(a => !postedIds.has(a.id))
+
+    console.log('[recs] after postedIds filter:', filtered.length)
+
+    // FIX 3: Safe Math.max when objects may be empty
+    const maxSocial = Object.values(specialtyPerformance).length > 0
+      ? Math.max(...Object.values(specialtyPerformance))
+      : 1
+    const maxDemand = Object.values(searchDemand).length > 0
+      ? Math.max(...Object.values(searchDemand))
+      : 1
 
     const scored = filtered.map(article => {
       const socialViewCount = articleSocialCounts[article.id]?.total || 0
@@ -182,6 +201,8 @@ export async function GET(request: NextRequest) {
     })
       .sort((a, b) => b.score - a.score)
       .slice(0, 10)
+
+    console.log('[recs] final scored count:', scored.length)
 
     return NextResponse.json({
       recommendations: scored,
