@@ -63,6 +63,10 @@ export function CampaignCalendar() {
   const [showArticleDropdown, setShowArticleDropdown] = useState(false)
   const [rewritingPlatform, setRewritingPlatform] = useState<string | null>(null)
   const [generatedImages, setGeneratedImages] = useState<Record<string, string>>({})
+  const [recommendations, setRecommendations] = useState<any[]>([])
+  const [showRecommendations, setShowRecommendations] = useState(false)
+  const [loadingRecs, setLoadingRecs] = useState(false)
+  const [insights, setInsights] = useState<any>(null)
 
   const currentDay = getCurrentCampaignDay()
   const todaysPlatform = getTodaysPlatform()
@@ -300,6 +304,22 @@ export function CampaignCalendar() {
       streak,
       platformsThisWeek
     })
+  }
+
+  // Load AI-powered article recommendations
+  const loadRecommendations = async () => {
+    setLoadingRecs(true)
+    try {
+      const res = await fetch('/api/admin/growth/recommendations')
+      const data = await res.json()
+      setRecommendations(data.recommendations || [])
+      setInsights(data.insights || null)
+      setShowRecommendations(true)
+    } catch (e) {
+      console.error('[recommendations] Failed:', e)
+    } finally {
+      setLoadingRecs(false)
+    }
   }
 
   // Search articles (debounced)
@@ -1429,6 +1449,92 @@ export function CampaignCalendar() {
                     </div>
                   </div>
                 )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Recommended Posts — data-driven article suggestions */}
+        {!approvedPosts[today] && (!todaysTask || todaysTask.status !== 'done') && !generatedPost && (
+          <div className="mb-4">
+            <button
+              type="button"
+              onClick={loadRecommendations}
+              disabled={loadingRecs}
+              className="flex items-center gap-2 text-sm text-emerald-400 hover:text-emerald-300 transition"
+            >
+              {loadingRecs
+                ? <><Loader2 size={14} className="animate-spin" /> Analyzing...</>
+                : <><span>✨</span> Show recommended articles to post</>
+              }
+            </button>
+
+            {showRecommendations && insights && (
+              <div className="mt-3">
+                {/* Insight bar */}
+                <div className="flex gap-2 flex-wrap mb-3 items-center">
+                  <span className="text-xs text-gray-500">Top performing specialties:</span>
+                  {insights.top_specialties.map((s: string) => (
+                    <span key={s} className="px-2 py-0.5 bg-emerald-900/40 text-emerald-400 rounded-full text-xs">
+                      {s}
+                    </span>
+                  ))}
+                  <span className="text-xs text-gray-600 ml-auto">
+                    Based on {insights.total_social_visits_analyzed} social visits
+                  </span>
+                </div>
+
+                {/* Recommendation cards */}
+                <div className="space-y-2">
+                  {recommendations.map((article, i) => (
+                    <div
+                      key={article.id}
+                      className="flex items-start gap-3 p-3 bg-gray-800 border border-gray-700 rounded-lg hover:border-emerald-700 transition cursor-pointer group"
+                      onClick={() => {
+                        setSelectedArticle({ id: article.id, title: article.title })
+                        setShowRecommendations(false)
+                      }}
+                    >
+                      <span className="text-lg font-bold text-gray-600 w-6 shrink-0">{i + 1}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-white font-medium truncate group-hover:text-emerald-300">
+                          {article.title}
+                        </p>
+                        <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">
+                          {article.clinical_bottom_line}
+                        </p>
+                        <div className="flex items-center gap-3 mt-1.5">
+                          <div className="flex gap-1 flex-wrap">
+                            {(article.labels || [])
+                              .filter((l: string) => !['Small Animal','Large Animal'].includes(l))
+                              .slice(0, 2)
+                              .map((label: string) => (
+                                <span key={label} className="px-1.5 py-0.5 bg-gray-700 text-gray-400 rounded text-xs">
+                                  {label}
+                                </span>
+                              ))
+                            }
+                          </div>
+                          {article.social_views > 0 && (
+                            <span className="text-xs text-emerald-500 ml-auto shrink-0">
+                              {article.social_views} social clicks
+                            </span>
+                          )}
+                          <span className="text-xs text-gray-600 truncate">{article.source_journal}</span>
+                        </div>
+                      </div>
+                      <span className="text-gray-600 group-hover:text-emerald-400 transition shrink-0 mt-1">→</span>
+                    </div>
+                  ))}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setShowRecommendations(false)}
+                  className="mt-2 text-xs text-gray-600 hover:text-gray-400"
+                >
+                  Hide recommendations
+                </button>
               </div>
             )}
           </div>
