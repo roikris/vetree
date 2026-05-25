@@ -1371,11 +1371,13 @@ export function CampaignCalendar() {
                     <Copy size={14} />
                     Copy
                   </button>
+                  {/* Image generation hidden — requires separate Google AI API billing */}
+                  {/* To re-enable: remove the 'hidden' class or conditional */}
                   <button
                     type="button"
                     onClick={() => handleGenerateImage(activePlatformTab)}
                     disabled={rewritingPlatform === `img_${activePlatformTab}`}
-                    className="flex items-center gap-1.5 text-sm text-zinc-400 hover:text-white cursor-pointer bg-zinc-700 hover:bg-zinc-600 px-3 py-1.5 rounded-md transition disabled:opacity-50"
+                    className="hidden flex items-center gap-1.5 text-sm text-zinc-400 hover:text-white cursor-pointer bg-zinc-700 hover:bg-zinc-600 px-3 py-1.5 rounded-md transition disabled:opacity-50"
                   >
                     {rewritingPlatform === `img_${activePlatformTab}`
                       ? <><Loader2 size={14} className="animate-spin" /> Generating...</>
