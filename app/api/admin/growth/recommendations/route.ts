@@ -170,7 +170,9 @@ export async function GET(request: NextRequest) {
 
     console.log('[recs] after LARGE_ANIMAL filter:', afterLargeAnimal.length)
 
-    const filtered = afterLargeAnimal.filter(a => !postedIds.has(a.id))
+    const filtered = afterLargeAnimal
+      .filter(a => !postedIds.has(a.id))
+      .filter(a => !articleSocialCounts[a.id]) // exclude articles with any prior social clicks
 
     console.log('[recs] after postedIds filter:', filtered.length)
 
@@ -183,8 +185,6 @@ export async function GET(request: NextRequest) {
       : 1
 
     const scored = filtered.map(article => {
-      const socialViewCount = articleSocialCounts[article.id]?.total || 0
-
       const articleSpecialties = (article.labels || []).filter((l: string) => !SKIP_LABELS.includes(l))
       const specialtyScore = articleSpecialties.reduce((sum: number, label: string) => {
         const socialScore = (specialtyPerformance[label] || 0) / maxSocial
@@ -196,15 +196,11 @@ export async function GET(request: NextRequest) {
         / (1000 * 60 * 60 * 24)
       const recencyScore = Math.max(0, 1 - (daysSince / 90))
 
-      const provenScore = socialViewCount > 0 ? Math.min(socialViewCount / 10, 1) : 0
-
-      const finalScore = (specialtyScore * 0.55) + (recencyScore * 0.30) + (provenScore * 0.15)
+      const finalScore = (specialtyScore * 0.6) + (recencyScore * 0.4)
 
       return {
         ...article,
         score: finalScore,
-        social_views: socialViewCount,
-        by_platform: articleSocialCounts[article.id]?.by_platform || {},
         specialty_score: specialtyScore,
         recency_score: recencyScore,
       }

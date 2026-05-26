@@ -1531,11 +1531,6 @@ export function CampaignCalendar() {
                               ))
                             }
                           </div>
-                          {article.social_views > 0 && (
-                            <span className="text-xs text-emerald-500 ml-auto shrink-0">
-                              {article.social_views} social clicks
-                            </span>
-                          )}
                           <span className="text-xs text-gray-600 truncate">{article.source_journal}</span>
                         </div>
                       </div>
