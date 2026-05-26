@@ -39,7 +39,7 @@ export async function searchArticles(filters: ParsedFilters, pageSize = 20): Pro
     const buildBaseQuery = () => {
       return supabase
         .from('articles')
-        .select(SELECT_FIELDS, { count: 'exact' })
+        .select(SELECT_FIELDS, { count: 'estimated' }) // 'exact' causes full COUNT(*) scan → timeout
         .eq('needs_enrichment', false)
         .not('summary', 'is', null)
         .not('clinical_bottom_line', 'is', null)
@@ -90,6 +90,12 @@ export async function searchArticles(filters: ParsedFilters, pageSize = 20): Pro
           search_query: sanitizedSearch,
           result_limit: 50
         })
+
+      // If RPC timed out, don't cascade into slow ILIKE fallbacks — bail immediately
+      if (rpcError?.code === '57014') {
+        console.error('[Search] RPC timeout, not falling through to ILIKE')
+        return { data: [], count: 0, error: { message: 'Search is temporarily unavailable. Please try again.' } }
+      }
 
       if (!rpcError && rpcData && rpcData.length > 0) {
         let filtered: any[] = rpcData.filter((a: any) =>
@@ -146,9 +152,9 @@ export async function searchArticles(filters: ParsedFilters, pageSize = 20): Pro
         console.log('[Search] FTS failed, trying ILIKE')
       }
 
-      // TIER 2: ILIKE fallback
+      // TIER 2: ILIKE fallback — summary excluded (long text, causes statement timeout)
       const ilikeBase = buildBaseQuery().or(
-        `title.ilike.%${sanitizedSearch}%,summary.ilike.%${sanitizedSearch}%,clinical_bottom_line.ilike.%${sanitizedSearch}%,authors.ilike.%${sanitizedSearch}%`
+        `title.ilike.%${sanitizedSearch}%,clinical_bottom_line.ilike.%${sanitizedSearch}%,authors.ilike.%${sanitizedSearch}%`
       )
       const { data: ilikeData, count: ilikeCount, error: ilikeError } = await applyFiltersAndPagination(ilikeBase)
       if (!ilikeError && (ilikeCount ?? 0) >= 3) {
