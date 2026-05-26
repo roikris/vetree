@@ -384,11 +384,12 @@ LinkedIn post structure:
 
 [Short punchy takeaway - one sentence]
 
-[Article title shortened to ~60 chars]
-
+📄 ${article.title}
 🔗 ${articleUrl}
 
 🌿 vetree.app
+
+CRITICAL: The line starting with 📄 must contain the article title EXACTLY as written above — do not shorten, rephrase, or summarize it.
 
 Return ONLY the post text following this exact rhythm pattern.`
     } else if (platform === 'tiktok') {
@@ -479,9 +480,11 @@ Format:
 
 [2-3 sentences insight]
 
-📄 ${article.title.slice(0, 80)}
+📄 ${article.title}
 🔗 ${articleUrl}
 🌿 vetree.app
+
+CRITICAL: The line starting with 📄 must contain the article title EXACTLY as written above — do not shorten, rephrase, or summarize it.
 
 Return ONLY the post text. Follow the platform rule exactly.`
     }
