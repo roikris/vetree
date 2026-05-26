@@ -144,12 +144,12 @@ export async function GET(request: NextRequest) {
 
     const { data: candidates } = await supabase
       .from('articles')
-      .select('id, title, labels, source_journal, published_date, clinical_bottom_line, strength_of_evidence')
+      .select('id, title, labels, source_journal, publication_date, clinical_bottom_line, strength_of_evidence')
       .eq('needs_enrichment', false)
       .not('clinical_bottom_line', 'is', null)
       .or('quarantined.is.null,quarantined.eq.false')
       .overlaps('labels', labelsToQuery)
-      .order('published_date', { ascending: false })
+      .order('publication_date', { ascending: false })
       .limit(200)
 
     console.log('[recs] candidates before filter:', candidates?.length)
@@ -182,7 +182,7 @@ export async function GET(request: NextRequest) {
         return sum + (socialScore * 0.7) + (demandScore * 0.3)
       }, 0) / Math.max(articleSpecialties.length, 1)
 
-      const daysSince = (Date.now() - new Date(article.published_date).getTime())
+      const daysSince = (Date.now() - new Date(article.publication_date).getTime())
         / (1000 * 60 * 60 * 24)
       const recencyScore = Math.max(0, 1 - (daysSince / 90))
 
