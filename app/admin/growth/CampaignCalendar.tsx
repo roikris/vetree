@@ -322,6 +322,21 @@ export function CampaignCalendar() {
     }
   }
 
+  // Dismiss a recommendation permanently (irrelevant or already_published)
+  const dismissRecommendation = async (articleId: string, outcome: 'irrelevant' | 'already_published') => {
+    // Optimistic: remove from list immediately
+    setRecommendations(prev => prev.filter(a => a.id !== articleId))
+    try {
+      await fetch('/api/admin/growth/recommendations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ article_id: articleId, outcome }),
+      })
+    } catch (e) {
+      console.error('[recommendations] dismiss failed:', e)
+    }
+  }
+
   // Search articles (debounced)
   const searchArticles = async (query: string) => {
     if (query.length < 3) {
@@ -1487,16 +1502,17 @@ export function CampaignCalendar() {
                 {/* Recommendation cards */}
                 <div className="space-y-2">
                   {recommendations.map((article, i) => (
-                    <div
-                      key={article.id}
-                      className="flex items-start gap-3 p-3 bg-gray-800 border border-gray-700 rounded-lg hover:border-emerald-700 transition cursor-pointer group"
-                      onClick={() => {
-                        setSelectedArticle({ id: article.id, title: article.title })
-                        setShowRecommendations(false)
-                      }}
-                    >
-                      <span className="text-lg font-bold text-gray-600 w-6 shrink-0">{i + 1}</span>
-                      <div className="flex-1 min-w-0">
+                    <div key={article.id} className="flex items-start gap-3 p-3 bg-gray-800 border border-gray-700 rounded-lg hover:border-emerald-700 transition group">
+                      <span className="text-lg font-bold text-gray-600 w-6 shrink-0 mt-0.5">{i + 1}</span>
+
+                      {/* Main clickable area */}
+                      <div
+                        className="flex-1 min-w-0 cursor-pointer"
+                        onClick={() => {
+                          setSelectedArticle({ id: article.id, title: article.title })
+                          setShowRecommendations(false)
+                        }}
+                      >
                         <p className="text-sm text-white font-medium truncate group-hover:text-emerald-300">
                           {article.title}
                         </p>
@@ -1523,7 +1539,26 @@ export function CampaignCalendar() {
                           <span className="text-xs text-gray-600 truncate">{article.source_journal}</span>
                         </div>
                       </div>
-                      <span className="text-gray-600 group-hover:text-emerald-400 transition shrink-0 mt-1">→</span>
+
+                      {/* Dismiss actions */}
+                      <div className="flex flex-col gap-1 shrink-0">
+                        <button
+                          type="button"
+                          title="Already published"
+                          onClick={e => { e.stopPropagation(); dismissRecommendation(article.id, 'already_published') }}
+                          className="text-xs text-gray-600 hover:text-emerald-400 transition px-1.5 py-0.5 rounded hover:bg-gray-700"
+                        >
+                          ✓ posted
+                        </button>
+                        <button
+                          type="button"
+                          title="Not relevant"
+                          onClick={e => { e.stopPropagation(); dismissRecommendation(article.id, 'irrelevant') }}
+                          className="text-xs text-gray-600 hover:text-red-400 transition px-1.5 py-0.5 rounded hover:bg-gray-700"
+                        >
+                          ✕ skip
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
