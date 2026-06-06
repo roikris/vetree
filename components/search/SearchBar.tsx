@@ -85,41 +85,27 @@ const SearchTips = () => {
 }
 
 export function SearchBar({ defaultValue, onSearch, resultsCount }: SearchBarProps) {
-  const [query, setQuery] = useState(defaultValue)
+  const [inputValue, setInputValue] = useState(defaultValue)
   const onSearchRef = useRef(onSearch)
   const lastLoggedQuery = useRef('')
-  const isInitialMount = useRef(true)
 
   useEffect(() => {
     onSearchRef.current = onSearch
   }, [onSearch])
 
-  useEffect(() => {
-    // Skip on initial mount — the page already reflects the URL, no navigation needed
-    if (isInitialMount.current) {
-      isInitialMount.current = false
-      return
-    }
-    const timer = setTimeout(() => {
-      onSearchRef.current(query)
-    }, 500)
-
-    return () => clearTimeout(timer)
-  }, [query])
-
   // Log searches after they complete and results are available
   useEffect(() => {
     const timer = setTimeout(() => {
       // Only log if query is not empty, at least 2 chars, and different from last logged
-      if (query.trim().length >= 2 && query !== lastLoggedQuery.current) {
-        lastLoggedQuery.current = query
+      if (inputValue.trim().length >= 2 && inputValue !== lastLoggedQuery.current) {
+        lastLoggedQuery.current = inputValue
 
         // Log the search
         fetch('/api/analytics/search', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            query: query.trim(),
+            query: inputValue.trim(),
             results_count: resultsCount || 0
           })
         }).catch(error => {
@@ -129,10 +115,17 @@ export function SearchBar({ defaultValue, onSearch, resultsCount }: SearchBarPro
     }, 1000) // Wait 1 second after user stops typing
 
     return () => clearTimeout(timer)
-  }, [query, resultsCount])
+  }, [inputValue, resultsCount])
 
   const handleClear = () => {
-    setQuery('')
+    setInputValue('')
+    onSearchRef.current('')
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      onSearchRef.current(inputValue)
+    }
   }
 
   return (
@@ -154,15 +147,16 @@ export function SearchBar({ defaultValue, onSearch, resultsCount }: SearchBarPro
       </div>
       <input
         type="text"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
+        value={inputValue}
+        onChange={(e) => setInputValue(e.target.value)}
+        onKeyDown={handleKeyDown}
         aria-label="Search veterinary articles"
         placeholder="Search articles by title, summary, clinical bottom line, or authors..."
         className="w-full pl-12 pr-20 py-3 text-base bg-white dark:bg-[#1A1A1A] border border-[#E5E5E5] dark:border-[#2A2A2A] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D7A5F] dark:focus:ring-[#4E9A78] focus:border-transparent text-[#1A1A1A] dark:text-[#E8E8E8] placeholder-zinc-400 dark:placeholder-zinc-500"
       />
       <div className="absolute inset-y-0 right-0 pr-3 flex items-center gap-2">
         <SearchTips />
-        {query && (
+        {inputValue && (
           <button
             onClick={handleClear}
             aria-label="Clear search"
