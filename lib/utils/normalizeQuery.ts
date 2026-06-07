@@ -83,6 +83,8 @@ export function normalizeQuery(query: string): string {
     'mct': 'mast cell tumor',
     'osc': 'osteosarcoma',
     'lsa': 'lymphoma lymphosarcoma',
+    'scc': 'squamous cell carcinoma',
+    'frontal sinus scc': 'frontal sinus squamous cell carcinoma',
 
     // Orthopedics
     'oa': 'osteoarthritis degenerative joint disease',
@@ -106,6 +108,17 @@ export function normalizeQuery(query: string): string {
     'k9': 'canine dog',
     'fel': 'feline cat',
     'eq': 'equine horse',
+
+    // Ophthalmology
+    'haws': 'third eyelid nictitating membrane prolapse',
+    'cherry eye': 'third eyelid prolapse nictitating membrane',
+
+    // Infectious disease
+    'mycoplasmosis': 'mycoplasma haemofelis hemoplasmosis',
+    'mycoplasma feline': 'mycoplasma haemofelis feline anemia',
+
+    // Orthopedics / genetics
+    'osteochondrodysplasia': 'osteochondrodysplasia cartilage dysplasia Scottish fold',
 
     // Integrative / CAM — multi-word phrases first (processed before single-word keys)
     'integrative veterinary': 'holistic alternative complementary',
