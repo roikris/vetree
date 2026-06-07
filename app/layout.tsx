@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Analytics } from '@vercel/analytics/react';
 import { PageTracker } from '@/components/PageTracker';
@@ -43,17 +43,18 @@ export const metadata: Metadata = {
     description: 'AI-powered clinical summaries from 15,000+ peer-reviewed veterinary articles.',
   },
   manifest: '/manifest.json',
-  themeColor: '#3D7A5F',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
     title: 'Vetree',
   },
-  viewport: {
-    width: 'device-width',
-    initialScale: 1,
-    maximumScale: 1,
-  },
+};
+
+export const viewport: Viewport = {
+  themeColor: '#3D7A5F',
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
 };
 
 export default function RootLayout({
