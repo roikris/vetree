@@ -51,6 +51,16 @@ export async function POST(request: NextRequest) {
       .or(`user_id.is.null,user_id.neq.${adminId}`)
     const mau = new Set(mauData?.map(r => r.ip_hash) ?? []).size
 
+    // Registered MAU — distinct authenticated users (non-admin, non-null user_id) in last 30 days
+    // This is the real user count; mau above counts all visitors including anonymous/bots
+    const { data: registeredMauData } = await supabase
+      .from('page_views')
+      .select('user_id')
+      .not('user_id', 'is', null)
+      .neq('user_id', adminId)
+      .gte('created_at', thirtyDaysAgo)
+    const registeredMau = new Set(registeredMauData?.map(r => r.user_id) ?? []).size
+
     // Total searches + zero result searches (exclude admin)
     const { data: searchData } = await supabase
       .from('search_logs')
@@ -151,7 +161,10 @@ export async function POST(request: NextRequest) {
       .or(`user_id.is.null,user_id.neq.${adminId}`)
 
     const trafficSources = trafficData?.reduce((acc, t) => {
-      if (t.utm_source) acc[t.utm_source] = (acc[t.utm_source] || 0) + 1
+      if (t.utm_source) {
+        const src = t.utm_source.toLowerCase()
+        acc[src] = (acc[src] || 0) + 1
+      }
       return acc
     }, {} as Record<string, number>)
 
@@ -174,6 +187,7 @@ export async function POST(request: NextRequest) {
       dau: dau,
       wau: wau,
       mau: mau,
+      registered_mau: registeredMau,
       total_searches: totalSearches,
       zero_result_searches: zeroResults.length,
       zero_result_rate: zeroResultRate,

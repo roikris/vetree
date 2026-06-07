@@ -111,7 +111,7 @@ export async function POST(request: NextRequest) {
       .from('search_logs')
       .select('query, results_count, created_at')
       .eq('results_count', 0)
-      .neq('user_id', adminId)
+      .or(`user_id.is.null,user_id.neq.${adminId}`)
       .gte('created_at', sevenDaysAgoISO)
       .order('created_at', { ascending: false })
       .limit(20)
@@ -122,7 +122,7 @@ export async function POST(request: NextRequest) {
       .select('query, results_count, created_at')
       .gt('results_count', 0)
       .lte('results_count', 4)
-      .neq('user_id', adminId)
+      .or(`user_id.is.null,user_id.neq.${adminId}`)
       .gte('created_at', sevenDaysAgoISO)
       .order('created_at', { ascending: false })
       .limit(20)
@@ -130,21 +130,21 @@ export async function POST(request: NextRequest) {
     // Top saved articles this week (what content resonates)
     const { data: recentSaves } = await supabase
       .from('saved_articles')
-      .select('article_id, created_at, articles(title, labels)')
-      .gte('created_at', sevenDaysAgoISO)
-      .order('created_at', { ascending: false })
+      .select('article_id, saved_at, articles(title, labels)')
+      .gte('saved_at', sevenDaysAgoISO)
+      .order('saved_at', { ascending: false })
       .limit(20)
 
     // Users active 8-28 days ago but not in last 7 days (churn candidates)
     const twentyEightDaysAgoISO = new Date(Date.now() - 28 * 24 * 60 * 60 * 1000).toISOString()
     const { data: recentActiveUsers } = await supabase
       .from('page_views')
-      .select('user_id, viewed_at')
+      .select('user_id, created_at')
       .not('user_id', 'is', null)
       .neq('user_id', adminId)
-      .gte('viewed_at', twentyEightDaysAgoISO)
-      .lt('viewed_at', sevenDaysAgoISO)
-      .order('viewed_at', { ascending: false })
+      .gte('created_at', twentyEightDaysAgoISO)
+      .lt('created_at', sevenDaysAgoISO)
+      .order('created_at', { ascending: false })
       .limit(200)
 
     const { data: recentReturnedUsers } = await supabase
@@ -152,7 +152,7 @@ export async function POST(request: NextRequest) {
       .select('user_id')
       .not('user_id', 'is', null)
       .neq('user_id', adminId)
-      .gte('viewed_at', sevenDaysAgoISO)
+      .gte('created_at', sevenDaysAgoISO)
       .limit(500)
 
     const returnedUserIds = new Set((recentReturnedUsers || []).map(r => r.user_id))
@@ -284,7 +284,7 @@ Return this exact JSON structure:
   ],
   "top_3_actions": ["action 1", "action 2", "action 3"],
   "content_roadmap": ["synthesis topic 1", "synthesis topic 2", "synthesis topic 3"],
-  "churn_risks": ["description of churn risk if any"],
+  "churn_risks": ["plain text description of churn risk — NEVER include user IDs, UUIDs, or any personal identifiers"],
   "weekly_summary": "2-3 sentence summary for Slack notification"
 }
 
@@ -384,6 +384,7 @@ SNAPSHOT: ${JSON.stringify(snapshot, null, 2)}
 SIGNALS: ${JSON.stringify(signals?.slice(0, 10), null, 2)}
 INSIGHTS: ${JSON.stringify(finalInsights.insights, null, 2)}
 TOP ACTIONS: ${JSON.stringify(finalInsights.top_3_actions, null, 2)}
+ZERO-RESULT QUERIES (use these exactly for the zero-result section — do NOT guess from top_searches): ${JSON.stringify(topZeroResults, null, 2)}
 
 Output this exact markdown structure:
 
