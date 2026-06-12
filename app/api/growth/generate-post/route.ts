@@ -97,6 +97,36 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Improvement #2: Fetch page view counts (last 30 days) to boost high-engagement articles
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+    const { data: topViewedPaths } = await supabase
+      .from('page_views')
+      .select('path')
+      .ilike('path', '/article/%')
+      .gte('created_at', thirtyDaysAgo)
+
+    const viewCounts = new Map<string, number>()
+    for (const row of topViewedPaths || []) {
+      const id = row.path.replace('/article/', '').split('?')[0].trim()
+      if (id) viewCounts.set(id, (viewCounts.get(id) || 0) + 1)
+    }
+    console.log('[generate-post] View counts loaded for', viewCounts.size, 'articles')
+
+    // Improvement #3: Fetch recent zero-result searches as hot demand signal
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+    const { data: zeroResultSearches } = await supabase
+      .from('search_logs')
+      .select('query')
+      .eq('results_count', 0)
+      .gte('created_at', sevenDaysAgo)
+      .order('created_at', { ascending: false })
+      .limit(50)
+
+    const hotQueries = [...new Set((zeroResultSearches || []).map(s => (s.query || '').trim()))]
+      .filter(Boolean)
+      .slice(0, 5)
+    console.log('[generate-post] Hot zero-result queries:', hotQueries)
+
     while (retryCount < MAX_RETRIES && !article) {
       // FIX 1 + 2: Only exclude APPROVED articles from last 14 days (not skipped ones)
       const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString()
@@ -174,11 +204,14 @@ export async function POST(request: NextRequest) {
         continue // Retry with next attempt
       }
 
-      // Weighted random selection - newer articles get higher probability
+      // Weighted random selection - newer articles get higher probability,
+      // boosted further by real page view counts from the last 30 days.
+      // Each page view adds +20% weight so a 10-view article gets 3x the base weight.
       const weighted = filteredArticles.map((article, index) => ({
         article,
-        weight: Math.pow(0.95, index) // exponential decay: 1st=1.0, 2nd=0.95, 10th=0.60, 30th=0.21
+        weight: Math.pow(0.95, index) * (1 + (viewCounts.get(article.id) || 0) * 0.2)
       }))
+      console.log('[generate-post] Top 3 weighted articles:', weighted.slice(0,3).map(w => `${w.article.id.slice(-8)} w=${w.weight.toFixed(2)}`))
 
       const totalWeight = weighted.reduce((sum, w) => sum + w.weight, 0)
       let random = Math.random() * totalWeight
@@ -501,7 +534,7 @@ Return ONLY the post text. Follow the platform rule exactly.`
         role: 'user',
         content: promptContent
       }],
-      system: `You are a veterinary content writer. Write specific, clinically relevant posts for DVMs in small animal practice. ${language === 'he' ? 'Write in natural Hebrew.' : 'Write in English.'}`
+      system: `You are a veterinary content writer. Write specific, clinically relevant posts for DVMs in small animal practice. ${language === 'he' ? 'Write in natural Hebrew.' : 'Write in English.'}${hotQueries.length > 0 ? `\n\nCurrent audience demand — topics your audience is actively searching for with no results yet: ${hotQueries.join(', ')}. If this article is directly relevant to any of these, make that connection explicit in your post (e.g. "Searching for answers on hyperthyroidism? This study..." but more natural). Otherwise, ignore this context.` : ''}`
     })
 
     postContent = message.content[0].type === 'text' ? message.content[0].text : ''

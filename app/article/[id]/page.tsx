@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createClient as createPublicClient } from '@supabase/supabase-js'
 import { Article } from '@/lib/supabase'
 import { ArticleCard } from '@/components/articles/ArticleCard'
+import { ArticleMobileHero } from '@/components/articles/ArticleMobileHero'
 import { ArticleViewTracker } from '@/components/articles/ArticleViewTracker'
 import { RegistrationWall } from '@/components/ui/RegistrationWall'
 import { FollowTopicButtons } from '@/components/articles/FollowTopicButtons'
@@ -73,9 +74,11 @@ async function getRelatedArticles(labels: string[] | null, currentArticleId: str
     .or('quarantined.is.null,quarantined.eq.false')
     .overlaps('labels', labels)
     .order('publication_date', { ascending: false })
-    .limit(4)
+    .limit(6)
 
-  return (data || []) as Article[]
+  const LARGE_ANIMAL = ['Equine','equine','Large Animal','large animal','Livestock','livestock','Poultry','poultry','Food Animal','food animal']
+  const filtered = ((data || []) as Article[]).filter(a => !a.labels?.some((l: string) => LARGE_ANIMAL.includes(l)))
+  return filtered.slice(0, 3)
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -92,8 +95,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     ? article.clinical_bottom_line.substring(0, 160)
     : article.summary?.substring(0, 160) || 'Veterinary research article on Vetree'
 
+  const shortTitle = article.title.length > 50
+    ? article.title.slice(0, 50) + '…'
+    : article.title
+
   return {
-    title: article.title,
+    title: shortTitle,
     description,
     alternates: {
       canonical: `/article/${id}`,
@@ -195,8 +202,13 @@ export default async function ArticlePage({ params }: PageProps) {
           </div>
         </header>
 
-        {/* Article Card */}
-        <div className="mb-8">
+        {/* Mobile hero — full-width CBL + actions, hidden on desktop */}
+        <div className="md:hidden mb-6">
+          <ArticleMobileHero article={article} />
+        </div>
+
+        {/* Article Card — desktop only */}
+        <div className="hidden md:block mb-8">
           <ArticleCard article={article} />
         </div>
 

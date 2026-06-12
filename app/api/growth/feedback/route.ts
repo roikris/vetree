@@ -109,19 +109,18 @@ export async function POST(request: NextRequest) {
           // Track hook styles that get skipped
           if ((skip_reason === 'Too generic' || skip_reason === 'Wrong tone') && hook_line) {
             const currentAvoided = preferences.avoided_hook_styles || []
-            // Extract first few words as hook style pattern
-            const hookPattern = hook_line.split(' ').slice(0, 3).join(' ')
+            // Store the full first sentence (up to 120 chars) as the style pattern
+            const hookPattern = hook_line.split(/[.!?]/)[0].trim().slice(0, 120)
             updates.avoided_hook_styles = [...new Set([...currentAvoided, hookPattern])]
           }
         }
       } else if (outcome === 'approved') {
         updates.approved_count = (preferences.approved_count || 0) + 1
 
-        // Learn from approved content
+        // Learn from approved content — store full first sentence, not just 3 words
         if (hook_line) {
           const currentPreferred = preferences.preferred_hook_styles || []
-          // Extract first few words as hook style pattern
-          const hookPattern = hook_line.split(' ').slice(0, 3).join(' ')
+          const hookPattern = hook_line.split(/[.!?]/)[0].trim().slice(0, 120)
           updates.preferred_hook_styles = [...new Set([...currentPreferred, hookPattern])]
         }
 
