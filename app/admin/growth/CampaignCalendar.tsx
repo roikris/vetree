@@ -63,6 +63,7 @@ export function CampaignCalendar() {
   const [showArticleDropdown, setShowArticleDropdown] = useState(false)
   const [rewritingPlatform, setRewritingPlatform] = useState<string | null>(null)
   const [generatedImages, setGeneratedImages] = useState<Record<string, string>>({})
+  const [photoArticle, setPhotoArticle] = useState<{summary?: string, clinical_bottom_line?: string} | null>(null)
   const [recommendations, setRecommendations] = useState<any[]>([])
   const [showRecommendations, setShowRecommendations] = useState(false)
   const [loadingRecs, setLoadingRecs] = useState(false)
@@ -1189,12 +1190,25 @@ export function CampaignCalendar() {
     }
   }
 
+  // Fetch article summary when AI Photos tab is opened
+  useEffect(() => {
+    if (activePlatformTab !== 'ai_photos') return
+    const firstPost = Object.values(allPlatformPosts)[0] as any
+    if (!firstPost?.article_id) return
+    setPhotoArticle(null)
+    fetch(`/api/articles/${firstPost.article_id}`)
+      .then(r => r.json())
+      .then(a => setPhotoArticle(a))
+      .catch(() => {})
+  }, [activePlatformTab, allPlatformPosts])
+
   // Generate image for a platform post using Gemini Imagen
-  const handleGenerateImage = async (platform: string) => {
+  const handleGenerateImage = async (platform: string, storeKey?: string) => {
     const currentPost = allPlatformPosts[platform]
     if (!currentPost?.article_id) return
 
-    setRewritingPlatform(`img_${platform}`)
+    const key = storeKey ?? platform
+    setRewritingPlatform(`img_${key}`)
 
     try {
       const supabase = createClient()
@@ -1215,7 +1229,7 @@ export function CampaignCalendar() {
       })
       const data = await res.json()
       if (data.image) {
-        setGeneratedImages(prev => ({ ...prev, [platform]: data.image }))
+        setGeneratedImages(prev => ({ ...prev, [key]: data.image }))
       } else {
         setMessage({ type: 'error', text: data.error || 'Image generation failed' })
       }
@@ -1339,6 +1353,17 @@ export function CampaignCalendar() {
                   {platformEmoji(platform)} {name}
                 </button>
               ))}
+              <button
+                type="button"
+                onClick={() => setActivePlatformTab('ai_photos')}
+                className={`px-3 py-1 text-xs rounded-full transition ${
+                  activePlatformTab === 'ai_photos'
+                    ? 'bg-emerald-700 text-white'
+                    : 'bg-zinc-700 dark:bg-zinc-800 text-zinc-300 hover:bg-zinc-600 dark:hover:bg-zinc-700'
+                }`}
+              >
+                🎨 AI Photos
+              </button>
             </div>
 
             {/* Active tab content */}
@@ -1373,26 +1398,6 @@ export function CampaignCalendar() {
                     Copy
                   </button>
                   {/* Image generation hidden — requires separate Google AI API billing */}
-                </div>
-
-                {/* AI Photo Generation */}
-                <div className="mt-4 border border-zinc-700 rounded-lg p-3 bg-zinc-900/60">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-medium text-zinc-400">AI Photo Generation</span>
-                    <button
-                      type="button"
-                      onClick={() => handleGenerateImage(activePlatformTab)}
-                      disabled={!!rewritingPlatform}
-                      className="flex items-center gap-1.5 text-sm text-zinc-300 hover:text-white bg-zinc-700 hover:bg-zinc-600 px-3 py-1.5 rounded-md transition disabled:opacity-50"
-                    >
-                      {rewritingPlatform === `img_${activePlatformTab}`
-                        ? <><Loader2 size={14} className="animate-spin" /> Generating...</>
-                        : '🎨 Generate Images'}
-                    </button>
-                  </div>
-                  <p className="text-xs text-zinc-500 font-mono leading-relaxed">
-                    craft 3-4 images … make one in normal ratio and one in a 4:5 ratio: [article summary]
-                  </p>
                 </div>
 
                 {/* Style rewrite buttons */}
@@ -1436,6 +1441,49 @@ export function CampaignCalendar() {
                           ⬇️ Download
                         </a>
                       </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* AI Photos tab panel */}
+            {activePlatformTab === 'ai_photos' && (
+              <div className="bg-zinc-900 dark:bg-zinc-950 rounded-lg p-4 border border-zinc-700 dark:border-zinc-800">
+                <p className="text-xs text-zinc-300 font-mono leading-relaxed whitespace-pre-wrap mb-4">
+                  {`craft 3-4 images that will pair well with the following professional oriented content on social media networks. make one in normal ratio and one in a 4:5 ratio:\n\n`}
+                  {photoArticle
+                    ? (photoArticle.summary || photoArticle.clinical_bottom_line || 'No summary available.')
+                    : 'Loading article summary...'}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const firstPlatform = PLATFORM_ROTATION.find(p => allPlatformPosts[p.platform])?.platform
+                    if (firstPlatform) handleGenerateImage(firstPlatform, 'ai_photos')
+                  }}
+                  disabled={!!rewritingPlatform || !photoArticle}
+                  className="flex items-center gap-1.5 text-sm text-zinc-300 hover:text-white bg-zinc-700 hover:bg-zinc-600 px-3 py-1.5 rounded-md transition disabled:opacity-50"
+                >
+                  {rewritingPlatform === 'img_ai_photos'
+                    ? <><Loader2 size={14} className="animate-spin" /> Generating...</>
+                    : '🎨 Generate Images'}
+                </button>
+                {generatedImages['ai_photos'] && (
+                  <div className="mt-4 space-y-1.5">
+                    <img
+                      src={generatedImages['ai_photos']}
+                      alt="Generated image"
+                      className="rounded-lg w-full border border-zinc-700 object-cover"
+                    />
+                    <div className="flex justify-end">
+                      <a
+                        href={generatedImages['ai_photos']}
+                        download={`vetree-ai-photos-${today}.jpg`}
+                        className="text-xs text-zinc-400 hover:text-white bg-zinc-700 hover:bg-zinc-600 px-2 py-1 rounded transition"
+                      >
+                        ⬇️ Download
+                      </a>
                     </div>
                   </div>
                 )}
