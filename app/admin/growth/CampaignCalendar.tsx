@@ -1237,38 +1237,6 @@ export function CampaignCalendar() {
 
   return (
     <div className="space-y-6">
-      {/* Campaign Stats */}
-      {stats && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-white dark:bg-[#1A1A1A] border border-zinc-200 dark:border-zinc-800 rounded-lg p-4">
-            <div className="text-xs text-zinc-600 dark:text-zinc-400 mb-1">Campaign Progress</div>
-            <div className="text-2xl font-bold text-[#3D7A5F] dark:text-[#4E9A78]">
-              Day {currentDay}/{CAMPAIGN_TOTAL_DAYS}
-            </div>
-          </div>
-
-          <div className="bg-white dark:bg-[#1A1A1A] border border-zinc-200 dark:border-zinc-800 rounded-lg p-4">
-            <div className="text-xs text-zinc-600 dark:text-zinc-400 mb-1">Posts Published</div>
-            <div className="text-2xl font-bold text-blue-600 dark:text-blue-500">
-              {stats.totalDone}
-            </div>
-          </div>
-
-          <div className="bg-white dark:bg-[#1A1A1A] border border-zinc-200 dark:border-zinc-800 rounded-lg p-4">
-            <div className="text-xs text-zinc-600 dark:text-zinc-400 mb-1">Current Streak</div>
-            <div className="text-2xl font-bold text-orange-600 dark:text-orange-500">
-              {stats.streak} days ✅
-            </div>
-          </div>
-
-          <div className="bg-white dark:bg-[#1A1A1A] border border-zinc-200 dark:border-zinc-800 rounded-lg p-4">
-            <div className="text-xs text-zinc-600 dark:text-zinc-400 mb-1">Platforms This Week</div>
-            <div className="text-lg">
-              {stats.platformsThisWeek.map(p => getPlatformIcon(p)).join(' ')}
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Today's Task */}
       <div className={`bg-white dark:bg-[#1A1A1A] border-2 rounded-lg p-6 transition-colors ${
@@ -1405,17 +1373,26 @@ export function CampaignCalendar() {
                     Copy
                   </button>
                   {/* Image generation hidden — requires separate Google AI API billing */}
-                  {/* To re-enable: remove the 'hidden' class or conditional */}
-                  <button
-                    type="button"
-                    onClick={() => handleGenerateImage(activePlatformTab)}
-                    disabled={rewritingPlatform === `img_${activePlatformTab}`}
-                    className="hidden flex items-center gap-1.5 text-sm text-zinc-400 hover:text-white cursor-pointer bg-zinc-700 hover:bg-zinc-600 px-3 py-1.5 rounded-md transition disabled:opacity-50"
-                  >
-                    {rewritingPlatform === `img_${activePlatformTab}`
-                      ? <><Loader2 size={14} className="animate-spin" /> Generating...</>
-                      : '🎨 Generate Image'}
-                  </button>
+                </div>
+
+                {/* AI Photo Generation */}
+                <div className="mt-4 border border-zinc-700 rounded-lg p-3 bg-zinc-900/60">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-medium text-zinc-400">AI Photo Generation</span>
+                    <button
+                      type="button"
+                      onClick={() => handleGenerateImage(activePlatformTab)}
+                      disabled={!!rewritingPlatform}
+                      className="flex items-center gap-1.5 text-sm text-zinc-300 hover:text-white bg-zinc-700 hover:bg-zinc-600 px-3 py-1.5 rounded-md transition disabled:opacity-50"
+                    >
+                      {rewritingPlatform === `img_${activePlatformTab}`
+                        ? <><Loader2 size={14} className="animate-spin" /> Generating...</>
+                        : '🎨 Generate Images'}
+                    </button>
+                  </div>
+                  <p className="text-xs text-zinc-500 font-mono leading-relaxed">
+                    craft 3-4 images … make one in normal ratio and one in a 4:5 ratio: [article summary]
+                  </p>
                 </div>
 
                 {/* Style rewrite buttons */}

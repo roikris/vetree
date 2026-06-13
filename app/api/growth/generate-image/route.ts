@@ -36,10 +36,10 @@ export async function POST(request: NextRequest) {
     }
 
     const content = abstract_text
-      ? abstract_text.slice(0, 600)
+      ? abstract_text.slice(0, 1500)
       : post_text.slice(0, 400)
 
-    const imagePrompt = `craft images that will pair well with the following professional oriented content on social media networks: ${content}`
+    const imagePrompt = `craft 3-4 images that will pair well with the following professional oriented content on social media networks. make one in normal ratio and one in a 4:5 ratio: ${content}`
     console.log('[generate-image] prompt length:', imagePrompt.length)
 
     // Initialize SDK inside function per CLAUDE.md
