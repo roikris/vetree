@@ -12,8 +12,8 @@
 
 UPDATE growth_agent_preferences
 SET
-  avoided_specialties   = '[]'::jsonb,
-  preferred_specialties = '[]'::jsonb,
-  preferred_hook_styles = '[]'::jsonb,
-  avoided_hook_styles   = '[]'::jsonb,
+  avoided_specialties   = ARRAY[]::text[],
+  preferred_specialties = ARRAY[]::text[],
+  preferred_hook_styles = ARRAY[]::text[],
+  avoided_hook_styles   = ARRAY[]::text[],
   updated_at            = now();
