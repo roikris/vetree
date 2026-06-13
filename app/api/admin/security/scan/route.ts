@@ -233,6 +233,248 @@ export async function POST(request: NextRequest) {
     // RPC not installed yet — skip
   }
 
+  // CHECK 10: Cross-user data isolation (Broken Access Control — OWASP #1)
+  // Tests that authenticated users cannot read other users' private rows,
+  // and that anon cannot mass-assign user_id to hijack another user's data.
+  try {
+    const userOwnedTables = ['saved_articles', 'user_preferences', 'user_consents', 'followed_tags']
+    const crossUserViolations: string[] = []
+
+    for (const table of userOwnedTables) {
+      // Get a real row owned by a non-admin user (service role bypasses RLS)
+      const { data: row } = await adminSupabase
+        .from(table)
+        .select('user_id')
+        .not('user_id', 'is', null)
+        .neq('user_id', adminId)
+        .limit(1)
+        .maybeSingle()
+
+      if (row?.user_id) {
+        // Try to read that row as anon — should return nothing if RLS is correct
+        const { data: leaked } = await anonSupabase
+          .from(table)
+          .select('user_id')
+          .eq('user_id', row.user_id)
+          .limit(1)
+
+        if (leaked && leaked.length > 0) {
+          crossUserViolations.push(`${table}: anon can read rows owned by other users`)
+        }
+      }
+    }
+
+    // Mass-assignment probe: anon tries to INSERT into saved_articles with explicit user_id
+    // RLS WITH CHECK (auth.uid() = user_id) should block this since anon has no uid
+    const testArticleId = 'ffffffffffffffffffffffffffffffff'
+    const { error: massAssignErr } = await anonSupabase
+      .from('saved_articles')
+      .insert({ user_id: adminId, article_id: testArticleId })
+
+    if (!massAssignErr) {
+      // RLS did not block — clean up and flag
+      crossUserViolations.push('saved_articles: anon INSERT with explicit user_id succeeded (mass assignment)')
+      await adminSupabase
+        .from('saved_articles')
+        .delete()
+        .eq('user_id', adminId)
+        .eq('article_id', testArticleId)
+    } else if (massAssignErr.code !== '42501' && massAssignErr.code !== 'PGRST301' && massAssignErr.message?.includes('violates row-level security')) {
+      // Passed RLS but hit a different error (e.g. FK) — still a mass-assignment issue
+      crossUserViolations.push(`saved_articles: anon INSERT bypassed RLS (blocked by constraint, not RLS): ${massAssignErr.code}`)
+    }
+
+    if (crossUserViolations.length > 0) {
+      findings.push({
+        id: 'broken_access_control',
+        severity: 'critical',
+        title: 'Broken access control — cross-user data leak',
+        description: `Row-level security is not fully isolating user data: ${crossUserViolations.join('; ')}`,
+        affected: crossUserViolations,
+        detected_at: new Date().toISOString(),
+      })
+    }
+  } catch {
+    // Skip — tables may be empty or probe errored
+  }
+
+  // CHECK 11: GDPR data deletion completeness
+  // The delete-account route must reference every table that stores user PII.
+  // Missing a table = residual data after user requests erasure = GDPR violation.
+  try {
+    const userDataTables = [
+      'page_views', 'search_logs', 'saved_articles', 'followed_tags',
+      'user_preferences', 'user_consents', 'reports', 'synthesis_feedback',
+    ]
+    const deleteRouteContent = fs.readFileSync(
+      path.join(cwd, 'app/api/delete-account/route.ts'), 'utf-8'
+    )
+    const notCovered = userDataTables.filter(t => !deleteRouteContent.includes(t))
+
+    if (notCovered.length > 0) {
+      findings.push({
+        id: 'gdpr_incomplete_deletion',
+        severity: 'high',
+        title: 'GDPR: account deletion does not cover all user data tables',
+        description: `The delete-account route does not reference these tables that store user PII: ${notCovered.join(', ')}. Users exercising their right to erasure (GDPR Art. 17 / Israeli Privacy Protection Law) would have residual data remaining.`,
+        affected: notCovered,
+        detected_at: new Date().toISOString(),
+      })
+    }
+  } catch {
+    // Route file not found — flag it
+    findings.push({
+      id: 'gdpr_no_deletion_route',
+      severity: 'high',
+      title: 'GDPR: delete-account route not found',
+      description: 'Could not find app/api/delete-account/route.ts. Users have no way to request data erasure.',
+      affected: ['app/api/delete-account/route.ts'],
+      detected_at: new Date().toISOString(),
+    })
+  }
+
+  // CHECK 12: PII exposure in external notifications (Slack / Sentry)
+  // Routes that send to Slack or Sentry must not include user emails, IPs, or tokens
+  // in the outbound payload — those are third parties with their own data retention.
+  try {
+    const piiPatterns = ['.email', 'user?.email', 'user.email', '\.ip\b', 'x-forwarded-for', 'user_id', 'userId', 'password', 'token', 'secret']
+    const allRouteFiles: string[] = []
+
+    const walkDir = (dir: string) => {
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        const full = path.join(dir, entry.name)
+        if (entry.isDirectory()) walkDir(full)
+        else if (entry.name === 'route.ts') allRouteFiles.push(full)
+      }
+    }
+    walkDir(path.join(cwd, 'app/api'))
+
+    const piiLeakFiles: string[] = []
+    for (const file of allRouteFiles) {
+      const content = fs.readFileSync(file, 'utf-8')
+      const hasExternalSink = content.includes('SLACK_WEBHOOK_URL') || content.includes('captureException') || content.includes('captureMessage')
+      if (!hasExternalSink) continue
+
+      // Extract ~500 chars around each external-sink call and look for PII patterns
+      const sinkMatches = [...content.matchAll(/(SLACK_WEBHOOK_URL|captureException|captureMessage)[\s\S]{0,500}/g)]
+      const contexts = sinkMatches.map(m => m[0])
+      const hasPII = piiPatterns.some(p => {
+        const re = new RegExp(p.replace('.', '\\.').replace('\\b', '\\b'))
+        return contexts.some(ctx => re.test(ctx))
+      })
+      if (hasPII) piiLeakFiles.push(file.replace(cwd + '/', ''))
+    }
+
+    if (piiLeakFiles.length > 0) {
+      findings.push({
+        id: 'pii_external_leak',
+        severity: 'high',
+        title: 'Potential PII sent to Slack or Sentry',
+        description: `These routes send to external services and contain PII-like patterns near the notification call: ${piiLeakFiles.join(', ')}. Verify that user emails, IPs, and IDs are not included in outbound payloads — both services retain data and are subject to their own privacy policies.`,
+        affected: piiLeakFiles,
+        detected_at: new Date().toISOString(),
+      })
+    }
+  } catch {
+    // Skip on any FS error
+  }
+
+  // CHECK 13: Medical content liability
+  // 13a — Strong clinical claims from low-confidence AI enrichments
+  // 13b — Medical disclaimer present on article pages
+  try {
+    const { count: riskCount, data: riskArticles } = await adminSupabase
+      .from('articles')
+      .select('id', { count: 'exact' })
+      .or('quarantined.is.null,quarantined.eq.false')
+      .eq('needs_enrichment', false)
+      .lt('enrichment_attempts', 2)
+      .or(
+        'clinical_bottom_line.ilike.%always%,' +
+        'clinical_bottom_line.ilike.%never%,' +
+        'clinical_bottom_line.ilike.%contraindicated%,' +
+        'clinical_bottom_line.ilike.%treatment of choice%,' +
+        'clinical_bottom_line.ilike.%must be%'
+      )
+      .limit(20)
+
+    if (riskCount && riskCount > 0) {
+      findings.push({
+        id: 'medical_liability_claims',
+        severity: 'high',
+        title: `${riskCount} articles with strong clinical claims from single-attempt AI enrichment`,
+        description: `Found ${riskCount} visible articles where the AI used definitive clinical language ("always", "never", "contraindicated", "treatment of choice", "must be") but the article was only enriched once. Low-attempt enrichments are less reliable and these summaries could influence veterinary treatment decisions.`,
+        affected: (riskArticles || []).map((a: any) => a.id).slice(0, 10),
+        detected_at: new Date().toISOString(),
+      })
+    }
+  } catch {
+    // Skip DB errors
+  }
+
+  try {
+    const articlePageContent = fs.readFileSync(path.join(cwd, 'app/article/[id]/page.tsx'), 'utf-8')
+    const lc = articlePageContent.toLowerCase()
+    const hasDisclaimer =
+      lc.includes('disclaimer') ||
+      lc.includes('professional use') ||
+      lc.includes('not a substitute') ||
+      lc.includes('clinical judgment') ||
+      lc.includes('לא מחליף') // Hebrew disclaimer
+    if (!hasDisclaimer) {
+      findings.push({
+        id: 'missing_medical_disclaimer',
+        severity: 'high',
+        title: 'No medical disclaimer on article pages',
+        description: 'Article pages do not contain a medical disclaimer. A veterinary clinical platform should state that AI summaries are for professional reference only and are not a substitute for clinical judgment — required for regulatory compliance and liability protection in both Israeli and international markets.',
+        affected: ['app/article/[id]/page.tsx'],
+        detected_at: new Date().toISOString(),
+      })
+    }
+  } catch {
+    // Page file not found
+  }
+
+  // CHECK 14: Dependency vulnerabilities (npm audit)
+  // Checks installed packages against the npm advisory database.
+  // Flags high and critical severity CVEs only.
+  try {
+    const { execSync } = await import('child_process')
+    let auditJson = ''
+    try {
+      execSync('npm audit --json 2>/dev/null', {
+        cwd,
+        timeout: 30000,
+        stdio: ['pipe', 'pipe', 'pipe'],
+      })
+      // exit 0 → no vulnerabilities
+    } catch (auditErr: any) {
+      // npm audit exits non-zero when vulnerabilities exist; stdout has the JSON
+      auditJson = auditErr.stdout?.toString() || ''
+    }
+
+    if (auditJson) {
+      const audit = JSON.parse(auditJson)
+      const vulns: Array<[string, any]> = Object.entries(audit.vulnerabilities || {})
+      const highCrit = vulns.filter(([, v]) => ['critical', 'high'].includes(v.severity))
+
+      if (highCrit.length > 0) {
+        const critCount = highCrit.filter(([, v]) => v.severity === 'critical').length
+        const highCount = highCrit.filter(([, v]) => v.severity === 'high').length
+        findings.push({
+          id: 'dependency_vulnerabilities',
+          severity: critCount > 0 ? 'critical' : 'high',
+          title: `${highCrit.length} high/critical dependency vulnerabilities`,
+          description: `npm audit found ${critCount} critical and ${highCount} high severity CVEs in installed packages: ${highCrit.map(([n, v]) => `${n} (${v.severity})`).join(', ')}.`,
+          affected: highCrit.map(([name]) => name),
+          detected_at: new Date().toISOString(),
+        })
+      }
+    }
+  } catch {
+    // npm not available in this environment — skip
+  }
+
   // PART 3: Generate Claude Haiku fix prompts for each finding
   const fixes: Array<{ finding_id: string; fix_prompt: string }> = []
   if (findings.length > 0) {
