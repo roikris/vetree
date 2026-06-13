@@ -1781,40 +1781,6 @@ export function CampaignCalendar() {
         </div>
       </div>
 
-      {/* This Week's Schedule */}
-      <div className="bg-white dark:bg-[#1A1A1A] border border-zinc-200 dark:border-zinc-800 rounded-lg p-6">
-        <h3 className="text-lg font-semibold text-[#1A1A1A] dark:text-[#E8E8E8] mb-4">
-          This Week's Schedule
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-7 gap-3">
-          {weekSchedule.map((day) => (
-            <div
-              key={day.dayNumber}
-              className={`p-3 rounded-lg border-2 transition-colors ${
-                day.isToday
-                  ? 'border-[#3D7A5F] dark:border-[#4E9A78] bg-[#3D7A5F]/5 dark:bg-[#4E9A78]/5'
-                  : 'border-zinc-200 dark:border-zinc-800'
-              }`}
-            >
-              <div className="text-xs text-zinc-500 dark:text-zinc-400 mb-1">
-                Day {day.dayNumber}
-              </div>
-              <div className="text-2xl mb-1">{day.icon}</div>
-              <div className="text-xs font-medium text-zinc-900 dark:text-zinc-100">
-                {day.name}
-              </div>
-              <div className="text-xs text-zinc-500 dark:text-zinc-400">
-                {day.language.toUpperCase()}
-              </div>
-              {day.isToday && (
-                <div className="mt-2 text-xs font-semibold text-[#3D7A5F] dark:text-[#4E9A78]">
-                  TODAY
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
     </div>
   )
 }
