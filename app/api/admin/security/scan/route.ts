@@ -349,8 +349,12 @@ export async function POST(request: NextRequest) {
     }
     walkDir(path.join(cwd, 'app/api'))
 
+    // Exclude this file — it intentionally references PII patterns for detection purposes
+    const thisScanRoute = path.join(cwd, 'app/api/admin/security/scan/route.ts')
+
     const piiLeakFiles: string[] = []
     for (const file of allRouteFiles) {
+      if (file === thisScanRoute) continue
       const content = fs.readFileSync(file, 'utf-8')
       const hasExternalSink = content.includes('SLACK_WEBHOOK_URL') || content.includes('captureException') || content.includes('captureMessage')
       if (!hasExternalSink) continue
@@ -637,9 +641,11 @@ export async function POST(request: NextRequest) {
       if (serviceListRes.ok) {
         const allFiles = await serviceListRes.json()
         const nonImageExts = ['.html', '.js', '.svg', '.htm', '.php', '.exe', '.sh']
+        const uuidRe = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi
         const dangerousFiles = (Array.isArray(allFiles) ? allFiles : [])
           .filter((f: any) => nonImageExts.some(ext => f.name?.toLowerCase().endsWith(ext)))
-          .map((f: any) => f.name)
+          // Strip any UUID path segments (bucket files are stored as {userId}/filename)
+          .map((f: any) => (f.name as string).replace(uuidRe, '[uid]'))
 
         if (dangerousFiles.length > 0) {
           bucketIssues.push(`non-image files found in avatars bucket: ${dangerousFiles.join(', ')} — potential stored XSS via CDN URL`)
@@ -662,6 +668,13 @@ export async function POST(request: NextRequest) {
   }
 
   // PART 3: Generate Claude Haiku fix prompts for each finding
+  // Scrub PII from finding fields before sending to external services (Claude API, Slack).
+  // The DB insert below uses the original findings — admin-only access, full detail is useful.
+  const scrubPII = (s: string): string => s
+    .replace(/\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi, '[id]')
+    .replace(/\b[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}\b/g, '[email]')
+    .replace(/\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/g, '[ip]')
+
   const fixes: Array<{ finding_id: string; fix_prompt: string }> = []
   if (findings.length > 0) {
     const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
@@ -705,8 +718,8 @@ DO NOT suggest:
 
 SECURITY ISSUE TO FIX:
 Title: ${finding.title}
-Description: ${finding.description}
-Affected: ${finding.affected.join(', ')}
+Description: ${scrubPII(finding.description)}
+Affected: ${finding.affected.map(scrubPII).join(', ')}
 
 Generate a ready-to-paste Claude Code prompt that:
 1. Starts with: "Read CLAUDE.md, app/api/CLAUDE.md, supabase/CLAUDE.md first. Then:"
