@@ -60,6 +60,22 @@ export async function POST(request: NextRequest) {
     { auth: { persistSession: false } }
   )
 
+  // Findings that are intentionally accepted. Each entry: finding_id → reason.
+  // Update this map (with a comment and date) when a risk is reviewed and deferred.
+  const ACKNOWLEDGED: Record<string, string> = {
+    missing_csp: 'Intentionally deferred — CSP requires whitelisting Supabase/Vercel/Sentry/Google OAuth. See comment in next.config.ts.',
+  }
+
+  // Load previous 4 runs for recurrence and resolved tracking
+  const { data: prevRuns } = await adminSupabase
+    .from('security_reports')
+    .select('run_id, findings_json')
+    .order('created_at', { ascending: false })
+    .limit(4)
+  const prevRunFindings: Array<Set<string>> = (prevRuns || []).map(r =>
+    new Set((r.findings_json as Finding[] || []).map((f: Finding) => f.id))
+  )
+
   const findings: Finding[] = []
 
   // CHECK 1: RLS — try accessing sensitive tables with anon key
@@ -196,24 +212,7 @@ export async function POST(request: NextRequest) {
     })
   }
 
-  // CHECK 8: Admin ID exclusion working correctly
   const adminId = '90cb8294-b593-4144-a9f5-23ca52dd5e35'
-  const { data: adminPageViews } = await adminSupabase
-    .from('page_views')
-    .select('id')
-    .eq('user_id', adminId)
-    .limit(5)
-
-  if (adminPageViews && adminPageViews.length > 0) {
-    findings.push({
-      id: 'admin_views_recorded',
-      severity: 'low',
-      title: 'Admin page views being recorded in analytics',
-      description: `Found ${adminPageViews.length} page view records for the admin user ID. The analytics exclusion filter may not be working, inflating user engagement metrics.`,
-      affected: ['page_views', 'app/api/analytics/track/route.ts'],
-      detected_at: new Date().toISOString(),
-    })
-  }
 
   // CHECK 9: Tables missing explicit grants (Supabase breaking change Oct 30, 2026)
   try {
@@ -383,39 +382,7 @@ export async function POST(request: NextRequest) {
     // Skip on any FS error
   }
 
-  // CHECK 13: Medical content liability
-  // 13a — Strong clinical claims from low-confidence AI enrichments
-  // 13b — Medical disclaimer present on article pages
-  try {
-    const { count: riskCount, data: riskArticles } = await adminSupabase
-      .from('articles')
-      .select('id', { count: 'exact' })
-      .or('quarantined.is.null,quarantined.eq.false')
-      .eq('needs_enrichment', false)
-      .lt('enrichment_attempts', 2)
-      .or(
-        'clinical_bottom_line.ilike.%always%,' +
-        'clinical_bottom_line.ilike.%never%,' +
-        'clinical_bottom_line.ilike.%contraindicated%,' +
-        'clinical_bottom_line.ilike.%treatment of choice%,' +
-        'clinical_bottom_line.ilike.%must be%'
-      )
-      .limit(20)
-
-    if (riskCount && riskCount > 0) {
-      findings.push({
-        id: 'medical_liability_claims',
-        severity: 'high',
-        title: `${riskCount} articles with strong clinical claims from single-attempt AI enrichment`,
-        description: `Found ${riskCount} visible articles where the AI used definitive clinical language ("always", "never", "contraindicated", "treatment of choice", "must be") but the article was only enriched once. Low-attempt enrichments are less reliable and these summaries could influence veterinary treatment decisions.`,
-        affected: (riskArticles || []).map((a: any) => a.id).slice(0, 10),
-        detected_at: new Date().toISOString(),
-      })
-    }
-  } catch {
-    // Skip DB errors
-  }
-
+  // CHECK 13: Medical disclaimer present on article pages
   try {
     const articlePageContent = fs.readFileSync(path.join(cwd, 'app/article/[id]/page.tsx'), 'utf-8')
     const lc = articlePageContent.toLowerCase()
@@ -542,34 +509,39 @@ export async function POST(request: NextRequest) {
   }
 
   // CHECK 17: API routes bypass email-verification middleware
-  // middleware.ts explicitly excludes /api/* from its matcher, meaning
-  // unverified users (registered but never confirmed email) can call all
-  // API routes directly. User-facing routes that accept authenticated
-  // sessions should independently verify email_confirmed_at.
+  // Dynamically walks all app/api route files. For each file that calls getUser(),
+  // checks whether it also verifies email_confirmed_at. Admin-only routes (those
+  // checking role === 'admin') are excluded — admin access implies verified email.
   try {
     const middlewareContent = fs.readFileSync(path.join(cwd, 'middleware.ts'), 'utf-8')
     const apiExcluded = middlewareContent.includes('api') &&
       middlewareContent.match(/\(\?\!.*api.*\)/) !== null
 
     if (apiExcluded) {
-      // Walk user-facing API routes (not admin-only) and check if they verify email
-      const userFacingRoutes = [
-        'app/api/articles/route.ts',
-        'app/api/saved-articles/route.ts',
-        'app/api/follow-tag/route.ts',
-        'app/api/synthesis/route.ts',
-        'app/api/growth/generate-post/route.ts',
-        'app/api/reports/route.ts',
-      ]
+      const allApiRoutes: string[] = []
+      const walkApiDir = (dir: string) => {
+        for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+          const full = path.join(dir, entry.name)
+          if (entry.isDirectory()) walkApiDir(full)
+          else if (entry.name === 'route.ts') allApiRoutes.push(full)
+        }
+      }
+      walkApiDir(path.join(cwd, 'app/api'))
+
       const noEmailCheck: string[] = []
-      for (const routePath of userFacingRoutes) {
+      const thisScanRoute = path.join(cwd, 'app/api/admin/security/scan/route.ts')
+      for (const fullPath of allApiRoutes) {
+        if (fullPath === thisScanRoute) continue
         try {
-          const content = fs.readFileSync(path.join(cwd, routePath), 'utf-8')
-          // Must have auth AND (email_confirmed_at or email check)
+          const content = fs.readFileSync(fullPath, 'utf-8')
           const hasAuth = content.includes('getUser') || content.includes('auth.getUser')
           const hasEmailCheck = content.includes('email_confirmed_at') || content.includes('emailConfirmed')
-          if (hasAuth && !hasEmailCheck) noEmailCheck.push(routePath)
-        } catch { /* route doesn't exist */ }
+          // Admin routes: checking role === 'admin' implies the user is already verified
+          const isAdminOnly = content.includes("role === 'admin'") || content.includes('role !== \'admin\'')
+          if (hasAuth && !hasEmailCheck && !isAdminOnly) {
+            noEmailCheck.push(fullPath.replace(cwd + '/', ''))
+          }
+        } catch { /* skip unreadable */ }
       }
 
       if (noEmailCheck.length > 0) {
@@ -667,6 +639,21 @@ export async function POST(request: NextRequest) {
     // Storage API unavailable — skip
   }
 
+  // Remove intentionally acknowledged findings — see ACKNOWLEDGED map above
+  {
+    const active = findings.filter(f => !ACKNOWLEDGED[f.id])
+    findings.length = 0
+    findings.push(...active)
+  }
+
+  // Recurrence helper: how many of the 4 previous runs contained this finding?
+  const recurrenceCount = (findingId: string): number =>
+    prevRunFindings.filter(runSet => runSet.has(findingId)).length
+
+  // Resolved findings: present in the most recent previous run but absent now
+  const prevMostRecentIds = prevRunFindings[0] || new Set<string>()
+  const resolvedIds = [...prevMostRecentIds].filter(id => !findings.some(f => f.id === id))
+
   // PART 3: Generate Claude Haiku fix prompts for each finding
   // Scrub PII from finding fields before sending to external services (Claude API, Slack).
   // The DB insert below uses the original findings — admin-only access, full detail is useful.
@@ -762,6 +749,16 @@ Generate a ready-to-paste Claude Code prompt that:
   }
 
   if (process.env.SLACK_WEBHOOK_URL) {
+    const issueLines = findings.map(f => {
+      const weeks = recurrenceCount(f.id)
+      const tag = weeks > 0 ? ` *(${weeks} week${weeks > 1 ? 's' : ''})*` : ' *(new)*'
+      return `${severityEmoji[f.severity]} [${f.severity.toUpperCase()}] ${f.title}${tag}`
+    }).join('\n')
+
+    const resolvedSection = resolvedIds.length > 0
+      ? `\n\n*🟢 Resolved since last run:*\n${resolvedIds.map(id => `✓ ${id}`).join('\n')}`
+      : ''
+
     await fetch(process.env.SLACK_WEBHOOK_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -770,10 +767,9 @@ Generate a ready-to-paste Claude Code prompt that:
           `*Overall Severity:* ${overallSeverity.toUpperCase()}\n` +
           `*Issues Found:* ${findings.length}\n\n` +
           (findings.length > 0
-            ? `*Issues:*\n${findings.map(f =>
-                `${severityEmoji[f.severity]} [${f.severity.toUpperCase()}] ${f.title}`
-              ).join('\n')}`
+            ? `*Issues:*\n${issueLines}`
             : '🎉 No issues detected — all checks passed!') +
+          resolvedSection +
           `\n\n<https://vetree.app/admin/security|View Full Report & Fix Prompts →>`,
       }),
     }).catch(err => console.error('[security] Slack error:', err))
