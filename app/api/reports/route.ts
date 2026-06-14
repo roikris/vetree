@@ -15,6 +15,9 @@ export async function POST(request: NextRequest) {
         { status: 401 },
       )
     }
+    if (!user.email_confirmed_at) {
+      return NextResponse.json({ error: 'Email verification required' }, { status: 403 })
+    }
 
     const body = await request.json()
     const { type, articleId, description } = body

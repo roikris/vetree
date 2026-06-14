@@ -20,6 +20,9 @@ export async function POST(request: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+    if (!user.email_confirmed_at) {
+      return NextResponse.json({ error: 'Email verification required' }, { status: 403 })
+    }
     const { data: role } = await serverClient
       .from('user_roles')
       .select('role')
