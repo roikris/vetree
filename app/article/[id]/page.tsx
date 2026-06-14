@@ -8,6 +8,7 @@ import { ArticleViewTracker } from '@/components/articles/ArticleViewTracker'
 import { RegistrationWall } from '@/components/ui/RegistrationWall'
 import { FollowTopicButtons } from '@/components/articles/FollowTopicButtons'
 import { SoftRegistrationPrompt } from '@/components/articles/SoftRegistrationPrompt'
+import { MedicalDisclaimer } from '@/components/ui/MedicalDisclaimer'
 import Link from 'next/link'
 import type { Metadata } from 'next'
 
@@ -208,8 +209,13 @@ export default async function ArticlePage({ params }: PageProps) {
         </div>
 
         {/* Article Card — desktop only */}
-        <div className="hidden md:block mb-8">
+        <div className="hidden md:block mb-6">
           <ArticleCard article={article} />
+        </div>
+
+        {/* Medical disclaimer — visible on initial load, required for regulatory compliance */}
+        <div className="mb-8">
+          <MedicalDisclaimer />
         </div>
 
         {/* Invitational Banner — above the fold so users can keep exploring */}
