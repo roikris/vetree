@@ -1196,10 +1196,17 @@ export function CampaignCalendar() {
     const firstPost = Object.values(allPlatformPosts)[0] as any
     if (!firstPost?.article_id) return
     setPhotoArticle(null)
-    fetch(`/api/articles/${firstPost.article_id}`)
-      .then(r => r.json())
-      .then(a => setPhotoArticle(a))
-      .catch(() => {})
+    const supabase = createClient()
+    ;(async () => {
+      try {
+        const { data } = await supabase
+          .from('articles')
+          .select('summary, clinical_bottom_line')
+          .eq('id', firstPost.article_id)
+          .single()
+        if (data) setPhotoArticle(data)
+      } catch { /* ignore */ }
+    })()
   }, [activePlatformTab, allPlatformPosts])
 
   // Generate image for a platform post using Gemini Imagen
