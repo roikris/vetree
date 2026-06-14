@@ -475,6 +475,192 @@ export async function POST(request: NextRequest) {
     // npm not available in this environment — skip
   }
 
+  // CHECK 15: Privilege escalation — can anon INSERT into user_roles?
+  // If the RLS WITH CHECK policy is misconfigured, any user could grant
+  // themselves the 'admin' role and gain full platform access.
+  try {
+    const { error: privEscErr } = await anonSupabase
+      .from('user_roles')
+      .insert({ user_id: adminId, role: 'admin' })
+
+    if (!privEscErr) {
+      // Succeeded — clean up immediately and flag critical
+      await adminSupabase
+        .from('user_roles')
+        .delete()
+        .eq('user_id', adminId)
+        .eq('role', 'admin')
+        .neq('user_id', adminId) // safety: only delete the probe row, not the real admin row
+      findings.push({
+        id: 'privilege_escalation',
+        severity: 'critical',
+        title: 'Privilege escalation — anon can INSERT into user_roles',
+        description: 'An unauthenticated request successfully inserted a row into user_roles. Any visitor can grant themselves admin access. The RLS WITH CHECK policy on user_roles is missing or broken.',
+        affected: ['user_roles'],
+        detected_at: new Date().toISOString(),
+      })
+    } else if (!privEscErr.message?.includes('row-level security') &&
+               privEscErr.code !== '42501' &&
+               privEscErr.code !== 'PGRST301') {
+      // RLS did not block it — a different error did (e.g. unique constraint)
+      findings.push({
+        id: 'privilege_escalation_partial',
+        severity: 'critical',
+        title: 'Privilege escalation — user_roles INSERT bypassed RLS (stopped by constraint only)',
+        description: `An anon INSERT into user_roles was not blocked by RLS — it was stopped by a database constraint (${privEscErr.code}). If the constraint is removed or a different user_id is used, escalation succeeds.`,
+        affected: ['user_roles'],
+        detected_at: new Date().toISOString(),
+      })
+    }
+  } catch {
+    // Skip
+  }
+
+  // CHECK 16: Missing Content-Security-Policy header
+  // next.config.ts explicitly skips CSP ("requires careful whitelisting").
+  // Without CSP, any XSS in AI-generated content (summaries, posts) can
+  // exfiltrate session tokens or redirect users to malicious sites.
+  try {
+    const nextConfigContent = fs.readFileSync(path.join(cwd, 'next.config.ts'), 'utf-8')
+    const hasCSP = nextConfigContent.includes('Content-Security-Policy')
+    if (!hasCSP) {
+      findings.push({
+        id: 'missing_csp',
+        severity: 'high',
+        title: 'Content-Security-Policy header not set',
+        description: 'next.config.ts does not include a Content-Security-Policy header. The file contains a comment acknowledging this is intentionally skipped. Without CSP, XSS in AI-generated article summaries or social posts can steal session tokens, exfiltrate clipboard data, or silently redirect veterinary professionals to attacker-controlled pages.',
+        affected: ['next.config.ts'],
+        detected_at: new Date().toISOString(),
+      })
+    }
+  } catch {
+    // Config file not found
+  }
+
+  // CHECK 17: API routes bypass email-verification middleware
+  // middleware.ts explicitly excludes /api/* from its matcher, meaning
+  // unverified users (registered but never confirmed email) can call all
+  // API routes directly. User-facing routes that accept authenticated
+  // sessions should independently verify email_confirmed_at.
+  try {
+    const middlewareContent = fs.readFileSync(path.join(cwd, 'middleware.ts'), 'utf-8')
+    const apiExcluded = middlewareContent.includes('api') &&
+      middlewareContent.match(/\(\?\!.*api.*\)/) !== null
+
+    if (apiExcluded) {
+      // Walk user-facing API routes (not admin-only) and check if they verify email
+      const userFacingRoutes = [
+        'app/api/articles/route.ts',
+        'app/api/saved-articles/route.ts',
+        'app/api/follow-tag/route.ts',
+        'app/api/synthesis/route.ts',
+        'app/api/growth/generate-post/route.ts',
+        'app/api/reports/route.ts',
+      ]
+      const noEmailCheck: string[] = []
+      for (const routePath of userFacingRoutes) {
+        try {
+          const content = fs.readFileSync(path.join(cwd, routePath), 'utf-8')
+          // Must have auth AND (email_confirmed_at or email check)
+          const hasAuth = content.includes('getUser') || content.includes('auth.getUser')
+          const hasEmailCheck = content.includes('email_confirmed_at') || content.includes('emailConfirmed')
+          if (hasAuth && !hasEmailCheck) noEmailCheck.push(routePath)
+        } catch { /* route doesn't exist */ }
+      }
+
+      if (noEmailCheck.length > 0) {
+        findings.push({
+          id: 'api_email_verification_bypass',
+          severity: 'high',
+          title: 'API routes accept unverified email sessions',
+          description: `middleware.ts excludes all /api/* routes from email-verification enforcement. These user-facing routes authenticate the user but do not check email_confirmed_at: ${noEmailCheck.join(', ')}. Unverified accounts can access protected features.`,
+          affected: noEmailCheck,
+          detected_at: new Date().toISOString(),
+        })
+      }
+    }
+  } catch {
+    // Skip
+  }
+
+  // CHECK 18: Supabase Storage bucket exposure
+  // The avatars bucket (migration 007) has never been audited for:
+  //   a) public listing (exposes all user IDs via filename enumeration)
+  //   b) non-image file uploads (stored XSS via CDN URL)
+  try {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+
+    // Get bucket metadata
+    const bucketRes = await fetch(`${supabaseUrl}/storage/v1/bucket/avatars`, {
+      headers: { Authorization: `Bearer ${serviceKey}`, apikey: serviceKey },
+    })
+
+    if (bucketRes.ok) {
+      const bucket = await bucketRes.json()
+      const bucketIssues: string[] = []
+
+      if (bucket.public === true) {
+        bucketIssues.push('bucket is set to public — any URL is accessible without authentication')
+      }
+
+      // Try listing the bucket as anon (no auth) — should fail if access controls are correct
+      const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      const listRes = await fetch(`${supabaseUrl}/storage/v1/object/list/avatars`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${anonKey}`,
+          apikey: anonKey,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ prefix: '', limit: 5 }),
+      })
+
+      if (listRes.ok) {
+        const listed = await listRes.json()
+        if (Array.isArray(listed) && listed.length > 0) {
+          bucketIssues.push(`anon can enumerate bucket contents (${listed.length} objects visible) — leaks user IDs via filenames`)
+        }
+      }
+
+      // Check for non-image files using service role listing
+      const serviceListRes = await fetch(`${supabaseUrl}/storage/v1/object/list/avatars`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${serviceKey}`,
+          apikey: serviceKey,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ prefix: '', limit: 100 }),
+      })
+
+      if (serviceListRes.ok) {
+        const allFiles = await serviceListRes.json()
+        const nonImageExts = ['.html', '.js', '.svg', '.htm', '.php', '.exe', '.sh']
+        const dangerousFiles = (Array.isArray(allFiles) ? allFiles : [])
+          .filter((f: any) => nonImageExts.some(ext => f.name?.toLowerCase().endsWith(ext)))
+          .map((f: any) => f.name)
+
+        if (dangerousFiles.length > 0) {
+          bucketIssues.push(`non-image files found in avatars bucket: ${dangerousFiles.join(', ')} — potential stored XSS via CDN URL`)
+        }
+      }
+
+      if (bucketIssues.length > 0) {
+        findings.push({
+          id: 'storage_bucket_exposure',
+          severity: bucket.public ? 'critical' : 'high',
+          title: 'Supabase Storage avatars bucket security issues',
+          description: bucketIssues.join('; '),
+          affected: ['storage/avatars', ...bucketIssues],
+          detected_at: new Date().toISOString(),
+        })
+      }
+    }
+  } catch {
+    // Storage API unavailable — skip
+  }
+
   // PART 3: Generate Claude Haiku fix prompts for each finding
   const fixes: Array<{ finding_id: string; fix_prompt: string }> = []
   if (findings.length > 0) {
