@@ -56,22 +56,23 @@ export function AvatarUpload({ userId, currentAvatarUrl, initials, onAvatarUpdat
         throw uploadError
       }
 
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from('avatars')
-        .getPublicUrl(fileName)
-
-      // Save URL to user metadata
+      // Save storage path (not public URL) to user metadata so we can
+      // generate signed URLs on demand after the bucket went private
       const { error: updateError } = await supabase.auth.updateUser({
-        data: { avatar_url: publicUrl }
+        data: { avatar_url: fileName }
       })
 
       if (updateError) {
         throw updateError
       }
 
+      // Fetch a fresh signed URL to hand back to the parent for immediate display
+      const signedRes = await fetch(`/api/avatars/${userId}`)
+      const signedData = await signedRes.json()
+      const displayUrl = signedData.url ?? ''
+
       // Notify parent component
-      onAvatarUpdate(publicUrl)
+      onAvatarUpdate(displayUrl)
 
     } catch (err) {
       console.error('Error uploading avatar:', err)

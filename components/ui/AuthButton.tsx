@@ -1,5 +1,6 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/lib/hooks/useAuth'
@@ -11,6 +12,15 @@ export function AuthButton() {
   const { isAdmin, loading: adminLoading } = useAdmin()
   const router = useRouter()
   const supabase = createClient()
+  const [signedAvatarUrl, setSignedAvatarUrl] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!user?.user_metadata?.avatar_url) return
+    fetch(`/api/avatars/${user.id}`)
+      .then(r => r.json())
+      .then(d => { if (d.url) setSignedAvatarUrl(d.url) })
+      .catch(() => {})
+  }, [user?.id, user?.user_metadata?.avatar_url])
 
   console.log('[AuthButton] user:', user?.email, 'isAdmin:', isAdmin, 'adminLoading:', adminLoading)
 
@@ -24,9 +34,6 @@ export function AuthButton() {
   }
 
   if (user) {
-    // Get avatar URL from user metadata
-    const avatarUrl = user.user_metadata?.avatar_url
-
     // Get user initials for fallback
     const email = user.email || ''
     const initials = email
@@ -63,9 +70,9 @@ export function AuthButton() {
           href="/profile"
           className="flex items-center gap-2 hover:opacity-80 transition-opacity"
         >
-          {avatarUrl ? (
+          {signedAvatarUrl ? (
             <img
-              src={avatarUrl}
+              src={signedAvatarUrl}
               alt="Profile"
               className="w-8 h-8 rounded-full object-cover border-2 border-[#3D7A5F] dark:border-[#4E9A78]"
             />
