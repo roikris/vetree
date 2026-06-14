@@ -28,10 +28,9 @@ const nextConfig: NextConfig = {
   },
 };
 
-// @ts-ignore - Sentry v7 types don't fully support Next.js 16 yet
+// Sentry v9 build config (options renamed from v7)
 export default withSentryConfig(nextConfig, {
-  silent: true,
-  hideSourceMaps: true,
+  sourcemaps: { disable: true },  // was: hideSourceMaps: true
   disableLogger: true,
   telemetry: false,
 });
