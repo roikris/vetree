@@ -24,6 +24,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
 
+    const body = await request.json().catch(() => ({}))
+    const dryRun = body.dry_run === true
+
     // Trigger digest send with server-side DIGEST_SECRET
     const digestResponse = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://vetree.app'}/api/digest/send`, {
       method: 'POST',
@@ -31,7 +34,7 @@ export async function POST(request: NextRequest) {
         'Authorization': `Bearer ${process.env.DIGEST_SECRET}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ triggered_by: 'admin-manual' })
+      body: JSON.stringify({ triggered_by: 'admin-manual', dry_run: dryRun })
     })
 
     if (!digestResponse.ok) {
