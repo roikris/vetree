@@ -107,6 +107,39 @@ export async function POST(request: NextRequest) {
 
     const consentedIds = new Set((consented || []).map(r => r.user_id))
 
+    // Dry-run mode: collect preview, skip sends and DB writes
+    const dryRun = body.dry_run === true
+    const previewList: { email: string; tags: string[]; article_count: number; titles: string[] }[] = []
+
+    // --- Batch pre-queries (Fix 4: eliminate N+1) ---
+
+    // Batch 1: Which users got a digest in the last 5 days?
+    const { data: recentDigests } = await supabase
+      .from('digest_logs')
+      .select('user_id')
+      .gte('sent_at', fiveDaysAgoISO)
+    const recentDigestIds = new Set((recentDigests || []).map(r => r.user_id))
+
+    // Batch 2: All followed tags for all users
+    const { data: allTagsData } = await supabase.from('followed_tags').select('user_id, tag')
+    const tagsByUser = new Map<string, string[]>()
+    for (const row of allTagsData || []) {
+      if (!tagsByUser.has(row.user_id)) tagsByUser.set(row.user_id, [])
+      tagsByUser.get(row.user_id)!.push(row.tag)
+    }
+
+    // Batch 3: Most recent page_view per user (last 90 days)
+    const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString()
+    const { data: recentViews } = await supabase
+      .from('page_views')
+      .select('user_id, viewed_at')
+      .gte('viewed_at', ninetyDaysAgo)
+      .order('viewed_at', { ascending: false })
+    const lastViewByUser = new Map<string, string>()
+    for (const row of recentViews || []) {
+      if (!lastViewByUser.has(row.user_id)) lastViewByUser.set(row.user_id, row.viewed_at)
+    }
+
     // Process each user
     for (const user of users) {
       if (!user.email) continue
@@ -123,43 +156,50 @@ export async function POST(request: NextRequest) {
         continue
       }
 
-      // DEDUP CHECK: Skip if user got an email in the last 5 days
-      const { data: recentDigest } = await supabase
-        .from('digest_logs')
-        .select('id')
-        .eq('user_id', user.id)
-        .gte('sent_at', fiveDaysAgoISO)
-        .limit(1)
-        .maybeSingle()
-
-      if (recentDigest) {
+      // DEDUP CHECK: Skip if user got an email in the last 5 days (batch lookup)
+      if (recentDigestIds.has(user.id)) {
         console.log(`[digest] Skipping ${user.email} - already sent in last 5 days`)
         skippedCount++
         continue
       }
 
-      // Check if user has followed tags
-      const { data: followedTags } = await supabase
-        .from('followed_tags')
-        .select('tag')
-        .eq('user_id', user.id)
-
-      const tags = followedTags?.map(t => t.tag) || []
+      // Tags and last view from batch maps
+      const tags = tagsByUser.get(user.id) || []
+      const lastViewedAt = lastViewByUser.get(user.id)
+      const daysSinceLastView = lastViewedAt
+        ? Math.floor((Date.now() - new Date(lastViewedAt).getTime()) / (1000 * 60 * 60 * 24))
+        : 999
 
       // Article selection logic
       let articles
       if (tags.length > 0) {
-        // User has followed tags → show articles matching their tags
-        const { data } = await supabase
+        // Try fresh articles first (last 5 days matching tags)
+        const { data: freshData } = await supabase
           .from('articles')
           .select('id, title, clinical_bottom_line, labels, source_journal, publication_date, strength_of_evidence')
           .eq('needs_enrichment', false)
           .not('clinical_bottom_line', 'is', null)
           .or('quarantined.is.null,quarantined.eq.false')
           .overlaps('labels', tags)
+          .gte('publication_date', fiveDaysAgoDate)
           .order('publication_date', { ascending: false })
           .limit(5)
-        articles = data || []
+
+        if (freshData && freshData.length > 0) {
+          articles = freshData
+        } else {
+          // Fall back to most recent if no fresh articles in their topics
+          const { data: fallback } = await supabase
+            .from('articles')
+            .select('id, title, clinical_bottom_line, labels, source_journal, publication_date, strength_of_evidence')
+            .eq('needs_enrichment', false)
+            .not('clinical_bottom_line', 'is', null)
+            .or('quarantined.is.null,quarantined.eq.false')
+            .overlaps('labels', tags)
+            .order('publication_date', { ascending: false })
+            .limit(5)
+          articles = fallback || []
+        }
       } else {
         // User has no tags → show 5 most recent articles from last 5 days
         const { data } = await supabase
@@ -190,20 +230,8 @@ export async function POST(request: NextRequest) {
         continue
       }
 
-      // Check last page view for re-engagement eligibility (5-14 days inactive)
-      const { data: lastView } = await supabase
-        .from('page_views')
-        .select('viewed_at')
-        .eq('user_id', user.id)
-        .order('viewed_at', { ascending: false })
-        .limit(1)
-        .maybeSingle()
-
-      const daysSinceLastView = lastView
-        ? Math.floor((Date.now() - new Date(lastView.viewed_at).getTime()) / (1000 * 60 * 60 * 24))
-        : 999 // No views = treat as inactive
-
-      const isAtRisk = daysSinceLastView >= 5 && daysSinceLastView <= 14
+      // Fix 2: Re-engagement threshold 21-90 days (not 5-14)
+      const isAtRisk = daysSinceLastView >= 21 && daysSinceLastView <= 90
 
       // Fetch re-engagement articles if user is at-risk AND has followed tags
       let reEngagementArticles = null
@@ -219,7 +247,6 @@ export async function POST(request: NextRequest) {
           .limit(3)
 
         if (reEngageArticles && reEngageArticles.length > 0) {
-          // Filter large animals
           const filtered = reEngageArticles.filter(a => !a.labels?.some((l: string) => LARGE_ANIMAL.includes(l)))
           if (filtered.length > 0) {
             reEngagementArticles = filtered
@@ -227,11 +254,28 @@ export async function POST(request: NextRequest) {
         }
       }
 
+      // Fix 1: Conditional intro text (no broken "in :" for no-tag users)
+      const intro = tags.length > 0
+        ? `Here's this week's research in ${tags.slice(0, 3).join(', ')}${tags.length > 3 ? `, and ${tags.length - 3} more` : ''}:`
+        : `Here's the latest evidence-based research from Vetree this week:`
+
       // Build email subject
       const formattedDate = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
       const subject = tags.length > 0
         ? `🌿 Your Vetree Weekly Digest — ${tags.slice(0, 3).join(', ')}${tags.length > 3 ? `, +${tags.length - 3}` : ''}`
         : `🌿 This Week on Vetree — Fresh Research (${formattedDate})`
+
+      // Dry-run: collect preview without sending
+      if (dryRun) {
+        previewList.push({
+          email: user.email,
+          tags,
+          article_count: articles.length,
+          titles: articles.map(a => a.title),
+        })
+        sentCount++
+        continue
+      }
 
       // Send email
       try {
@@ -239,7 +283,7 @@ export async function POST(request: NextRequest) {
           from: 'Vetree <digest@digest.vetree.app>',
           to: user.email,
           subject,
-          html: generateEmailHTML(user.email, user.id, generateUnsubscribeToken(user.id), tags, articles, reEngagementArticles ?? undefined)
+          html: generateEmailHTML(user.email, user.id, generateUnsubscribeToken(user.id), tags, articles, intro, reEngagementArticles ?? undefined)
         })
 
         // Log the digest
@@ -255,6 +299,16 @@ export async function POST(request: NextRequest) {
         console.error(`[digest] Failed to send to ${user.email}:`, emailError)
         errorCount++
       }
+    }
+
+    // Dry-run: return preview without DB writes
+    if (dryRun) {
+      return NextResponse.json({
+        dry_run: true,
+        would_send: previewList,
+        would_skip: skippedCount,
+        total_users: users.length,
+      })
     }
 
     // Log the digest run
@@ -311,12 +365,12 @@ export async function POST(request: NextRequest) {
   }
 }
 
-function generateEmailHTML(email: string, userId: string, unsubscribeToken: string, tags: string[], articles: any[], reEngagementArticles?: any[]): string {
+function generateEmailHTML(email: string, userId: string, unsubscribeToken: string, tags: string[], articles: any[], intro: string, reEngagementArticles?: any[]): string {
   const unsubscribeUrl = `https://vetree.app/api/tags/unsubscribe-all?uid=${encodeURIComponent(userId)}&token=${unsubscribeToken}`
   const articlesHTML = articles.map(article => `
     <div style="margin-bottom: 24px; padding: 20px; background: #f9fafb; border-radius: 8px; border-left: 4px solid #3D7A5F;">
       <h3 style="margin: 0 0 8px 0; font-size: 18px; color: #1a1a1a;">
-        <a href="https://vetree.app/article/${article.id}" style="color: #3D7A5F; text-decoration: none;">
+        <a href="https://vetree.app/article/${article.id}?utm_source=digest&utm_medium=email" style="color: #3D7A5F; text-decoration: none;">
           ${article.title}
         </a>
       </h3>
@@ -384,7 +438,7 @@ function generateEmailHTML(email: string, userId: string, unsubscribeToken: stri
             Hi there,
           </p>
           <p style="font-size: 16px; color: #1a1a1a; margin-bottom: 24px;">
-            Here's this week's research in ${tags.slice(0, 3).join(', ')}${tags.length > 3 ? `, and ${tags.length - 3} more` : ''}:
+            ${intro}
           </p>
 
           <!-- Re-engagement Section (for at-risk users) -->
