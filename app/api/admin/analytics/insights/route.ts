@@ -296,7 +296,7 @@ CONTENT ROADMAP RULE: Populate content_roadmap ONLY from signals with type=conte
     console.log('[insights] Prompt length:', userPrompt.length, 'chars')
 
     const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-6',
       max_tokens: 2000,
       messages: [{ role: 'user', content: userPrompt }],
       system: systemPrompt
@@ -448,7 +448,7 @@ Output this exact markdown structure:
       content_roadmap: finalInsights.content_roadmap || [],
       churn_risks: finalInsights.churn_risks || [],
       report_markdown: reportText,
-      model_used: 'claude-sonnet-4-20250514',
+      model_used: 'claude-sonnet-4-6',
       tokens_used: response.usage.input_tokens + response.usage.output_tokens + (reportResponse.usage.input_tokens + reportResponse.usage.output_tokens)
     })
 

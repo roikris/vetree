@@ -531,7 +531,7 @@ Return ONLY the post text. Follow the platform rule exactly.`
     }
 
     const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-6',
       max_tokens: 1000,
       messages: [{
         role: 'user',
@@ -547,7 +547,7 @@ Return ONLY the post text. Follow the platform rule exactly.`
       console.log(`[generate-post] Tweet too long (${postContent.length} chars), asking Claude to shorten...`)
 
       const shortenMessage = await anthropic.messages.create({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-6',
         max_tokens: 500,
         messages: [{
           role: 'user',

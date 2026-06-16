@@ -194,7 +194,7 @@ export async function fetchOrGenerateSynthesis(
   }))
 
   const modelToUse = articlesForSynthesis.length > 20
-    ? 'claude-sonnet-4-20250514'
+    ? 'claude-sonnet-4-6'
     : 'claude-haiku-4-5-20251001'
 
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })

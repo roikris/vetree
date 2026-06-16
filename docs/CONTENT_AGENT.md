@@ -242,7 +242,7 @@ Includes:
 - Character limits
 
 ### Claude Model
-- **Model**: `claude-sonnet-4-20250514`
+- **Model**: `claude-sonnet-4-6`
 - **Max tokens**: 1024
 - **Temperature**: Default (balanced creativity)
 

@@ -1,7 +1,7 @@
 [general]
 concurrency = 2
 max_generations = 3
-model = "claude-sonnet-4-20250514"
+model = "claude-sonnet-4-6"
 worker_timeout_minutes = 30
 project_context_file = "EVOLVER_CONTEXT.md"
 
