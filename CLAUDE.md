@@ -16,7 +16,7 @@ Solo DVM developer. Target: Israeli + international vets.
 ## Stack
 - **Frontend/Backend:** Next.js 16 (App Router, Turbopack) on Vercel
 - **Database:** Supabase (PostgreSQL + Auth + Storage + RLS)
-- **AI enrichment:** Claude Haiku (articles), Claude Sonnet (content agent, analysis agent)
+- **AI enrichment:** Claude Haiku `claude-haiku-4-5-20251001` (articles), Claude Sonnet `claude-sonnet-4-6` (content agent, analysis agent)
 - **Email:** Resend (from: digest@digest.vetree.app)
 - **Monitoring:** Sentry (@sentry/nextjs@7)
 - **Rate limiting:** Upstash Redis (@upstash/ratelimit)
@@ -134,32 +134,36 @@ GOOGLE_AI_API_KEY
 - Admin ID: `90cb8294-b593-4144-a9f5-23ca52dd5e35`
 - Admin check: `user_roles` table WHERE `role = 'admin'`
 - `useAdmin` hook: `lib/hooks/useAdmin.ts`
-- Email verification enforced in `middleware.ts`
+- Email verification enforced in `middleware.ts` (pages only — /api/* excluded)
+- User-facing API routes must also check `email_confirmed_at` after auth: return 403 'Email verification required' if null
 - Exclude admin from ALL analytics queries
 
 ## Key Features Built
 - Article enrichment pipeline (GitHub Action, daily at 02:00 UTC)
 - Admin dashboard: /admin (overview, users, reports, pipeline, analytics, growth, security)
-- Growth OS: Content Agent + 90-day campaign calendar + Generate All Platforms
+- Growth OS: Content Agent + 90-day campaign calendar + Generate All Platforms + AI Photos tab + Digest Preview (dry-run)
 - Topic Synthesis: AI evidence synthesis with citations, cached in topic_syntheses table
 - Analysis Agent: weekly SQL aggregation → signal extraction → Claude Sonnet insights → Slack
-- Security Agent: weekly scan → findings → Claude-generated fix prompts → Slack
+- Security Agent: weekly scan (18+ checks) → noise removal → persistence tracking → dynamic checks → Claude-generated fix prompts → Slack
 - Weekly email digest (Resend, Friday 12:00 UTC, all confirmed users)
 - PWA support (manifest, service worker, install prompt)
-- Analytics: page_views, search_logs, UTM tracking, retention (DAU/WAU/MAU)
+- Analytics: page_views, search_logs, UTM tracking, retention (DAU/WAU/MAU/registered_mau)
 - Follow tags + personalized feed
 - Evidence badges (gold/silver/bronze) based on strength_of_evidence
 - Schema.org structured data (MedicalScholarlyArticle on article pages)
-- SEO: robots.txt, sitemap.ts, canonical tags, OG tags
+- SEO: robots.txt, sitemap.ts (dynamic), canonical tags, OG tags
 - Security headers in next.config.js (X-Frame-Options, X-Content-Type-Options, etc.)
 - Accessibility: <main> landmark, skip nav link, aria-labels on inputs
-- Mobile UI: bottom nav + responsive cards
+- Mobile UI: bottom nav + responsive cards + mobile article hero
 - Soft registration wall (3 articles free)
 - Hero section for guests (hidden for logged-in users)
 - Fuzzy search via pg_trgm with 3-tier fallback + synonym mapping
 - Articles blacklist (prevents re-adding deleted articles)
 - Feature flags table (on/off switches for features)
 - Pagination performance: cached journal/evidence filters, no select('*'), lazy summary load
+- GDPR-complete account deletion: explicit service-role deletions across all 9 PII tables (page_views, search_logs, user_preferences, user_consents, synthesis_feedback, followed_tags, saved_articles, reports, user_roles) + auth.admin.deleteUser()
+- Medical disclaimer on article pages (components/ui/MedicalDisclaimer.tsx) — regulatory compliance
+- Avatars bucket private with signed URLs via /api/avatars/[userId] (1-hour TTL, service role)
 
 ## UTM Pattern
 Content Agent auto-embeds UTM in article links:
