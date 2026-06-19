@@ -163,15 +163,21 @@ export function FilterPanel({
         )}
       </div>
 
-      {/* Mobile Floating Filter Button */}
+      {/* Mobile: Full-height vertical tab on left edge */}
       <button
         onClick={() => setIsMobileFilterOpen(true)}
-        className="md:hidden fixed bottom-20 right-4 bg-[#3D7A5F] dark:bg-[#4E9A78] text-white rounded-full p-4 shadow-lg hover:bg-[#2F5F4A] dark:hover:bg-[#5FAA88] transition-colors z-30"
+        className={`md:hidden fixed left-0 top-0 bottom-16 w-8 bg-[#3D7A5F] dark:bg-[#4E9A78] z-[60] flex flex-col items-center justify-center gap-3 hover:bg-[#2F5F4A] dark:hover:bg-[#5FAA88] transition-colors ${isMobileFilterOpen ? 'invisible' : ''}`}
         aria-label="Open filters"
       >
-        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <svg className="w-4 h-4 text-white flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
         </svg>
+        <span
+          className="text-white text-[9px] font-bold tracking-[0.25em] uppercase select-none"
+          style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
+        >
+          Filters
+        </span>
       </button>
 
       {/* Mobile Bottom Sheet */}

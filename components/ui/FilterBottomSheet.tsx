@@ -9,7 +9,6 @@ type FilterBottomSheetProps = {
 }
 
 export function FilterBottomSheet({ isOpen, onClose, children }: FilterBottomSheetProps) {
-  // Prevent body scroll when modal is open
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden'
@@ -21,28 +20,21 @@ export function FilterBottomSheet({ isOpen, onClose, children }: FilterBottomShe
     }
   }, [isOpen])
 
-  if (!isOpen) return null
-
   return (
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/50 z-40 md:hidden"
+        className={`fixed inset-0 bg-black/50 z-[65] md:hidden transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
         onClick={onClose}
       />
 
-      {/* Bottom Sheet */}
-      <div className="fixed inset-x-0 bottom-0 z-50 md:hidden bg-white dark:bg-[#0F0F0F] rounded-t-2xl shadow-2xl max-h-[85vh] flex flex-col animate-slide-up">
-        {/* Handle */}
-        <div className="flex justify-center pt-3 pb-2">
-          <div className="w-12 h-1.5 bg-zinc-300 dark:bg-zinc-700 rounded-full" />
-        </div>
-
+      {/* Left Drawer */}
+      <div
+        className={`fixed left-0 top-0 bottom-0 w-80 max-w-[85vw] z-[70] md:hidden bg-white dark:bg-[#0F0F0F] shadow-2xl flex flex-col transform transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}
+      >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 pb-4 border-b border-zinc-200 dark:border-zinc-800">
-          <h2 className="text-lg font-semibold text-[#1A1A1A] dark:text-[#E8E8E8]">
-            Filters
-          </h2>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 dark:border-zinc-800 flex-shrink-0">
+          <h2 className="text-lg font-semibold text-[#1A1A1A] dark:text-[#E8E8E8]">Filters</h2>
           <button
             onClick={onClose}
             className="text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors p-2"
