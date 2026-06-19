@@ -157,7 +157,7 @@ GOOGLE_AI_API_KEY
 - Mobile UI: bottom nav + responsive cards + mobile article hero
 - Soft registration wall (3 articles free)
 - Hero section for guests (hidden for logged-in users)
-- Fuzzy search via pg_trgm with 3-tier fallback + synonym mapping
+- Fuzzy search via pg_trgm with 3-tier fallback + synonym mapping; search activates on form submit (Enter or tap the arrow button) — NOT on keystroke
 - Articles blacklist (prevents re-adding deleted articles)
 - Feature flags table (on/off switches for features)
 - Pagination performance: cached journal/evidence filters, no select('*'), lazy summary load
