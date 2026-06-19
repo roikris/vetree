@@ -122,14 +122,13 @@ export function SearchBar({ defaultValue, onSearch, resultsCount }: SearchBarPro
     onSearchRef.current('')
   }
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      onSearchRef.current(inputValue)
-    }
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    onSearchRef.current(inputValue)
   }
 
   return (
-    <div className="relative" data-onboarding="search-bar">
+    <form onSubmit={handleSubmit} className="relative" data-onboarding="search-bar">
       <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
         <svg
           className="h-5 w-5 text-zinc-400 dark:text-zinc-500"
@@ -149,15 +148,15 @@ export function SearchBar({ defaultValue, onSearch, resultsCount }: SearchBarPro
         type="text"
         value={inputValue}
         onChange={(e) => setInputValue(e.target.value)}
-        onKeyDown={handleKeyDown}
         aria-label="Search veterinary articles"
         placeholder="Search articles by title, summary, clinical bottom line, or authors..."
-        className="w-full pl-12 pr-20 py-3 text-base bg-white dark:bg-[#1A1A1A] border border-[#E5E5E5] dark:border-[#2A2A2A] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D7A5F] dark:focus:ring-[#4E9A78] focus:border-transparent text-[#1A1A1A] dark:text-[#E8E8E8] placeholder-zinc-400 dark:placeholder-zinc-500"
+        className="w-full pl-12 pr-24 py-3 text-base bg-white dark:bg-[#1A1A1A] border border-[#E5E5E5] dark:border-[#2A2A2A] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D7A5F] dark:focus:ring-[#4E9A78] focus:border-transparent text-[#1A1A1A] dark:text-[#E8E8E8] placeholder-zinc-400 dark:placeholder-zinc-500"
       />
       <div className="absolute inset-y-0 right-0 pr-3 flex items-center gap-2">
         <SearchTips />
         {inputValue && (
           <button
+            type="button"
             onClick={handleClear}
             aria-label="Clear search"
             className="flex items-center text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
@@ -172,7 +171,16 @@ export function SearchBar({ defaultValue, onSearch, resultsCount }: SearchBarPro
             </svg>
           </button>
         )}
+        <button
+          type="submit"
+          aria-label="Search"
+          className="flex items-center justify-center w-7 h-7 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white transition-colors flex-shrink-0"
+        >
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+          </svg>
+        </button>
       </div>
-    </div>
+    </form>
   )
 }
