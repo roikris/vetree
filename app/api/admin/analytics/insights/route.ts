@@ -1,6 +1,6 @@
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
-export const maxDuration = 60 // Claude Sonnet can take 15-30 seconds
+export const maxDuration = 300 // 3 sequential AI calls: Sonnet insights + Haiku critique + Haiku report
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
