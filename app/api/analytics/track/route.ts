@@ -17,7 +17,9 @@ export async function POST(request: NextRequest) {
 
     const supabase = await createClient()
     const body = await request.json()
-    const { path, referrer, session_id, duration_seconds, utm_source, utm_medium, utm_campaign } = body
+    const { path: rawPath, event, referrer, session_id, duration_seconds, utm_source, utm_medium, utm_campaign } = body
+
+    const path = rawPath || (event === 'synthesis_engaged' ? '/synthesis/engaged' : null)
 
     if (!path) {
       return NextResponse.json({ error: 'Path is required' }, { status: 400 })

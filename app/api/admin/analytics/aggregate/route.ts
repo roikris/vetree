@@ -83,6 +83,14 @@ export async function POST(request: NextRequest) {
       .slice(0, 10)
       .map(([query, count]) => ({ query, count }))
 
+    // Synthesis engaged (auto-exposure tracked via IntersectionObserver, exclude admin)
+    const { count: synthesisEngaged } = await supabase
+      .from('page_views')
+      .select('*', { count: 'exact', head: true })
+      .eq('path', '/synthesis/engaged')
+      .gte('created_at', sevenDaysAgo)
+      .or(`user_id.is.null,user_id.neq.${adminId}`)
+
     // Synthesis runs + feedback (exclude admin)
     const { count: synthesisRuns } = await supabase
       .from('topic_syntheses')
@@ -192,6 +200,7 @@ export async function POST(request: NextRequest) {
       zero_result_searches: zeroResults.length,
       zero_result_rate: zeroResultRate,
       synthesis_runs: synthesisRuns || 0,
+      synthesis_engaged: synthesisEngaged || 0,
       synthesis_helpful: synthesisHelpful || 0,
       synthesis_not_relevant: synthesisNotRelevant || 0,
       articles_saved: articlesSaved || 0,

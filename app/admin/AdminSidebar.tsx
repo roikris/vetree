@@ -12,6 +12,7 @@ const navItems = [
   { href: '/admin/pipeline', label: 'Pipeline', icon: '⚙️' },
   { href: '/admin/security', label: 'Security', icon: '🔒' },
   { href: '/admin/growth', label: 'Growth OS', icon: '🌿' },
+  { href: '/admin/campaign', label: 'Campaign', icon: '🧪' },
 ]
 
 export function AdminSidebar() {
