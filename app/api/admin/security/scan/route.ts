@@ -534,11 +534,20 @@ export async function POST(request: NextRequest) {
         if (fullPath === thisScanRoute) continue
         try {
           const content = fs.readFileSync(fullPath, 'utf-8')
-          const hasAuth = content.includes('getUser') || content.includes('auth.getUser')
+          // Match only .auth.getUser() — excludes auth.admin.getUserById (service-role routes)
+          const hasAuth = content.includes('.auth.getUser()')
+          // Auth must be REQUIRED: route returns 401 when user is null.
+          // Excludes optional-auth routes (telemetry, public) that use user?.id || null
+          // without a 401 gate — those are not email-verification bypass candidates.
+          const hasRequiredAuth = hasAuth && content.includes('401') && (
+            content.includes('if (!user)') || content.includes('authError || !user')
+          )
           const hasEmailCheck = content.includes('email_confirmed_at') || content.includes('emailConfirmed')
-          // Admin routes: checking role === 'admin' implies the user is already verified
-          const isAdminOnly = content.includes("role === 'admin'") || content.includes('role !== \'admin\'')
-          if (hasAuth && !hasEmailCheck && !isAdminOnly) {
+          // Admin-only routes don't need per-route email checks (admin implies verified)
+          const isAdminOnly = content.includes("role === 'admin'") || content.includes("role !== 'admin'")
+          // GDPR right to erasure applies to unverified users — exempt account deletion
+          const isGdprDeletion = content.includes('deleteUser') || content.includes('right to erasure')
+          if (hasRequiredAuth && !hasEmailCheck && !isAdminOnly && !isGdprDeletion) {
             noEmailCheck.push(fullPath.replace(cwd + '/', ''))
           }
         } catch { /* skip unreadable */ }
@@ -682,6 +691,12 @@ AUTH PATTERN (use this for any auth fix):
 - Check user_roles table for admin: .from('user_roles').select('role').eq('user_id', user.id)
 - Return 401 if no user, 403 if not admin
 - Never create new auth utility files
+
+EMAIL VERIFICATION CHECK (for routes that need verified email):
+const { data: { user } } = await supabase.auth.getUser()
+if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+if (!user.email_confirmed_at) return NextResponse.json({ error: 'Email verification required' }, { status: 403 })
+IMPORTANT: user.email_confirmed_at is already on the getUser() result — do NOT query auth.users table (not PostgREST-accessible)
 
 ADMIN ROUTES PATTERN:
 - Always add: export const runtime = 'nodejs' and export const dynamic = 'force-dynamic'
