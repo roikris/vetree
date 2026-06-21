@@ -13,6 +13,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
     }
 
+    if (!user.email_confirmed_at) {
+      return NextResponse.json({ error: 'Email verification required' }, { status: 403 })
+    }
+
     const body = await request.json()
     const { tag } = body
 
