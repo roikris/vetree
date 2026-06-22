@@ -208,8 +208,8 @@ export default async function ArticlePage({ params }: PageProps) {
           <ArticleMobileHero article={article} />
         </div>
 
-        {/* Article Card — desktop only */}
-        <div className="hidden md:block mb-6">
+        {/* Article Card — all screen sizes */}
+        <div className="mb-6">
           <ArticleCard article={article} />
         </div>
 
