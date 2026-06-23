@@ -68,8 +68,9 @@ async function sendDailyReminder() {
     const latestRow = experimentRows[experimentRows.length - 1] || null
 
     // Baseline averages
+    // registered_mau was 0 in snapshots before migration 025 — only average populated rows
     const baselineMedian = avg(baselineRows, 'median_session_duration_seconds')
-    const baselineRegisteredMau = avg(baselineRows, 'registered_mau')
+    const baselineRegisteredMau = avg(baselineRows.filter(r => (r.registered_mau || 0) > 0), 'registered_mau')
     const baselineDau = avg(baselineRows, 'dau')
     const baselineMau = avg(baselineRows, 'mau')
     const baselineDauMau = baselineMau > 0 ? (baselineDau / baselineMau) * 100 : 0

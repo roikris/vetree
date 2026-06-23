@@ -52,7 +52,9 @@ export default async function CampaignPage() {
   const today = experimentRows[experimentRows.length - 1] ?? null
 
   const baselineMedianSession = avg(baselineRows, 'median_session_duration_seconds')
-  const baselineRegisteredMau = avg(baselineRows, 'registered_mau')
+  // registered_mau was 0 in historical snapshots before migration 025 added the column.
+  // Only average rows where the value was actually populated to avoid baseline pollution.
+  const baselineRegisteredMau = avg(baselineRows.filter(r => (r.registered_mau ?? 0) > 0), 'registered_mau')
   const baselineDau = avg(baselineRows, 'dau')
   const baselineMau = avg(baselineRows, 'mau')
   const baselineTotalSearches = avg(baselineRows, 'total_searches')
