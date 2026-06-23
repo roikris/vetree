@@ -1,7 +1,7 @@
 'use client'
 
 import { useTransition, useRef, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { ArticleList } from './ArticleList'
 import { Pagination } from '@/components/ui/Pagination'
 import { ParsedFilters } from '@/types/search'
@@ -27,6 +27,11 @@ export function ArticleFeedWrapper({
   const [isPending, startTransition] = useTransition()
   const articleListRef = useRef<HTMLDivElement>(null)
   const wasPendingRef = useRef(false)
+  const searchParams = useSearchParams()
+  const urlPage = parseInt(searchParams.get('page') || '1', 10)
+  const urlSearch = searchParams.get('search') || ''
+  const isStale = urlPage !== currentPage || urlSearch !== (filters.search || '')
+  const showLoading = isPending || isStale
 
   // Scroll to article list top when navigation completes
   useEffect(() => {
@@ -55,13 +60,13 @@ export function ArticleFeedWrapper({
       <div ref={articleListRef} className="relative">
         <div
           className={`transition-opacity duration-200 ${
-            isPending ? 'opacity-50 pointer-events-none' : 'opacity-100'
+            showLoading ? 'opacity-50 pointer-events-none' : 'opacity-100'
           }`}
         >
           <ArticleList articles={articles} searchQuery={searchQuery} />
         </div>
 
-        {isPending && (
+        {showLoading && (
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="flex items-center gap-2 px-4 py-2 bg-white/90 dark:bg-gray-900/90 rounded-full shadow-lg border border-gray-200 dark:border-gray-700">
               <div className="w-4 h-4 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
