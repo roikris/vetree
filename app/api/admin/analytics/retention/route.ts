@@ -37,9 +37,17 @@ export async function GET(request: NextRequest) {
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
     const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
 
-    // Get total registered users
-    const { data: allUsers } = await adminSupabase.auth.admin.listUsers()
-    const totalUsers = allUsers?.users?.length || 0
+    // Get total registered users (paginate to avoid default 50-user limit)
+    let allAuthUsers: any[] = []
+    let page = 1
+    while (true) {
+      const { data: pageData } = await adminSupabase.auth.admin.listUsers({ page, perPage: 1000 })
+      if (!pageData?.users?.length) break
+      allAuthUsers = allAuthUsers.concat(pageData.users)
+      if (pageData.users.length < 1000) break
+      page++
+    }
+    const totalUsers = allAuthUsers.length
 
     // DAU - unique users today
     const { data: dauData } = await adminSupabase
