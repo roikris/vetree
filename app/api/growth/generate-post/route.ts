@@ -131,13 +131,21 @@ export async function POST(request: NextRequest) {
     console.log('[generate-post] Hot zero-result queries:', hotQueries)
 
     while (retryCount < MAX_RETRIES && !article) {
-      // FIX 1 + 2: Only exclude APPROVED articles from last 14 days (not skipped ones)
+      // Exclude approved articles from last 14 days (don't repeat published content)
+      // and skipped articles from last 7 days (respect explicit skips, but recycle after a week)
       const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString()
-      const { data: recentMemory } = await supabase
+      const sevenDaysAgoExclusion = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+      const { data: approvedMemory } = await supabase
         .from('growth_agent_memory')
         .select('article_id')
-        .eq('outcome', 'approved')  // Only exclude published articles
+        .eq('outcome', 'approved')
         .gte('created_at', fourteenDaysAgo)
+      const { data: skippedMemory } = await supabase
+        .from('growth_agent_memory')
+        .select('article_id')
+        .eq('outcome', 'skipped')
+        .gte('created_at', sevenDaysAgoExclusion)
+      const recentMemory = [...(approvedMemory || []), ...(skippedMemory || [])]
 
       const recentArticleIds = recentMemory?.map(row => row.article_id) || []
 
