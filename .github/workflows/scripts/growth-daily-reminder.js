@@ -1,28 +1,38 @@
 const { createClient } = require('@supabase/supabase-js')
 const ws = require('ws')
 
-const PLATFORM_EMOJIS = {
-  facebook_il: '📘',
-  facebook_intl: '📘',
-  whatsapp: '💬',
-  reddit: '🤖',
-  linkedin: '💼',
-  twitter: '🐦',
-  instagram: '📸',
-  telegram: '✈️',
-  kol: '🌟'
+const KICKOFF_DATE = '2026-06-20'
+const END_DATE = '2026-09-18'
+const BASELINE_START = '2026-05-21'
+const TOTAL_DAYS = 90
+
+function avg(rows, key) {
+  const vals = rows.map(r => r[key]).filter(v => v != null && !isNaN(v))
+  return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0
 }
 
-const PLATFORM_NAMES = {
-  facebook_il: 'Facebook IL',
-  facebook_intl: 'Facebook International',
-  whatsapp: 'WhatsApp',
-  reddit: 'Reddit',
-  linkedin: 'LinkedIn',
-  twitter: 'Twitter',
-  instagram: 'Instagram',
-  telegram: 'Telegram',
-  kol: 'KOL Outreach'
+function fmtSec(v) {
+  if (!v) return '—'
+  if (v < 60) return `${Math.round(v)}s`
+  return `${Math.floor(v / 60)}m ${Math.round(v % 60)}s`
+}
+
+function delta(current, baseline) {
+  if (!baseline || baseline === 0) return null
+  return ((current - baseline) / baseline) * 100
+}
+
+function fmtDelta(pct) {
+  if (pct === null) return '—'
+  const sign = pct >= 0 ? '+' : ''
+  return `${sign}${pct.toFixed(1)}%`
+}
+
+function verdictEmoji(pct) {
+  if (pct === null) return '🆕'
+  if (pct >= 15) return '🟢'
+  if (pct < -5) return '🔴'
+  return '🟡'
 }
 
 async function sendDailyReminder() {
@@ -36,100 +46,99 @@ async function sendDailyReminder() {
   }
 
   const supabase = createClient(supabaseUrl, supabaseKey, {
-    realtime: {
-      transport: ws,
-    },
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-    }
+    realtime: { transport: ws },
+    auth: { persistSession: false, autoRefreshToken: false },
   })
 
   try {
-    // Get today's date
     const today = new Date().toISOString().split('T')[0]
 
-    // Fetch today's growth tasks
-    const { data: todaysTasks, error: tasksError } = await supabase
-      .from('growth_tasks')
-      .select('*')
-      .eq('scheduled_date', today)
-      .order('day_number', { ascending: true })
+    // Fetch baseline + experiment snapshots
+    const { data: rows, error } = await supabase
+      .from('analytics_daily_snapshot')
+      .select('date, dau, mau, registered_mau, total_searches, synthesis_runs, synthesis_engaged, median_session_duration_seconds')
+      .gte('date', BASELINE_START)
+      .order('date', { ascending: true })
 
-    if (tasksError) {
-      throw new Error(`Error fetching tasks: ${tasksError.message}`)
-    }
+    if (error) throw new Error(`Supabase error: ${error.message}`)
 
-    // Get stats
-    const { data: statsData, error: statsError } = await supabase
-      .from('growth_tasks')
-      .select('status, completed_at, day_number')
+    const allRows = rows || []
+    const baselineRows = allRows.filter(r => r.date < KICKOFF_DATE)
+    const experimentRows = allRows.filter(r => r.date >= KICKOFF_DATE)
+    const latestRow = experimentRows[experimentRows.length - 1] || null
 
-    if (statsError) {
-      throw new Error(`Error fetching stats: ${statsError.message}`)
-    }
+    // Baseline averages
+    const baselineMedian = avg(baselineRows, 'median_session_duration_seconds')
+    const baselineRegisteredMau = avg(baselineRows, 'registered_mau')
+    const baselineDau = avg(baselineRows, 'dau')
+    const baselineMau = avg(baselineRows, 'mau')
+    const baselineDauMau = baselineMau > 0 ? (baselineDau / baselineMau) * 100 : 0
 
-    // Calculate stats
-    const oneWeekAgo = new Date()
-    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7)
+    // Day number
+    const kickoff = new Date(KICKOFF_DATE)
+    const nowDate = latestRow ? new Date(latestRow.date) : new Date()
+    const dayNumber = Math.max(1, Math.floor((nowDate - kickoff) / (1000 * 60 * 60 * 24)) + 1)
+    const progressPct = Math.min(100, Math.round((dayNumber / TOTAL_DAYS) * 100))
 
-    const completedThisWeek = statsData.filter(
-      t => t.status === 'done' &&
-      t.completed_at &&
-      new Date(t.completed_at) >= oneWeekAgo
-    ).length
+    // Progress bar (10 chars)
+    const filled = Math.round(progressPct / 10)
+    const bar = '█'.repeat(filled) + '░'.repeat(10 - filled)
 
-    const totalDone = statsData.filter(t => t.status === 'done').length
-    const currentDay = todaysTasks.length > 0 ? todaysTasks[0].day_number : 1
+    // Today's metrics
+    const todayMedian = latestRow?.median_session_duration_seconds ?? null
+    const todayEngaged = latestRow?.synthesis_engaged ?? null
+    const todayRegisteredMau = latestRow?.registered_mau ?? null
+    const todayDauMau = (latestRow?.dau && latestRow?.mau && latestRow.mau > 0)
+      ? (latestRow.dau / latestRow.mau) * 100
+      : null
 
-    // Build Slack message
-    let message = `🌿 *Vetree Growth — Day ${currentDay}/90*\n━━━━━━━━━━━━━━━\n`
+    const medianDelta = todayMedian !== null ? delta(todayMedian, baselineMedian) : null
+    const mauDelta = todayRegisteredMau !== null ? delta(todayRegisteredMau, baselineRegisteredMau) : null
+    const dauMauDelta = todayDauMau !== null ? delta(todayDauMau, baselineDauMau) : null
 
-    if (todaysTasks.length === 0) {
-      message += '*No tasks scheduled for today!* 🎉\n'
+    // Build message
+    let msg = `🧪 *Vetree Synthesis Experiment — Day ${dayNumber}/${TOTAL_DAYS}*\n`
+    msg += `\`[${bar}] ${progressPct}%\`  ${KICKOFF_DATE} → ${END_DATE}\n`
+    msg += `━━━━━━━━━━━━━━━\n`
+
+    if (!latestRow) {
+      msg += `_No snapshot data yet — aggregate cron runs at 02:00 UTC_\n`
     } else {
-      const task = todaysTasks[0]
-      const emoji = PLATFORM_EMOJIS[task.platform] || '📱'
-      const platformName = PLATFORM_NAMES[task.platform] || task.platform
-      const flag = task.language === 'he' ? '🇮🇱' : '🇺🇸'
-      const status = task.status === 'done' ? '✅ Done' : task.status === 'pending' ? '⏳ Pending' : '⏭️ Skipped'
+      msg += `*📊 Latest snapshot: ${latestRow.date}*\n\n`
 
-      message += `📅 *Today's post:* ${emoji} ${platformName} ${flag}\n`
-      message += `Status: ${status}\n\n`
+      msg += `${verdictEmoji(medianDelta)} *Session depth:*  `
+      msg += `${fmtSec(todayMedian)}  _(baseline ${fmtSec(baselineMedian)},_ ${fmtDelta(medianDelta)}_)_\n`
 
-      if (task.status === 'pending') {
-        message += `Go to <https://vetree.app/admin/growth|vetree.app/admin/growth> to generate and approve today's post 🌿\n\n`
-      }
+      msg += `${verdictEmoji(null)} *Synthesis engaged:*  `
+      msg += `${todayEngaged ?? '—'}/day  _(new metric)_\n`
+
+      msg += `${verdictEmoji(mauDelta)} *Registered MAU:*  `
+      msg += `${todayRegisteredMau ?? '—'}  _(baseline ${Math.round(baselineRegisteredMau)},_ ${fmtDelta(mauDelta)}_)_\n`
+
+      msg += `${verdictEmoji(dauMauDelta)} *DAU/MAU:*  `
+      msg += `${todayDauMau !== null ? todayDauMau.toFixed(1) + '%' : '—'}  _(baseline ${baselineDauMau.toFixed(1)}%,_ ${fmtDelta(dauMauDelta)}_)_\n`
     }
 
-    message += `━━━━━━━━━━━━━━━\n`
-    message += `📊 Week progress: ${completedThisWeek}/7 done\n`
-    message += `🎯 Total: ${totalDone}/90 completed`
+    msg += `━━━━━━━━━━━━━━━\n`
+    msg += `<https://vetree.app/admin/campaign|View campaign dashboard →>`
 
-    // Send to Slack
     const response = await fetch(slackWebhookUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        text: message,
-        mrkdwn: true
-      })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: msg, mrkdwn: true }),
     })
 
-    if (!response.ok) {
-      throw new Error(`Slack webhook failed: ${response.statusText}`)
+    if (!response.ok) throw new Error(`Slack webhook failed: ${response.statusText}`)
+
+    console.log(`✅ Reminder sent — Day ${dayNumber}/${TOTAL_DAYS}`)
+    if (latestRow) {
+      console.log(`  session: ${fmtSec(todayMedian)} (baseline ${fmtSec(baselineMedian)})`)
+      console.log(`  synthesis_engaged: ${todayEngaged}`)
+      console.log(`  registered_mau: ${todayRegisteredMau}`)
     }
 
-    console.log('✅ Daily reminder sent successfully!')
-    console.log(`📅 Day ${currentDay}/90`)
-    console.log(`📋 Tasks today: ${todaysTasks.length}`)
-    console.log(`✅ Week progress: ${completedThisWeek}/7`)
-    console.log(`🎯 Total progress: ${totalDone}/90`)
-
-  } catch (error) {
-    console.error('❌ Error sending daily reminder:', error)
+  } catch (err) {
+    console.error('❌ Error sending daily reminder:', err)
     process.exit(1)
   }
 }
