@@ -74,6 +74,9 @@ export async function POST(request: NextRequest) {
           })
           .eq('id', cached.id)
 
+        // Track synthesis serve for analytics (cache hit)
+        void supabase.from('page_views').insert({ path: '/synthesis/run', user_id: userId })
+
         return NextResponse.json({
           synthesis_html: cached.synthesis_html,
           article_ids: cached.article_ids,
@@ -250,6 +253,9 @@ Synthesize the evidence for this veterinary clinical topic.`
     if (insertError) {
       console.error('[synthesis] Failed to cache synthesis:', insertError)
     }
+
+    // Track synthesis serve for analytics (cache miss / new generation)
+    void supabase.from('page_views').insert({ path: '/synthesis/run', user_id: userId })
 
     return NextResponse.json({
       synthesis_html: synthesisHtml,

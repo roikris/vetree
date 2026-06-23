@@ -91,10 +91,11 @@ export async function POST(request: NextRequest) {
       .gte('created_at', sevenDaysAgo)
       .or(`user_id.is.null,user_id.neq.${adminId}`)
 
-    // Synthesis runs + feedback (exclude admin)
+    // Synthesis runs — count all synthesis serves (cache hits + misses) from page_views tracking
     const { count: synthesisRuns } = await supabase
-      .from('topic_syntheses')
+      .from('page_views')
       .select('*', { count: 'exact', head: true })
+      .eq('path', '/synthesis/run')
       .gte('created_at', sevenDaysAgo)
       .or(`user_id.is.null,user_id.neq.${adminId}`)
 
