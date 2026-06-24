@@ -75,7 +75,8 @@ export async function POST(request: NextRequest) {
           .eq('id', cached.id)
 
         // Track synthesis serve for analytics (cache hit)
-        void supabase.from('page_views').insert({ path: '/synthesis/run', user_id: userId })
+        // .then() is required — Supabase builders are lazy and won't fire without it
+        supabase.from('page_views').insert({ path: '/synthesis/run', user_id: userId }).then(() => {})
 
         return NextResponse.json({
           synthesis_html: cached.synthesis_html,
@@ -255,7 +256,7 @@ Synthesize the evidence for this veterinary clinical topic.`
     }
 
     // Track synthesis serve for analytics (cache miss / new generation)
-    void supabase.from('page_views').insert({ path: '/synthesis/run', user_id: userId })
+    supabase.from('page_views').insert({ path: '/synthesis/run', user_id: userId }).then(() => {})
 
     return NextResponse.json({
       synthesis_html: synthesisHtml,
