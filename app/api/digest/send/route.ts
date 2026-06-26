@@ -65,9 +65,17 @@ export async function POST(request: NextRequest) {
     // Admin ID to exclude from digest
     const adminId = '90cb8294-b593-4144-a9f5-23ca52dd5e35'
 
-    // Get ALL registered users with confirmed emails
-    const { data: allUsersData } = await supabase.auth.admin.listUsers()
-    const users = allUsersData.users.filter(u =>
+    // Get ALL registered users with confirmed emails (paginate — default limit is 50)
+    let allAuthUsers: any[] = []
+    let page = 1
+    while (true) {
+      const { data: pageData } = await supabase.auth.admin.listUsers({ page, perPage: 1000 })
+      if (!pageData?.users?.length) break
+      allAuthUsers = allAuthUsers.concat(pageData.users)
+      if (pageData.users.length < 1000) break
+      page++
+    }
+    const users = allAuthUsers.filter(u =>
       u.email_confirmed_at !== null &&
       u.id !== adminId
     )
