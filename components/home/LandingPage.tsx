@@ -51,10 +51,10 @@ type LandingPageProps = {
 }
 
 export function LandingPage({ exampleArticle }: LandingPageProps) {
-  const cardTitle  = exampleArticle?.title              || 'Pimobendan in Preclinical Myxomatous Mitral Valve Disease'
-  const cardBLine  = exampleArticle?.clinical_bottom_line || 'Pimobendan delayed the onset of congestive heart failure in preclinical MMVD dogs by roughly 15 months.'
-  const cardJournal = exampleArticle?.source_journal    || 'J Vet Intern Med'
-  const cardLabel  = exampleArticle?.labels?.[0]        || 'Cardiology'
+  const cardTitle   = exampleArticle?.title               || 'Pimobendan in Preclinical Myxomatous Mitral Valve Disease'
+  const cardBLine   = exampleArticle?.clinical_bottom_line || 'Pimobendan delayed the onset of congestive heart failure in preclinical MMVD dogs by roughly 15 months.'
+  const cardJournal = exampleArticle?.source_journal      || 'J Vet Intern Med'
+  const cardLabel   = exampleArticle?.labels?.[0]         || 'Cardiology'
 
   return (
     <div style={{ background: 'var(--al-bg)', minHeight: '100vh' }}>
@@ -66,7 +66,10 @@ export function LandingPage({ exampleArticle }: LandingPageProps) {
         backdropFilter: 'blur(14px)',
         borderBottom: '1px solid rgba(var(--al-line), 0.08)',
       }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '16px 40px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 24 }}>
+        <div
+          className="px-5 py-[13px] md:px-10 md:py-4"
+          style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 24 }}
+        >
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <svg width="26" height="26" viewBox="0 0 24 24" fill="var(--al-accent)">
               <path d="M17,8C8,10 5.9,16.17 3.82,21.34L5.71,22L6.66,19.7C7.14,19.87 7.64,20 8,20C19,20 22,3 22,3C21,5 14,5.25 9,6.25C4,7.25 2,11.5 2,13.5C2,15.5 3.75,17.25 3.75,17.25C7,8 17,8 17,8Z"/>
@@ -74,14 +77,19 @@ export function LandingPage({ exampleArticle }: LandingPageProps) {
             <span style={{ font: "600 21px/1 var(--font-spectral, serif)", color: 'var(--al-ink2)' }}>Vetree</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 34 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 28 }}>
+            {/* Center links — hidden on mobile */}
+            <div className="hidden md:flex items-center gap-7">
               <a href="#how-it-works" style={{ font: "500 14px/1 var(--font-instrument, sans-serif)", color: 'var(--al-sub)', textDecoration: 'none' }}>How it works</a>
               <a href="#evidence" style={{ font: "500 14px/1 var(--font-instrument, sans-serif)", color: 'var(--al-sub)', textDecoration: 'none' }}>Evidence</a>
               <a href="#specialties" style={{ font: "500 14px/1 var(--font-instrument, sans-serif)", color: 'var(--al-sub)', textDecoration: 'none' }}>For teams</a>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
               <Link href="/login" style={{ font: "500 14px/1 var(--font-instrument, sans-serif)", color: 'var(--al-ink3)', textDecoration: 'none' }}>Sign in</Link>
-              <Link href="/signup" style={{ display: 'inline-flex', alignItems: 'center', gap: 7, background: 'var(--al-accent)', color: 'var(--al-on-accent)', font: "600 14px/1 var(--font-instrument, sans-serif)", padding: '11px 18px', borderRadius: 10, textDecoration: 'none' }}>Create free account</Link>
+              <Link
+                href="/signup"
+                className="px-[14px] py-[10px] md:px-[18px] md:py-[11px]"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 7, background: 'var(--al-accent)', color: 'var(--al-on-accent)', font: "600 14px/1 var(--font-instrument, sans-serif)", borderRadius: 10, textDecoration: 'none' }}
+              >Create free account</Link>
             </div>
           </div>
         </div>
@@ -90,26 +98,43 @@ export function LandingPage({ exampleArticle }: LandingPageProps) {
       {/* ─── HERO ─── */}
       <div style={{ position: 'relative' }}>
         <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(720px 420px at 78% -6%, rgba(var(--al-acct), .14), transparent 62%), radial-gradient(560px 380px at 8% 40%, rgba(var(--al-acct2), .10), transparent 60%)', pointerEvents: 'none' }} />
-        <div style={{ position: 'relative', maxWidth: 1200, margin: '0 auto', padding: '78px 40px 40px', display: 'grid', gridTemplateColumns: '1.05fr .95fr', gap: 64, alignItems: 'center' }}>
+        <div
+          className="grid grid-cols-1 md:grid-cols-[1.05fr_.95fr] gap-8 md:gap-[64px] px-5 pt-[44px] pb-[44px] md:px-10 md:pt-[78px] md:pb-10 items-center"
+          style={{ position: 'relative', maxWidth: 1200, margin: '0 auto' }}
+        >
           {/* Left */}
           <div>
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 9, padding: '7px 14px', borderRadius: 999, background: 'rgba(var(--al-acct), .1)', border: '1px solid rgba(var(--al-acct), .28)', marginBottom: 26 }}>
               <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--al-accent)', display: 'inline-block' }} />
               <span style={{ font: "600 12px/1 var(--font-instrument, sans-serif)", letterSpacing: '.06em', color: 'var(--al-accent)' }}>The veterinary evidence engine</span>
             </div>
-            <h1 style={{ margin: '0 0 22px', font: "500 60px/1.04 var(--font-spectral, serif)", letterSpacing: '-.02em', color: 'var(--al-ink1)' }}>
+            <h1
+              className="text-[38px] md:text-[60px]"
+              style={{ margin: '0 0 22px', fontWeight: 500, lineHeight: 1.04, fontFamily: 'var(--font-spectral, serif)', letterSpacing: '-.02em', color: 'var(--al-ink1)' }}
+            >
               Evidence-based veterinary research,{' '}
               <em style={{ fontStyle: 'italic', color: 'var(--al-accent)' }}>distilled.</em>
             </h1>
-            <p style={{ margin: '0 0 34px', font: "400 19px/1.6 var(--font-instrument, sans-serif)", color: 'var(--al-sub)', maxWidth: 500 }}>
+            <p
+              className="text-[16.5px] md:text-[19px]"
+              style={{ margin: '0 0 34px', fontWeight: 400, lineHeight: 1.6, fontFamily: 'var(--font-instrument, sans-serif)', color: 'var(--al-sub)', maxWidth: 500 }}
+            >
               Clinical bottom lines from <strong style={{ color: 'var(--al-ink3)', fontWeight: 600 }}>23,000+</strong> peer-reviewed articles — so you spend less time searching and more time treating.
             </p>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 22 }}>
-              <Link href="/signup" style={{ display: 'inline-flex', alignItems: 'center', gap: 9, background: 'var(--al-accent)', color: 'var(--al-on-accent)', font: "600 15.5px/1 var(--font-instrument, sans-serif)", padding: '15px 26px', borderRadius: 12, textDecoration: 'none' }}>
+            <div className="flex flex-wrap items-center gap-[14px] mb-[22px]">
+              <Link
+                href="/signup"
+                className="text-[14.5px] md:text-[15.5px] px-5 py-[14px] md:px-[26px] md:py-[15px]"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 9, background: 'var(--al-accent)', color: 'var(--al-on-accent)', fontWeight: 600, lineHeight: 1, fontFamily: 'var(--font-instrument, sans-serif)', borderRadius: 12, textDecoration: 'none' }}
+              >
                 Create free account
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14M13 6l6 6-6 6"/></svg>
               </Link>
-              <Link href="/?browse=1" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'transparent', color: 'var(--al-ink3)', font: "600 15.5px/1 var(--font-instrument, sans-serif)", padding: '15px 24px', borderRadius: 12, border: '1px solid rgba(var(--al-line), .2)', textDecoration: 'none' }}>
+              <Link
+                href="/?browse=1"
+                className="text-[14.5px] md:text-[15.5px] px-5 py-[14px] md:px-[24px] md:py-[15px]"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'transparent', color: 'var(--al-ink3)', fontWeight: 600, lineHeight: 1, fontFamily: 'var(--font-instrument, sans-serif)', borderRadius: 12, border: '1px solid rgba(var(--al-line), .2)', textDecoration: 'none' }}
+              >
                 Browse articles
               </Link>
             </div>
@@ -126,7 +151,10 @@ export function LandingPage({ exampleArticle }: LandingPageProps) {
           {/* Right: article card mock */}
           <div style={{ position: 'relative' }}>
             <div style={{ position: 'absolute', inset: '-14px 26px -18px -8px', background: 'var(--al-card)', border: '1px solid rgba(var(--al-line), .06)', borderRadius: 8, transform: 'rotate(-2.4deg)' }} />
-            <div style={{ position: 'relative', background: 'var(--al-card3)', border: '1px solid rgba(var(--al-line), .12)', borderRadius: 8, padding: '30px 32px', boxShadow: '0 30px 70px rgba(0,0,0,.3)' }}>
+            <div
+              className="px-5 py-[22px] md:px-8 md:py-[30px]"
+              style={{ position: 'relative', background: 'var(--al-card3)', border: '1px solid rgba(var(--al-line), .12)', borderRadius: 8, boxShadow: '0 30px 70px rgba(0,0,0,.3)' }}
+            >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(var(--al-line), .14)', paddingBottom: 14, marginBottom: 18 }}>
                 <span style={{ font: "600 11px/1 var(--font-instrument, sans-serif)", letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--al-sub)' }}>{cardLabel}</span>
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 999, background: 'rgba(var(--al-acct), .1)', border: '1px solid rgba(var(--al-acct), .25)', font: "500 11px/1 var(--font-instrument, sans-serif)", color: 'var(--al-accent)' }}>
@@ -134,7 +162,10 @@ export function LandingPage({ exampleArticle }: LandingPageProps) {
                   RCT / Meta-analysis
                 </span>
               </div>
-              <h3 style={{ margin: '0 0 20px', font: "500 24px/1.28 var(--font-spectral, serif)", color: 'var(--al-ink2)', letterSpacing: '-.008em' }}>{cardTitle}</h3>
+              <h3
+                className="text-[20px] md:text-[24px]"
+                style={{ margin: '0 0 20px', fontWeight: 500, lineHeight: 1.28, fontFamily: 'var(--font-spectral, serif)', color: 'var(--al-ink2)', letterSpacing: '-.008em' }}
+              >{cardTitle}</h3>
               <div style={{ borderLeft: '2px solid var(--al-accent)', paddingLeft: 16, marginBottom: 22 }}>
                 <div style={{ font: "600 10px/1 var(--font-instrument, sans-serif)", letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--al-accent)', marginBottom: 8 }}>Clinical bottom line</div>
                 <p style={{ margin: 0, font: "italic 400 16.5px/1.55 var(--font-spectral, serif)", color: 'var(--al-ink5)' }}>{cardBLine}</p>
@@ -150,9 +181,16 @@ export function LandingPage({ exampleArticle }: LandingPageProps) {
 
       {/* ─── STAT BAND ─── */}
       <div style={{ borderTop: '1px solid rgba(var(--al-line), .08)', borderBottom: '1px solid rgba(var(--al-line), .08)', marginTop: 36 }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '34px 40px', display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)' }}>
+        <div
+          className="grid grid-cols-2 md:grid-cols-4 gap-y-[26px] md:gap-y-0 px-5 py-[34px] md:px-10"
+          style={{ maxWidth: 1200, margin: '0 auto' }}
+        >
           {STATS.map((s, i) => (
-            <div key={s.num} style={{ padding: '6px 34px', borderLeft: i > 0 ? '1px solid rgba(var(--al-line), .1)' : undefined }}>
+            <div
+              key={s.num}
+              className={`px-[34px] py-[6px]${i > 0 ? ' max-md:!border-l-0' : ''}`}
+              style={{ borderLeft: i > 0 ? '1px solid rgba(var(--al-line), .1)' : undefined }}
+            >
               <div style={{ font: "500 34px/1 var(--font-spectral, serif)", color: 'var(--al-ink2)', letterSpacing: '-.01em' }}>{s.num}</div>
               <div style={{ font: "400 13.5px/1.4 var(--font-instrument, sans-serif)", color: 'var(--al-mut4)', marginTop: 8 }}>{s.label}</div>
             </div>
@@ -161,13 +199,17 @@ export function LandingPage({ exampleArticle }: LandingPageProps) {
       </div>
 
       {/* ─── HOW IT WORKS ─── */}
-      <div id="how-it-works" style={{ maxWidth: 1200, margin: '0 auto', padding: '100px 40px 20px' }}>
+      <div
+        id="how-it-works"
+        className="px-5 pt-16 pb-5 md:px-10 md:pt-[100px] md:pb-5"
+        style={{ maxWidth: 1200, margin: '0 auto' }}
+      >
         <div style={{ maxWidth: 640, marginBottom: 52 }}>
           <div style={{ font: "600 12px/1 var(--font-instrument, sans-serif)", letterSpacing: '.16em', textTransform: 'uppercase', color: 'var(--al-accent)', marginBottom: 16 }}>How it works</div>
           <h2 style={{ margin: '0 0 16px', font: "500 40px/1.12 var(--font-spectral, serif)", color: 'var(--al-ink2)', letterSpacing: '-.015em' }}>The paper is read for you. You get the part that changes the case.</h2>
           <p style={{ margin: 0, font: "400 17px/1.6 var(--font-instrument, sans-serif)", color: 'var(--al-mut3)' }}>Every article is distilled into a single clinical bottom line, graded for evidence strength, and tagged by specialty — so you can trust it at a glance and act on it in seconds.</p>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 18 }}>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-[18px]">
           {STEPS.map(st => (
             <div key={st.step} style={{ background: 'var(--al-card)', border: '1px solid rgba(var(--al-line), .09)', borderRadius: 16, padding: '30px 28px' }}>
               <div style={{ width: 46, height: 46, borderRadius: 12, background: 'rgba(var(--al-acct), .1)', border: '1px solid rgba(var(--al-acct), .24)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--al-accent)', marginBottom: 20 }}>
@@ -182,8 +224,12 @@ export function LandingPage({ exampleArticle }: LandingPageProps) {
       </div>
 
       {/* ─── EVIDENCE TIERS ─── */}
-      <div id="evidence" style={{ maxWidth: 1200, margin: '0 auto', padding: '96px 40px 20px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '.85fr 1.15fr', gap: 64, alignItems: 'center' }}>
+      <div
+        id="evidence"
+        className="px-5 pt-16 pb-5 md:px-10 md:pt-24 md:pb-5"
+        style={{ maxWidth: 1200, margin: '0 auto' }}
+      >
+        <div className="grid grid-cols-1 md:grid-cols-[.85fr_1.15fr] gap-[64px] md:items-center">
           <div>
             <div style={{ font: "600 12px/1 var(--font-instrument, sans-serif)", letterSpacing: '.16em', textTransform: 'uppercase', color: 'var(--al-accent)', marginBottom: 16 }}>Graded evidence</div>
             <h2 style={{ margin: '0 0 16px', font: "500 38px/1.14 var(--font-spectral, serif)", color: 'var(--al-ink2)', letterSpacing: '-.015em' }}>Know how much weight to give it — before you read a word.</h2>
@@ -192,12 +238,16 @@ export function LandingPage({ exampleArticle }: LandingPageProps) {
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {TIERS.map(t => (
-              <div key={t.name} style={{ display: 'flex', alignItems: 'center', gap: 20, background: 'var(--al-card)', border: '1px solid rgba(var(--al-line), .09)', borderRadius: 14, padding: '20px 24px' }}>
+              <div
+                key={t.name}
+                className="flex flex-wrap items-start gap-5 p-[18px] md:flex-nowrap md:items-center md:px-6 md:py-5"
+                style={{ background: 'var(--al-card)', border: '1px solid rgba(var(--al-line), .09)', borderRadius: 14 }}
+              >
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, flexShrink: 0, width: 104, padding: '7px 12px', borderRadius: 999, font: "600 12px/1 var(--font-instrument, sans-serif)", background: `${t.c}1A`, border: `1px solid ${t.c}40`, color: `color-mix(in oklab, ${t.c} var(--al-chipmix, 52%), #241B0C)` }}>
                   <span style={{ width: 6, height: 6, borderRadius: '50%', background: t.dot, display: 'inline-block', flexShrink: 0 }} />
                   {t.name}
                 </span>
-                <div style={{ flex: 1 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ font: "600 15px/1.2 var(--font-spectral, serif)", color: 'var(--al-ink2)', marginBottom: 3 }}>{t.kind}</div>
                   <div style={{ font: "400 13px/1.45 var(--font-instrument, sans-serif)", color: 'var(--al-mut4)' }}>{t.desc}</div>
                 </div>
@@ -211,7 +261,11 @@ export function LandingPage({ exampleArticle }: LandingPageProps) {
       </div>
 
       {/* ─── SPECIALTIES ─── */}
-      <div id="specialties" style={{ maxWidth: 1200, margin: '0 auto', padding: '96px 40px 20px' }}>
+      <div
+        id="specialties"
+        className="px-5 pt-16 pb-5 md:px-10 md:pt-24 md:pb-5"
+        style={{ maxWidth: 1200, margin: '0 auto' }}
+      >
         <div style={{ textAlign: 'center', maxWidth: 560, margin: '0 auto 44px' }}>
           <div style={{ font: "600 12px/1 var(--font-instrument, sans-serif)", letterSpacing: '.16em', textTransform: 'uppercase', color: 'var(--al-accent)', marginBottom: 16 }}>Every corner of the clinic</div>
           <h2 style={{ margin: 0, font: "500 36px/1.16 var(--font-spectral, serif)", color: 'var(--al-ink2)', letterSpacing: '-.015em' }}>Tuned to your specialty — and your species.</h2>
@@ -226,23 +280,38 @@ export function LandingPage({ exampleArticle }: LandingPageProps) {
       </div>
 
       {/* ─── BUILT BY A DVM ─── */}
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '96px 40px 20px' }}>
-        <div style={{ background: 'linear-gradient(135deg, rgba(var(--al-acct), .08), rgba(var(--al-acct2), .04))', border: '1px solid rgba(var(--al-acct), .18)', borderRadius: 24, padding: '52px 56px', display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 40, alignItems: 'center' }}>
+      <div
+        className="px-5 pt-16 pb-5 md:px-10 md:pt-24 md:pb-5"
+        style={{ maxWidth: 1200, margin: '0 auto' }}
+      >
+        <div
+          className="grid grid-cols-1 md:grid-cols-[auto_1fr] px-[26px] py-8 md:px-14 md:py-[52px] gap-10 items-start md:items-center"
+          style={{ background: 'linear-gradient(135deg, rgba(var(--al-acct), .08), rgba(var(--al-acct2), .04))', border: '1px solid rgba(var(--al-acct), .18)', borderRadius: 24 }}
+        >
           <div style={{ width: 96, height: 96, borderRadius: '50%', background: 'linear-gradient(150deg, var(--al-card4), var(--al-card))', border: '1px solid rgba(var(--al-line), .14)', display: 'flex', alignItems: 'center', justifyContent: 'center', font: "500 30px/1 var(--font-spectral, serif)", color: 'var(--al-accent)' }}>DVM</div>
           <div>
             <div style={{ font: "600 11px/1 var(--font-instrument, sans-serif)", letterSpacing: '.16em', textTransform: 'uppercase', color: 'var(--al-accent)', marginBottom: 16 }}>Built by a clinician</div>
-            <p style={{ margin: '0 0 18px', font: "400 24px/1.5 var(--font-spectral, serif)", color: 'var(--al-ink3)', letterSpacing: '-.005em' }}>"I built Vetree because I was drowning in papers between appointments. I wanted the answer, graded and trustworthy, in the ninety seconds I actually had."</p>
+            <p
+              className="text-[19px] md:text-[24px]"
+              style={{ margin: '0 0 18px', fontWeight: 400, lineHeight: 1.5, fontFamily: 'var(--font-spectral, serif)', color: 'var(--al-ink3)', letterSpacing: '-.005em' }}
+            >"I built Vetree because I was drowning in papers between appointments. I wanted the answer, graded and trustworthy, in the ninety seconds I actually had."</p>
             <div style={{ font: "500 14px/1 var(--font-instrument, sans-serif)", color: 'var(--al-mut3)' }}>A practising veterinarian · Founder, Vetree</div>
           </div>
         </div>
       </div>
 
       {/* ─── FINAL CTA ─── */}
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '100px 40px 110px' }}>
+      <div
+        className="px-5 pt-16 pb-[72px] md:px-10 md:pt-[100px] md:pb-[110px]"
+        style={{ maxWidth: 1200, margin: '0 auto' }}
+      >
         <div style={{ textAlign: 'center', maxWidth: 640, margin: '0 auto' }}>
-          <h2 style={{ margin: '0 0 18px', font: "500 46px/1.08 var(--font-spectral, serif)", color: 'var(--al-ink1)', letterSpacing: '-.02em' }}>Stay current in the time you actually have.</h2>
+          <h2
+            className="text-[32px] md:text-[46px]"
+            style={{ margin: '0 0 18px', fontWeight: 500, lineHeight: 1.08, fontFamily: 'var(--font-spectral, serif)', color: 'var(--al-ink1)', letterSpacing: '-.02em' }}
+          >Stay current in the time you actually have.</h2>
           <p style={{ margin: '0 0 32px', font: "400 18px/1.6 var(--font-instrument, sans-serif)", color: 'var(--al-mut3)' }}>Join the veterinary professionals reading smarter. Free forever, no credit card.</p>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14 }}>
+          <div className="flex flex-wrap items-center justify-center gap-[14px]">
             <Link href="/signup" style={{ display: 'inline-flex', alignItems: 'center', gap: 9, background: 'var(--al-accent)', color: 'var(--al-on-accent)', font: "600 16px/1 var(--font-instrument, sans-serif)", padding: '16px 30px', borderRadius: 12, textDecoration: 'none' }}>
               Create free account
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14M13 6l6 6-6 6"/></svg>
@@ -256,7 +325,10 @@ export function LandingPage({ exampleArticle }: LandingPageProps) {
 
       {/* ─── FOOTER ─── */}
       <div style={{ borderTop: '1px solid rgba(var(--al-line), .08)' }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '34px 40px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 24, flexWrap: 'wrap' }}>
+        <div
+          className="px-5 py-[34px] md:px-10"
+          style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 24, flexWrap: 'wrap' }}
+        >
           <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="var(--al-accent)"><path d="M17,8C8,10 5.9,16.17 3.82,21.34L5.71,22L6.66,19.7C7.14,19.87 7.64,20 8,20C19,20 22,3 22,3C21,5 14,5.25 9,6.25C4,7.25 2,11.5 2,13.5C2,15.5 3.75,17.25 3.75,17.25C7,8 17,8 17,8Z"/></svg>
             <span style={{ font: "600 15px/1 var(--font-spectral, serif)", color: 'var(--al-body)' }}>Vetree</span>
