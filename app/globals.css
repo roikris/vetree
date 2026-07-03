@@ -27,6 +27,7 @@
   --al-warnc: 176,116,20;
   --al-warntext: #7A6238;
   --al-onaccent: var(--al-on-accent);
+  --al-chipmix: 52%;
   /* backward-compat aliases */
   --background: var(--al-bg);
   --foreground: var(--al-ink3);
@@ -57,6 +58,7 @@
   --al-warnc: 224,160,64;
   --al-warntext: #B0A488;
   --al-onaccent: var(--al-on-accent);
+  --al-chipmix: 100%;
 }
 
 /* ─── Specialty chip hues (same value both themes; light text darkened in components) ─── */
