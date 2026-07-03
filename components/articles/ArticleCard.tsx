@@ -1,163 +1,185 @@
+import Link from 'next/link'
 import { Article } from '@/lib/supabase'
-import { LazySummary } from './LazySummary'
-import { getLabelColor } from '@/lib/constants/labelColors'
+import { getLabelHue } from '@/lib/constants/labelColors'
+import { getEvidenceLevel, getEvidenceBadgeProps } from '@/lib/utils/evidenceBadge'
 import { BookmarkButton } from './BookmarkButton'
-import { SaveCount } from './SaveCount'
 import { ShareButton } from './ShareButton'
-import { ReportButton } from './ReportButton'
-import { EvidenceBadge } from '@/components/ui/EvidenceBadge'
-import { FollowTagButton } from '@/components/ui/FollowTagButton'
+import { LazySummary } from './LazySummary'
+
+function parseLabels(labels: string[] | null | undefined): string[] {
+  if (!labels || !Array.isArray(labels)) return []
+  const result: string[] = []
+  for (const label of labels) {
+    if (typeof label === 'string') {
+      const cleaned = label.replace(/[\[\]"\\]/g, '').trim()
+      if (cleaned) result.push(...cleaned.split(',').map(l => l.trim()).filter(Boolean))
+    }
+  }
+  return result
+}
 
 type ArticleCardProps = {
   article: Article
 }
 
-// Helper function to parse malformed labels from database
-function parseLabels(labels: string[] | null | undefined): string[] {
-  if (!labels || !Array.isArray(labels)) return []
-
-  // Handle malformed labels like: ['["Soft Tissue Surgery"', '"Small Animal"', '"Large Animal"]']
-  const parsedLabels: string[] = []
-
-  for (const label of labels) {
-    if (typeof label === 'string') {
-      // Remove all brackets, quotes, and extra whitespace
-      const cleaned = label
-        .replace(/[\[\]"\\]/g, '')
-        .trim()
-
-      if (cleaned) {
-        // Split by comma in case multiple labels are in one string
-        const split = cleaned.split(',').map(l => l.trim()).filter(Boolean)
-        parsedLabels.push(...split)
-      }
-    }
-  }
-
-  return parsedLabels
-}
-
 export function ArticleCard({ article }: ArticleCardProps) {
   const cleanLabels = parseLabels(article.labels)
-  const hasUrl = article.article_url && article.article_url.trim() !== ''
+
+  const level = getEvidenceLevel(article.strength_of_evidence, cleanLabels)
+  const { label: evLabel, hue: evHue, dot: evDot } = getEvidenceBadgeProps(level)
+
+  const date = article.publication_date
+    ? new Date(article.publication_date).toLocaleDateString('en-US', {
+        year: 'numeric', month: 'short', day: 'numeric',
+      })
+    : ''
+
+  const footerLineStyle: React.CSSProperties = {
+    paddingTop: 15,
+    borderTop: '1px solid rgba(var(--al-line, 232,224,204), .08)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 16,
+    flexWrap: 'wrap',
+  }
 
   return (
-    <article className="bg-white dark:bg-[#1A1A1A] rounded-lg border border-[#E5E5E5] dark:border-[#2A2A2A] p-4 md:p-6 hover:shadow-md transition-shadow relative" data-onboarding="article-card">
-      {/* Report, Bookmark and Share buttons - top right */}
-      <div className="absolute top-3 right-3 md:top-4 md:right-4 flex items-center gap-1">
-        <ReportButton articleId={article.id} />
-        <ShareButton
-          articleId={article.id}
-          title={article.title}
-          clinicalBottomLine={article.clinical_bottom_line || undefined}
-        />
-        <BookmarkButton articleId={article.id} />
-      </div>
+    <article className="al-card" style={{ padding: '26px 28px' }} data-onboarding="article-card">
 
-      <div className="space-y-3 md:space-y-4 pr-8 md:pr-10">
-        {/* 1. Source journal + publication date */}
-        <div className="flex flex-wrap gap-x-3 gap-y-1 text-sm text-zinc-500 dark:text-zinc-400">
+      {/* Top row: journal + date | share + bookmark */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 13 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 11, flexWrap: 'wrap' }}>
           {article.source_journal && (
-            <span className="font-medium">{article.source_journal}</span>
+            <span style={{
+              fontFamily: 'var(--font-instrument, sans-serif)',
+              fontSize: 11, fontWeight: 600, lineHeight: 1,
+              letterSpacing: '.12em', textTransform: 'uppercase',
+              color: 'var(--al-accent)',
+            }}>
+              {article.source_journal}
+            </span>
           )}
-          {article.publication_date && (
-            <span>
-              {new Date(article.publication_date).toLocaleDateString('en-US', {
-                year: 'numeric',
-                month: 'short',
-                day: 'numeric'
-              })}
+          {article.source_journal && date && (
+            <span style={{ width: 3, height: 3, borderRadius: '50%', background: 'var(--al-mut7)', display: 'inline-block' }} />
+          )}
+          {date && (
+            <span style={{
+              fontFamily: 'var(--font-instrument, sans-serif)',
+              fontSize: 12, fontWeight: 400, lineHeight: 1,
+              color: 'var(--al-mut4)',
+            }}>
+              {date}
             </span>
           )}
         </div>
-
-        {/* 2. Clinical Bottom Line */}
-        {article.clinical_bottom_line && (
-          <div className="bg-amber-50/80 dark:bg-amber-900/10 border-l-3 border-amber-400 dark:border-amber-600 rounded-r-md p-3 md:p-4">
-            <h4 className="font-semibold text-amber-900 dark:text-amber-200 text-xs md:text-sm mb-1.5 md:mb-2 flex items-center gap-1.5 md:gap-2">
-              <svg className="w-3.5 h-3.5 md:w-4 md:h-4" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M13 7h-2v4H7v2h4v4h2v-4h4v-2h-4V7zm-1-5C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/>
-              </svg>
-              Clinical Bottom Line
-            </h4>
-            <p className="text-amber-900 dark:text-amber-100 text-sm leading-relaxed line-clamp-2 md:line-clamp-none">
-              {article.clinical_bottom_line}
-            </p>
-          </div>
-        )}
-
-        {/* 3. Title in sage green */}
-        <div>
-          {hasUrl ? (
-            <a
-              href={article.article_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-lg md:text-2xl font-semibold text-[#3D7A5F] dark:text-[#4E9A78] hover:text-[#2F5F4A] dark:hover:text-[#5FAA88] transition-colors block"
-            >
-              {article.title}
-            </a>
-          ) : (
-            <h3 className="text-lg md:text-2xl font-semibold text-[#3D7A5F] dark:text-[#4E9A78]">
-              {article.title}
-            </h3>
-          )}
-        </div>
-
-        {/* 4. Authors */}
-        {article.authors && (
-          <p className="text-sm text-zinc-400 dark:text-zinc-500">
-            {article.authors}
-          </p>
-        )}
-
-        {/* 5. Evidence level badge */}
-        <div>
-          <EvidenceBadge
-            strengthOfEvidence={article.strength_of_evidence}
-            labels={cleanLabels}
-            size="sm"
+        <div style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
+          <ShareButton
+            articleId={article.id}
+            title={article.title}
+            clinicalBottomLine={article.clinical_bottom_line || undefined}
           />
-        </div>
-
-        {/* 6. Summary — lazy loaded on demand */}
-        <LazySummary articleId={article.id} initialSummary={article.summary} />
-
-        {/* 7. Labels with pastel colors + follow buttons */}
-        {cleanLabels.length > 0 && (
-          <div className="pt-3 border-t border-[#E5E5E5] dark:border-[#2A2A2A]">
-            <div className="flex md:flex-wrap gap-2 overflow-x-auto md:overflow-x-visible scrollbar-hide pb-1">
-              {cleanLabels.map((label, index) => (
-                <span
-                  key={index}
-                  className={`inline-flex items-center px-3 py-1.5 md:py-1 text-xs font-medium rounded-full border whitespace-nowrap flex-shrink-0 ${getLabelColor(label)}`}
-                >
-                  {label}
-                  <FollowTagButton tag={label} />
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* 8. Read Full Article link + Save count */}
-        <div className="pt-3 flex items-center justify-between gap-4">
-          {hasUrl && (
-            <a
-              href={article.article_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 text-sm font-medium text-[#3D7A5F] dark:text-[#4E9A78] hover:text-[#2F5F4A] dark:hover:text-[#5FAA88] transition-colors"
-            >
-              Read Full Article
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
-              </svg>
-            </a>
-          )}
-          <SaveCount articleId={article.id} />
+          <BookmarkButton articleId={article.id} />
         </div>
       </div>
+
+      {/* Title */}
+      <Link href={`/article/${article.id}`} style={{ textDecoration: 'none' }}>
+        <h3 style={{
+          margin: '0 0 11px',
+          fontFamily: 'var(--font-spectral, serif)',
+          fontSize: 21, fontWeight: 600, lineHeight: 1.3,
+          color: 'var(--al-ink2)',
+          letterSpacing: '-.005em',
+          cursor: 'pointer',
+          transition: 'color .15s ease',
+        }}>
+          {article.title}
+        </h3>
+      </Link>
+
+      {/* Authors */}
+      {article.authors && (
+        <p style={{
+          margin: '0 0 16px',
+          fontFamily: 'var(--font-instrument, sans-serif)',
+          fontSize: 13, fontWeight: 400, lineHeight: 1.4,
+          color: 'var(--al-mut4)',
+        }}>
+          {article.authors}
+        </p>
+      )}
+
+      {/* Clinical bottom line pull-quote */}
+      {article.clinical_bottom_line && (
+        <div style={{ borderLeft: '2px solid var(--al-accent)', padding: '2px 0 2px 18px', marginBottom: 16 }}>
+          <div style={{
+            fontFamily: 'var(--font-instrument, sans-serif)',
+            fontSize: 10.5, fontWeight: 600, lineHeight: 1,
+            letterSpacing: '.14em', textTransform: 'uppercase',
+            color: 'var(--al-accent)', marginBottom: 8,
+          }}>
+            Clinical bottom line
+          </div>
+          <p style={{
+            margin: 0,
+            fontFamily: 'var(--font-spectral, serif)',
+            fontStyle: 'italic', fontSize: 16, fontWeight: 500, lineHeight: 1.55,
+            color: 'var(--al-ink4)',
+          }}>
+            {article.clinical_bottom_line}
+          </p>
+        </div>
+      )}
+
+      {/* Evidence tier chip */}
+      <div style={{ marginBottom: 15 }}>
+        <span
+          className="al-ev-chip"
+          style={{ '--ev-h': evHue, '--ev-dot': evDot } as React.CSSProperties}
+        >
+          <span className="al-ev-dot" />
+          {evLabel}
+        </span>
+      </div>
+
+      {/* Summary — lazy loaded */}
+      <LazySummary articleId={article.id} initialSummary={article.summary} />
+
+      {/* Footer: label chips + read full article */}
+      {(cleanLabels.length > 0 || article.article_url) && (
+        <div style={footerLineStyle}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {cleanLabels.map((label, i) => (
+              <span
+                key={i}
+                className="al-chip"
+                style={{ '--chip-h': getLabelHue(label) } as React.CSSProperties}
+              >
+                {label}
+              </span>
+            ))}
+          </div>
+          {article.article_url && (
+            <a
+              href={article.article_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 7,
+                fontFamily: 'var(--font-instrument, sans-serif)',
+                fontSize: 13.5, fontWeight: 600, lineHeight: 1,
+                color: 'var(--al-accent)', textDecoration: 'none',
+              }}
+            >
+              Read full article
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14M13 6l6 6-6 6" />
+              </svg>
+            </a>
+          )}
+        </div>
+      )}
     </article>
   )
 }

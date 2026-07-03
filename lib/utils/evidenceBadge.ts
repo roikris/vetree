@@ -47,28 +47,28 @@ export function getEvidenceLevel(strengthOfEvidence?: string | null, labels?: st
 export function getEvidenceBadgeProps(level: EvidenceLevel) {
   const map = {
     gold: {
-      label: 'RCT / Meta-Analysis',
-      color: 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800',
-      dotColor: 'bg-emerald-500',
-      tooltip: 'Highest level of evidence - randomized controlled trials or systematic reviews'
+      label: 'RCT / Meta-analysis',
+      hue: '#A9E07C',
+      dot: '#8FD65E',
+      tooltip: 'Highest level of evidence — randomized controlled trials or systematic reviews',
     },
     silver: {
       label: 'Cohort / Prospective',
-      color: 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800',
-      dotColor: 'bg-blue-500',
-      tooltip: 'Good quality evidence - cohort or case-control studies'
+      hue: '#8FBEEC',
+      dot: '#6FA8E8',
+      tooltip: 'Good quality evidence — cohort or case-control studies',
     },
     bronze: {
-      label: 'Case Report / Retrospective',
-      color: 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800',
-      dotColor: 'bg-amber-500',
-      tooltip: 'Lower level evidence - case reports or retrospective studies'
+      label: 'Case series / Retrospective',
+      hue: '#E8B060',
+      dot: '#E0A040',
+      tooltip: 'Lower level evidence — case reports or retrospective studies',
     },
     unknown: {
       label: 'Study',
-      color: 'bg-zinc-50 dark:bg-zinc-900/20 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-800',
-      dotColor: 'bg-zinc-400',
-      tooltip: 'Study type not categorized'
+      hue: '#B4AD9A',
+      dot: '#9A9280',
+      tooltip: 'Study type not categorized',
     },
   }
   return map[level]

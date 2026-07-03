@@ -1,4 +1,4 @@
-import { ParsedFilters, SortOption, LabelOperator, QuickFilter } from '@/types/search'
+import { ParsedFilters, SortOption, LabelOperator, QuickFilter, FeedView } from '@/types/search'
 
 export function parseSearchParams(
   searchParams: { [key: string]: string | string[] | undefined }
@@ -41,6 +41,9 @@ export function parseSearchParams(
   const pageParam = typeof searchParams.page === 'string' ? parseInt(searchParams.page, 10) : 1
   const page = isNaN(pageParam) || pageParam < 1 ? 1 : pageParam
 
+  const viewParam = typeof searchParams.view === 'string' ? searchParams.view : 'stream'
+  const view: FeedView = ['stream', 'grove', 'list'].includes(viewParam) ? (viewParam as FeedView) : 'stream'
+
   return {
     search,
     labels,
@@ -49,7 +52,8 @@ export function parseSearchParams(
     evidence,
     journals,
     sort,
-    page
+    page,
+    view,
   }
 }
 
@@ -86,6 +90,10 @@ export function buildSearchParams(filters: ParsedFilters): string {
 
   if (filters.page > 1) {
     params.set('page', filters.page.toString())
+  }
+
+  if (filters.view && filters.view !== 'stream') {
+    params.set('view', filters.view)
   }
 
   return params.toString()

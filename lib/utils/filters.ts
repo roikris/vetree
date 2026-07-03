@@ -48,6 +48,7 @@ export function getDefaultFilters(): ParsedFilters {
     evidence: [],
     journals: [],
     sort: 'newest',
-    page: 1
+    page: 1,
+    view: 'stream',
   }
 }

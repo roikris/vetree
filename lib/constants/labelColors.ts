@@ -92,3 +92,32 @@ export function getLabelColor(label: string): string {
   }
   return `${colors.light} ${colors.dark}`
 }
+
+// Almanac chip hues — hex colors for use with .al-chip / .al-spec-text
+export const LABEL_HUES: Record<string, string> = {
+  'Cardiology': '#E88A92',
+  'Emergency': '#E88AA0',
+  'Internal Medicine': '#7FB0EC',
+  'Equine': '#5FCDB8',
+  'Oncology': '#C79CE8',
+  'Ophthalmology': '#7FB0EC',
+  'Anesthesia': '#B49AE8',
+  'Orthopedics': '#E8A968',
+  'Dermatology': '#E0CC6A',
+  'Neurology': '#9AA6E8',
+  'Small Animal': '#8FD65E',
+  'Large Animal': '#E0BC5E',
+  'Exotic': '#5FC7D8',
+  'Radiology': '#6FBFEC',
+  'Pathology': '#E88AD8',
+  'Pharmacology': '#BFD65E',
+  'Nutrition': '#5FD69A',
+  'Behavior': '#A6B0C0',
+  'Reproduction': '#E893C0',
+  'Soft Tissue Surgery': '#E893C0',
+  'Dentistry': '#B8B0A0',
+}
+
+export function getLabelHue(label: string): string {
+  return LABEL_HUES[label] ?? '#B4AD9A'
+}
