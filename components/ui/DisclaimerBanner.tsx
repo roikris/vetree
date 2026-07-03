@@ -1,14 +1,18 @@
 export function DisclaimerBanner() {
   return (
-    <div className="bg-amber-50/50 dark:bg-amber-900/10 border border-amber-200/50 dark:border-amber-800/30 rounded-lg px-4 py-3 mb-6">
-      <div className="flex items-start gap-3">
-        <span className="text-amber-600 dark:text-amber-400 text-lg flex-shrink-0 mt-0.5">
-          ℹ️
-        </span>
-        <p className="text-sm text-amber-900 dark:text-amber-100 leading-relaxed">
-          <strong className="font-semibold">Keep in mind:</strong> Vetree uses AI to summarize complex research for you. Like any AI assistant, it can occasionally misinterpret data. Please use these summaries as a starting point and confirm critical details with the primary literature prior to clinical application.
-        </p>
-      </div>
+    <div style={{
+      display: 'flex', alignItems: 'flex-start', gap: 12,
+      padding: '11px 16px', marginBottom: 20,
+      background: 'rgba(var(--al-line), .05)',
+      border: '1px solid rgba(var(--al-line), .1)',
+      borderRadius: 10,
+    }}>
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--al-mut4)', flexShrink: 0, marginTop: 1 }}>
+        <circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>
+      </svg>
+      <p style={{ margin: 0, font: "400 13px/1.55 var(--font-instrument, sans-serif)", color: 'var(--al-mut4)' }}>
+        AI-generated summaries — verify critical details with primary literature before clinical use.
+      </p>
     </div>
   )
 }
