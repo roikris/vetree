@@ -60,11 +60,12 @@ const barInner: React.CSSProperties = {
 const pillRow: React.CSSProperties = {
   maxWidth: 1020,
   margin: '0 auto',
-  padding: '0 32px 15px',
+  padding: '0 18px 13px',
   display: 'flex',
   alignItems: 'center',
   gap: 8,
-  flexWrap: 'wrap' as const,
+  flexWrap: 'nowrap',
+  overflowX: 'auto',
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -191,9 +192,9 @@ export function SearchControls({
               </span>
             </Link>
 
-            {/* View switcher */}
-            <div style={{
-              display: 'flex', gap: 4,
+            {/* View switcher — hidden on mobile */}
+            <div className="hidden md:flex" style={{
+              gap: 4,
               background: 'rgba(var(--al-line, 232,224,204), .05)',
               border: '1px solid rgba(var(--al-line, 232,224,204), .1)',
               borderRadius: 11, padding: 4,
@@ -273,7 +274,7 @@ export function SearchControls({
                 </button>
               )}
 
-              <Link href="/library" style={{
+              <Link href="/library" className="hidden md:block" style={{
                 fontFamily: 'var(--font-instrument, sans-serif)',
                 fontSize: 13.5, fontWeight: 500, lineHeight: 1,
                 color: 'var(--al-sub)', textDecoration: 'none',
@@ -281,7 +282,7 @@ export function SearchControls({
                 Library
               </Link>
 
-              <DarkModeToggle />
+              <span className="hidden md:block"><DarkModeToggle /></span>
 
               {user ? (
                 <Link href="/profile" style={{
@@ -307,7 +308,7 @@ export function SearchControls({
           </div>
 
           {/* ─── Filter pill bar — hidden in grove view ──────────────────── */}
-          {view !== 'grove' && (<div style={pillRow}>
+          {view !== 'grove' && (<div style={pillRow} className="scrollbar-hide">
             {QUICK_PILLS.map(pill => {
               const active = isPillActive(pill, initialFilters)
               return (
