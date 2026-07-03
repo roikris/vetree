@@ -369,30 +369,28 @@ export function SearchControls({
                     }}>
                       {VETERINARY_LABELS.map(label => {
                         const on = initialFilters.labels.includes(label)
+                        const nextLabels = on
+                          ? initialFilters.labels.filter(l => l !== label)
+                          : [...initialFilters.labels, label]
+                        const href = `/?${buildSearchParams({ ...initialFilters, labels: nextLabels, page: 1 })}`
                         return (
-                          <button
+                          <Link
                             key={label}
-                            onClick={() => {
-                              const next = on
-                                ? initialFilters.labels.filter(l => l !== label)
-                                : [...initialFilters.labels, label]
-                              setSpecialtyOpen(false)
-                              updateFilters({ labels: next })
-                            }}
+                            href={href}
+                            onClick={() => setSpecialtyOpen(false)}
                             style={{
                               display: 'flex', alignItems: 'center', gap: 9,
                               width: '100%', padding: '9px 16px',
                               background: on ? 'rgba(var(--al-line, 232,224,204), .06)' : 'none',
-                              border: 'none',
                               color: on ? 'var(--al-accent)' : 'var(--al-ink3)',
                               fontFamily: 'var(--font-instrument, sans-serif)',
                               fontSize: 13, fontWeight: on ? 600 : 400, lineHeight: 1.2,
-                              cursor: 'pointer', textAlign: 'left',
+                              cursor: 'pointer', textDecoration: 'none',
                             }}
                           >
                             {on && <span style={{ color: 'var(--al-accent)', flexShrink: 0 }}>✓</span>}
                             {label}
-                          </button>
+                          </Link>
                         )
                       })}
                     </div>
@@ -417,30 +415,28 @@ export function SearchControls({
                     }}>
                       {availableEvidenceLevels.map(level => {
                         const on = initialFilters.evidence.includes(level)
+                        const nextEvidence = on
+                          ? initialFilters.evidence.filter(e => e !== level)
+                          : [...initialFilters.evidence, level]
+                        const href = `/?${buildSearchParams({ ...initialFilters, evidence: nextEvidence, page: 1 })}`
                         return (
-                          <button
+                          <Link
                             key={level}
-                            onClick={() => {
-                              const next = on
-                                ? initialFilters.evidence.filter(e => e !== level)
-                                : [...initialFilters.evidence, level]
-                              setEvidenceOpen(false)
-                              updateFilters({ evidence: next })
-                            }}
+                            href={href}
+                            onClick={() => setEvidenceOpen(false)}
                             style={{
                               display: 'flex', alignItems: 'center', gap: 9,
                               width: '100%', padding: '9px 16px',
                               background: on ? 'rgba(var(--al-line, 232,224,204), .06)' : 'none',
-                              border: 'none',
                               color: on ? 'var(--al-accent)' : 'var(--al-ink3)',
                               fontFamily: 'var(--font-instrument, sans-serif)',
                               fontSize: 13, fontWeight: on ? 600 : 400, lineHeight: 1.2,
-                              cursor: 'pointer', textAlign: 'left',
+                              cursor: 'pointer', textDecoration: 'none',
                             }}
                           >
                             {on && <span style={{ color: 'var(--al-accent)', flexShrink: 0 }}>✓</span>}
                             {level}
-                          </button>
+                          </Link>
                         )
                       })}
                     </div>
@@ -466,30 +462,28 @@ export function SearchControls({
                     }}>
                       {availableJournals.map(journal => {
                         const on = initialFilters.journals.includes(journal)
+                        const nextJournals = on
+                          ? initialFilters.journals.filter(j => j !== journal)
+                          : [...initialFilters.journals, journal]
+                        const href = `/?${buildSearchParams({ ...initialFilters, journals: nextJournals, page: 1 })}`
                         return (
-                          <button
+                          <Link
                             key={journal}
-                            onClick={() => {
-                              const next = on
-                                ? initialFilters.journals.filter(j => j !== journal)
-                                : [...initialFilters.journals, journal]
-                              setJournalOpen(false)
-                              updateFilters({ journals: next })
-                            }}
+                            href={href}
+                            onClick={() => setJournalOpen(false)}
                             style={{
                               display: 'flex', alignItems: 'center', gap: 9,
                               width: '100%', padding: '9px 16px',
                               background: on ? 'rgba(var(--al-line, 232,224,204), .06)' : 'none',
-                              border: 'none',
                               color: on ? 'var(--al-accent)' : 'var(--al-ink3)',
                               fontFamily: 'var(--font-instrument, sans-serif)',
                               fontSize: 13, fontWeight: on ? 600 : 400, lineHeight: 1.2,
-                              cursor: 'pointer', textAlign: 'left',
+                              cursor: 'pointer', textDecoration: 'none',
                             }}
                           >
                             {on && <span style={{ color: 'var(--al-accent)', flexShrink: 0 }}>✓</span>}
                             {journal}
-                          </button>
+                          </Link>
                         )
                       })}
                     </div>
