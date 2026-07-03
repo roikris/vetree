@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg,#14120E);color:var(--ink3,#E8E0CC);font-family:'Instrument Sans',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+  ::selection{background:var(--accent,#8FCB5E);color:var(--onaccent,#14120E)}
+  .vt-scroll::-webkit-scrollbar{width:9px}
+  .vt-scroll::-webkit-scrollbar-thumb{background:rgba(var(--linec,232,224,204),.12);border-radius:9px}
+  .vt-scroll::-webkit-scrollbar-track{background:transparent}
+  input::placeholder{color:var(--mut6,#6F695B)}
+</style>
+</helmet>
+<div style="{{ themeVars }};--accent: {{ accent }}; --card-pad: {{ cardPad }}; min-height:100vh;background:var(--bg,#14120E)">
+
+  <!-- ===== APP BAR ===== -->
+  <div style="position:sticky;top:0;z-index:20;background:rgba(var(--barc,20,18,14),.86);backdrop-filter:blur(14px);border-bottom:1px solid rgba(var(--linec,232,224,204),.1)">
+    <div style="max-width:1020px;margin:0 auto;padding:15px 32px;display:flex;align-items:center;justify-content:space-between;gap:20px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="var(--accent,#8FCB5E)"><path d="M17,8C8,10 5.9,16.17 3.82,21.34L5.71,22L6.66,19.7C7.14,19.87 7.64,20 8,20C19,20 22,3 22,3C21,5 14,5.25 9,6.25C4,7.25 2,11.5 2,13.5C2,15.5 3.75,17.25 3.75,17.25C7,8 17,8 17,8Z"/></svg>
+        <span style="font:600 21px/1 'Spectral',serif;color:var(--ink2,#EFE9DA);letter-spacing:.01em">Vetree</span>
+      </div>
+
+      <!-- view switcher -->
+      <div style="display:flex;gap:4px;background:rgba(var(--linec,232,224,204),.05);border:1px solid rgba(var(--linec,232,224,204),.1);border-radius:11px;padding:4px">
+        <sc-for list="{{ tabs }}" as="tab" hint-placeholder-count="3">
+          <sc-if value="{{ tab.active }}" hint-placeholder-val="{{ false }}"><button onClick="{{ tab.onClick }}" style="padding:8px 17px;border-radius:8px;border:none;cursor:pointer;font:600 13px/1 'Instrument Sans',sans-serif;background:var(--accent,#8FCB5E);color:var(--onaccent,#14120E)">{{ tab.label }}</button></sc-if>
+          <sc-if value="{{ tab.idle }}" hint-placeholder-val="{{ true }}"><button onClick="{{ tab.onClick }}" style="padding:8px 17px;border-radius:8px;border:none;cursor:pointer;font:600 13px/1 'Instrument Sans',sans-serif;background:transparent;color:var(--mut2,#9A9280)" style-hover="color:var(--ink3,#E8E0CC)">{{ tab.label }}</button></sc-if>
+        </sc-for>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:14px">
+        <sc-if value="{{ searchOpen }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;align-items:center;gap:9px;background:var(--card,#1B1811);border:1px solid var(--accent,#8FCB5E);border-radius:10px;padding:0 6px 0 12px;width:306px">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--mut4,#8A8272)" stroke-width="1.8" style="flex-shrink:0"><circle cx="11" cy="11" r="7"/><path stroke-linecap="round" d="M21 21l-4.3-4.3"/></svg>
+            <input value="{{ query }}" onInput="{{ setQuery }}" placeholder="Search titles, bottom lines, authors…" style="flex:1;min-width:0;background:none;border:none;outline:none;color:var(--ink3,#E8E0CC);font:400 13.5px/1 'Instrument Sans';padding:11px 0"/>
+            <button onClick="{{ toggleSearch }}" style="width:26px;height:26px;flex-shrink:0;border-radius:7px;background:none;border:none;color:var(--mut4,#8A8272);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center" style-hover="color:var(--ink3,#E8E0CC)">✕</button>
+          </div>
+        </sc-if>
+        <sc-if value="{{ searchClosed }}" hint-placeholder-val="{{ true }}">
+          <button onClick="{{ toggleSearch }}" style="width:38px;height:38px;border-radius:10px;background:var(--card,#1B1811);border:1px solid rgba(var(--linec,232,224,204),.12);display:flex;align-items:center;justify-content:center;color:var(--mut4,#8A8272);cursor:pointer" style-hover="border-color: var(--accent,#8FCB5E); color:var(--ink3,#E8E0CC)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path stroke-linecap="round" d="M21 21l-4.3-4.3"/></svg></button>
+        </sc-if>
+        <a href="Vetree - Library.dc.html" style="font:500 13.5px/1 'Instrument Sans';color:var(--sub,#B4AD9A);text-decoration:none;cursor:pointer" style-hover="color:var(--ink3,#E8E0CC)">Library</a>
+        <div style="width:34px;height:34px;border-radius:50%;background:var(--accent,#8FCB5E);color:var(--onaccent,#14120E);display:flex;align-items:center;justify-content:center;font:600 12.5px/1 'Instrument Sans';cursor:pointer">RK</div>
+      </div>
+    </div>
+
+    <!-- filter pills (stream + list) -->
+    <sc-if value="{{ showFilterBar }}" hint-placeholder-val="{{ true }}">
+      <div style="max-width:1020px;margin:0 auto;padding:0 32px 15px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <sc-for list="{{ pills }}" as="pill" hint-placeholder-count="4">
+          <sc-if value="{{ pill.active }}" hint-placeholder-val="{{ false }}"><button onClick="{{ pill.onClick }}" style="padding:7px 15px;border-radius:999px;cursor:pointer;font:600 12.5px/1 'Instrument Sans';border:1px solid var(--accent,#8FCB5E);background:var(--accent,#8FCB5E);color:var(--onaccent,#14120E)">{{ pill.label }}</button></sc-if>
+          <sc-if value="{{ pill.idle }}" hint-placeholder-val="{{ true }}"><button onClick="{{ pill.onClick }}" style="padding:7px 15px;border-radius:999px;cursor:pointer;font:500 12.5px/1 'Instrument Sans';border:1px solid rgba(var(--linec,232,224,204),.18);background:transparent;color:var(--sub,#B4AD9A)" style-hover="border-color:rgba(var(--linec,232,224,204),.4)">{{ pill.label }}</button></sc-if>
+        </sc-for>
+        <button style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:999px;border:1px solid rgba(var(--linec,232,224,204),.18);background:none;color:var(--sub,#B4AD9A);font:500 12.5px/1 'Instrument Sans';cursor:pointer">Evidence <span style="font-size:10px">▾</span></button>
+        <button style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:999px;border:1px solid rgba(var(--linec,232,224,204),.18);background:none;color:var(--sub,#B4AD9A);font:500 12.5px/1 'Instrument Sans';cursor:pointer">Journal <span style="font-size:10px">▾</span></button>
+      </div>
+    </sc-if>
+  </div>
+
+  <!-- ===== STREAM VIEW ===== -->
+  <sc-if value="{{ isStream }}" hint-placeholder-val="{{ true }}">
+    <div class="vt-scroll" style="max-width:704px;margin:0 auto;padding:34px 32px 90px">
+      <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px">
+        <h1 style="margin:0;font:500 30px/1.1 'Spectral',serif;color:var(--ink2,#EFE9DA);letter-spacing:-.01em">The bottom line</h1>
+        <span style="font:400 12.5px/1 'Instrument Sans';color:var(--mut6,#6F695B)">128 new this week · Newest first</span>
+      </div>
+      <sc-if value="{{ hasQuery }}" hint-placeholder-val="{{ false }}"><p style="margin:0 0 30px;font:400 14.5px/1.5 'Instrument Sans';color:var(--mut3,#8F877A)"><span style="color:color-mix(in oklab,#B8D26A var(--chipmix,100%),#241B0C);font-weight:600">{{ resultCount }} results</span> for “{{ query }}”</p></sc-if>
+      <sc-if value="{{ noQuery }}" hint-placeholder-val="{{ true }}"><p style="margin:0 0 30px;font:italic 400 15px/1.5 'Spectral',serif;color:var(--mut3,#8F877A)">Every study, distilled to the one thing you need to know.</p></sc-if>
+
+      <div style="display:flex;flex-direction:column">
+        <sc-for list="{{ articles }}" as="a" hint-placeholder-count="5">
+          <div style="padding:30px 0;border-top:1px solid rgba(var(--linec,232,224,204),.08)">
+            <div style="display:flex;align-items:center;gap:11px;margin-bottom:15px;font:500 11.5px/1 'Instrument Sans'">
+              <span style="{{ a.specStyle }}">{{ a.specialty }}</span>
+              <span style="width:3px;height:3px;border-radius:50%;background:var(--mut7,#5F5A4E)"></span>
+              <span style="{{ a.evStyle }}"><span style="{{ a.evDotStyle }}"></span>{{ a.evLabel }}</span>
+            </div>
+            <p style="margin:0 0 12px;font:500 25px/1.42 'Spectral',serif;color:var(--ink2,#EFE9DA);letter-spacing:-.008em">{{ a.bottom }}</p>
+            <div style="display:flex;gap:10px;margin:0 0 15px;cursor:pointer" style-hover="color: var(--accent,#8FCB5E)">
+              <span style="flex-shrink:0;font:600 10px/1.8 'Instrument Sans';letter-spacing:.14em;text-transform:uppercase;color:var(--mut6,#6F695B)">Paper</span>
+              <span style="font:500 15px/1.45 'Spectral',serif;color:var(--mut1b,#A79E8E)">{{ a.title }}</span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+              <span style="font:italic 400 14px/1.4 'Spectral',serif;color:var(--mut2,#9A9280)">{{ a.byline }}</span>
+              <div style="display:flex;align-items:center;gap:18px">
+                <button onClick="{{ a.toggleExpand }}" style="background:none;border:none;padding:0;font:600 13px/1 'Instrument Sans';color:var(--accent,#8FCB5E);cursor:pointer">{{ a.expandLabel }}</button>
+                <span style="display:flex;align-items:center;gap:5px;font:400 12px/1 'Instrument Sans';color:var(--mut4,#8A8272)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><path stroke-linecap="round" d="M15.7 6.3l-7.4 4.4M8.3 13.3l7.4 4.4"/></svg></span>
+                <button onClick="{{ a.toggleBmk }}" style="background:none;border:none;padding:0;cursor:pointer;display:flex"><svg width="15" height="15" viewBox="0 0 24 24" fill="{{ a.bmkFill }}" stroke="{{ a.bmkStroke }}" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M5 3h14v18l-7-5-7 5V3z"/></svg></button>
+              </div>
+            </div>
+            <sc-if value="{{ a.expanded }}" hint-placeholder-val="{{ false }}">
+              <div style="margin-top:18px;padding:18px 20px;background:var(--card,#1B1811);border:1px solid rgba(var(--linec,232,224,204),.09);border-radius:13px">
+                <div style="font:600 10px/1 'Instrument Sans';letter-spacing:.14em;text-transform:uppercase;color:var(--accent,#8FCB5E);margin-bottom:10px">Summary</div>
+                <p style="margin:0 0 14px;font:400 14px/1.65 'Instrument Sans';color:var(--mut1,#A7A08E)">{{ a.summary }}</p>
+                <a href="Vetree - Article.dc.html" style="display:inline-flex;align-items:center;gap:7px;font:600 13px/1 'Instrument Sans';color:var(--accent,#8FCB5E);text-decoration:none;cursor:pointer">Read full article<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+              </div>
+            </sc-if>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ===== GROVE VIEW ===== -->
+  <sc-if value="{{ isGrove }}" hint-placeholder-val="{{ false }}">
+    <div style="max-width:1020px;margin:0 auto;padding:30px 32px 70px">
+      <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:20px">
+        <div>
+          <h1 style="margin:0 0 5px;font:500 30px/1.1 'Spectral',serif;color:var(--ink2,#EFE9DA);letter-spacing:-.01em">Your grove</h1>
+          <p style="margin:0;font:italic 400 14px/1.4 'Spectral',serif;color:var(--mut3,#8F877A)">Knowledge branching from what you follow. Tap a branch to explore its findings.</p>
+        </div>
+      </div>
+      <div style="display:flex;background:var(--card2,#16130E);border:1px solid rgba(var(--linec,232,224,204),.11);border-radius:22px;overflow:hidden">
+        <!-- map -->
+        <div style="flex:1;position:relative;height:540px;background:radial-gradient(circle at 44% 56%, rgba(var(--acct,143,203,94),.08), transparent 62%)">
+          <svg viewBox="0 0 460 540" style="position:absolute;inset:0;width:100%;height:100%">
+            <sc-for list="{{ branches }}" as="b" hint-placeholder-count="6">
+              <sc-if value="{{ b.active }}" hint-placeholder-val="{{ false }}"><path d="{{ b.path }}" fill="none" stroke="{{ b.color }}" stroke-width="2.6" stroke-opacity="0.65" stroke-linecap="round"></path></sc-if>
+              <sc-if value="{{ b.idle }}" hint-placeholder-val="{{ true }}"><path d="{{ b.path }}" fill="none" stroke="{{ b.color }}" stroke-width="1.6" stroke-opacity="0.28" stroke-linecap="round"></path></sc-if>
+            </sc-for>
+          </svg>
+          <div style="position:absolute;left:230px;top:300px;transform:translate(-50%,-50%);width:98px;height:98px;border-radius:50%;background:radial-gradient(circle at 38% 32%,#A9E07C,#6E9E3E);display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:0 0 0 8px rgba(var(--acct,143,203,94),.12),0 12px 34px rgba(0,0,0,.45);z-index:2">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="var(--onaccent,#14120E)"><path d="M17,8C8,10 5.9,16.17 3.82,21.34L5.71,22L6.66,19.7C7.14,19.87 7.64,20 8,20C19,20 22,3 22,3C21,5 14,5.25 9,6.25C4,7.25 2,11.5 2,13.5C2,15.5 3.75,17.25 3.75,17.25C7,8 17,8 17,8Z"/></svg>
+            <span style="font:600 10px/1 'Instrument Sans';color:var(--onaccent,#14120E);margin-top:3px">Your grove</span>
+          </div>
+          <sc-for list="{{ branches }}" as="b" hint-placeholder-count="6">
+            <sc-if value="{{ b.active }}" hint-placeholder-val="{{ false }}"><button onClick="{{ b.select }}" style="{{ b.wrapStyle }}"><span style="{{ b.circleActive }}">{{ b.count }}</span><span style="{{ b.labelActive }}">{{ b.short }}</span></button></sc-if>
+            <sc-if value="{{ b.idle }}" hint-placeholder-val="{{ true }}"><button onClick="{{ b.select }}" style="{{ b.wrapStyle }}"><span style="{{ b.circleIdle }}">{{ b.count }}</span><span style="{{ b.labelIdle }}">{{ b.short }}</span></button></sc-if>
+          </sc-for>
+          <div style="position:absolute;left:24px;bottom:18px;font:italic 400 12px/1.5 'Spectral',serif;color:var(--mut7,#5F5A4E)">Bigger nodes = more new evidence</div>
+        </div>
+        <!-- panel -->
+        <div class="vt-scroll" style="width:360px;flex-shrink:0;border-left:1px solid rgba(var(--linec,232,224,204),.1);padding:26px 26px 30px;background:var(--card2,#16130E);height:540px;overflow-y:auto">
+          <div style="display:flex;align-items:center;gap:9px;margin-bottom:6px"><span style="{{ selDotStyle }}"></span><span style="{{ selKickerStyle }}">{{ selBranch.name }}</span></div>
+          <h3 style="margin:0 0 4px;font:600 21px/1.2 'Spectral',serif;color:var(--ink2,#EFE9DA)">{{ selBranch.count }} new bottom lines</h3>
+          <p style="margin:0 0 20px;font:400 12.5px/1.5 'Instrument Sans';color:var(--mut4,#8A8272)">Connects to <sc-for list="{{ selBranch.connects }}" as="c" hint-placeholder-count="2"><span style="{{ c.style }}">{{ c.name }}</span></sc-for></p>
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <sc-for list="{{ panelArticles }}" as="a" hint-placeholder-count="3">
+              <div style="background:var(--card,#1B1811);border:1px solid rgba(var(--linec,232,224,204),.09);border-radius:13px;padding:15px 16px" style-hover="border-color: var(--accent,#8FCB5E)">
+                <p style="margin:0 0 10px;font:500 14px/1.45 'Spectral',serif;color:var(--ink4,#DCD3BE)">{{ a.bottom }}</p>
+                <div style="font:400 11px/1 'Instrument Sans';color:var(--mut4,#8A8272)"><span style="{{ a.evTextStyle }}">{{ a.evShort }}</span> · {{ a.journal }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ===== LIST VIEW ===== -->
+  <sc-if value="{{ isList }}" hint-placeholder-val="{{ false }}">
+    <div class="vt-scroll" style="max-width:844px;margin:0 auto;padding:30px 32px 90px">
+      <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:22px">
+        <div><span style="font:600 26px/1 'Spectral',serif;color:var(--ink2,#EFE9DA)">23,412</span><span style="font:400 15px/1 'Spectral',serif;color:var(--mut2,#9A9280);margin-left:7px">articles</span></div>
+        <span style="font:400 12.5px/1 'Instrument Sans';color:var(--mut6,#6F695B)">Detailed view · full metadata</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:18px">
+        <sc-for list="{{ articles }}" as="a" hint-placeholder-count="4">
+          <article style="background:var(--card,#1B1811);border:1px solid rgba(var(--linec,232,224,204),.09);border-radius:16px;padding:var(--card-pad,26px 28px);position:relative" style-hover="border-color: rgba(var(--linec,232,224,204),.2)">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:13px">
+              <div style="display:flex;align-items:center;gap:11px;flex-wrap:wrap"><span style="font:600 11px/1 'Instrument Sans';letter-spacing:.12em;text-transform:uppercase;color:var(--accent,#8FCB5E)">{{ a.journal }}</span><span style="width:3px;height:3px;border-radius:50%;background:var(--mut7,#5F5A4E)"></span><span style="font:400 12px/1 'Instrument Sans';color:var(--mut4,#8A8272)">{{ a.date }}</span></div>
+              <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
+                <span title="Share" style="width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--mut6,#6F695B);cursor:pointer" style-hover="background:rgba(var(--linec,232,224,204),.06);color:var(--sub,#B4AD9A)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><path stroke-linecap="round" d="M15.7 6.3l-7.4 4.4M8.3 13.3l7.4 4.4"/></svg></span>
+                <button onClick="{{ a.toggleBmk }}" title="Save" style="width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;background:none;border:none;cursor:pointer" style-hover="background:rgba(var(--linec,232,224,204),.06)"><svg width="15" height="15" viewBox="0 0 24 24" fill="{{ a.bmkFill }}" stroke="{{ a.bmkStroke }}" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M5 3h14v18l-7-5-7 5V3z"/></svg></button>
+              </div>
+            </div>
+            <h3 style="margin:0 0 11px;font:600 21px/1.3 'Spectral',serif;color:var(--ink2,#EFE9DA);letter-spacing:-.005em;cursor:pointer" style-hover="color: var(--accent,#8FCB5E)">{{ a.title }}</h3>
+            <p style="margin:0 0 16px;font:400 13px/1.4 'Instrument Sans';color:var(--mut4,#8A8272)">{{ a.authors }}</p>
+            <div style="border-left:2px solid var(--accent,#8FCB5E);padding:2px 0 2px 18px;margin-bottom:16px">
+              <div style="font:600 10.5px/1 'Instrument Sans';letter-spacing:.14em;text-transform:uppercase;color:var(--accent,#8FCB5E);margin-bottom:8px">Clinical bottom line</div>
+              <p style="margin:0;font:italic 500 16px/1.55 'Spectral',serif;color:var(--ink4,#DCD3BE)">{{ a.bottom }}</p>
+            </div>
+            <div style="margin-bottom:15px"><span style="{{ a.evStyle }}"><span style="{{ a.evDotStyle }}"></span>{{ a.evLabel }}</span></div>
+            <sc-if value="{{ showSummaries }}" hint-placeholder-val="{{ true }}"><p style="margin:0 0 16px;font:400 14px/1.65 'Instrument Sans';color:var(--mut1,#A7A08E)">{{ a.summary }}</p></sc-if>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding-top:15px;border-top:1px solid rgba(var(--linec,232,224,204),.08)">
+              <div style="display:flex;gap:8px;flex-wrap:wrap"><sc-for list="{{ a.labelChips }}" as="lab" hint-placeholder-count="2"><span style="{{ lab.style }}" style-hover="filter:brightness(1.2)">{{ lab.name }}</span></sc-for></div>
+              <a href="Vetree - Article.dc.html" style="display:inline-flex;align-items:center;gap:7px;font:600 13.5px/1 'Instrument Sans';color:var(--accent,#8FCB5E);text-decoration:none;cursor:pointer" style-hover="gap:11px">Read full article<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+            </div>
+          </article>
+        </sc-for>
+      </div>
+    </div>
+  </sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1180,&quot;height&quot;:860},&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;Dark&quot;,&quot;options&quot;:[&quot;Dark&quot;,&quot;Light&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Theme&quot;},&quot;accent&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#8FCB5E&quot;,&quot;options&quot;:[&quot;#8FCB5E&quot;,&quot;#BFD24A&quot;,&quot;#5FD69A&quot;,&quot;#E0A040&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Theme&quot;},&quot;density&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;Comfortable&quot;,&quot;options&quot;:[&quot;Comfortable&quot;,&quot;Compact&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Layout&quot;},&quot;showSummaries&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Layout&quot;}}">
+class Component extends DCLogic {
+  state = { view: 'stream', expanded: {}, branch: 'Cardiology', filter: 'Latest', bmk: {}, searchOpen: false, query: '' }
+
+  setView(v) { this.setState({ view: v }) }
+  toggleSearch() { this.setState(s => ({ searchOpen: !s.searchOpen, query: s.searchOpen ? '' : s.query })) }
+  setQuery(e) { this.setState({ query: e.target.value }) }
+  setFilter(f) { this.setState({ filter: f }) }
+  setBranch(b) { this.setState({ branch: b }) }
+  toggleExpand(id) { this.setState(s => ({ expanded: { ...s.expanded, [id]: !s.expanded[id] } })) }
+  toggleBmk(id) { this.setState(s => ({ bmk: { ...s.bmk, [id]: !s.bmk[id] } })) }
+
+  renderVals() {
+    const light = (this.props.theme ?? 'Dark') === 'Light'
+    const LIGHT_ACCENT = { '#8FCB5E': '#5F8C33', '#BFD24A': '#7E8F1B', '#5FD69A': '#1F8A5B', '#E0A040': '#A8690A' }
+    const baseAccent = this.props.accent ?? '#8FCB5E'
+    const accent = light ? (LIGHT_ACCENT[baseAccent] ?? baseAccent) : baseAccent
+    const trip = h => parseInt(h.slice(1,3),16) + ',' + parseInt(h.slice(3,5),16) + ',' + parseInt(h.slice(5,7),16)
+    const themeVars = light ? '--bg:#F7F3E8;--onaccent:#FFFFFF;--card:#FFFFFF;--card2:#FCF8ED;--card3:#FFFFFF;--card4:#EDE7D4;--ink1:#1F1A0E;--ink2:#262013;--ink3:#332C1B;--ink3b:#332C1B;--ink4:#3D3524;--ink5:#443C2A;--body:#514935;--sub:#5F5745;--warntext:#7A6238;--mut1:#6B634E;--mut1b:#6D6553;--mut2:#756D57;--mut3:#7E7663;--mut4:#837B66;--mut5:#948C75;--mut6:#9C947D;--mut7:#B3AB93;--linec:62,54,36;--barc:247,243,232;--goldc:79,125,40;--cardioc:178,62,74;--warnc:176,116,20;--acct2:110,130,70;--desk:#EFEAD8;--desk2:#F7F3E6;--chipmix:52%;--acct:' + trip(accent) : '--chipmix:100%'
+    const compact = (this.props.density ?? 'Comfortable') === 'Compact'
+    const cardPad = compact ? '18px 22px' : '26px 28px'
+    const showSummaries = this.props.showSummaries ?? true
+    const view = this.state.view
+
+    // view switcher
+    const tabDefs = [{ key: 'stream', label: 'Stream' }, { key: 'grove', label: 'Grove' }, { key: 'list', label: 'List' }]
+    const tabs = tabDefs.map(t => ({ label: t.label, onClick: () => this.setView(t.key), active: t.key === view, idle: t.key !== view }))
+
+    // filter pills
+    const pillDefs = ['Latest', 'Small Animal', 'Cardiology', 'Emergency']
+    const pills = pillDefs.map(p => ({ label: p, onClick: () => this.setFilter(p), active: p === this.state.filter, idle: p !== this.state.filter }))
+
+    const SPEC_C = { Cardiology: '#E88A92', Emergency: '#E88AA0', 'Internal Medicine': '#7FB0EC', Equine: '#5FCDB8', Oncology: '#C79CE8', Ophthalmology: '#7FB0EC', Anesthesia: '#B49AE8' }
+    const LABEL_C = { Cardiology: '#E88A92', Oncology: '#C79CE8', 'Soft Tissue Surgery': '#E893C0', Orthopedics: '#E8A968', Dermatology: '#E0CC6A', Neurology: '#9AA6E8', 'Internal Medicine': '#7FB0EC', 'Small Animal': '#8FD65E', 'Large Animal': '#E0BC5E', Equine: '#5FCDB8', Exotic: '#5FC7D8', Emergency: '#E88AA0', Anesthesia: '#B49AE8', Radiology: '#6FBFEC', Pathology: '#E88AD8', Pharmacology: '#BFD65E', Nutrition: '#5FD69A', Behavior: '#A6B0C0', Reproduction: '#E893C0', Ophthalmology: '#7FB0EC', Dentistry: '#B8B0A0' }
+    const evD = {
+      gold: { label: 'RCT / Meta-analysis', short: 'RCT', c: '#A9E07C', dot: '#8FD65E' },
+      silver: { label: 'Cohort / Prospective', short: 'Cohort', c: '#8FBEEC', dot: '#6FA8E8' },
+      bronze: { label: 'Case series / Retrospective', short: 'Retrospective', c: '#E8B060', dot: '#E0A040' },
+    }
+    const labelChip = (name) => { const c = LABEL_C[name] || '#B4AD9A'; return { name, style: `display:inline-flex;align-items:center;padding:5px 11px;border-radius:999px;font:500 11.5px/1 'Instrument Sans';cursor:pointer;transition:all .15s;background:${c}1A;border:1px solid ${c}4D;color:color-mix(in oklab,${c} var(--chipmix,100%),#241B0C)` } }
+
+    const raw = [
+      { id: 'a1', specialty: 'Cardiology', evk: 'gold', journal: 'J Vet Intern Med', date: 'Jun 28, 2026', authors: 'Boswood A, Häggström J, Gordon SG', title: 'Pimobendan in Preclinical Myxomatous Mitral Valve Disease', bottom: 'Pimobendan delayed the onset of congestive heart failure in preclinical MMVD dogs by a median of roughly 15 months.', summary: 'A randomised, placebo-controlled trial in 360 dogs with cardiomegaly demonstrating significant prolongation of the asymptomatic preclinical period.', labels: ['Cardiology', 'Small Animal'] },
+      { id: 'a2', specialty: 'Cardiology', evk: 'silver', journal: 'JFMS', date: 'Jun 26, 2026', authors: 'Porciello F, Caivano D', title: 'Point-of-Care NT-proBNP in Feline Dyspnoea', bottom: 'Point-of-care NT-proBNP reliably ruled out cardiac causes of feline dyspnoea in the emergency setting.', summary: 'Prospective diagnostic accuracy study of a bedside NT-proBNP assay in 94 dyspnoeic cats presenting to a referral ER.', labels: ['Cardiology', 'Emergency', 'Small Animal'] },
+      { id: 'a3', specialty: 'Emergency', evk: 'silver', journal: 'J Vet Emerg Crit Care', date: 'Jun 24, 2026', authors: 'Fletcher DJ, Boller M', title: 'Whole-Blood Transfusion in Canine Haemorrhagic Shock', bottom: 'Whole-blood transfusion improved 24-hour survival over crystalloids alone in canine haemorrhagic shock.', summary: 'Prospective cohort comparing resuscitation strategies in 71 dogs with traumatic haemoabdomen.', labels: ['Emergency', 'Small Animal'] },
+      { id: 'a4', specialty: 'Internal Medicine', evk: 'gold', journal: 'J Small Anim Pract', date: 'Jun 22, 2026', authors: 'Smith J, Jones A, Brown K', title: 'Effect of Probiotics on Canine Gastrointestinal Health', bottom: 'Probiotic supplementation reduced gastrointestinal signs in 75% of dogs with chronic enteropathy within four weeks.', summary: 'Double-blind randomised trial of a multi-strain probiotic versus placebo in 48 dogs with chronic idiopathic enteropathy.', labels: ['Internal Medicine', 'Nutrition', 'Small Animal'] },
+      { id: 'a5', specialty: 'Equine', evk: 'silver', journal: 'Equine Vet J', date: 'Jun 18, 2026', authors: 'Kelmer G, Tatz AJ, Bdolah-Abram T', title: 'Intravenous Regional Limb Perfusion in the Standing Horse', bottom: 'Regional limb perfusion with amikacin achieved therapeutic synovial concentrations for over 24 hours.', summary: 'Prospective study measuring synovial-fluid amikacin concentrations following distal limb perfusion in eight adult horses.', labels: ['Equine', 'Pharmacology', 'Large Animal'] },
+      { id: 'a6', specialty: 'Oncology', evk: 'bronze', journal: 'Vet Comp Oncol', date: 'Jun 15, 2026', authors: 'London CA, Malpas PB, Wood-Follis SL', title: 'Toceranib Phosphate for Canine Metastatic Mast Cell Tumours', bottom: 'Toceranib produced measurable clinical benefit in about 60% of dogs with metastatic mast cell tumours as a single agent.', summary: 'Retrospective case series of 41 dogs treated with single-agent toceranib, reporting objective response rates and adverse events.', labels: ['Oncology', 'Small Animal'] },
+      { id: 'a7', specialty: 'Ophthalmology', evk: 'bronze', journal: 'Vet Ophthalmol', date: 'Jul 1, 2026', authors: 'Hartley C, Grinwis GCM, Sanchez RF', title: 'Evaluation of the Ovine Corneal Endothelium', bottom: 'Human eye-bank specular microscopy reliably assesses ovine corneal endothelium, opening a low-cost route for ophthalmic research.', summary: 'A validation study comparing human eye-bank specular microscopy against histology in 24 ovine eyes.', labels: ['Ophthalmology', 'Large Animal'] },
+      { id: 'a8', specialty: 'Anesthesia', evk: 'silver', journal: 'Vet Anaesth Analg', date: 'Jun 25, 2026', authors: 'Williams R, Davis M', title: 'Pain Management in Feline Orthopedic Surgery', bottom: 'Multi-modal analgesia provided superior post-operative pain control compared with single-agent protocols.', summary: 'Prospective comparison of three analgesic protocols across 60 cats undergoing femoral fracture repair.', labels: ['Anesthesia', 'Orthopedics', 'Small Animal'] },
+    ]
+    const articles = raw.map(a => {
+      const e = evD[a.evk]; const sc = SPEC_C[a.specialty] || '#B4AD9A'; const on = !!this.state.bmk[a.id]; const exp = !!this.state.expanded[a.id]
+      return {
+        ...a,
+        specStyle: `color:color-mix(in oklab,${sc} var(--chipmix,100%),#241B0C)`,
+        evLabel: e.label, evShort: e.short,
+        evStyle: `display:inline-flex;align-items:center;gap:6px;padding:4px 11px;border-radius:999px;font:500 11px/1 'Instrument Sans';background:${e.c}1A;border:1px solid ${e.c}40;color:color-mix(in oklab,${e.c} var(--chipmix,100%),#241B0C)`,
+        evDotStyle: `width:6px;height:6px;border-radius:50%;background:${e.dot}`,
+        evTextStyle: `color:color-mix(in oklab,${e.c} var(--chipmix,100%),#241B0C)`,
+        byline: `${a.authors.split(',')[0]}, et al. · ${a.journal}, ${a.date.replace(', 2026', '')}`,
+        labelChips: a.labels.map(labelChip),
+        expanded: exp, expandLabel: exp ? 'Hide summary' : 'Expand summary ›',
+        bmkFill: on ? accent : 'none', bmkStroke: on ? accent : 'var(--mut4,#8A8272)',
+        toggleExpand: () => this.toggleExpand(a.id), toggleBmk: () => this.toggleBmk(a.id),
+      }
+    })
+
+    // grove branches
+    const bdefs = [
+      { name: 'Cardiology', short: 'Cardiology', count: 4, x: 350, y: 96, base: 30 },
+      { name: 'Emergency', short: 'Emergency', count: 3, x: 414, y: 246, base: 26 },
+      { name: 'Internal Medicine', short: 'Internal Med.', count: 2, x: 372, y: 452, base: 24 },
+      { name: 'Equine', short: 'Equine', count: 3, x: 84, y: 456, base: 26 },
+      { name: 'Oncology', short: 'Oncology', count: 2, x: 60, y: 300, base: 23 },
+      { name: 'Ophthalmology', short: 'Ophthal.', count: 3, x: 108, y: 118, base: 25 },
+    ]
+    const cx = 230, cy = 300
+    const branches = bdefs.map(b => {
+      const c = SPEC_C[b.name] || '#8FCB5E'
+      const on = b.name === this.state.branch
+      const mx = (cx + b.x) / 2, my = (cy + b.y) / 2
+      const dx = b.x - cx, dy = b.y - cy
+      const len = Math.hypot(dx, dy) || 1
+      const nx = -dy / len, ny = dx / len
+      const bend = 26
+      const ctrlx = mx + nx * bend, ctrly = my + ny * bend
+      const dOn = b.base * 2 + 12, dOff = b.base * 2
+      return {
+        name: b.name, short: b.short, count: b.count, color: c,
+        active: on, idle: !on,
+        path: `M${cx},${cy} Q${ctrlx.toFixed(0)},${ctrly.toFixed(0)} ${b.x},${b.y}`,
+        wrapStyle: `position:absolute;left:${b.x}px;top:${b.y}px;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;background:none;border:none;z-index:2`,
+        circleActive: `width:${dOn}px;height:${dOn}px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:600 19px/1 'Spectral',serif;transition:all .2s;background:${c}26;border:2.5px solid ${c};color:color-mix(in oklab,${c} var(--chipmix,100%),#241B0C);box-shadow:0 0 28px ${c}66`,
+        circleIdle: `width:${dOff}px;height:${dOff}px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:600 15px/1 'Spectral',serif;transition:all .2s;background:${c}14;border:1.5px solid ${c}88;color:color-mix(in oklab,${c} var(--chipmix,100%),#241B0C)`,
+        labelActive: `font:600 12.5px/1 'Instrument Sans';color:var(--ink2,#EFE9DA)`,
+        labelIdle: `font:500 11px/1 'Instrument Sans';color:var(--sub,#B4AD9A)`,
+        select: () => this.setBranch(b.name),
+      }
+    })
+    const CONN = {
+      Cardiology: [['Emergency', '#E88AA0'], ['Internal Medicine', '#7FB0EC']],
+      Emergency: [['Cardiology', '#E88A92'], ['Internal Medicine', '#7FB0EC']],
+      'Internal Medicine': [['Nutrition', '#5FD69A'], ['Emergency', '#E88AA0']],
+      Equine: [['Pharmacology', '#BFD65E'], ['Large Animal', '#E0BC5E']],
+      Oncology: [['Small Animal', '#8FD65E']],
+      Ophthalmology: [['Large Animal', '#E0BC5E']],
+    }
+    const selDef = bdefs.find(b => b.name === this.state.branch) || bdefs[0]
+    const selColor = SPEC_C[selDef.name] || '#8FCB5E'
+    const selBranch = {
+      name: selDef.name, count: selDef.count,
+      connects: (CONN[selDef.name] || []).map((c, i) => ({ name: (i ? ', ' : '') + c[0], style: `color:color-mix(in oklab,${c[1]} var(--chipmix,100%),#241B0C)` })),
+    }
+    const panelArticles = articles.filter(a => a.specialty === selDef.name)
+    const panelFinal = panelArticles.length ? panelArticles : articles.slice(0, 2)
+
+    const q = (this.state.query || '').trim().toLowerCase()
+    const visibleArticles = q ? articles.filter(a => (a.title + ' ' + a.bottom + ' ' + a.authors + ' ' + a.journal + ' ' + a.specialty).toLowerCase().includes(q)) : articles
+
+    return {
+      themeVars, accent, cardPad, showSummaries,
+      tabs, pills, articles: visibleArticles, branches, selBranch, panelArticles: panelFinal,
+      searchOpen: this.state.searchOpen, searchClosed: !this.state.searchOpen, query: this.state.query,
+      hasQuery: q.length > 0, noQuery: q.length === 0, resultCount: visibleArticles.length,
+      toggleSearch: () => this.toggleSearch(), setQuery: (e) => this.setQuery(e),
+      selDotStyle: `width:10px;height:10px;border-radius:50%;background:${selColor}`,
+      selKickerStyle: `font:600 11px/1 'Instrument Sans';letter-spacing:.13em;text-transform:uppercase;color:color-mix(in oklab,${selColor} var(--chipmix,100%),#241B0C)`,
+      isStream: view === 'stream', isGrove: view === 'grove', isList: view === 'list',
+      showFilterBar: view !== 'grove',
+    }
+  }
+}
+</script>
+</body>
+</html>

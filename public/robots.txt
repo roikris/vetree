@@ -1,0 +1,12 @@
+User-agent: *
+Allow: /
+Allow: /article/
+Disallow: /admin/
+Disallow: /admin/*
+Disallow: /api/
+Disallow: /verify-email
+Disallow: /reset-password
+Disallow: /library
+Disallow: /profile
+
+Sitemap: https://vetree.app/sitemap.xml

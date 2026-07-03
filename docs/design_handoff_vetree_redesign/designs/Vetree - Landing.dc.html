@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg,#14120E);color:var(--ink3,#E8E0CC);font-family:'Instrument Sans',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+  ::selection{background:var(--accent,#8FCB5E);color:var(--onaccent,#14120E)}
+</style>
+</helmet>
+<div style="{{ themeVars }};--accent: {{ accent }};background:var(--bg,#14120E);min-height:100vh;overflow:hidden">
+
+  <!-- ===== NAV ===== -->
+  <div style="position:sticky;top:0;z-index:30;background:rgba(var(--barc,20,18,14),.82);backdrop-filter:blur(14px);border-bottom:1px solid rgba(var(--linec,232,224,204),.08)">
+    <div style="max-width:1200px;margin:0 auto;padding:16px 40px;display:flex;align-items:center;justify-content:space-between;gap:24px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="var(--accent,#8FCB5E)"><path d="M17,8C8,10 5.9,16.17 3.82,21.34L5.71,22L6.66,19.7C7.14,19.87 7.64,20 8,20C19,20 22,3 22,3C21,5 14,5.25 9,6.25C4,7.25 2,11.5 2,13.5C2,15.5 3.75,17.25 3.75,17.25C7,8 17,8 17,8Z"/></svg>
+        <span style="font:600 21px/1 'Spectral',serif;color:var(--ink2,#EFE9DA)">Vetree</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:34px">
+        <div style="display:flex;align-items:center;gap:28px">
+          <a style="font:500 14px/1 'Instrument Sans';color:var(--sub,#B4AD9A);text-decoration:none;cursor:pointer" style-hover="color:var(--ink3,#E8E0CC)">How it works</a>
+          <a style="font:500 14px/1 'Instrument Sans';color:var(--sub,#B4AD9A);text-decoration:none;cursor:pointer" style-hover="color:var(--ink3,#E8E0CC)">Evidence</a>
+          <a style="font:500 14px/1 'Instrument Sans';color:var(--sub,#B4AD9A);text-decoration:none;cursor:pointer" style-hover="color:var(--ink3,#E8E0CC)">For teams</a>
+        </div>
+        <div style="display:flex;align-items:center;gap:14px">
+          <a href="Vetree - Core.dc.html" style="font:500 14px/1 'Instrument Sans';color:var(--ink3,#E8E0CC);text-decoration:none;cursor:pointer">Sign in</a>
+          <a href="Vetree - Onboarding.dc.html" style="display:inline-flex;align-items:center;gap:7px;background:var(--accent,#8FCB5E);color:var(--onaccent,#14120E);font:600 14px/1 'Instrument Sans';padding:11px 18px;border-radius:10px;text-decoration:none;cursor:pointer">Create free account</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== HERO ===== -->
+  <div style="position:relative">
+    <div style="position:absolute;inset:0;background:radial-gradient(720px 420px at 78% -6%, rgba(var(--acct,143,203,94),.14), transparent 62%), radial-gradient(560px 380px at 8% 40%, rgba(var(--acct2,126,140,90),.10), transparent 60%);pointer-events:none"></div>
+    <div style="position:relative;max-width:1200px;margin:0 auto;padding:78px 40px 40px;display:grid;grid-template-columns:1.05fr .95fr;gap:64px;align-items:center">
+      <!-- left -->
+      <div>
+        <div style="display:inline-flex;align-items:center;gap:9px;padding:7px 14px;border-radius:999px;background:rgba(var(--acct,143,203,94),.1);border:1px solid rgba(var(--acct,143,203,94),.28);margin-bottom:26px">
+          <span style="width:6px;height:6px;border-radius:50%;background:var(--accent,#8FCB5E)"></span>
+          <span style="font:600 12px/1 'Instrument Sans';letter-spacing:.06em;color:var(--accent,#8FCB5E)">The veterinary evidence engine</span>
+        </div>
+        <h1 style="margin:0 0 22px;font:500 60px/1.04 'Spectral',serif;letter-spacing:-.02em;color:var(--ink1,#F2ECDD)">Evidence-based veterinary research, <em style="font-style:italic;color:var(--accent,#8FCB5E)">distilled.</em></h1>
+        <p style="margin:0 0 34px;font:400 19px/1.6 'Instrument Sans';color:var(--sub,#B4AD9A);max-width:500px">Clinical bottom lines from <strong style="color:var(--ink3,#E8E0CC);font-weight:600">23,000+</strong> peer-reviewed articles — so you spend less time searching and more time treating.</p>
+        <div style="display:flex;align-items:center;gap:14px;margin-bottom:22px">
+          <a style="display:inline-flex;align-items:center;gap:9px;background:var(--accent,#8FCB5E);color:var(--onaccent,#14120E);font:600 15.5px/1 'Instrument Sans';padding:15px 26px;border-radius:12px;text-decoration:none;cursor:pointer">Create free account<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+          <a style="display:inline-flex;align-items:center;gap:8px;background:transparent;color:var(--ink3,#E8E0CC);font:600 15.5px/1 'Instrument Sans';padding:15px 24px;border-radius:12px;border:1px solid rgba(var(--linec,232,224,204),.2);text-decoration:none;cursor:pointer" style-hover="border-color:rgba(var(--linec,232,224,204),.42)">Browse articles</a>
+        </div>
+        <p style="margin:0 0 26px;font:400 13.5px/1 'Instrument Sans';color:var(--mut4,#8A8272)">Free forever · No credit card · Built by a DVM</p>
+        <!-- example chips -->
+        <div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap">
+          <span style="font:italic 400 13.5px/1 'Spectral',serif;color:var(--mut6,#6F695B);margin-right:2px">Try —</span>
+          <sc-for list="{{ chips }}" as="c" hint-placeholder-count="4">
+            <span style="padding:7px 13px;border-radius:999px;background:rgba(var(--linec,232,224,204),.05);border:1px solid rgba(var(--linec,232,224,204),.12);font:500 12.5px/1 'Instrument Sans';color:var(--body,#C4BCAA);cursor:pointer" style-hover="border-color:var(--accent,#8FCB5E);color:var(--ink3,#E8E0CC)">{{ c }}</span>
+          </sc-for>
+        </div>
+      </div>
+      <!-- right: example article card, Almanac style -->
+      <div style="position:relative">
+        <div style="position:absolute;inset:-14px 26px -18px -8px;background:var(--card,#1B1811);border:1px solid rgba(var(--linec,232,224,204),.06);border-radius:8px;transform:rotate(-2.4deg)"></div>
+        <div style="position:relative;background:var(--card3,#181510);border:1px solid rgba(var(--linec,232,224,204),.12);border-radius:8px;padding:30px 32px;box-shadow:0 30px 70px rgba(0,0,0,.5)">
+          <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(var(--linec,232,224,204),.14);padding-bottom:14px;margin-bottom:18px">
+            <span style="font:600 11px/1 'Instrument Sans';letter-spacing:.14em;text-transform:uppercase;color:color-mix(in oklab,#B5B267 var(--chipmix,100%),#241B0C)">Cardiology</span>
+            <span style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;background:rgba(var(--goldc,169,224,124),.1);border:1px solid rgba(var(--goldc,169,224,124),.25);font:500 11px/1 'Instrument Sans';color:color-mix(in oklab,#A9E07C var(--chipmix,100%),#241B0C)"><span style="width:6px;height:6px;border-radius:50%;background:#8FD65E"></span>RCT / Meta-analysis</span>
+          </div>
+          <h3 style="margin:0 0 20px;font:500 24px/1.28 'Spectral',serif;color:var(--ink2,#EFE9DA);letter-spacing:-.008em">Pimobendan in Preclinical Myxomatous Mitral Valve Disease</h3>
+          <div style="border-left:2px solid var(--accent,#8FCB5E);padding-left:16px;margin-bottom:22px">
+            <div style="font:600 10px/1 'Instrument Sans';letter-spacing:.14em;text-transform:uppercase;color:var(--accent,#8FCB5E);margin-bottom:8px">Clinical bottom line</div>
+            <p style="margin:0;font:italic 400 16.5px/1.55 'Spectral',serif;color:var(--ink5,#D8D0C2)">Pimobendan delayed the onset of congestive heart failure in preclinical MMVD dogs by roughly 15 months.</p>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <span style="font:italic 400 13px/1 'Spectral',serif;color:var(--mut3,#8F877A)">Boswood A, et al. · J Vet Intern Med</span>
+            <span style="font:500 12px/1 'Instrument Sans';color:var(--accent,#8FCB5E)">40-sec read</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== STAT BAND ===== -->
+  <div style="border-top:1px solid rgba(var(--linec,232,224,204),.08);border-bottom:1px solid rgba(var(--linec,232,224,204),.08);margin-top:36px">
+    <div style="max-width:1200px;margin:0 auto;padding:34px 40px;display:grid;grid-template-columns:repeat(4,1fr)">
+      <sc-for list="{{ stats }}" as="s" hint-placeholder-count="4">
+        <div style="{{ s.wrapStyle }}">
+          <div style="font:500 34px/1 'Spectral',serif;color:var(--ink2,#EFE9DA);letter-spacing:-.01em">{{ s.num }}</div>
+          <div style="font:400 13.5px/1.4 'Instrument Sans';color:var(--mut4,#8A8272);margin-top:8px">{{ s.label }}</div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <!-- ===== HOW IT WORKS ===== -->
+  <div style="max-width:1200px;margin:0 auto;padding:100px 40px 20px">
+    <div style="max-width:640px;margin-bottom:52px">
+      <div style="font:600 12px/1 'Instrument Sans';letter-spacing:.16em;text-transform:uppercase;color:var(--accent,#8FCB5E);margin-bottom:16px">How it works</div>
+      <h2 style="margin:0 0 16px;font:500 40px/1.12 'Spectral',serif;color:var(--ink2,#EFE9DA);letter-spacing:-.015em">The paper is read for you. You get the part that changes the case.</h2>
+      <p style="margin:0;font:400 17px/1.6 'Instrument Sans';color:var(--mut3,#8F877A)">Every article is distilled into a single clinical bottom line, graded for evidence strength, and tagged by specialty — so you can trust it at a glance and act on it in seconds.</p>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:18px">
+      <sc-for list="{{ steps }}" as="st" hint-placeholder-count="3">
+        <div style="background:var(--card,#1B1811);border:1px solid rgba(var(--linec,232,224,204),.09);border-radius:16px;padding:30px 28px">
+          <div style="width:46px;height:46px;border-radius:12px;background:rgba(var(--acct,143,203,94),.1);border:1px solid rgba(var(--acct,143,203,94),.24);display:flex;align-items:center;justify-content:center;color:var(--accent,#8FCB5E);margin-bottom:20px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="{{ st.iconPath }}"></path></svg></div>
+          <div style="font:600 11px/1 'Instrument Sans';letter-spacing:.12em;color:var(--mut6,#6F695B);margin-bottom:10px">{{ st.step }}</div>
+          <h3 style="margin:0 0 10px;font:600 20px/1.25 'Spectral',serif;color:var(--ink2,#EFE9DA)">{{ st.title }}</h3>
+          <p style="margin:0;font:400 14.5px/1.6 'Instrument Sans';color:var(--mut3,#8F877A)">{{ st.body }}</p>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <!-- ===== EVIDENCE TIERS ===== -->
+  <div style="max-width:1200px;margin:0 auto;padding:96px 40px 20px">
+    <div style="display:grid;grid-template-columns:.85fr 1.15fr;gap:64px;align-items:center">
+      <div>
+        <div style="font:600 12px/1 'Instrument Sans';letter-spacing:.16em;text-transform:uppercase;color:var(--accent,#8FCB5E);margin-bottom:16px">Graded evidence</div>
+        <h2 style="margin:0 0 16px;font:500 38px/1.14 'Spectral',serif;color:var(--ink2,#EFE9DA);letter-spacing:-.015em">Know how much weight to give it — before you read a word.</h2>
+        <p style="margin:0 0 22px;font:400 16.5px/1.62 'Instrument Sans';color:var(--mut3,#8F877A)">Not all evidence is equal. Every article carries a tier so you can tell a randomised trial from a single-centre chart review at a glance.</p>
+        <p style="margin:0;font:italic 400 15px/1.55 'Spectral',serif;color:var(--mut6,#6F695B)">Filter your whole feed to gold-tier only when the stakes are high.</p>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <sc-for list="{{ tiers }}" as="t" hint-placeholder-count="3">
+          <div style="display:flex;align-items:center;gap:20px;background:var(--card,#1B1811);border:1px solid rgba(var(--linec,232,224,204),.09);border-radius:14px;padding:20px 24px">
+            <span style="{{ t.badgeStyle }}"><span style="{{ t.dotStyle }}"></span>{{ t.name }}</span>
+            <div style="flex:1">
+              <div style="font:600 15px/1.2 'Spectral',serif;color:var(--ink2,#EFE9DA);margin-bottom:3px">{{ t.kind }}</div>
+              <div style="font:400 13px/1.45 'Instrument Sans';color:var(--mut4,#8A8272)">{{ t.desc }}</div>
+            </div>
+            <div style="{{ t.barTrack }}"><div style="{{ t.barFill }}"></div></div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SPECIALTIES ===== -->
+  <div style="max-width:1200px;margin:0 auto;padding:96px 40px 20px">
+    <div style="text-align:center;max-width:560px;margin:0 auto 44px">
+      <div style="font:600 12px/1 'Instrument Sans';letter-spacing:.16em;text-transform:uppercase;color:var(--accent,#8FCB5E);margin-bottom:16px">Every corner of the clinic</div>
+      <h2 style="margin:0;font:500 36px/1.16 'Spectral',serif;color:var(--ink2,#EFE9DA);letter-spacing:-.015em">Tuned to your specialty — and your species.</h2>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:11px;justify-content:center;max-width:840px;margin:0 auto">
+      <sc-for list="{{ specialties }}" as="sp" hint-placeholder-count="12">
+        <span style="{{ sp.style }}">{{ sp.name }}</span>
+      </sc-for>
+    </div>
+  </div>
+
+  <!-- ===== BUILT BY A DVM ===== -->
+  <div style="max-width:1200px;margin:0 auto;padding:96px 40px 20px">
+    <div style="background:linear-gradient(135deg, rgba(var(--acct,143,203,94),.08), rgba(var(--acct2,126,140,90),.04));border:1px solid rgba(var(--acct,143,203,94),.18);border-radius:24px;padding:52px 56px;display:grid;grid-template-columns:auto 1fr;gap:40px;align-items:center">
+      <div style="width:96px;height:96px;border-radius:50%;background:linear-gradient(150deg,var(--card4,#2A2A1E),var(--card,#1B1811));border:1px solid rgba(var(--linec,232,224,204),.14);display:flex;align-items:center;justify-content:center;font:500 30px/1 'Spectral',serif;color:var(--accent,#8FCB5E)">DVM</div>
+      <div>
+        <div style="font:600 11px/1 'Instrument Sans';letter-spacing:.16em;text-transform:uppercase;color:var(--accent,#8FCB5E);margin-bottom:16px">Built by a clinician</div>
+        <p style="margin:0 0 18px;font:400 24px/1.5 'Spectral',serif;color:var(--ink3,#E8E0CC);letter-spacing:-.005em">“I built Vetree because I was drowning in papers between appointments. I wanted the answer, graded and trustworthy, in the ninety seconds I actually had.”</p>
+        <div style="font:500 14px/1 'Instrument Sans';color:var(--mut3,#8F877A)">A practising veterinarian · Founder, Vetree</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== FINAL CTA ===== -->
+  <div style="max-width:1200px;margin:0 auto;padding:100px 40px 110px">
+    <div style="text-align:center;max-width:640px;margin:0 auto">
+      <h2 style="margin:0 0 18px;font:500 46px/1.08 'Spectral',serif;color:var(--ink1,#F2ECDD);letter-spacing:-.02em">Stay current in the time you actually have.</h2>
+      <p style="margin:0 0 32px;font:400 18px/1.6 'Instrument Sans';color:var(--mut3,#8F877A)">Join the veterinary professionals reading smarter. Free forever, no credit card.</p>
+      <div style="display:flex;align-items:center;justify-content:center;gap:14px">
+        <a href="Vetree - Onboarding.dc.html" style="display:inline-flex;align-items:center;gap:9px;background:var(--accent,#8FCB5E);color:var(--onaccent,#14120E);font:600 16px/1 'Instrument Sans';padding:16px 30px;border-radius:12px;text-decoration:none;cursor:pointer">Create free account<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+        <a href="Vetree - Core.dc.html" style="display:inline-flex;align-items:center;font:600 16px/1 'Instrument Sans';color:var(--ink3,#E8E0CC);padding:16px 24px;border-radius:12px;border:1px solid rgba(var(--linec,232,224,204),.2);text-decoration:none;cursor:pointer" style-hover="border-color:rgba(var(--linec,232,224,204),.42)">Sign in</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== FOOTER ===== -->
+  <div style="border-top:1px solid rgba(var(--linec,232,224,204),.08)">
+    <div style="max-width:1200px;margin:0 auto;padding:34px 40px;display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:9px">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="var(--accent,#8FCB5E)"><path d="M17,8C8,10 5.9,16.17 3.82,21.34L5.71,22L6.66,19.7C7.14,19.87 7.64,20 8,20C19,20 22,3 22,3C21,5 14,5.25 9,6.25C4,7.25 2,11.5 2,13.5C2,15.5 3.75,17.25 3.75,17.25C7,8 17,8 17,8Z"/></svg>
+        <span style="font:600 15px/1 'Spectral',serif;color:var(--body,#C4BCAA)">Vetree</span>
+        <span style="font:400 13px/1 'Instrument Sans';color:var(--mut6,#6F695B);margin-left:8px">Evidence-based veterinary research, distilled.</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:24px">
+        <a style="font:400 13px/1 'Instrument Sans';color:var(--mut4,#8A8272);text-decoration:none;cursor:pointer" style-hover="color:var(--body,#C4BCAA)">Privacy</a>
+        <a style="font:400 13px/1 'Instrument Sans';color:var(--mut4,#8A8272);text-decoration:none;cursor:pointer" style-hover="color:var(--body,#C4BCAA)">Terms</a>
+        <a style="font:400 13px/1 'Instrument Sans';color:var(--mut4,#8A8272);text-decoration:none;cursor:pointer" style-hover="color:var(--body,#C4BCAA)">Contact</a>
+      </div>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1240,&quot;height&quot;:960},&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;Dark&quot;,&quot;options&quot;:[&quot;Dark&quot;,&quot;Light&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Theme&quot;},&quot;accent&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#8FCB5E&quot;,&quot;options&quot;:[&quot;#8FCB5E&quot;,&quot;#BFD24A&quot;,&quot;#5FD69A&quot;,&quot;#E0A040&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Theme&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    const light = (this.props.theme ?? 'Dark') === 'Light'
+    const LIGHT_ACCENT = { '#8FCB5E': '#5F8C33', '#BFD24A': '#7E8F1B', '#5FD69A': '#1F8A5B', '#E0A040': '#A8690A' }
+    const baseAccent = this.props.accent ?? '#8FCB5E'
+    const accent = light ? (LIGHT_ACCENT[baseAccent] ?? baseAccent) : baseAccent
+    const trip = h => parseInt(h.slice(1,3),16) + ',' + parseInt(h.slice(3,5),16) + ',' + parseInt(h.slice(5,7),16)
+    const themeVars = light ? '--bg:#F7F3E8;--onaccent:#FFFFFF;--card:#FFFFFF;--card2:#FCF8ED;--card3:#FFFFFF;--card4:#EDE7D4;--ink1:#1F1A0E;--ink2:#262013;--ink3:#332C1B;--ink3b:#332C1B;--ink4:#3D3524;--ink5:#443C2A;--body:#514935;--sub:#5F5745;--warntext:#7A6238;--mut1:#6B634E;--mut1b:#6D6553;--mut2:#756D57;--mut3:#7E7663;--mut4:#837B66;--mut5:#948C75;--mut6:#9C947D;--mut7:#B3AB93;--linec:62,54,36;--barc:247,243,232;--goldc:79,125,40;--cardioc:178,62,74;--warnc:176,116,20;--acct2:110,130,70;--desk:#EFEAD8;--desk2:#F7F3E6;--chipmix:52%;--acct:' + trip(accent) : '--chipmix:100%'
+    const chips = ['canine diabetes management', 'feline hypertension', 'TPLO outcomes', 'lymphoma chemotherapy']
+
+    const statDefs = [
+      { num: '23,000+', label: 'Peer-reviewed articles distilled' },
+      { num: '19', label: 'Clinical specialties covered' },
+      { num: '~40s', label: 'To read one clinical bottom line' },
+      { num: '3-tier', label: 'Evidence grading on every paper' },
+    ]
+    const stats = statDefs.map((s, i) => ({ ...s, wrapStyle: `padding:6px 34px;${i > 0 ? 'border-left:1px solid rgba(var(--linec,232,224,204),.1)' : ''}` }))
+
+    const steps = [
+      { step: 'STEP 01', title: 'We read the literature', body: 'New peer-reviewed veterinary papers are ingested and parsed the moment they publish — across every major journal.', iconPath: 'M4 19.5A2.5 2.5 0 0 1 6.5 17H20M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z' },
+      { step: 'STEP 02', title: 'We distil the bottom line', body: 'Each study is reduced to one clinical takeaway, graded for evidence strength and tagged by specialty and species.', iconPath: 'M12 3v18M3 12h18M7 7l10 10M17 7L7 17' },
+      { step: 'STEP 03', title: 'You act in seconds', body: 'Search, filter and save. Read the answer, check the tier, and get back to the patient in front of you.', iconPath: 'M13 2L3 14h9l-1 8 10-12h-9l1-8z' },
+    ]
+
+    const tierDefs = [
+      { name: 'Gold', kind: 'Randomised controlled trials', desc: 'The strongest evidence — trust it under pressure.', c: '#A9E07C', dot: '#8FD65E', fill: 96 },
+      { name: 'Silver', kind: 'Cohort & comparative studies', desc: 'Solid, directional evidence to weigh in context.', c: '#8FBEEC', dot: '#6FA8E8', fill: 64 },
+      { name: 'Bronze', kind: 'Retrospective & case series', desc: 'Useful signal — interpret with clinical judgement.', c: '#E8B060', dot: '#E0A040', fill: 36 },
+    ]
+    const tiers = tierDefs.map(t => ({
+      ...t,
+      badgeStyle: `display:inline-flex;align-items:center;gap:7px;flex-shrink:0;width:104px;padding:7px 12px;border-radius:999px;font:600 12px/1 'Instrument Sans';background:${t.c}1A;border:1px solid ${t.c}40;color:color-mix(in oklab,${t.c} var(--chipmix,100%),#241B0C)`,
+      dotStyle: `width:6px;height:6px;border-radius:50%;background:${t.dot}`,
+      barTrack: `width:64px;height:5px;border-radius:999px;background:rgba(var(--linec,232,224,204),.09);overflow:hidden;flex-shrink:0`,
+      barFill: `width:${t.fill}%;height:100%;border-radius:999px;background:${t.c}`,
+    }))
+
+    const specDefs = [
+      ['Anesthesia', '#B49AE8'], ['Behavior', '#A6B0C0'], ['Cardiology', '#E88A92'], ['Dentistry', '#B8B0A0'], ['Dermatology', '#E0CC6A'], ['Emergency', '#E88AA0'], ['Equine', '#5FCDB8'], ['Exotic', '#5FC7D8'], ['Internal Medicine', '#7FB0EC'], ['Neurology', '#9AA6E8'], ['Nutrition', '#5FD69A'], ['Oncology', '#C79CE8'], ['Ophthalmology', '#7FB0EC'], ['Orthopedics', '#E8A968'], ['Pathology', '#E88AD8'], ['Pharmacology', '#BFD65E'], ['Radiology', '#6FBFEC'], ['Reproduction', '#E893C0'], ['Soft Tissue Surgery', '#E893C0'],
+    ]
+    const specialties = specDefs.map(([name, c]) => ({ name, style: `padding:9px 16px;border-radius:999px;background:${c}12;border:1px solid ${c}33;font:500 13.5px/1 'Instrument Sans';color:color-mix(in oklab,${c} var(--chipmix,100%),#241B0C)` }))
+
+    return { themeVars, accent, chips, stats, steps, tiers, specialties }
+  }
+}
+</script>
+</body>
+</html>
