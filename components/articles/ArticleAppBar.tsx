@@ -1,6 +1,5 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/lib/hooks/useAuth'
 import { useSavedArticles } from '@/lib/hooks/useSavedArticles'
@@ -12,7 +11,6 @@ type ArticleAppBarProps = {
 }
 
 export function ArticleAppBar({ articleId, articleUrl, articleTitle }: ArticleAppBarProps) {
-  const router = useRouter()
   const { user } = useAuth()
   const { isSaved, toggleSave } = useSavedArticles()
   const saved = isSaved(articleId)
@@ -41,20 +39,19 @@ export function ArticleAppBar({ articleId, articleUrl, articleTitle }: ArticleAp
         display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 20,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
-          <button
-            onClick={() => router.back()}
+          <Link
+            href="/"
             style={{
               display: 'flex', alignItems: 'center', gap: 8,
-              background: 'none', border: 'none', cursor: 'pointer',
               color: 'var(--al-mut3)', font: "500 13.5px/1 var(--font-instrument, sans-serif)",
-              padding: 0,
+              textDecoration: 'none',
             }}
           >
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9">
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 18l-6-6 6-6"/>
             </svg>
             Stream
-          </button>
+          </Link>
           <span style={{ width: 1, height: 20, background: 'rgba(var(--al-line),0.15)' }} />
           <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 9, textDecoration: 'none' }}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="var(--al-accent)">
