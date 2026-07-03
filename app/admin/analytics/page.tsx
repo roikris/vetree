@@ -33,10 +33,10 @@ export default async function AdminAnalyticsPage() {
         </h1>
         <p style={{
           margin: 0,
-          fontFamily: 'var(--font-instrument, sans-serif)', fontSize: 14, fontWeight: 400,
+          fontFamily: 'var(--font-spectral, serif)', fontStyle: 'italic', fontSize: 14, fontWeight: 400,
           color: 'var(--al-mut3)', lineHeight: 1.4,
         }}>
-          Track user engagement and content performance
+          How the practice is reading — traffic, sessions and search.
         </p>
       </div>
 

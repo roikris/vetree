@@ -169,8 +169,8 @@ export function AnalyticsClient({
     lineHeight: 1.2, color: 'var(--al-ink2)',
   }
   const labelStyle: React.CSSProperties = {
-    fontFamily: 'var(--font-instrument, sans-serif)', fontSize: 12, fontWeight: 400,
-    color: 'var(--al-mut4)', lineHeight: 1,
+    fontFamily: 'var(--font-instrument, sans-serif)', fontSize: 10.5, fontWeight: 600,
+    letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--al-mut4)', lineHeight: 1,
   }
   const bigNumStyle: React.CSSProperties = {
     fontFamily: 'var(--font-spectral, serif)', fontSize: 30, fontWeight: 600,
