@@ -43,7 +43,7 @@ type SearchControlsProps = {
 const barBg: React.CSSProperties = {
   position: 'sticky',
   top: 0,
-  zIndex: 20,
+  zIndex: 50,
   background: 'rgba(var(--al-bar, 20,18,14), .86)',
   backdropFilter: 'blur(14px)',
   WebkitBackdropFilter: 'blur(14px)',
