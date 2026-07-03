@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg,#14120E);color:var(--ink3,#E8E0CC);font-family:'Instrument Sans',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+  ::selection{background:var(--accent,#8FCB5E);color:var(--onaccent,#14120E)}
+</style>
+</helmet>
+<div style="{{ themeVars }};--accent: {{ accent }}; min-height:100vh;background:var(--bg,#14120E)">
+
+  <!-- ===== APP BAR ===== -->
+  <div style="position:sticky;top:0;z-index:20;background:rgba(var(--barc,20,18,14),.86);backdrop-filter:blur(14px);border-bottom:1px solid rgba(var(--linec,232,224,204),.1)">
+    <div style="max-width:1040px;margin:0 auto;padding:14px 32px;display:flex;align-items:center;justify-content:space-between;gap:20px">
+      <div style="display:flex;align-items:center;gap:18px">
+        <a href="Vetree - Core.dc.html" style="display:flex;align-items:center;gap:8px;text-decoration:none;cursor:pointer;color:var(--sub,#B4AD9A);font:500 13.5px/1 'Instrument Sans';padding:0" style-hover="color:var(--ink3,#E8E0CC)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path stroke-linecap="round" stroke-linejoin="round" d="M15 18l-6-6 6-6"/></svg>Stream</a>
+        <span style="width:1px;height:20px;background:rgba(var(--linec,232,224,204),.15)"></span>
+        <div style="display:flex;align-items:center;gap:9px">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="var(--accent,#8FCB5E)"><path d="M17,8C8,10 5.9,16.17 3.82,21.34L5.71,22L6.66,19.7C7.14,19.87 7.64,20 8,20C19,20 22,3 22,3C21,5 14,5.25 9,6.25C4,7.25 2,11.5 2,13.5C2,15.5 3.75,17.25 3.75,17.25C7,8 17,8 17,8Z"/></svg>
+          <span style="font:600 18px/1 'Spectral',serif;color:var(--ink2,#EFE9DA)">Vetree</span>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <button onClick="{{ toggleBmk }}" style="{{ bmkBtnStyle }}"><svg width="15" height="15" viewBox="0 0 24 24" fill="{{ bmkFill }}" stroke="{{ bmkStroke }}" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M5 3h14v18l-7-5-7 5V3z"/></svg>{{ bmkLabel }}</button>
+        <button style="width:38px;height:38px;border-radius:10px;background:var(--card,#1B1811);border:1px solid rgba(var(--linec,232,224,204),.12);display:flex;align-items:center;justify-content:center;color:var(--mut4,#8A8272);cursor:pointer" style-hover="color:var(--ink3,#E8E0CC)" title="Share"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><path stroke-linecap="round" d="M15.7 6.3l-7.4 4.4M8.3 13.3l7.4 4.4"/></svg></button>
+        <div style="width:34px;height:34px;border-radius:50%;background:var(--accent,#8FCB5E);color:var(--onaccent,#14120E);display:flex;align-items:center;justify-content:center;font:600 12.5px/1 'Instrument Sans';cursor:pointer">RK</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== BODY ===== -->
+  <div style="max-width:1040px;margin:0 auto;padding:44px 32px 90px;display:grid;grid-template-columns:1fr 316px;gap:52px;align-items:start">
+
+    <!-- MAIN READING COLUMN -->
+    <article style="min-width:0">
+      <!-- specialty + evidence + read time -->
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:20px">
+        <span style="display:inline-flex;align-items:center;gap:7px;padding:6px 13px;border-radius:999px;background:rgba(var(--cardioc,232,138,146),.14);border:1px solid rgba(var(--cardioc,232,138,146),.4);font:600 12px/1 'Instrument Sans';color:color-mix(in oklab,#E88A92 var(--chipmix,100%),#241B0C)">Cardiology</span>
+        <span style="display:inline-flex;align-items:center;gap:7px;padding:6px 13px;border-radius:999px;background:rgba(var(--acct,143,203,94),.13);border:1px solid rgba(var(--acct,143,203,94),.45);font:600 12px/1 'Instrument Sans';color:color-mix(in oklab,#A9E07C var(--chipmix,100%),#241B0C)"><span style="width:6px;height:6px;border-radius:50%;background:#8FD65E"></span>RCT / Meta-analysis</span>
+        <span style="font:400 12.5px/1 'Instrument Sans';color:var(--mut6,#6F695B)">4 min read · distilled by Vetree AI</span>
+      </div>
+
+      <!-- title -->
+      <h1 style="margin:0 0 18px;font:600 38px/1.18 'Spectral',serif;color:var(--ink2,#EFE9DA);letter-spacing:-.015em">Pimobendan in Preclinical Myxomatous Mitral Valve Disease</h1>
+      <p style="margin:0 0 32px;font:400 14.5px/1.5 'Instrument Sans';color:var(--mut2,#9A9280)">Boswood A, Häggström J, Gordon SG, Fox PR, Wess G, et al. · <span style="color:var(--sub,#B4AD9A)">Journal of Veterinary Internal Medicine</span> · 28 June 2026</p>
+
+      <!-- BOTTOM LINE HERO -->
+      <div style="background:linear-gradient(135deg,rgba(var(--acct,143,203,94),.12),rgba(var(--acct,143,203,94),.04));border:1px solid rgba(var(--acct,143,203,94),.28);border-radius:18px;padding:28px 30px;margin-bottom:38px">
+        <div style="display:flex;align-items:center;gap:9px;margin-bottom:14px">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent,#8FCB5E)" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/></svg>
+          <span style="font:600 11px/1 'Instrument Sans';letter-spacing:.15em;text-transform:uppercase;color:var(--accent,#8FCB5E)">Clinical bottom line</span>
+        </div>
+        <p style="margin:0;font:500 24px/1.5 'Spectral',serif;color:var(--ink2,#EFE9DA);letter-spacing:-.005em">Pimobendan delayed the onset of congestive heart failure in preclinical MMVD dogs with cardiomegaly by a median of roughly <span style="color:var(--accent,#8FCB5E)">15 months</span> — without an increase in adverse events.</p>
+      </div>
+
+      <!-- SUMMARY -->
+      <div style="margin-bottom:38px">
+        <div style="font:600 11px/1 'Instrument Sans';letter-spacing:.15em;text-transform:uppercase;color:var(--mut4,#8A8272);margin-bottom:16px">Summary</div>
+        <p style="margin:0 0 18px;font:400 16.5px/1.75 'Instrument Sans';color:var(--body,#C4BCAA)">This multi-centre, randomised, double-blind, placebo-controlled trial enrolled dogs with preclinical myxomatous mitral valve disease (MMVD) and echocardiographic and radiographic evidence of cardiac enlargement. Dogs received either pimobendan or a matched placebo and were followed until the primary endpoint — onset of congestive heart failure or cardiac-related death.</p>
+        <p style="margin:0 0 18px;font:400 16.5px/1.75 'Instrument Sans';color:var(--body,#C4BCAA)">Treatment with pimobendan significantly prolonged the preclinical period. The median time to the primary endpoint was extended by approximately 15 months relative to placebo, and the benefit was consistent across subgroups defined by age, breed and baseline heart size.</p>
+        <p style="margin:0;font:400 16.5px/1.75 'Instrument Sans';color:var(--body,#C4BCAA)">The safety profile was reassuring: adverse events were comparable between groups, supporting early initiation of therapy once cardiomegaly is confirmed rather than waiting for clinical signs to develop.</p>
+      </div>
+
+      <!-- KEY FINDINGS -->
+      <sc-if value="{{ showKeyFindings }}" hint-placeholder-val="{{ true }}">
+        <div style="background:var(--card,#1B1811);border:1px solid rgba(var(--linec,232,224,204),.09);border-radius:16px;padding:26px 28px;margin-bottom:38px">
+          <div style="font:600 11px/1 'Instrument Sans';letter-spacing:.15em;text-transform:uppercase;color:var(--accent,#8FCB5E);margin-bottom:18px">Key findings</div>
+          <div style="display:flex;flex-direction:column;gap:15px">
+            <sc-for list="{{ findings }}" as="f" hint-placeholder-count="4">
+              <div style="display:flex;gap:13px;align-items:flex-start">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent,#8FCB5E)" stroke-width="2" style="flex-shrink:0;margin-top:2px"><path stroke-linecap="round" stroke-linejoin="round" d="M20 6L9 17l-5-5"/></svg>
+                <span style="font:400 15.5px/1.55 'Instrument Sans';color:var(--body,#C4BCAA)">{{ f }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- TAGS -->
+      <div style="display:flex;gap:8px;flex-wrap:wrap;padding-top:8px">
+        <sc-for list="{{ tags }}" as="t" hint-placeholder-count="3">
+          <span style="{{ t.style }}" style-hover="filter:brightness(1.2)">{{ t.name }}</span>
+        </sc-for>
+      </div>
+
+      <!-- disclaimer -->
+      <div style="display:flex;gap:13px;background:rgba(var(--warnc,224,160,64),.07);border:1px solid rgba(var(--warnc,224,160,64),.22);border-radius:13px;padding:16px 18px;margin-top:36px">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#E0A040" stroke-width="1.8" style="flex-shrink:0;margin-top:1px"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" d="M12 8h.01M11 12h1v4h1"/></svg>
+        <p style="margin:0;font:400 12.5px/1.6 'Instrument Sans';color:var(--warntext,#B0A488)">This summary was distilled by AI and may occasionally misinterpret data. Confirm critical details with the primary literature before clinical application.</p>
+      </div>
+    </article>
+
+    <!-- STICKY RAIL -->
+    <aside style="position:sticky;top:96px;display:flex;flex-direction:column;gap:16px">
+      <a href="#" style="display:flex;align-items:center;justify-content:center;gap:9px;background:var(--accent,#8FCB5E);color:var(--onaccent,#14120E);border-radius:12px;padding:15px;font:600 14.5px/1 'Instrument Sans';text-decoration:none" style-hover="filter:brightness(1.08)">Read full article<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M7 17L17 7M9 7h8v8"/></svg></a>
+
+      <!-- citation -->
+      <div style="background:var(--card,#1B1811);border:1px solid rgba(var(--linec,232,224,204),.1);border-radius:16px;padding:20px 22px">
+        <div style="font:600 10.5px/1 'Instrument Sans';letter-spacing:.14em;text-transform:uppercase;color:var(--mut4,#8A8272);margin-bottom:16px">Citation</div>
+        <div style="display:flex;flex-direction:column;gap:13px">
+          <div><div style="font:500 11px/1 'Instrument Sans';color:var(--mut6,#6F695B);margin-bottom:3px">Journal</div><div style="font:italic 500 14px/1.35 'Spectral',serif;color:var(--ink4,#DCD3BE)">Journal of Veterinary Internal Medicine</div></div>
+          <div><div style="font:500 11px/1 'Instrument Sans';color:var(--mut6,#6F695B);margin-bottom:3px">Published</div><div style="font:400 13.5px/1.35 'Instrument Sans';color:var(--body,#C4BCAA)">28 June 2026 · Vol 40(4), 1765–1779</div></div>
+          <div><div style="font:500 11px/1 'Instrument Sans';color:var(--mut6,#6F695B);margin-bottom:3px">DOI</div><div style="font:400 13px/1.35 'Instrument Sans';color:var(--accent,#8FCB5E)">10.1111/jvim.15903</div></div>
+        </div>
+      </div>
+
+      <!-- evidence explainer -->
+      <div style="background:var(--card,#1B1811);border:1px solid rgba(var(--acct,143,203,94),.22);border-radius:16px;padding:20px 22px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:11px"><span style="width:8px;height:8px;border-radius:50%;background:#8FD65E"></span><span style="font:600 12.5px/1 'Instrument Sans';color:color-mix(in oklab,#A9E07C var(--chipmix,100%),#241B0C)">RCT / Meta-analysis</span></div>
+        <p style="margin:0;font:400 13px/1.6 'Instrument Sans';color:var(--mut1,#A7A08E)">The strongest tier of evidence. Randomised, double-blind and placebo-controlled — participants are allocated by chance and neither they nor investigators know the assignment, minimising bias.</p>
+      </div>
+
+      <!-- related -->
+      <sc-if value="{{ showRelated }}" hint-placeholder-val="{{ true }}">
+        <div style="background:var(--card2,#16130E);border:1px solid rgba(var(--linec,232,224,204),.1);border-radius:16px;padding:20px 22px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px"><span style="width:8px;height:8px;border-radius:50%;background:#E88A92"></span><span style="font:600 10.5px/1 'Instrument Sans';letter-spacing:.13em;text-transform:uppercase;color:color-mix(in oklab,#E88A92 var(--chipmix,100%),#241B0C)">Related in your grove</span></div>
+          <div style="display:flex;flex-direction:column;gap:14px">
+            <sc-for list="{{ related }}" as="r" hint-placeholder-count="2">
+              <div style="cursor:pointer" style-hover="opacity:.8">
+                <p style="margin:0 0 7px;font:500 13.5px/1.45 'Spectral',serif;color:var(--ink4,#DCD3BE)">{{ r.bottom }}</p>
+                <div style="font:400 10.5px/1 'Instrument Sans';color:var(--mut4,#8A8272)"><span style="{{ r.evStyle }}">{{ r.ev }}</span> · {{ r.journal }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+    </aside>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1120,&quot;height&quot;:900},&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;Dark&quot;,&quot;options&quot;:[&quot;Dark&quot;,&quot;Light&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Theme&quot;},&quot;accent&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#8FCB5E&quot;,&quot;options&quot;:[&quot;#8FCB5E&quot;,&quot;#BFD24A&quot;,&quot;#5FD69A&quot;,&quot;#E0A040&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Theme&quot;},&quot;showKeyFindings&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Sections&quot;},&quot;showRelated&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Sections&quot;}}">
+class Component extends DCLogic {
+  state = { bmk: false }
+  toggleBmk() { this.setState(s => ({ bmk: !s.bmk })) }
+
+  renderVals() {
+    const light = (this.props.theme ?? 'Dark') === 'Light'
+    const LIGHT_ACCENT = { '#8FCB5E': '#5F8C33', '#BFD24A': '#7E8F1B', '#5FD69A': '#1F8A5B', '#E0A040': '#A8690A' }
+    const baseAccent = this.props.accent ?? '#8FCB5E'
+    const accent = light ? (LIGHT_ACCENT[baseAccent] ?? baseAccent) : baseAccent
+    const trip = h => parseInt(h.slice(1,3),16) + ',' + parseInt(h.slice(3,5),16) + ',' + parseInt(h.slice(5,7),16)
+    const themeVars = light ? '--bg:#F7F3E8;--onaccent:#FFFFFF;--card:#FFFFFF;--card2:#FCF8ED;--card3:#FFFFFF;--card4:#EDE7D4;--ink1:#1F1A0E;--ink2:#262013;--ink3:#332C1B;--ink3b:#332C1B;--ink4:#3D3524;--ink5:#443C2A;--body:#514935;--sub:#5F5745;--warntext:#7A6238;--mut1:#6B634E;--mut1b:#6D6553;--mut2:#756D57;--mut3:#7E7663;--mut4:#837B66;--mut5:#948C75;--mut6:#9C947D;--mut7:#B3AB93;--linec:62,54,36;--barc:247,243,232;--goldc:79,125,40;--cardioc:178,62,74;--warnc:176,116,20;--acct2:110,130,70;--desk:#EFEAD8;--desk2:#F7F3E6;--chipmix:52%;--acct:' + trip(accent) : '--chipmix:100%'
+    const showKeyFindings = this.props.showKeyFindings ?? true
+    const showRelated = this.props.showRelated ?? true
+    const on = this.state.bmk
+
+    const LABEL_C = { Cardiology: '#E88A92', 'Small Animal': '#8FD65E', Cardiac: '#E0A040' }
+    const tags = ['Cardiology', 'Small Animal', 'Cardiac'].map(name => {
+      const c = LABEL_C[name] || '#B4AD9A'
+      return { name, style: `display:inline-flex;align-items:center;padding:6px 13px;border-radius:999px;font:500 12px/1 'Instrument Sans';cursor:pointer;transition:all .15s;background:${c}1A;border:1px solid ${c}4D;color:color-mix(in oklab,${c} var(--chipmix,100%),#241B0C)` }
+    })
+
+    const findings = [
+      'Median time to onset of congestive heart failure or cardiac death was prolonged by ~15 months versus placebo.',
+      'The benefit held consistently across age, breed and baseline heart-size subgroups.',
+      'Adverse events were comparable between the pimobendan and placebo arms.',
+      'Supports starting therapy once cardiomegaly is confirmed, rather than waiting for clinical signs.',
+    ]
+
+    const related = [
+      { bottom: 'Point-of-care NT-proBNP reliably ruled out cardiac causes of feline dyspnoea in the ER.', ev: 'Cohort', journal: 'JFMS', evStyle: 'color:color-mix(in oklab,#8FBEEC var(--chipmix,100%),#241B0C)' },
+      { bottom: 'Sotalol reduced recurrence of ventricular arrhythmias in Boxers with ARVC.', ev: 'Retrospective', journal: 'JVC', evStyle: 'color:color-mix(in oklab,#E8B060 var(--chipmix,100%),#241B0C)' },
+    ]
+
+    return {
+      themeVars, accent, showKeyFindings, showRelated, tags, findings, related,
+      bmkFill: on ? accent : 'none',
+      bmkStroke: on ? accent : 'var(--mut4,#8A8272)',
+      bmkLabel: on ? 'Saved' : 'Save',
+      bmkBtnStyle: `display:flex;align-items:center;gap:8px;height:38px;padding:0 15px;border-radius:10px;cursor:pointer;font:600 13px/1 'Instrument Sans';transition:all .15s;background:${on ? accent + '1F' : 'var(--card,#1B1811)'};border:1px solid ${on ? accent : 'rgba(var(--linec,232,224,204),.12)'};color:${on ? accent : 'var(--sub,#B4AD9A)'}`,
+      toggleBmk: () => this.toggleBmk(),
+    }
+  }
+}
+</script>
+</body>
+</html>
