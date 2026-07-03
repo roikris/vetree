@@ -73,22 +73,32 @@ export function BottomNav() {
   ]
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-[#1A1A1A] border-t border-zinc-200 dark:border-zinc-800 z-50 safe-area-inset-bottom">
-      <div className="flex items-center justify-around h-16">
+    <nav className="md:hidden safe-area-inset-bottom" style={{
+      position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 50,
+      background: 'rgba(var(--al-bar, 247,243,232), .94)',
+      backdropFilter: 'blur(14px)',
+      WebkitBackdropFilter: 'blur(14px)',
+      borderTop: '1px solid rgba(var(--al-line, 232,224,204), .1)',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-around', height: 60 }}>
         {navItems.map((item) => {
           const active = isActive(item.path)
           return (
             <Link
               key={item.path + item.name}
               href={item.path}
-              className={`flex flex-col items-center justify-center gap-1 flex-1 h-full transition-colors ${
-                active
-                  ? 'text-[#3D7A5F] dark:text-[#4E9A78]'
-                  : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300'
-              }`}
+              style={{
+                display: 'flex', flexDirection: 'column', alignItems: 'center',
+                justifyContent: 'center', gap: 4, flex: 1, height: '100%',
+                textDecoration: 'none',
+                color: active ? 'var(--al-accent)' : 'var(--al-mut4)',
+              }}
             >
               {item.icon(active)}
-              <span className="text-xs font-medium">{item.name}</span>
+              <span style={{
+                fontFamily: 'var(--font-instrument, sans-serif)',
+                fontSize: 10.5, fontWeight: active ? 600 : 400, lineHeight: 1,
+              }}>{item.name}</span>
             </Link>
           )
         })}
