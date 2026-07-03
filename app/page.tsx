@@ -176,26 +176,27 @@ export default async function Home({ searchParams }: HomeProps) {
 
       {!error && (count !== null && count > 0 || hasActiveFilters) && (
         <div id="articles">
-          <DisclaimerBanner />
+          {/* Constrain disclaimer + results count to feed width */}
+          <div style={{ maxWidth: filters.view === 'list' ? 844 : 704, margin: '0 auto', padding: '0 32px' }}>
+            <DisclaimerBanner />
 
-          <TrendingArticles articles={trendingArticles} />
+            <TrendingArticles articles={trendingArticles} />
 
-          <PersonalizedFeed articles={personalizedArticles} />
+            <PersonalizedFeed articles={personalizedArticles} />
 
-          <ResultsCount
-            total={count || 0}
-            showing={deduplicatedArticles.length}
-            filters={filters}
-          />
+            <ResultsCount
+              total={count || 0}
+              showing={deduplicatedArticles.length}
+              filters={filters}
+            />
 
-          {/* Fuzzy search hint */}
-          {searchTier === 'fuzzy' && filters.search && (
-            <div className="max-w-4xl mx-auto px-4 md:px-6 mb-4">
-              <p className="text-sm text-zinc-500 dark:text-zinc-400 italic">
-                Showing results for approximate match of "{filters.search}"
+            {/* Fuzzy search hint */}
+            {searchTier === 'fuzzy' && filters.search && (
+              <p style={{ margin: '0 0 16px', fontFamily: 'var(--font-instrument, sans-serif)', fontSize: 13, fontStyle: 'italic', color: 'var(--al-mut4)' }}>
+                Showing results for approximate match of &ldquo;{filters.search}&rdquo;
               </p>
-            </div>
-          )}
+            )}
+          </div>
 
           {/* Synthesis wrapper - shows synthesis button and panel when search query exists */}
           <SynthesisWrapper searchQuery={filters.search} isLoggedIn={isLoggedIn}>
