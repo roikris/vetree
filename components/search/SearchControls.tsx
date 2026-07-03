@@ -7,6 +7,7 @@ import { ParsedFilters, FeedView } from '@/types/search'
 import { buildSearchParams } from '@/lib/utils/searchParams'
 import { useAuth } from '@/lib/hooks/useAuth'
 import { useAdmin } from '@/lib/hooks/useAdmin'
+import { VETERINARY_LABELS } from '@/lib/constants/labels'
 import { Onboarding } from '@/components/onboarding/Onboarding'
 import { Footer } from '@/components/ui/Footer'
 import { BottomNav } from '@/components/ui/BottomNav'
@@ -83,6 +84,7 @@ export function SearchControls({
   const [searchQuery, setSearchQuery] = useState(initialFilters.search)
   const [evidenceOpen, setEvidenceOpen] = useState(false)
   const [journalOpen, setJournalOpen] = useState(false)
+  const [specialtyOpen, setSpecialtyOpen] = useState(false)
 
   const { user } = useAuth()
   const { isAdmin } = useAdmin()
@@ -97,8 +99,8 @@ export function SearchControls({
 
   // Close dropdowns on outside click
   useEffect(() => {
-    if (!evidenceOpen && !journalOpen) return
-    const handler = () => { setEvidenceOpen(false); setJournalOpen(false) }
+    if (!evidenceOpen && !journalOpen && !specialtyOpen) return
+    const handler = () => { setEvidenceOpen(false); setJournalOpen(false); setSpecialtyOpen(false) }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [evidenceOpen, journalOpen])
@@ -143,6 +145,7 @@ export function SearchControls({
   const view = initialFilters.view ?? 'stream'
   const evActive = initialFilters.evidence.length > 0
   const jActive = initialFilters.journals.length > 0
+  const sActive = initialFilters.labels.length > 0
 
   // ─── Pill button style helper ───────────────────────────────────────────────
   const pillStyle = (active: boolean): React.CSSProperties => ({
@@ -340,6 +343,54 @@ export function SearchControls({
 
               {/* Dropdown triggers — outside scrollable container so they don't get clipped */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                {/* Specialty dropdown */}
+                <div style={{ position: 'relative' }} onMouseDown={e => e.stopPropagation()}>
+                  <button
+                    onClick={() => { setSpecialtyOpen(o => !o); setEvidenceOpen(false); setJournalOpen(false) }}
+                    style={dropdownPillStyle(sActive)}
+                  >
+                    Specialty{sActive ? ` (${initialFilters.labels.length})` : ''} <span style={{ fontSize: 10 }}>▾</span>
+                  </button>
+                  {specialtyOpen && (
+                    <div style={{
+                      position: 'absolute', top: 'calc(100% + 6px)', right: 0, zIndex: 200,
+                      background: 'var(--al-card)',
+                      border: '1px solid rgba(var(--al-line, 232,224,204), .12)',
+                      borderRadius: 12, padding: '8px 0',
+                      maxHeight: 300, overflowY: 'auto', minWidth: 220,
+                      boxShadow: '0 8px 24px rgba(0,0,0,.25)',
+                    }}>
+                      {VETERINARY_LABELS.map(label => {
+                        const on = initialFilters.labels.includes(label)
+                        return (
+                          <button
+                            key={label}
+                            onClick={() => {
+                              const next = on
+                                ? initialFilters.labels.filter(l => l !== label)
+                                : [...initialFilters.labels, label]
+                              updateFilters({ labels: next })
+                            }}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: 9,
+                              width: '100%', padding: '9px 16px',
+                              background: on ? 'rgba(var(--al-line, 232,224,204), .06)' : 'none',
+                              border: 'none',
+                              color: on ? 'var(--al-accent)' : 'var(--al-ink3)',
+                              fontFamily: 'var(--font-instrument, sans-serif)',
+                              fontSize: 13, fontWeight: on ? 600 : 400, lineHeight: 1.2,
+                              cursor: 'pointer', textAlign: 'left',
+                            }}
+                          >
+                            {on && <span style={{ color: 'var(--al-accent)', flexShrink: 0 }}>✓</span>}
+                            {label}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+
                 {/* Evidence dropdown */}
                 <div style={{ position: 'relative' }} onMouseDown={e => e.stopPropagation()}>
                   <button
