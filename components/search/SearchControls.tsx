@@ -86,6 +86,10 @@ export function SearchControls({
   const [journalOpen, setJournalOpen] = useState(false)
   const [specialtyOpen, setSpecialtyOpen] = useState(false)
 
+  const specialtyRef = useRef<HTMLDivElement>(null)
+  const evidenceRef = useRef<HTMLDivElement>(null)
+  const journalRef = useRef<HTMLDivElement>(null)
+
   const { user } = useAuth()
   const { isAdmin } = useAdmin()
 
@@ -97,13 +101,16 @@ export function SearchControls({
     if (initialFilters.search) setSearchOpen(true)
   }, [initialFilters.search])
 
-  // Close dropdowns on outside click
+  // Close dropdowns on outside click — use contains() so click inside still registers
   useEffect(() => {
-    if (!evidenceOpen && !journalOpen && !specialtyOpen) return
-    const handler = () => { setEvidenceOpen(false); setJournalOpen(false); setSpecialtyOpen(false) }
+    const handler = (e: MouseEvent) => {
+      if (specialtyRef.current && !specialtyRef.current.contains(e.target as Node)) setSpecialtyOpen(false)
+      if (evidenceRef.current && !evidenceRef.current.contains(e.target as Node)) setEvidenceOpen(false)
+      if (journalRef.current && !journalRef.current.contains(e.target as Node)) setJournalOpen(false)
+    }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
-  }, [evidenceOpen, journalOpen])
+  }, [])
 
   const updateFilters = useCallback((patch: Partial<ParsedFilters>) => {
     const updated = { ...filtersRef.current, ...patch, page: 1 }
@@ -344,7 +351,7 @@ export function SearchControls({
               {/* Dropdown triggers — outside scrollable container so they don't get clipped */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
                 {/* Specialty dropdown */}
-                <div style={{ position: 'relative' }} onMouseDown={e => e.stopPropagation()}>
+                <div ref={specialtyRef} style={{ position: 'relative' }}>
                   <button
                     onClick={() => { setSpecialtyOpen(o => !o); setEvidenceOpen(false); setJournalOpen(false) }}
                     style={dropdownPillStyle(sActive)}
@@ -393,7 +400,7 @@ export function SearchControls({
                 </div>
 
                 {/* Evidence dropdown */}
-                <div style={{ position: 'relative' }} onMouseDown={e => e.stopPropagation()}>
+                <div ref={evidenceRef} style={{ position: 'relative' }}>
                   <button
                     onClick={() => { setEvidenceOpen(o => !o); setJournalOpen(false) }}
                     style={dropdownPillStyle(evActive)}
@@ -441,7 +448,7 @@ export function SearchControls({
                 </div>
 
                 {/* Journal dropdown */}
-                <div style={{ position: 'relative' }} onMouseDown={e => e.stopPropagation()}>
+                <div ref={journalRef} style={{ position: 'relative' }}>
                   <button
                     onClick={() => { setJournalOpen(o => !o); setEvidenceOpen(false) }}
                     style={dropdownPillStyle(jActive)}
