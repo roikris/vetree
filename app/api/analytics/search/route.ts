@@ -20,6 +20,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true })
     }
 
+    // Skip QA bot traffic — VetreeQABot UA or x-qa-bot header
+    const userAgent = request.headers.get('user-agent') || ''
+    if (userAgent.includes('VetreeQABot') || request.headers.get('x-qa-bot') === '1') {
+      return NextResponse.json({ success: true })
+    }
+
     // Get user if logged in
     const { data: { user } } = await supabase.auth.getUser()
 

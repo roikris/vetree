@@ -25,6 +25,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Path is required' }, { status: 400 })
     }
 
+    // Skip QA bot traffic — VetreeQABot UA or x-qa-bot header
+    const userAgent = request.headers.get('user-agent') || ''
+    if (userAgent.includes('VetreeQABot') || request.headers.get('x-qa-bot') === '1') {
+      return NextResponse.json({ success: true, tracked: false })
+    }
+
     // Get user if logged in
     const { data: { user } } = await supabase.auth.getUser()
 
@@ -47,9 +53,6 @@ export async function POST(request: NextRequest) {
 
     // Hash IP for privacy (never store raw IP)
     const ipHash = createHash('sha256').update(ip + process.env.IP_HASH_SALT || 'vetree-salt').digest('hex')
-
-    // Get user agent and parse device type
-    const userAgent = request.headers.get('user-agent') || ''
 
     // Check Vercel's built-in headers first (most reliable)
     const secChUaMobile = request.headers.get('sec-ch-ua-mobile')
