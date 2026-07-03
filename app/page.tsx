@@ -7,6 +7,7 @@ import { DisclaimerBanner } from '@/components/ui/DisclaimerBanner'
 import { TrendingArticles } from '@/components/articles/TrendingArticles'
 import { PersonalizedFeed } from '@/components/articles/PersonalizedFeed'
 import { HeroSection } from '@/components/home/HeroSection'
+import { LandingPage } from '@/components/home/LandingPage'
 import { getTrendingArticles } from '@/app/actions/trending'
 import { getPersonalizedArticles } from '@/app/actions/personalized-feed'
 import { createClient } from '@/lib/supabase/server'
@@ -31,27 +32,6 @@ export default async function Home({ searchParams }: HomeProps) {
   const { data: { user } } = await supabase.auth.getUser()
   const isLoggedIn = !!(session || user)
 
-  // Fetch public stats for hero section (only needed for guests)
-  const stats = !isLoggedIn
-    ? await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://vetree.app'}/api/stats/public`, {
-        next: { revalidate: 3600 }
-      }).then(r => r.json()).catch(() => ({ confirmed_users: 0, articles_count: 8000 }))
-    : { confirmed_users: 0, articles_count: 0 }
-
-  // Fetch most recent article for hero example (only if not logged in and on first page)
-  let exampleArticle = null
-  if (!isLoggedIn && filters.page === 1 && !filters.search && filters.labels.length === 0) {
-    const { data } = await supabase
-      .from('articles')
-      .select('*')
-      .eq('needs_enrichment', false)
-      .not('clinical_bottom_line', 'is', null)
-      .order('publication_date', { ascending: false })
-      .limit(1)
-      .single()
-    exampleArticle = data
-  }
-
   // JSON-LD structured data for site-level SEO
   const structuredData = {
     "@context": "https://schema.org",
@@ -65,6 +45,54 @@ export default async function Home({ searchParams }: HomeProps) {
       "query-input": "required name=search_term_string"
     }
   }
+
+  // Show full marketing landing page for logged-out guests on first page with no filters
+  const isLanding = !isLoggedIn && filters.page === 1 && !filters.search &&
+    filters.labels.length === 0 && filters.evidence.length === 0 &&
+    filters.journals.length === 0 && filters.quickFilter === 'all' &&
+    !params.browse
+
+  if (isLanding) {
+    // Fetch most recent article for the hero card mock
+    const { data: exampleArticle } = await supabase
+      .from('articles')
+      .select('title, clinical_bottom_line, source_journal, labels, publication_date')
+      .eq('needs_enrichment', false)
+      .not('clinical_bottom_line', 'is', null)
+      .order('publication_date', { ascending: false })
+      .limit(1)
+      .single()
+    return (
+      <>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+        />
+        <LandingPage exampleArticle={exampleArticle} />
+      </>
+    )
+  }
+
+  // Fetch most recent article for legacy hero (shown on first page when no search/labels but browse=1 or other filters)
+  let exampleArticle = null
+  if (!isLoggedIn && filters.page === 1 && !filters.search && filters.labels.length === 0) {
+    const { data } = await supabase
+      .from('articles')
+      .select('*')
+      .eq('needs_enrichment', false)
+      .not('clinical_bottom_line', 'is', null)
+      .order('publication_date', { ascending: false })
+      .limit(1)
+      .single()
+    exampleArticle = data
+  }
+
+  // Stats (legacy hero)
+  const stats = !isLoggedIn
+    ? await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://vetree.app'}/api/stats/public`, {
+        next: { revalidate: 3600 }
+      }).then(r => r.json()).catch(() => ({ confirmed_users: 0, articles_count: 8000 }))
+    : { confirmed_users: 0, articles_count: 0 }
 
   // Count articles published in the last 7 days (for stream header)
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
