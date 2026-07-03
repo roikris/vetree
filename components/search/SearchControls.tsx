@@ -320,115 +320,123 @@ export function SearchControls({
           </div>
 
           {/* ─── Filter pill bar — hidden in grove view ──────────────────── */}
-          {view !== 'grove' && (<div style={pillRow} className="scrollbar-hide">
-            {QUICK_PILLS.map(pill => {
-              const active = isPillActive(pill, initialFilters)
-              return (
-                <button
-                  key={pill.label}
-                  onClick={() => updateFilters({ labels: pill.labels, evidence: [], journals: [] })}
-                  style={pillStyle(active)}
-                >
-                  {pill.label}
-                </button>
-              )
-            })}
+          {view !== 'grove' && (
+            <div style={{ maxWidth: 1020, margin: '0 auto', padding: '0 18px 13px', display: 'flex', alignItems: 'center', gap: 8 }}>
+              {/* Quick-filter pills — scrollable */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'nowrap', overflowX: 'auto', flex: 1 }} className="scrollbar-hide">
+                {QUICK_PILLS.map(pill => {
+                  const active = isPillActive(pill, initialFilters)
+                  return (
+                    <button
+                      key={pill.label}
+                      onClick={() => updateFilters({ labels: pill.labels, evidence: [], journals: [] })}
+                      style={pillStyle(active)}
+                    >
+                      {pill.label}
+                    </button>
+                  )
+                })}
+              </div>
 
-            {/* Evidence dropdown */}
-            <div style={{ position: 'relative' }} onMouseDown={e => e.stopPropagation()}>
-              <button
-                onClick={() => { setEvidenceOpen(o => !o); setJournalOpen(false) }}
-                style={dropdownPillStyle(evActive)}
-              >
-                Evidence{evActive ? ` (${initialFilters.evidence.length})` : ''} <span style={{ fontSize: 10 }}>▾</span>
-              </button>
-              {evidenceOpen && (
-                <div style={{
-                  position: 'absolute', top: 'calc(100% + 6px)', left: 0, zIndex: 40,
-                  background: 'var(--al-card)',
-                  border: '1px solid rgba(var(--al-line, 232,224,204), .12)',
-                  borderRadius: 12, padding: '8px 0', minWidth: 220,
-                  boxShadow: '0 8px 24px rgba(0,0,0,.25)',
-                }}>
-                  {availableEvidenceLevels.map(level => {
-                    const on = initialFilters.evidence.includes(level)
-                    return (
-                      <button
-                        key={level}
-                        onClick={() => {
-                          const next = on
-                            ? initialFilters.evidence.filter(e => e !== level)
-                            : [...initialFilters.evidence, level]
-                          updateFilters({ evidence: next })
-                        }}
-                        style={{
-                          display: 'flex', alignItems: 'center', gap: 9,
-                          width: '100%', padding: '9px 16px',
-                          background: on ? 'rgba(var(--al-line, 232,224,204), .06)' : 'none',
-                          border: 'none',
-                          color: on ? 'var(--al-accent)' : 'var(--al-ink3)',
-                          fontFamily: 'var(--font-instrument, sans-serif)',
-                          fontSize: 13, fontWeight: on ? 600 : 400, lineHeight: 1.2,
-                          cursor: 'pointer', textAlign: 'left',
-                        }}
-                      >
-                        {on && <span style={{ color: 'var(--al-accent)', flexShrink: 0 }}>✓</span>}
-                        {level}
-                      </button>
-                    )
-                  })}
+              {/* Dropdown triggers — outside scrollable container so they don't get clipped */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                {/* Evidence dropdown */}
+                <div style={{ position: 'relative' }} onMouseDown={e => e.stopPropagation()}>
+                  <button
+                    onClick={() => { setEvidenceOpen(o => !o); setJournalOpen(false) }}
+                    style={dropdownPillStyle(evActive)}
+                  >
+                    Evidence{evActive ? ` (${initialFilters.evidence.length})` : ''} <span style={{ fontSize: 10 }}>▾</span>
+                  </button>
+                  {evidenceOpen && (
+                    <div style={{
+                      position: 'absolute', top: 'calc(100% + 6px)', right: 0, zIndex: 200,
+                      background: 'var(--al-card)',
+                      border: '1px solid rgba(var(--al-line, 232,224,204), .12)',
+                      borderRadius: 12, padding: '8px 0', minWidth: 220,
+                      boxShadow: '0 8px 24px rgba(0,0,0,.25)',
+                    }}>
+                      {availableEvidenceLevels.map(level => {
+                        const on = initialFilters.evidence.includes(level)
+                        return (
+                          <button
+                            key={level}
+                            onClick={() => {
+                              const next = on
+                                ? initialFilters.evidence.filter(e => e !== level)
+                                : [...initialFilters.evidence, level]
+                              updateFilters({ evidence: next })
+                            }}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: 9,
+                              width: '100%', padding: '9px 16px',
+                              background: on ? 'rgba(var(--al-line, 232,224,204), .06)' : 'none',
+                              border: 'none',
+                              color: on ? 'var(--al-accent)' : 'var(--al-ink3)',
+                              fontFamily: 'var(--font-instrument, sans-serif)',
+                              fontSize: 13, fontWeight: on ? 600 : 400, lineHeight: 1.2,
+                              cursor: 'pointer', textAlign: 'left',
+                            }}
+                          >
+                            {on && <span style={{ color: 'var(--al-accent)', flexShrink: 0 }}>✓</span>}
+                            {level}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
 
-            {/* Journal dropdown */}
-            <div style={{ position: 'relative' }} onMouseDown={e => e.stopPropagation()}>
-              <button
-                onClick={() => { setJournalOpen(o => !o); setEvidenceOpen(false) }}
-                style={dropdownPillStyle(jActive)}
-              >
-                Journal{jActive ? ` (${initialFilters.journals.length})` : ''} <span style={{ fontSize: 10 }}>▾</span>
-              </button>
-              {journalOpen && (
-                <div style={{
-                  position: 'absolute', top: 'calc(100% + 6px)', left: 0, zIndex: 40,
-                  background: 'var(--al-card)',
-                  border: '1px solid rgba(var(--al-line, 232,224,204), .12)',
-                  borderRadius: 12, padding: '8px 0',
-                  maxHeight: 280, overflowY: 'auto', minWidth: 260,
-                  boxShadow: '0 8px 24px rgba(0,0,0,.25)',
-                }}>
-                  {availableJournals.map(journal => {
-                    const on = initialFilters.journals.includes(journal)
-                    return (
-                      <button
-                        key={journal}
-                        onClick={() => {
-                          const next = on
-                            ? initialFilters.journals.filter(j => j !== journal)
-                            : [...initialFilters.journals, journal]
-                          updateFilters({ journals: next })
-                        }}
-                        style={{
-                          display: 'flex', alignItems: 'center', gap: 9,
-                          width: '100%', padding: '9px 16px',
-                          background: on ? 'rgba(var(--al-line, 232,224,204), .06)' : 'none',
-                          border: 'none',
-                          color: on ? 'var(--al-accent)' : 'var(--al-ink3)',
-                          fontFamily: 'var(--font-instrument, sans-serif)',
-                          fontSize: 13, fontWeight: on ? 600 : 400, lineHeight: 1.2,
-                          cursor: 'pointer', textAlign: 'left',
-                        }}
-                      >
-                        {on && <span style={{ color: 'var(--al-accent)', flexShrink: 0 }}>✓</span>}
-                        {journal}
-                      </button>
-                    )
-                  })}
+                {/* Journal dropdown */}
+                <div style={{ position: 'relative' }} onMouseDown={e => e.stopPropagation()}>
+                  <button
+                    onClick={() => { setJournalOpen(o => !o); setEvidenceOpen(false) }}
+                    style={dropdownPillStyle(jActive)}
+                  >
+                    Journal{jActive ? ` (${initialFilters.journals.length})` : ''} <span style={{ fontSize: 10 }}>▾</span>
+                  </button>
+                  {journalOpen && (
+                    <div style={{
+                      position: 'absolute', top: 'calc(100% + 6px)', right: 0, zIndex: 200,
+                      background: 'var(--al-card)',
+                      border: '1px solid rgba(var(--al-line, 232,224,204), .12)',
+                      borderRadius: 12, padding: '8px 0',
+                      maxHeight: 280, overflowY: 'auto', minWidth: 260,
+                      boxShadow: '0 8px 24px rgba(0,0,0,.25)',
+                    }}>
+                      {availableJournals.map(journal => {
+                        const on = initialFilters.journals.includes(journal)
+                        return (
+                          <button
+                            key={journal}
+                            onClick={() => {
+                              const next = on
+                                ? initialFilters.journals.filter(j => j !== journal)
+                                : [...initialFilters.journals, journal]
+                              updateFilters({ journals: next })
+                            }}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: 9,
+                              width: '100%', padding: '9px 16px',
+                              background: on ? 'rgba(var(--al-line, 232,224,204), .06)' : 'none',
+                              border: 'none',
+                              color: on ? 'var(--al-accent)' : 'var(--al-ink3)',
+                              fontFamily: 'var(--font-instrument, sans-serif)',
+                              fontSize: 13, fontWeight: on ? 600 : 400, lineHeight: 1.2,
+                              cursor: 'pointer', textAlign: 'left',
+                            }}
+                          >
+                            {on && <span style={{ color: 'var(--al-accent)', flexShrink: 0 }}>✓</span>}
+                            {journal}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
                 </div>
-              )}
+              </div>
             </div>
-          </div>)}
+          )}
         </header>
 
         {/* ─── Main content ────────────────────────────────────────────────── */}
