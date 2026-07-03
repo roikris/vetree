@@ -23,6 +23,10 @@
   --al-mut7: #B3AB93;
   --al-line: 62,54,36;
   --al-bar: 247,243,232;
+  --al-acct: 95,140,51;
+  --al-warnc: 176,116,20;
+  --al-warntext: #7A6238;
+  --al-onaccent: var(--al-on-accent);
   /* backward-compat aliases */
   --background: var(--al-bg);
   --foreground: var(--al-ink3);
@@ -49,6 +53,10 @@
   --al-mut7: #5F5A4E;
   --al-line: 232,224,204;
   --al-bar: 20,18,14;
+  --al-acct: 143,203,94;
+  --al-warnc: 224,160,64;
+  --al-warntext: #B0A488;
+  --al-onaccent: var(--al-on-accent);
 }
 
 /* ─── Specialty chip hues (same value both themes; light text darkened in components) ─── */
