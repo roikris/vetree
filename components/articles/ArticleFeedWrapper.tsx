@@ -13,6 +13,7 @@ type ArticleFeedWrapperProps = {
   searchQuery?: string
   currentPage: number
   totalPages: number
+  totalCount?: number
   filters: ParsedFilters
 }
 
@@ -21,6 +22,7 @@ export function ArticleFeedWrapper({
   searchQuery,
   currentPage,
   totalPages,
+  totalCount,
   filters,
 }: ArticleFeedWrapperProps) {
   const router = useRouter()
@@ -63,14 +65,14 @@ export function ArticleFeedWrapper({
             showLoading ? 'opacity-50 pointer-events-none' : 'opacity-100'
           }`}
         >
-          <ArticleList articles={articles} searchQuery={searchQuery} />
+          <ArticleList articles={articles} searchQuery={searchQuery} view={filters.view} totalCount={totalCount} />
         </div>
 
         {showLoading && (
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className="flex items-center gap-2 px-4 py-2 bg-white/90 dark:bg-gray-900/90 rounded-full shadow-lg border border-gray-200 dark:border-gray-700">
-              <div className="w-4 h-4 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
-              <span className="text-sm text-gray-600 dark:text-gray-400">Loading articles…</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', background: 'var(--al-card)', borderRadius: 999, border: '1px solid rgba(var(--al-line, 232,224,204), .12)' }}>
+              <div className="w-4 h-4 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: 'var(--al-accent)', borderTopColor: 'transparent' }} />
+              <span style={{ fontFamily: 'var(--font-instrument, sans-serif)', fontSize: 13, color: 'var(--al-mut3)' }}>Loading…</span>
             </div>
           </div>
         )}

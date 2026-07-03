@@ -3,6 +3,7 @@ import { Article } from '@/lib/supabase'
 export type SortOption = 'newest' | 'oldest' | 'relevance'
 export type LabelOperator = 'OR' | 'AND'
 export type QuickFilter = 'all' | 'small-animal' | 'large-animal'
+export type FeedView = 'stream' | 'list'
 
 export type ParsedFilters = {
   search: string
@@ -13,6 +14,7 @@ export type ParsedFilters = {
   journals: string[]
   sort: SortOption
   page: number
+  view: FeedView
 }
 
 export type ArticleSearchResult = {

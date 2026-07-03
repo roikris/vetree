@@ -2,37 +2,125 @@
 
 @variant dark (&:is(.dark *));
 
+/* ─── Almanac light tokens (default) ─── */
 :root {
-  --background: #FFFFFF;
-  --foreground: #1A1A1A;
-  --sage-green: #3D7A5F;
-  --sage-green-hover: #2F5F4A;
-  --border-subtle: #E5E5E5;
+  --al-bg: #F7F3E8;
+  --al-card: #FFFFFF;
+  --al-card2: #FCF8ED;
+  --al-accent: #5F8C33;
+  --al-on-accent: #FFFFFF;
+  --al-ink1: #1F1A0E;
+  --al-ink2: #262013;
+  --al-ink3: #332C1B;
+  --al-ink4: #3D3524;
+  --al-body: #514935;
+  --al-sub: #5F5745;
+  --al-mut1: #6B634E;
+  --al-mut2: #756D57;
+  --al-mut3: #7E7663;
+  --al-mut4: #837B66;
+  --al-mut6: #9C947D;
+  --al-mut7: #B3AB93;
+  --al-line: 62,54,36;
+  --al-bar: 247,243,232;
+  /* backward-compat aliases */
+  --background: var(--al-bg);
+  --foreground: var(--al-ink3);
 }
 
+/* ─── Almanac dark tokens ─── */
 .dark {
-  --background: #0F0F0F;
-  --foreground: #E8E8E8;
-  --sage-green: #4E9A78;
-  --sage-green-hover: #5FAA88;
-  --border-subtle: #2A2A2A;
+  --al-bg: #14120E;
+  --al-card: #1B1811;
+  --al-card2: #16130E;
+  --al-accent: #8FCB5E;
+  --al-on-accent: #14120E;
+  --al-ink1: #F2ECDD;
+  --al-ink2: #EFE9DA;
+  --al-ink3: #E8E0CC;
+  --al-ink4: #DCD3BE;
+  --al-body: #C4BCAA;
+  --al-sub: #B4AD9A;
+  --al-mut1: #A7A08E;
+  --al-mut2: #9A9280;
+  --al-mut3: #8F877A;
+  --al-mut4: #8A8272;
+  --al-mut6: #6F695B;
+  --al-mut7: #5F5A4E;
+  --al-line: 232,224,204;
+  --al-bar: 20,18,14;
 }
 
+/* ─── Specialty chip hues (same value both themes; light text darkened in components) ─── */
+:root {
+  --chip-cardiology: #E88A92;
+  --chip-emergency: #E88AA0;
+  --chip-internal-medicine: #7FB0EC;
+  --chip-equine: #5FCDB8;
+  --chip-oncology: #C79CE8;
+  --chip-ophthalmology: #7FB0EC;
+  --chip-anesthesia: #B49AE8;
+  --chip-orthopedics: #E8A968;
+  --chip-dermatology: #E0CC6A;
+  --chip-neurology: #9AA6E8;
+  --chip-small-animal: #8FD65E;
+  --chip-large-animal: #E0BC5E;
+  --chip-exotic: #5FC7D8;
+  --chip-radiology: #6FBFEC;
+  --chip-pathology: #E88AD8;
+  --chip-pharmacology: #BFD65E;
+  --chip-nutrition: #5FD69A;
+  --chip-behavior: #A6B0C0;
+  --chip-reproduction: #E893C0;
+  --chip-soft-tissue-surgery: #E893C0;
+  --chip-dentistry: #B8B0A0;
+  /* Evidence tier hues */
+  --tier-gold: #A9E07C;
+  --tier-gold-dot: #8FD65E;
+  --tier-silver: #8FBEEC;
+  --tier-silver-dot: #6FA8E8;
+  --tier-bronze: #E8B060;
+  --tier-bronze-dot: #E0A040;
+}
+
+/* ─── Tailwind theme entries ─── */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-background: var(--al-bg);
+  --color-foreground: var(--al-ink3);
+  --color-al-bg: var(--al-bg);
+  --color-al-card: var(--al-card);
+  --color-al-card2: var(--al-card2);
+  --color-al-accent: var(--al-accent);
+  --color-al-on-accent: var(--al-on-accent);
+  --color-al-ink1: var(--al-ink1);
+  --color-al-ink2: var(--al-ink2);
+  --color-al-ink3: var(--al-ink3);
+  --color-al-ink4: var(--al-ink4);
+  --color-al-body: var(--al-body);
+  --color-al-sub: var(--al-sub);
+  --color-al-mut1: var(--al-mut1);
+  --color-al-mut2: var(--al-mut2);
+  --color-al-mut3: var(--al-mut3);
+  --color-al-mut4: var(--al-mut4);
+  --color-al-mut6: var(--al-mut6);
+  --color-al-mut7: var(--al-mut7);
+  --font-sans: var(--font-instrument);
+  --font-serif: var(--font-spectral);
 }
 
 html,
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: var(--al-bg);
+  color: var(--al-ink3);
+  font-family: var(--font-instrument), ui-sans-serif, system-ui, sans-serif;
   min-height: 100%;
   margin: 0;
   transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+::selection {
+  background: var(--al-accent);
+  color: var(--al-on-accent);
 }
 
 * {
@@ -122,4 +210,78 @@ body {
 
 .citation-link:hover {
   @apply underline;
+}
+
+/* ─── Almanac chip system ─── */
+
+/* Specialty text (no bg/border — just colored text) */
+.al-spec-text {
+  font-family: var(--font-instrument), ui-sans-serif, sans-serif;
+  font-size: 11.5px;
+  font-weight: 500;
+  line-height: 1;
+  color: color-mix(in oklab, var(--chip-h, #B4AD9A) 52%, #241B0C);
+}
+.dark .al-spec-text {
+  color: var(--chip-h, #B4AD9A);
+}
+
+/* Label chips (full pill — list cards, label rows) */
+.al-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 11px;
+  border-radius: 999px;
+  font-family: var(--font-instrument), ui-sans-serif, sans-serif;
+  font-size: 11.5px;
+  font-weight: 500;
+  line-height: 1;
+  cursor: pointer;
+  transition: filter .15s ease;
+  background: color-mix(in srgb, var(--chip-h, #B4AD9A) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--chip-h, #B4AD9A) 30%, transparent);
+  color: color-mix(in oklab, var(--chip-h, #B4AD9A) 52%, #241B0C);
+}
+.dark .al-chip {
+  color: var(--chip-h, #B4AD9A);
+}
+.al-chip:hover {
+  filter: brightness(1.15);
+}
+
+/* Evidence tier chip (pill with dot) */
+.al-ev-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 11px;
+  border-radius: 999px;
+  font-family: var(--font-instrument), ui-sans-serif, sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1;
+  background: color-mix(in srgb, var(--ev-h, #A9E07C) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ev-h, #A9E07C) 25%, transparent);
+  color: color-mix(in oklab, var(--ev-h, #A9E07C) 52%, #241B0C);
+}
+.dark .al-ev-chip {
+  color: var(--ev-h, #A9E07C);
+}
+.al-ev-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ev-dot, #8FD65E);
+  flex-shrink: 0;
+}
+
+/* Article card (list view) */
+.al-card {
+  background: var(--al-card);
+  border: 1px solid rgba(var(--al-line, 232,224,204), .09);
+  border-radius: 16px;
+  transition: border-color .15s ease;
+}
+.al-card:hover {
+  border-color: rgba(var(--al-line, 232,224,204), .22);
 }

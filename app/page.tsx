@@ -167,6 +167,7 @@ export default async function Home({ searchParams }: HomeProps) {
               searchQuery={filters.search || undefined}
               currentPage={filters.page}
               totalPages={totalPages}
+              totalCount={count || 0}
               filters={filters}
             />
           </SynthesisWrapper>

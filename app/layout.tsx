@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Spectral, Instrument_Sans } from "next/font/google";
 import { Analytics } from '@vercel/analytics/react';
 import { PageTracker } from '@/components/PageTracker';
 import { PWARegister } from '@/components/PWARegister';
@@ -7,14 +7,19 @@ import { PWAInstallPrompt } from '@/components/ui/PWAInstallPrompt';
 import { ConsentGate } from '@/components/ConsentGate';
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const spectral = Spectral({
+  variable: "--font-spectral",
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  style: ["normal", "italic"],
+  display: "swap",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const instrumentSans = Instrument_Sans({
+  variable: "--font-instrument",
   subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -51,7 +56,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#3D7A5F',
+  themeColor: '#8FCB5E',
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
@@ -85,7 +90,7 @@ export default function RootLayout({
         />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${spectral.variable} ${instrumentSans.variable} antialiased`}
       >
         <a
           href="#main-content"
