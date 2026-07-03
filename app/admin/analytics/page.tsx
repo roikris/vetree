@@ -21,18 +21,25 @@ export default async function AdminAnalyticsPage() {
   ])
 
   return (
-    <div className="min-h-screen bg-white dark:bg-[#0F0F0F] p-8">
+    <div style={{ minHeight: '100vh', background: 'var(--al-bg)', padding: '36px 36px 80px' }}>
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-semibold text-[#1A1A1A] dark:text-[#E8E8E8] mb-2">
+      <div style={{ marginBottom: 32 }}>
+        <h1 style={{
+          margin: '0 0 6px',
+          fontFamily: 'var(--font-spectral, serif)', fontSize: 28, fontWeight: 600,
+          lineHeight: 1.1, color: 'var(--al-ink2)', letterSpacing: '-.01em',
+        }}>
           Analytics
         </h1>
-        <p className="text-zinc-600 dark:text-zinc-400">
+        <p style={{
+          margin: 0,
+          fontFamily: 'var(--font-instrument, sans-serif)', fontSize: 14, fontWeight: 400,
+          color: 'var(--al-mut3)', lineHeight: 1.4,
+        }}>
           Track user engagement and content performance
         </p>
       </div>
 
-      {/* Main Content */}
       <AnalyticsClient
         initialOverview={overview.data}
         initialTopPages={topPages.data || []}
@@ -47,13 +54,11 @@ export default async function AdminAnalyticsPage() {
         initialSynthesisStats={synthesisStats.data || null}
       />
 
-      {/* User Retention */}
-      <div className="mt-8">
+      <div style={{ marginTop: 32 }}>
         <UserRetention />
       </div>
 
-      {/* Analysis Agent */}
-      <div className="mt-8">
+      <div style={{ marginTop: 32 }}>
         <AnalysisAgent />
       </div>
     </div>

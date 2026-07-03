@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { getAnalyticsOverview, getTopPages, getVisitorsOverTime, getTopArticles, getSessionDuration, getRecentSearches, getDeviceBreakdown, getTopCountries, getSavedArticlesStats, getTrafficSources, getSynthesisStats } from '@/app/actions/analytics'
 
 type AnalyticsClientProps = {
@@ -70,14 +70,15 @@ export function AnalyticsClient({
   const SortableHeader = ({ column, label }: { column: typeof sortColumn, label: string }) => (
     <th
       onClick={() => handleSort(column)}
-      className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer hover:text-white select-none group"
+      style={{
+        padding: '10px 14px', textAlign: 'left', cursor: 'pointer', userSelect: 'none',
+        fontFamily: 'var(--font-instrument, sans-serif)', fontSize: 11, fontWeight: 600,
+        letterSpacing: '.1em', textTransform: 'uppercase',
+        color: sortColumn === column ? 'var(--al-accent)' : 'var(--al-mut4)',
+        borderBottom: '1px solid rgba(var(--al-line, 62,54,36), .09)',
+      }}
     >
-      <div className="flex items-center gap-1">
-        {label}
-        <span className="text-gray-600 group-hover:text-gray-400">
-          {sortColumn === column ? (sortDirection === 'asc' ? ' ↑' : ' ↓') : ' ↕'}
-        </span>
-      </div>
+      {label}{sortColumn === column ? (sortDirection === 'asc' ? ' ↑' : ' ↓') : ''}
     </th>
   )
 
@@ -139,262 +140,213 @@ export function AnalyticsClient({
     return String.fromCodePoint(...codePoints)
   }
 
-  // Prepare pie chart data for session duration
-  const sessionPieData = sessionDuration ? [
-    { name: '<1 min', value: sessionDuration.distribution.under1min, color: '#ef4444' },
-    { name: '1-3 min', value: sessionDuration.distribution.between1and3, color: '#f59e0b' },
-    { name: '3-10 min', value: sessionDuration.distribution.between3and10, color: '#3b82f6' },
-    { name: '10+ min', value: sessionDuration.distribution.over10min, color: '#10b981' }
+  // Flat bar data for session distribution (replaces pie chart)
+  const sessionDistData = sessionDuration ? [
+    { name: '<1 min', value: sessionDuration.distribution.under1min, color: '#E8887A' },
+    { name: '1–3 min', value: sessionDuration.distribution.between1and3, color: '#E8B060' },
+    { name: '3–10 min', value: sessionDuration.distribution.between3and10, color: '#8FBEEC' },
+    { name: '10+ min', value: sessionDuration.distribution.over10min, color: '#A9E07C' },
   ] : []
+  const sessionTotal = sessionDistData.reduce((s, d) => s + d.value, 0)
 
-  // Prepare pie chart data for device breakdown
-  const devicePieData = deviceBreakdown ? [
-    { name: 'Mobile', value: deviceBreakdown.mobile, color: '#3b82f6' },
-    { name: 'Desktop', value: deviceBreakdown.desktop, color: '#10b981' },
-    { name: 'Unknown', value: deviceBreakdown.unknown, color: '#6b7280' }
+  // Flat bar data for devices (replaces pie chart)
+  const deviceData = deviceBreakdown ? [
+    { name: 'Mobile', value: deviceBreakdown.mobile, color: '#8FBEEC' },
+    { name: 'Desktop', value: deviceBreakdown.desktop, color: '#A9E07C' },
+    { name: 'Unknown', value: deviceBreakdown.unknown, color: '#9A9280' },
   ].filter(d => d.value > 0) : []
+  const deviceTotal = deviceData.reduce((s, d) => s + d.value, 0)
+
+  const cardStyle: React.CSSProperties = {
+    background: 'var(--al-card)',
+    border: '1px solid rgba(var(--al-line, 62,54,36), .09)',
+    borderRadius: 14,
+    padding: '22px 24px',
+  }
+  const h2Style: React.CSSProperties = {
+    margin: '0 0 16px',
+    fontFamily: 'var(--font-spectral, serif)', fontSize: 18, fontWeight: 600,
+    lineHeight: 1.2, color: 'var(--al-ink2)',
+  }
+  const labelStyle: React.CSSProperties = {
+    fontFamily: 'var(--font-instrument, sans-serif)', fontSize: 12, fontWeight: 400,
+    color: 'var(--al-mut4)', lineHeight: 1,
+  }
+  const bigNumStyle: React.CSSProperties = {
+    fontFamily: 'var(--font-spectral, serif)', fontSize: 30, fontWeight: 600,
+    lineHeight: 1, color: 'var(--al-accent)',
+  }
+  const subStyle: React.CSSProperties = {
+    fontFamily: 'var(--font-instrument, sans-serif)', fontSize: 11.5, fontWeight: 400,
+    color: 'var(--al-mut3)', marginTop: 3, lineHeight: 1,
+  }
+  const thStyle: React.CSSProperties = {
+    padding: '10px 14px', textAlign: 'left',
+    fontFamily: 'var(--font-instrument, sans-serif)', fontSize: 11, fontWeight: 600,
+    letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--al-mut4)',
+    borderBottom: '1px solid rgba(var(--al-line, 62,54,36), .09)',
+  }
+  const tdStyle: React.CSSProperties = {
+    padding: '10px 14px',
+    fontFamily: 'var(--font-instrument, sans-serif)', fontSize: 13, fontWeight: 400,
+    color: 'var(--al-ink4)', lineHeight: 1,
+    borderBottom: '1px solid rgba(var(--al-line, 62,54,36), .06)',
+  }
+  const tooltipStyle = {
+    backgroundColor: 'var(--al-card)',
+    border: '1px solid rgba(var(--al-line, 62,54,36), .18)',
+    borderRadius: 10,
+    fontFamily: 'var(--font-instrument, sans-serif)', fontSize: 12,
+    color: 'var(--al-ink3)',
+  }
 
   return (
-    <div className="space-y-8">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       {/* Date Range Filter */}
-      <div className="flex gap-2">
-        {[7, 30, 90].map((days) => (
+      <div style={{ display: 'flex', gap: 6 }}>
+        {([7, 30, 90] as const).map((days) => (
           <button
             key={days}
-            onClick={() => handleDateRangeChange(days as 7 | 30 | 90)}
+            onClick={() => handleDateRangeChange(days)}
             disabled={isLoading}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 ${
-              dateRange === days
-                ? 'bg-[#3D7A5F] dark:bg-[#4E9A78] text-white'
-                : 'bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300 dark:hover:bg-zinc-600'
-            }`}
+            style={{
+              padding: '7px 16px', borderRadius: 8, border: 'none', cursor: 'pointer',
+              fontFamily: 'var(--font-instrument, sans-serif)', fontSize: 13, fontWeight: 500,
+              lineHeight: 1, transition: 'all .13s ease', opacity: isLoading ? 0.5 : 1,
+              background: dateRange === days ? 'var(--al-accent)' : 'rgba(var(--al-line, 62,54,36), .08)',
+              color: dateRange === days ? 'var(--al-on-accent)' : 'var(--al-sub)',
+            }}
           >
-            {days === 7 ? 'Last 7 Days' : days === 30 ? 'Last 30 Days' : 'Last 90 Days'}
+            {days === 7 ? 'Last 7 days' : days === 30 ? 'Last 30 days' : 'Last 90 days'}
           </button>
         ))}
       </div>
 
       {/* Overview Cards */}
       {overview && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6">
-          <div className="bg-white dark:bg-[#1A1A1A] border border-zinc-200 dark:border-zinc-800 rounded-lg p-6">
-            <div className="text-sm text-zinc-600 dark:text-zinc-400 mb-2">Total Pageviews</div>
-            <div className="text-3xl font-bold text-[#3D7A5F] dark:text-[#4E9A78]">
-              {overview.totalViews.toLocaleString()}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 14 }}>
+          {[
+            { label: 'Total Pageviews', value: overview.totalViews.toLocaleString(), sub: null },
+            { label: 'Unique Visitors', value: overview.uniqueVisitors.toLocaleString(), sub: null },
+            { label: 'Logged In', value: overview.loggedInViews.toLocaleString(), sub: overview.totalViews > 0 ? `${Math.round((overview.loggedInViews / overview.totalViews) * 100)}% of total` : '0%' },
+            { label: 'Anonymous', value: overview.anonymousViews.toLocaleString(), sub: overview.totalViews > 0 ? `${Math.round((overview.anonymousViews / overview.totalViews) * 100)}% of total` : '0%' },
+            { label: 'Saved Articles', value: savedArticlesStats ? savedArticlesStats.totalSaved.toLocaleString() : '—', sub: savedArticlesStats ? `${savedArticlesStats.uniqueUsers} users` : null },
+            { label: `Synthesis Runs (${dateRange}d)`, value: String(synthesisStats?.totalRuns ?? 0), sub: synthesisStats && synthesisStats.totalRuns > 0 && synthesisStats.totalHelpful > 0 ? `${Math.round(synthesisStats.totalHelpful / synthesisStats.totalRuns * 100)}% helpful` : 'No feedback yet' },
+          ].map((card, i) => (
+            <div key={i} style={cardStyle}>
+              <div style={{ ...labelStyle, marginBottom: 10 }}>{card.label}</div>
+              <div style={bigNumStyle}>{card.value}</div>
+              {card.sub && <div style={subStyle}>{card.sub}</div>}
             </div>
-          </div>
-
-          <div className="bg-white dark:bg-[#1A1A1A] border border-zinc-200 dark:border-zinc-800 rounded-lg p-6">
-            <div className="text-sm text-zinc-600 dark:text-zinc-400 mb-2">Unique Visitors</div>
-            <div className="text-3xl font-bold text-blue-600 dark:text-blue-500">
-              {overview.uniqueVisitors.toLocaleString()}
-            </div>
-          </div>
-
-          <div className="bg-white dark:bg-[#1A1A1A] border border-zinc-200 dark:border-zinc-800 rounded-lg p-6">
-            <div className="text-sm text-zinc-600 dark:text-zinc-400 mb-2">Logged In</div>
-            <div className="text-3xl font-bold text-green-600 dark:text-green-500">
-              {overview.loggedInViews.toLocaleString()}
-            </div>
-            <div className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
-              {overview.totalViews > 0
-                ? `${Math.round((overview.loggedInViews / overview.totalViews) * 100)}% of total`
-                : '0%'}
-            </div>
-          </div>
-
-          <div className="bg-white dark:bg-[#1A1A1A] border border-zinc-200 dark:border-zinc-800 rounded-lg p-6">
-            <div className="text-sm text-zinc-600 dark:text-zinc-400 mb-2">Anonymous</div>
-            <div className="text-3xl font-bold text-zinc-600 dark:text-zinc-400">
-              {overview.anonymousViews.toLocaleString()}
-            </div>
-            <div className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
-              {overview.totalViews > 0
-                ? `${Math.round((overview.anonymousViews / overview.totalViews) * 100)}% of total`
-                : '0%'}
-            </div>
-          </div>
-
-          {savedArticlesStats && (
-            <div className="bg-white dark:bg-[#1A1A1A] border border-zinc-200 dark:border-zinc-800 rounded-lg p-6">
-              <div className="text-sm text-zinc-600 dark:text-zinc-400 mb-2">Saved Articles</div>
-              <div className="text-3xl font-bold text-purple-600 dark:text-purple-500">
-                {savedArticlesStats.totalSaved.toLocaleString()}
-              </div>
-              <div className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
-                {savedArticlesStats.uniqueUsers} users
-              </div>
-            </div>
-          )}
-
-          <div className="bg-white dark:bg-[#1A1A1A] border border-zinc-200 dark:border-zinc-800 rounded-lg p-6">
-            <div className="text-sm text-zinc-600 dark:text-zinc-400 mb-2">Synthesis Runs ({dateRange}d)</div>
-            <div className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">
-              {synthesisStats?.totalRuns ?? 0}
-            </div>
-            <div className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
-              {synthesisStats && synthesisStats.totalRuns > 0 && synthesisStats.totalHelpful > 0
-                ? `${Math.round(synthesisStats.totalHelpful / synthesisStats.totalRuns * 100)}% helpful`
-                : 'No feedback yet'}
-            </div>
-          </div>
+          ))}
         </div>
       )}
 
-      {/* Visitors Over Time Chart */}
+      {/* Visitors Over Time */}
       {visitorsOverTime.length > 0 && (
-        <div className="bg-white dark:bg-[#1A1A1A] border border-zinc-200 dark:border-zinc-800 rounded-lg p-6">
-          <h2 className="text-xl font-semibold text-[#1A1A1A] dark:text-[#E8E8E8] mb-4">
-            Visitors Over Time
-          </h2>
-          <ResponsiveContainer width="100%" height={300}>
+        <div style={cardStyle}>
+          <h2 style={h2Style}>Visitors over time</h2>
+          <ResponsiveContainer width="100%" height={280}>
             <LineChart data={visitorsOverTime}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#444" />
-              <XAxis dataKey="date" stroke="#888" />
-              <YAxis stroke="#888" />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: '#1A1A1A',
-                  border: '1px solid #333',
-                  borderRadius: '8px'
-                }}
-              />
-              <Legend />
-              <Line type="monotone" dataKey="totalViews" stroke="#3D7A5F" name="Total Views" />
-              <Line type="monotone" dataKey="uniqueVisitors" stroke="#2563EB" name="Unique Visitors" />
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(var(--al-line,62,54,36),.12)" />
+              <XAxis dataKey="date" stroke="var(--al-mut6)" tick={{ fontFamily: 'var(--font-instrument,sans-serif)', fontSize: 11 }} />
+              <YAxis stroke="var(--al-mut6)" tick={{ fontFamily: 'var(--font-instrument,sans-serif)', fontSize: 11 }} />
+              <Tooltip contentStyle={tooltipStyle} />
+              <Legend wrapperStyle={{ fontFamily: 'var(--font-instrument,sans-serif)', fontSize: 12 }} />
+              <Line type="monotone" dataKey="totalViews" stroke="var(--al-accent)" strokeWidth={2} dot={false} name="Total Views" />
+              <Line type="monotone" dataKey="uniqueVisitors" stroke="#8FBEEC" strokeWidth={2} dot={false} name="Unique Visitors" />
             </LineChart>
           </ResponsiveContainer>
         </div>
       )}
 
-      {/* Top Pages Chart */}
+      {/* Top Pages */}
       {topPages.length > 0 && (
-        <div className="bg-white dark:bg-[#1A1A1A] border border-zinc-200 dark:border-zinc-800 rounded-lg p-6">
-          <h2 className="text-xl font-semibold text-[#1A1A1A] dark:text-[#E8E8E8] mb-4">
-            Top Pages
-          </h2>
-          <ResponsiveContainer width="100%" height={300}>
+        <div style={cardStyle}>
+          <h2 style={h2Style}>Top pages</h2>
+          <ResponsiveContainer width="100%" height={280}>
             <BarChart data={topPages} layout="vertical">
-              <CartesianGrid strokeDasharray="3 3" stroke="#444" />
-              <XAxis type="number" stroke="#888" />
-              <YAxis dataKey="path" type="category" width={150} stroke="#888" />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: '#1A1A1A',
-                  border: '1px solid #333',
-                  borderRadius: '8px'
-                }}
-              />
-              <Bar dataKey="views" fill="#3D7A5F" />
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(var(--al-line,62,54,36),.12)" />
+              <XAxis type="number" stroke="var(--al-mut6)" tick={{ fontFamily: 'var(--font-instrument,sans-serif)', fontSize: 11 }} />
+              <YAxis dataKey="path" type="category" width={160} stroke="var(--al-mut6)" tick={{ fontFamily: 'var(--font-instrument,sans-serif)', fontSize: 11 }} />
+              <Tooltip contentStyle={tooltipStyle} />
+              <Bar dataKey="views" fill="var(--al-accent)" radius={[0, 4, 4, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
       )}
 
-      {/* Top Articles Table */}
+      {/* Top Articles */}
       {topArticles.length > 0 && (
-        <div className="bg-white dark:bg-[#1A1A1A] border border-zinc-200 dark:border-zinc-800 rounded-lg p-6">
-          <h2 className="text-xl font-semibold text-[#1A1A1A] dark:text-[#E8E8E8] mb-4">
-            Top Articles
-          </h2>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-zinc-200 dark:border-zinc-800">
-                  <th className="text-left py-3 px-4 text-sm font-medium text-zinc-600 dark:text-zinc-400">
-                    Title
-                  </th>
-                  <th className="text-right py-3 px-4 text-sm font-medium text-zinc-600 dark:text-zinc-400">
-                    Views
-                  </th>
-                  <th className="text-right py-3 px-4 text-sm font-medium text-zinc-600 dark:text-zinc-400">
-                    Unique Visitors
-                  </th>
+        <div style={cardStyle}>
+          <h2 style={h2Style}>Top articles</h2>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr>
+                <th style={thStyle}>Title</th>
+                <th style={{ ...thStyle, textAlign: 'right' }}>Views</th>
+                <th style={{ ...thStyle, textAlign: 'right' }}>Unique</th>
+              </tr>
+            </thead>
+            <tbody>
+              {topArticles.map((article) => (
+                <tr key={article.id}>
+                  <td style={tdStyle}>
+                    <a href={`/article/${article.id}`} target="_blank" rel="noopener noreferrer"
+                      style={{ color: 'var(--al-ink3)', textDecoration: 'none' }}>
+                      {article.title}
+                    </a>
+                  </td>
+                  <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 500 }}>{article.views}</td>
+                  <td style={{ ...tdStyle, textAlign: 'right', color: 'var(--al-mut3)' }}>{article.uniqueVisitors}</td>
                 </tr>
-              </thead>
-              <tbody>
-                {topArticles.map((article, idx) => (
-                  <tr
-                    key={article.id}
-                    className="border-b border-zinc-200 dark:border-zinc-800 last:border-0"
-                  >
-                    <td className="py-3 px-4 text-sm text-zinc-900 dark:text-zinc-100">
-                      <a
-                        href={`/article/${article.id}`}
-                        className="hover:text-[#3D7A5F] dark:hover:text-[#4E9A78] transition-colors"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        {article.title}
-                      </a>
-                    </td>
-                    <td className="py-3 px-4 text-sm text-right text-zinc-700 dark:text-zinc-300 font-medium">
-                      {article.views}
-                    </td>
-                    <td className="py-3 px-4 text-sm text-right text-zinc-700 dark:text-zinc-300">
-                      {article.uniqueVisitors}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 
-      {/* Session Duration */}
+      {/* Session Duration + Distribution */}
       {sessionDuration && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Average & Median Duration Card */}
-          <div className="bg-white dark:bg-[#1A1A1A] border border-zinc-200 dark:border-zinc-800 rounded-lg p-6">
-            <h2 className="text-xl font-semibold text-[#1A1A1A] dark:text-[#E8E8E8] mb-4">
-              Session Duration
-            </h2>
-            <div className="space-y-4">
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+          <div style={cardStyle}>
+            <h2 style={h2Style}>Session duration</h2>
+            <div style={{ display: 'flex', gap: 32, marginBottom: 20 }}>
               <div>
-                <div className="text-sm text-zinc-600 dark:text-zinc-400 mb-1">Average (filtered)</div>
-                <div className="text-4xl font-bold text-[#3D7A5F] dark:text-[#4E9A78]">
-                  {formatDuration(sessionDuration.average)}
-                </div>
+                <div style={labelStyle}>Average</div>
+                <div style={{ ...bigNumStyle, marginTop: 6 }}>{formatDuration(sessionDuration.average)}</div>
               </div>
               <div>
-                <div className="text-sm text-zinc-600 dark:text-zinc-400 mb-1">Median</div>
-                <div className="text-4xl font-bold text-blue-600 dark:text-blue-500">
-                  {formatDuration(sessionDuration.median || 0)}
-                </div>
+                <div style={labelStyle}>Median</div>
+                <div style={{ ...bigNumStyle, marginTop: 6, color: '#8FBEEC' }}>{formatDuration(sessionDuration.median || 0)}</div>
               </div>
             </div>
-            <div className="text-xs text-zinc-500 dark:text-zinc-400 mt-4 italic">
-              * Sessions capped at 30 min (longer = tab left open)
+            <div style={{ fontFamily: 'var(--font-instrument,sans-serif)', fontSize: 11, fontStyle: 'italic', color: 'var(--al-mut6)' }}>
+              Sessions capped at 30 min
             </div>
           </div>
 
-          {/* Duration Distribution */}
-          <div className="bg-white dark:bg-[#1A1A1A] border border-zinc-200 dark:border-zinc-800 rounded-lg p-6">
-            <h2 className="text-xl font-semibold text-[#1A1A1A] dark:text-[#E8E8E8] mb-4">
-              Session Duration Distribution
-            </h2>
-            {sessionPieData.some(d => d.value > 0) ? (
-              <ResponsiveContainer width="100%" height={250}>
-                <PieChart>
-                  <Pie
-                    data={sessionPieData}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={({ name, percent }) => `${name}: ${((percent || 0) * 100).toFixed(0)}%`}
-                    outerRadius={80}
-                    dataKey="value"
-                  >
-                    {sessionPieData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
+          <div style={cardStyle}>
+            <h2 style={h2Style}>Duration distribution</h2>
+            {sessionTotal > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {sessionDistData.map(d => {
+                  const pct = sessionTotal > 0 ? Math.round((d.value / sessionTotal) * 100) : 0
+                  return (
+                    <div key={d.name}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                        <span style={{ fontFamily: 'var(--font-instrument,sans-serif)', fontSize: 12, color: 'var(--al-sub)' }}>{d.name}</span>
+                        <span style={{ fontFamily: 'var(--font-instrument,sans-serif)', fontSize: 12, fontWeight: 600, color: 'var(--al-ink3)' }}>{pct}%</span>
+                      </div>
+                      <div style={{ height: 6, borderRadius: 4, background: 'rgba(var(--al-line,62,54,36),.08)' }}>
+                        <div style={{ width: `${pct}%`, height: '100%', borderRadius: 4, background: d.color }} />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
             ) : (
-              <div className="flex items-center justify-center h-[250px] text-zinc-500 dark:text-zinc-400">
+              <div style={{ color: 'var(--al-mut4)', fontFamily: 'var(--font-instrument,sans-serif)', fontSize: 13, textAlign: 'center', paddingTop: 40 }}>
                 No session data yet
               </div>
             )}
@@ -402,65 +354,58 @@ export function AnalyticsClient({
         </div>
       )}
 
-      {/* Device Breakdown & Top Countries */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Device Breakdown Pie Chart */}
+      {/* Device Breakdown + Countries */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
         {deviceBreakdown && (
-          <div className="bg-white dark:bg-[#1A1A1A] border border-zinc-200 dark:border-zinc-800 rounded-lg p-6">
-            <h2 className="text-xl font-semibold text-[#1A1A1A] dark:text-[#E8E8E8] mb-4">
-              Device Breakdown
-            </h2>
-            {devicePieData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={250}>
-                <PieChart>
-                  <Pie
-                    data={devicePieData}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={({ name, percent }) => `${name}: ${((percent || 0) * 100).toFixed(0)}%`}
-                    outerRadius={80}
-                    dataKey="value"
-                  >
-                    {devicePieData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
+          <div style={cardStyle}>
+            <h2 style={h2Style}>Device breakdown</h2>
+            {deviceTotal > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {deviceData.map(d => {
+                  const pct = Math.round((d.value / deviceTotal) * 100)
+                  return (
+                    <div key={d.name}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                        <span style={{ fontFamily: 'var(--font-instrument,sans-serif)', fontSize: 12, color: 'var(--al-sub)' }}>{d.name}</span>
+                        <span style={{ fontFamily: 'var(--font-instrument,sans-serif)', fontSize: 12, fontWeight: 600, color: 'var(--al-ink3)' }}>{pct}%</span>
+                      </div>
+                      <div style={{ height: 6, borderRadius: 4, background: 'rgba(var(--al-line,62,54,36),.08)' }}>
+                        <div style={{ width: `${pct}%`, height: '100%', borderRadius: 4, background: d.color }} />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
             ) : (
-              <div className="flex items-center justify-center h-[250px] text-zinc-500 dark:text-zinc-400">
+              <div style={{ color: 'var(--al-mut4)', fontFamily: 'var(--font-instrument,sans-serif)', fontSize: 13, textAlign: 'center', paddingTop: 40 }}>
                 No device data yet
               </div>
             )}
           </div>
         )}
 
-        {/* Top Countries */}
         {topCountries && topCountries.length > 0 && (
-          <div className="bg-white dark:bg-[#1A1A1A] border border-zinc-200 dark:border-zinc-800 rounded-lg p-6">
-            <h2 className="text-xl font-semibold text-[#1A1A1A] dark:text-[#E8E8E8] mb-4">
-              Top Countries
-            </h2>
-            <div className="space-y-2">
+          <div style={cardStyle}>
+            <h2 style={h2Style}>Top countries</h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
               {topCountries.map((country, idx) => (
-                <div
-                  key={idx}
-                  className="flex items-center justify-between py-2 border-b border-zinc-200 dark:border-zinc-800 last:border-0"
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl">{getCountryFlag(country.country)}</span>
-                    <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                <div key={idx} style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  padding: '9px 0',
+                  borderBottom: idx < topCountries.length - 1 ? '1px solid rgba(var(--al-line,62,54,36),.07)' : 'none',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{ fontSize: 18 }}>{getCountryFlag(country.country)}</span>
+                    <span style={{ fontFamily: 'var(--font-instrument,sans-serif)', fontSize: 13, color: 'var(--al-ink3)' }}>
                       {country.country}
                     </span>
                   </div>
-                  <div className="flex items-center gap-4 text-sm">
-                    <span className="text-zinc-700 dark:text-zinc-300">
-                      <span className="font-medium">{country.views}</span> views
+                  <div style={{ display: 'flex', gap: 16 }}>
+                    <span style={{ fontFamily: 'var(--font-instrument,sans-serif)', fontSize: 13, fontWeight: 600, color: 'var(--al-ink3)' }}>
+                      {country.views}
                     </span>
-                    <span className="text-zinc-500 dark:text-zinc-400">
-                      {country.uniqueVisitors} unique
+                    <span style={{ fontFamily: 'var(--font-instrument,sans-serif)', fontSize: 12, color: 'var(--al-mut4)' }}>
+                      {country.uniqueVisitors} uniq
                     </span>
                   </div>
                 </div>
@@ -472,115 +417,66 @@ export function AnalyticsClient({
 
       {/* Traffic Sources */}
       {trafficSources.length > 0 && (
-        <div className="bg-white dark:bg-[#1A1A1A] border border-zinc-200 dark:border-zinc-800 rounded-lg p-6">
-          <h2 className="text-xl font-semibold text-[#1A1A1A] dark:text-[#E8E8E8] mb-4">
-            Traffic Sources
-          </h2>
-
-          {/* Bar Chart */}
-          <ResponsiveContainer width="100%" height={300}>
+        <div style={cardStyle}>
+          <h2 style={h2Style}>Traffic sources</h2>
+          <ResponsiveContainer width="100%" height={260}>
             <BarChart data={trafficSources}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#444" />
-              <XAxis dataKey="source" stroke="#888" angle={-45} textAnchor="end" height={100} />
-              <YAxis stroke="#888" />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: '#1A1A1A',
-                  border: '1px solid #333',
-                  borderRadius: '8px'
-                }}
-              />
-              <Legend />
-              <Bar dataKey="visits" fill="#3D7A5F" name="Visits" />
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(var(--al-line,62,54,36),.12)" />
+              <XAxis dataKey="source" stroke="var(--al-mut6)" angle={-30} textAnchor="end" height={70} tick={{ fontFamily: 'var(--font-instrument,sans-serif)', fontSize: 11 }} />
+              <YAxis stroke="var(--al-mut6)" tick={{ fontFamily: 'var(--font-instrument,sans-serif)', fontSize: 11 }} />
+              <Tooltip contentStyle={tooltipStyle} />
+              <Bar dataKey="visits" fill="var(--al-accent)" radius={[4, 4, 0, 0]} name="Visits" />
             </BarChart>
           </ResponsiveContainer>
-
-          {/* Table */}
-          <div className="mt-6 overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-zinc-200 dark:border-zinc-800">
-                  <th className="text-left py-3 px-4 text-sm font-medium text-zinc-600 dark:text-zinc-400">
-                    Source
-                  </th>
-                  <th className="text-right py-3 px-4 text-sm font-medium text-zinc-600 dark:text-zinc-400">
-                    Visits
-                  </th>
-                  <th className="text-right py-3 px-4 text-sm font-medium text-zinc-600 dark:text-zinc-400">
-                    Unique Visitors
-                  </th>
-                  <th className="text-right py-3 px-4 text-sm font-medium text-zinc-600 dark:text-zinc-400">
-                    Signups Attributed
-                  </th>
+          <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 20 }}>
+            <thead>
+              <tr>
+                <th style={thStyle}>Source</th>
+                <th style={{ ...thStyle, textAlign: 'right' }}>Visits</th>
+                <th style={{ ...thStyle, textAlign: 'right' }}>Unique</th>
+                <th style={{ ...thStyle, textAlign: 'right' }}>Signups</th>
+              </tr>
+            </thead>
+            <tbody>
+              {trafficSources.map((source, idx) => (
+                <tr key={idx}>
+                  <td style={{ ...tdStyle, fontWeight: 500 }}>{source.source}</td>
+                  <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 600 }}>{source.visits}</td>
+                  <td style={{ ...tdStyle, textAlign: 'right' }}>{source.uniqueVisitors}</td>
+                  <td style={{ ...tdStyle, textAlign: 'right' }}>{source.signups}</td>
                 </tr>
-              </thead>
-              <tbody>
-                {trafficSources.map((source, idx) => (
-                  <tr
-                    key={idx}
-                    className="border-b border-zinc-200 dark:border-zinc-800 last:border-0"
-                  >
-                    <td className="py-3 px-4 text-sm text-zinc-900 dark:text-zinc-100 font-medium">
-                      {source.source}
-                    </td>
-                    <td className="py-3 px-4 text-sm text-right text-zinc-700 dark:text-zinc-300 font-medium">
-                      {source.visits}
-                    </td>
-                    <td className="py-3 px-4 text-sm text-right text-zinc-700 dark:text-zinc-300">
-                      {source.uniqueVisitors}
-                    </td>
-                    <td className="py-3 px-4 text-sm text-right text-zinc-700 dark:text-zinc-300">
-                      {source.signups}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 
       {/* Recent Searches */}
-      <div className="bg-white dark:bg-[#1A1A1A] border border-zinc-200 dark:border-zinc-800 rounded-lg p-6">
-        <h2 className="text-xl font-semibold text-[#1A1A1A] dark:text-[#E8E8E8] mb-4">
-          Recent Searches
-        </h2>
+      <div style={cardStyle}>
+        <h2 style={h2Style}>Recent searches</h2>
         {recentSearches.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-700">
-                  <SortableHeader column="query" label="Query" />
-                  <SortableHeader column="count" label="Searches" />
-                  <SortableHeader column="avg_results" label="Avg. Results" />
-                  <SortableHeader column="last_searched" label="Last Searched" />
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr>
+                <SortableHeader column="query" label="Query" />
+                <SortableHeader column="count" label="Searches" />
+                <SortableHeader column="avg_results" label="Avg. Results" />
+                <SortableHeader column="last_searched" label="Last Searched" />
+              </tr>
+            </thead>
+            <tbody>
+              {sortedSearches.map((search, idx) => (
+                <tr key={idx}>
+                  <td style={{ ...tdStyle, fontFamily: 'monospace', fontSize: 12 }}>{search.query}</td>
+                  <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 600 }}>{search.count}</td>
+                  <td style={{ ...tdStyle, textAlign: 'right' }}>{search.avgResults}</td>
+                  <td style={{ ...tdStyle, textAlign: 'right', color: 'var(--al-mut3)' }}>{new Date(search.lastSearched).toLocaleDateString()}</td>
                 </tr>
-              </thead>
-              <tbody>
-                {sortedSearches.map((search, idx) => (
-                  <tr
-                    key={idx}
-                    className="border-b border-zinc-200 dark:border-zinc-800 last:border-0"
-                  >
-                    <td className="py-3 px-4 text-sm text-zinc-900 dark:text-zinc-100 font-mono">
-                      {search.query}
-                    </td>
-                    <td className="py-3 px-4 text-sm text-right text-zinc-700 dark:text-zinc-300 font-medium">
-                      {search.count}
-                    </td>
-                    <td className="py-3 px-4 text-sm text-right text-zinc-700 dark:text-zinc-300">
-                      {search.avgResults}
-                    </td>
-                    <td className="py-3 px-4 text-sm text-right text-zinc-500 dark:text-zinc-400">
-                      {new Date(search.lastSearched).toLocaleDateString()}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              ))}
+            </tbody>
+          </table>
         ) : (
-          <div className="text-center py-12 text-zinc-500 dark:text-zinc-400">
+          <div style={{ textAlign: 'center', padding: '48px 0', color: 'var(--al-mut4)', fontFamily: 'var(--font-instrument,sans-serif)', fontSize: 14 }}>
             No searches recorded yet
           </div>
         )}
