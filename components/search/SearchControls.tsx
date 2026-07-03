@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { ParsedFilters, FeedView } from '@/types/search'
 import { buildSearchParams } from '@/lib/utils/searchParams'
 import { useAuth } from '@/lib/hooks/useAuth'
+import { useAdmin } from '@/lib/hooks/useAdmin'
 import { Onboarding } from '@/components/onboarding/Onboarding'
 import { Footer } from '@/components/ui/Footer'
 import { BottomNav } from '@/components/ui/BottomNav'
@@ -84,6 +85,7 @@ export function SearchControls({
   const [journalOpen, setJournalOpen] = useState(false)
 
   const { user } = useAuth()
+  const { isAdmin } = useAdmin()
 
   useEffect(() => { filtersRef.current = initialFilters }, [initialFilters])
 
@@ -272,6 +274,16 @@ export function SearchControls({
                     <circle cx="11" cy="11" r="7" /><path strokeLinecap="round" d="M21 21l-4.3-4.3" />
                   </svg>
                 </button>
+              )}
+
+              {isAdmin && (
+                <Link href="/admin" className="hidden md:block" style={{
+                  fontFamily: 'var(--font-instrument, sans-serif)',
+                  fontSize: 13.5, fontWeight: 500, lineHeight: 1,
+                  color: 'var(--al-accent)', textDecoration: 'none',
+                }}>
+                  Admin
+                </Link>
               )}
 
               <Link href="/library" className="hidden md:block" style={{
