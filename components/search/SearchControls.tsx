@@ -369,6 +369,7 @@ export function SearchControls({
                               const next = on
                                 ? initialFilters.labels.filter(l => l !== label)
                                 : [...initialFilters.labels, label]
+                              setSpecialtyOpen(false)
                               updateFilters({ labels: next })
                             }}
                             style={{
@@ -416,6 +417,7 @@ export function SearchControls({
                               const next = on
                                 ? initialFilters.evidence.filter(e => e !== level)
                                 : [...initialFilters.evidence, level]
+                              setEvidenceOpen(false)
                               updateFilters({ evidence: next })
                             }}
                             style={{
@@ -464,6 +466,7 @@ export function SearchControls({
                               const next = on
                                 ? initialFilters.journals.filter(j => j !== journal)
                                 : [...initialFilters.journals, journal]
+                              setJournalOpen(false)
                               updateFilters({ journals: next })
                             }}
                             style={{
