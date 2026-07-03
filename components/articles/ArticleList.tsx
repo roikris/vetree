@@ -3,6 +3,7 @@ import { FeedView } from '@/types/search'
 import { ArticleCard } from './ArticleCard'
 import { StreamRow } from './StreamRow'
 import { ZeroResultsCTA } from './ZeroResultsCTA'
+import { GroveView } from './GroveView'
 
 type ArticleListProps = {
   articles: Article[]
@@ -13,19 +14,8 @@ type ArticleListProps = {
 }
 
 export function ArticleList({ articles, searchQuery, view = 'stream', totalCount, newThisWeek }: ArticleListProps) {
-  // Grove placeholder (Phase 7)
   if (view === 'grove') {
-    return (
-      <div style={{ maxWidth: 1020, margin: '0 auto', padding: '60px 32px', textAlign: 'center' }}>
-        <p style={{
-          fontFamily: 'var(--font-spectral, serif)',
-          fontStyle: 'italic', fontSize: 18, fontWeight: 400,
-          color: 'var(--al-mut3)',
-        }}>
-          Grove view coming soon.
-        </p>
-      </div>
-    )
+    return <GroveView />
   }
 
   if (articles.length === 0) {
