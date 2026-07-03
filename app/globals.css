@@ -24,9 +24,14 @@
   --al-line: 62,54,36;
   --al-bar: 247,243,232;
   --al-acct: 95,140,51;
+  --al-acct2: 110,130,70;
+  --al-card3: #FFFFFF;
+  --al-card4: #EDE7D4;
+  --al-ink5: #443C2A;
   --al-warnc: 176,116,20;
   --al-warntext: #7A6238;
   --al-onaccent: var(--al-on-accent);
+  --al-chipmix: 52%;
   /* backward-compat aliases */
   --background: var(--al-bg);
   --foreground: var(--al-ink3);
@@ -54,9 +59,14 @@
   --al-line: 232,224,204;
   --al-bar: 20,18,14;
   --al-acct: 143,203,94;
+  --al-acct2: 126,140,90;
+  --al-card3: #181510;
+  --al-card4: #2A2A1E;
+  --al-ink5: #D8D0C2;
   --al-warnc: 224,160,64;
   --al-warntext: #B0A488;
   --al-onaccent: var(--al-on-accent);
+  --al-chipmix: 100%;
 }
 
 /* ─── Specialty chip hues (same value both themes; light text darkened in components) ─── */
