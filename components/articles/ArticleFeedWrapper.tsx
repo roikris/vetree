@@ -14,6 +14,7 @@ type ArticleFeedWrapperProps = {
   currentPage: number
   totalPages: number
   totalCount?: number
+  newThisWeek?: number
   filters: ParsedFilters
 }
 
@@ -23,6 +24,7 @@ export function ArticleFeedWrapper({
   currentPage,
   totalPages,
   totalCount,
+  newThisWeek,
   filters,
 }: ArticleFeedWrapperProps) {
   const router = useRouter()
@@ -65,7 +67,7 @@ export function ArticleFeedWrapper({
             showLoading ? 'opacity-50 pointer-events-none' : 'opacity-100'
           }`}
         >
-          <ArticleList articles={articles} searchQuery={searchQuery} view={filters.view} totalCount={totalCount} />
+          <ArticleList articles={articles} searchQuery={searchQuery} view={filters.view} totalCount={totalCount} newThisWeek={newThisWeek} />
         </div>
 
         {showLoading && (

@@ -66,6 +66,15 @@ export default async function Home({ searchParams }: HomeProps) {
     }
   }
 
+  // Count articles published in the last 7 days (for stream header)
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+  const { count: newThisWeek } = await supabase
+    .from('articles')
+    .select('id', { count: 'exact', head: true })
+    .eq('needs_enrichment', false)
+    .not('clinical_bottom_line', 'is', null)
+    .gte('publication_date', sevenDaysAgo)
+
   // Fetch filtered articles
   const { data: articles, count, error, searchTier } = await searchArticles(filters, 20)
 
@@ -168,6 +177,7 @@ export default async function Home({ searchParams }: HomeProps) {
               currentPage={filters.page}
               totalPages={totalPages}
               totalCount={count || 0}
+              newThisWeek={newThisWeek ?? undefined}
               filters={filters}
             />
           </SynthesisWrapper>

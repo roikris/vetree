@@ -198,7 +198,7 @@ export function SearchControls({
               border: '1px solid rgba(var(--al-line, 232,224,204), .1)',
               borderRadius: 11, padding: 4,
             }}>
-              {(['stream', 'list'] as FeedView[]).map(v => (
+              {(['stream', 'grove', 'list'] as FeedView[]).map(v => (
                 <button
                   key={v}
                   onClick={() => setView(v)}
@@ -306,8 +306,8 @@ export function SearchControls({
             </div>
           </div>
 
-          {/* ─── Filter pill bar ─────────────────────────────────────────── */}
-          <div style={pillRow}>
+          {/* ─── Filter pill bar — hidden in grove view ──────────────────── */}
+          {view !== 'grove' && (<div style={pillRow}>
             {QUICK_PILLS.map(pill => {
               const active = isPillActive(pill, initialFilters)
               return (
@@ -415,7 +415,7 @@ export function SearchControls({
                 </div>
               )}
             </div>
-          </div>
+          </div>)}
         </header>
 
         {/* ─── Main content ────────────────────────────────────────────────── */}

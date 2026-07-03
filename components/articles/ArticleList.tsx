@@ -9,9 +9,25 @@ type ArticleListProps = {
   searchQuery?: string
   view?: FeedView
   totalCount?: number
+  newThisWeek?: number
 }
 
-export function ArticleList({ articles, searchQuery, view = 'stream', totalCount }: ArticleListProps) {
+export function ArticleList({ articles, searchQuery, view = 'stream', totalCount, newThisWeek }: ArticleListProps) {
+  // Grove placeholder (Phase 7)
+  if (view === 'grove') {
+    return (
+      <div style={{ maxWidth: 1020, margin: '0 auto', padding: '60px 32px', textAlign: 'center' }}>
+        <p style={{
+          fontFamily: 'var(--font-spectral, serif)',
+          fontStyle: 'italic', fontSize: 18, fontWeight: 400,
+          color: 'var(--al-mut3)',
+        }}>
+          Grove view coming soon.
+        </p>
+      </div>
+    )
+  }
+
   if (articles.length === 0) {
     if (searchQuery) {
       return <ZeroResultsCTA searchQuery={searchQuery} />
@@ -46,7 +62,7 @@ export function ArticleList({ articles, searchQuery, view = 'stream', totalCount
             fontSize: 12.5, fontWeight: 400, lineHeight: 1,
             color: 'var(--al-mut6)',
           }}>
-            Newest first
+            {newThisWeek != null ? `${newThisWeek} new this week · ` : ''}Newest first
           </span>
         </div>
 

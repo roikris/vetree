@@ -42,7 +42,7 @@ export function parseSearchParams(
   const page = isNaN(pageParam) || pageParam < 1 ? 1 : pageParam
 
   const viewParam = typeof searchParams.view === 'string' ? searchParams.view : 'stream'
-  const view: FeedView = ['stream', 'list'].includes(viewParam) ? (viewParam as FeedView) : 'stream'
+  const view: FeedView = ['stream', 'grove', 'list'].includes(viewParam) ? (viewParam as FeedView) : 'stream'
 
   return {
     search,
