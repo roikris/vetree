@@ -9,9 +9,10 @@ type SynthesisWrapperProps = {
   searchQuery: string
   children: React.ReactNode
   isLoggedIn?: boolean
+  view?: string
 }
 
-export function SynthesisWrapper({ searchQuery, children, isLoggedIn }: SynthesisWrapperProps) {
+export function SynthesisWrapper({ searchQuery, children, isLoggedIn, view }: SynthesisWrapperProps) {
   const [showSynthesis, setShowSynthesis] = useState(false)
   const { flags, loading } = useFeatureFlags()
   const searchParams = useSearchParams()
@@ -76,9 +77,9 @@ export function SynthesisWrapper({ searchQuery, children, isLoggedIn }: Synthesi
 
   return (
     <>
-      {/* Synthesis panel */}
+      {/* Synthesis panel — constrained to same width as ArticleList */}
       {showSynthesis && (
-        <div ref={synthesisPanelRef}>
+        <div ref={synthesisPanelRef} style={{ maxWidth: view === 'list' ? 844 : 704, margin: '0 auto', padding: '0 32px' }}>
           <SynthesisPanel
             query={searchQuery}
             onClose={() => setShowSynthesis(false)}

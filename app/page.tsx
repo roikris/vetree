@@ -199,7 +199,7 @@ export default async function Home({ searchParams }: HomeProps) {
           </div>
 
           {/* Synthesis wrapper - shows synthesis button and panel when search query exists */}
-          <SynthesisWrapper searchQuery={filters.search} isLoggedIn={isLoggedIn}>
+          <SynthesisWrapper searchQuery={filters.search} isLoggedIn={isLoggedIn} view={filters.view}>
             <ArticleFeedWrapper
               articles={deduplicatedArticles}
               searchQuery={filters.search || undefined}
