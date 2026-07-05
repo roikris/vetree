@@ -52,7 +52,7 @@ Write a LinkedIn post in "Evidence Report" style:
 - Each finding references study count or type (e.g., "across 4 RCTs...")
 - Section: "⚠️ Where studies disagree:" (if applicable)
 - Section: "📊 Evidence quality: ${qualityLine}"
-- End: "Full evidence summary → vetree.app/synthesis/${topicSlug}"
+- End: "Full evidence summary → vetree.app/synthesis/${topicSlug}?utm_source=linkedin&utm_medium=social&utm_content=synthesis"
 - 200-300 words total
 - LinkedIn rhythm: short→long→short paragraphs
 - BANNED: "game changer", "revolutionary", "excited to share"
@@ -70,7 +70,7 @@ Write a LinkedIn post in "Clinical Insight" style:
 - "Here's what [N] studies actually found:"
 - Narrative synthesis — 3-4 paragraphs weaving in findings naturally
 - End with: "The bottom line for your practice:" + one actionable sentence
-- End: "→ Full evidence summary at vetree.app"
+- End: "→ Full evidence summary at vetree.app/synthesis/${topicSlug}?utm_source=linkedin&utm_medium=social&utm_content=synthesis"
 - 200-300 words
 - Conversational but evidence-backed
 - BANNED: "game changer", "revolutionary", "excited to share", "groundbreaking"
@@ -88,7 +88,7 @@ Write a LinkedIn post in "Myth vs Evidence" style:
 - "What [N] studies actually show: [surprising or nuanced finding]"
 - 3-5 key findings that challenge or nuance conventional wisdom
 - Evidence quality note: "${qualityLine}"
-- End: "→ vetree.app"
+- End: "→ vetree.app/synthesis/${topicSlug}?utm_source=linkedin&utm_medium=social&utm_content=synthesis"
 - 150-250 words
 - Bold and direct tone
 - BANNED: "game changer", "revolutionary", "excited to share"

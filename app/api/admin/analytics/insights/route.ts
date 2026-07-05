@@ -179,7 +179,25 @@ export async function POST(request: NextRequest) {
       .slice(0, 10)
       .map(([query, count]) => ({ query, count }))
 
-    console.log('[insights] Specific data — zero-result queries:', topZeroResults.length, 'thin-result:', topThinResults.length, 'churn candidates:', churnCandidateIds.length, 'recent saves:', recentSaves?.length || 0)
+    // LinkedIn per-post performance (last 30 days)
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+    const { data: linkedinMetrics } = await supabase
+      .from('linkedin_post_metrics')
+      .select('post_date, impressions, engagements, article_id, articles(title)')
+      .gte('post_date', thirtyDaysAgo)
+      .order('post_date', { ascending: false })
+      .limit(30)
+
+    const linkedinSummary = linkedinMetrics && linkedinMetrics.length > 0
+      ? linkedinMetrics.map((m: any) => {
+          const engRate = m.impressions > 0
+            ? ((m.engagements / m.impressions) * 100).toFixed(1)
+            : '0'
+          return `  ${m.post_date}: ${m.impressions} impressions, ${m.engagements} engagements (${engRate}% rate) — "${m.articles?.title || m.article_id || 'unmatched'}"`
+        }).join('\n')
+      : '  No LinkedIn data uploaded yet'
+
+    console.log('[insights] Specific data — zero-result queries:', topZeroResults.length, 'thin-result:', topThinResults.length, 'churn candidates:', churnCandidateIds.length, 'recent saves:', recentSaves?.length || 0, 'linkedin posts:', linkedinMetrics?.length || 0)
 
     const specificDataSection = `
 SPECIFIC DATA — cite these exact items in your insights:
@@ -195,6 +213,9 @@ ${churnCandidateIds.length > 0 ? `  ${churnCandidateIds.length} user(s) went qui
 
 RECENTLY SAVED ARTICLES (what content resonates):
 ${recentSaves && recentSaves.length > 0 ? (recentSaves as any[]).slice(0, 5).map((s: any) => `  "${s.articles?.title || s.article_id}" — saved`).join('\n') : '  No saves this week'}
+
+LINKEDIN PER-POST PERFORMANCE (last 30 days — impressions, engagements, engagement rate):
+${linkedinSummary}
 `
 
     const pastActionsText = pastInsights?.flatMap(i =>
@@ -231,7 +252,7 @@ KNOWN CONSTRAINTS:
 - Solo developer: recommendations must be achievable in 1 day max
 - No budget for external services unless free tier
 - Article views are unreliable (social promotion bias) — use saves/search/synthesis instead
-- ~15 registered users, early stage
+- ~${snapshot?.registered_mau ?? '?'} registered MAU (from latest snapshot), early stage
 
 WHAT GOOD RECOMMENDATIONS LOOK LIKE:
 Good: "52% zero-result searches — add these 5 specific missing topics to the search synonym map in lib/utils/normalizeQuery.ts"

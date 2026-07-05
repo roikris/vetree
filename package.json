@@ -47,7 +47,8 @@
     "react-markdown": "^10.1.0",
     "recharts": "^3.8.0",
     "resend": "^6.12.4",
-    "ws": "^8.21.0"
+    "ws": "^8.21.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@playwright/test": "^1.61.1",
