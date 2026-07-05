@@ -6,51 +6,162 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
-// Fuzzy header matching: returns the key in row that best matches any of the aliases
-function findCol(headers: string[], aliases: string[]): string | null {
-  const lower = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '')
-  const aliasSet = aliases.map(lower)
-  for (const h of headers) {
-    if (aliasSet.some(a => lower(h).includes(a) || a.includes(lower(h)))) return h
-  }
-  return null
-}
-
-// Parse Excel serial date or date string into ISO date string (YYYY-MM-DD)
-function parseDate(val: unknown): string | null {
+// ─── Date helpers ─────────────────────────────────────────────────────────────
+// Parse "M/D/YYYY" US month-first text → "YYYY-MM-DD"
+// Never use new Date(string) — locale-dependent
+function parseUSDate(val: unknown): string | null {
   if (!val) return null
-  if (typeof val === 'number') {
-    // Excel serial date
-    const date = XLSX.SSF.parse_date_code(val)
-    if (!date) return null
-    const m = String(date.m).padStart(2, '0')
-    const d = String(date.d).padStart(2, '0')
-    return `${date.y}-${m}-${d}`
-  }
-  if (typeof val === 'string') {
-    // Try to parse MM/DD/YYYY, YYYY-MM-DD, or DD/MM/YYYY
-    const s = val.trim()
-    // ISO format
-    if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10)
-    // US format M/D/YYYY or MM/DD/YYYY
-    const usParts = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/)
-    if (usParts) {
-      const [, mo, dy, yr] = usParts
-      return `${yr}-${mo.padStart(2, '0')}-${dy.padStart(2, '0')}`
+  const s = String(val).trim()
+  const parts = s.split('/')
+  if (parts.length !== 3) return null
+  const [m, d, y] = parts
+  if (!y || y.length !== 4) return null
+  return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`
+}
+
+function parseIntSafe(val: unknown): number | null {
+  if (val === null || val === undefined || val === '') return null
+  const n = parseInt(String(val).replace(/,/g, ''), 10)
+  return isNaN(n) ? null : n
+}
+
+// ─── Sheet parsers ────────────────────────────────────────────────────────────
+
+// TOP POSTS: two side-by-side tables.
+// Cols A-C: Post URL | Post Publish Date | Engagements
+// Col D:    empty separator
+// Cols E-G: Post URL | Post Publish Date | Impressions
+// Header row found by scanning for row whose first cell === 'Post URL'
+function parseTopPosts(sheet: XLSX.WorkSheet) {
+  const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: '' })
+
+  let headerIdx = -1
+  for (let i = 0; i < rows.length; i++) {
+    if (String((rows[i] as unknown[])[0]).trim() === 'Post URL') {
+      headerIdx = i
+      break
     }
-    // Try native Date parse as last resort
-    const d = new Date(s)
-    if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10)
   }
-  return null
+  if (headerIdx === -1) return { posts: [], headerFound: false }
+
+  const headers = rows[headerIdx] as string[]
+  const leftMap = new Map<string, { date: string | null; engagements: number | null; raw: Record<string, unknown> }>()
+  const rightMap = new Map<string, { date: string | null; impressions: number | null; raw: Record<string, unknown> }>()
+
+  for (let i = headerIdx + 1; i < rows.length; i++) {
+    const row = rows[i] as unknown[]
+
+    const leftUrl = String(row[0] ?? '').trim()
+    if (leftUrl && leftUrl !== 'Post URL') {
+      leftMap.set(leftUrl, {
+        date: parseUSDate(row[1]),
+        engagements: parseIntSafe(row[2]),
+        raw: {
+          [headers[0] ?? 'Post URL']: row[0],
+          [headers[1] ?? 'Post Publish Date']: row[1],
+          [headers[2] ?? 'Engagements']: row[2],
+        },
+      })
+    }
+
+    const rightUrl = String(row[4] ?? '').trim()
+    if (rightUrl && rightUrl !== 'Post URL') {
+      rightMap.set(rightUrl, {
+        date: parseUSDate(row[5]),
+        impressions: parseIntSafe(row[6]),
+        raw: {
+          [headers[4] ?? 'Post URL']: row[4],
+          [headers[5] ?? 'Post Publish Date']: row[5],
+          [headers[6] ?? 'Impressions']: row[6],
+        },
+      })
+    }
+  }
+
+  const allUrls = new Set([...leftMap.keys(), ...rightMap.keys()])
+  const posts = []
+  for (const url of allUrls) {
+    const left = leftMap.get(url)
+    const right = rightMap.get(url)
+    posts.push({
+      url,
+      post_date: left?.date ?? right?.date ?? null,
+      engagements: left?.engagements ?? null,
+      impressions: right?.impressions ?? null,
+      raw_row: { ...left?.raw, ...right?.raw },
+    })
+  }
+  return { posts, headerFound: true }
 }
 
-function parseNum(val: unknown): number {
-  if (typeof val === 'number') return Math.round(val)
-  if (typeof val === 'string') return parseInt(val.replace(/,/g, ''), 10) || 0
-  return 0
+// ENGAGEMENT: Date | Impressions | Engagements, row 1 = headers, data after
+function parseEngagement(sheet: XLSX.WorkSheet): { date: string; impressions: number | null; engagements: number | null }[] {
+  const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: '' })
+  if (rows.length < 2) return []
+  const result = []
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i] as unknown[]
+    const date = parseUSDate(row[0])
+    if (!date) continue
+    result.push({
+      date,
+      impressions: parseIntSafe(row[1]),
+      engagements: parseIntSafe(row[2]),
+    })
+  }
+  return result
 }
 
+// FOLLOWERS:
+// Row 1: "Total followers on M/D/YYYY" | "946"
+// Row 3: Date | New followers (headers)
+// Data from row 4
+function parseFollowers(sheet: XLSX.WorkSheet): {
+  totalFollowers: number | null
+  totalFollowersDate: string | null
+  daily: { date: string; new_followers: number | null }[]
+} {
+  const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: '' })
+
+  let totalFollowers: number | null = null
+  let totalFollowersDate: string | null = null
+  if (rows[0]) {
+    const r0 = rows[0] as unknown[]
+    const headerText = String(r0[0] ?? '').trim()
+    const match = headerText.match(/Total followers on (.+)/i)
+    if (match) totalFollowersDate = parseUSDate(match[1].trim())
+    totalFollowers = parseIntSafe(r0[1])
+  }
+
+  // Find daily header row: cell[0] === 'Date'
+  let dailyHeaderIdx = -1
+  for (let i = 1; i < rows.length; i++) {
+    if (String((rows[i] as unknown[])[0]).trim() === 'Date') {
+      dailyHeaderIdx = i
+      break
+    }
+  }
+
+  const daily: { date: string; new_followers: number | null }[] = []
+  if (dailyHeaderIdx !== -1) {
+    for (let i = dailyHeaderIdx + 1; i < rows.length; i++) {
+      const row = rows[i] as unknown[]
+      const date = parseUSDate(row[0])
+      if (!date) continue
+      daily.push({ date, new_followers: parseIntSafe(row[1]) })
+    }
+  }
+
+  return { totalFollowers, totalFollowersDate, daily }
+}
+
+// DISCOVERY and DEMOGRAPHICS: parse to JSON summary, never stored in DB
+function parseSheetSummary(sheet: XLSX.WorkSheet, maxRows = 30): unknown[][] {
+  const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: '' })
+  return rows.slice(0, maxRows)
+}
+
+// ─── POST handler ─────────────────────────────────────────────────────────────
 export async function POST(request: NextRequest) {
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -71,164 +182,212 @@ export async function POST(request: NextRequest) {
 
   const isDryRun = request.nextUrl.searchParams.get('dry_run') === 'true'
 
-  // Parse multipart form
   const formData = await request.formData()
   const file = formData.get('file') as File | null
   if (!file) return NextResponse.json({ error: 'No file uploaded' }, { status: 400 })
 
   const arrayBuffer = await file.arrayBuffer()
-  const workbook = XLSX.read(arrayBuffer, { type: 'buffer', cellDates: false })
+  const workbook = XLSX.read(arrayBuffer, { type: 'buffer' })
 
+  // ── Locate sheets by name (case-insensitive partial match) ─────────────────
+  const sheetFind = (name: string) =>
+    workbook.SheetNames.find(s => s.toLowerCase().includes(name.toLowerCase()))
+
+  const topPostsName    = sheetFind('top posts')
+  const engagementName  = sheetFind('engagement')
+  const followersName   = sheetFind('followers')
+  const discoveryName   = sheetFind('discovery')
+  const demographicsName = sheetFind('demographics')
+
+  // ── Parse all sheets ───────────────────────────────────────────────────────
+  const topPostsResult = topPostsName
+    ? parseTopPosts(workbook.Sheets[topPostsName])
+    : { posts: [], headerFound: false }
+
+  const engagementRows = engagementName
+    ? parseEngagement(workbook.Sheets[engagementName])
+    : []
+
+  const followersResult = followersName
+    ? parseFollowers(workbook.Sheets[followersName])
+    : { totalFollowers: null, totalFollowersDate: null, daily: [] }
+
+  const discoverySummary = discoveryName
+    ? parseSheetSummary(workbook.Sheets[discoveryName])
+    : []
+
+  const demographicsSummary = demographicsName
+    ? parseSheetSummary(workbook.Sheets[demographicsName])
+    : []
+
+  // ── Build daily metrics map (ENGAGEMENT + FOLLOWERS merged) ───────────────
+  const dailyMap = new Map<string, {
+    impressions: number | null
+    engagements: number | null
+    new_followers: number | null
+    total_followers: number | null
+  }>()
+
+  for (const row of engagementRows) {
+    dailyMap.set(row.date, {
+      impressions: row.impressions,
+      engagements: row.engagements,
+      new_followers: null,
+      total_followers: null,
+    })
+  }
+
+  for (const row of followersResult.daily) {
+    const existing = dailyMap.get(row.date) ?? { impressions: null, engagements: null, new_followers: null, total_followers: null }
+    dailyMap.set(row.date, { ...existing, new_followers: row.new_followers })
+  }
+
+  // Apply total_followers snapshot to its date
+  if (followersResult.totalFollowersDate) {
+    const existing = dailyMap.get(followersResult.totalFollowersDate) ?? { impressions: null, engagements: null, new_followers: null, total_followers: null }
+    dailyMap.set(followersResult.totalFollowersDate, { ...existing, total_followers: followersResult.totalFollowers })
+  }
+
+  const parsedSummary = {
+    sheets_found: workbook.SheetNames,
+    top_posts_count: topPostsResult.posts.length,
+    top_posts_header_found: topPostsResult.headerFound,
+    daily_rows_count: dailyMap.size,
+    engagement_rows: engagementRows.length,
+    follower_rows: followersResult.daily.length,
+    total_followers: followersResult.totalFollowers,
+    total_followers_date: followersResult.totalFollowersDate,
+    discovery: discoverySummary,
+    demographics: demographicsSummary,
+  }
+
+  // ── Dry run ────────────────────────────────────────────────────────────────
   if (isDryRun) {
-    // Return sheet names + detected headers + first 5 rows per sheet
-    const preview: Record<string, { headers: string[]; detectedCols: Record<string, string | null>; rows: Record<string, unknown>[] }> = {}
-
-    for (const sheetName of workbook.SheetNames) {
-      const sheet = workbook.Sheets[sheetName]
-      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: null })
-      const headers = rows.length > 0 ? Object.keys(rows[0]) : []
-      preview[sheetName] = {
-        headers,
-        detectedCols: {
-          post_url: findCol(headers, ['posturl', 'postlink', 'link', 'url', 'shareurl', 'contenturl']),
-          post_date: findCol(headers, ['publishdate', 'createddate', 'postdate', 'date', 'publishedat', 'createdat', 'postedat']),
-          impressions: findCol(headers, ['impressions', 'impression', 'views', 'reach']),
-          engagements: findCol(headers, ['engagements', 'engagement', 'reactions', 'interactions', 'totalengagement']),
-        },
-        rows: rows.slice(0, 5),
-      }
-    }
-    return NextResponse.json({ dry_run: true, sheets: preview })
-  }
-
-  // Find the per-post sheet — pick first sheet where we can detect all 4 key columns
-  let targetSheet: string | null = null
-  let urlCol: string | null = null
-  let dateCol: string | null = null
-  let impressionsCol: string | null = null
-  let engagementsCol: string | null = null
-  let allRows: Record<string, unknown>[] = []
-
-  for (const sheetName of workbook.SheetNames) {
-    const sheet = workbook.Sheets[sheetName]
-    const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: null })
-    if (!rows.length) continue
-    const headers = Object.keys(rows[0])
-
-    const u = findCol(headers, ['posturl', 'postlink', 'link', 'url', 'shareurl', 'contenturl'])
-    const d = findCol(headers, ['publishdate', 'createddate', 'postdate', 'date', 'publishedat', 'createdat', 'postedat'])
-    const i = findCol(headers, ['impressions', 'impression', 'views', 'reach'])
-    const e = findCol(headers, ['engagements', 'engagement', 'reactions', 'interactions', 'totalengagement'])
-
-    if (u && d && i && e) {
-      targetSheet = sheetName
-      urlCol = u
-      dateCol = d
-      impressionsCol = i
-      engagementsCol = e
-      allRows = rows
-      break
-    }
-  }
-
-  if (!targetSheet) {
     return NextResponse.json({
-      error: 'Could not detect per-post sheet. Use ?dry_run=true to inspect headers.',
-    }, { status: 422 })
+      dry_run: true,
+      ...parsedSummary,
+      sample_posts: topPostsResult.posts.slice(0, 5),
+      sample_daily: [...dailyMap.entries()].slice(0, 5).map(([date, v]) => ({ date, ...v })),
+    })
   }
 
-  // Collect unique post_dates to batch-fetch article_id matches
-  const uniqueDates = [...new Set(allRows.map(r => parseDate(r[dateCol!])).filter(Boolean))] as string[]
+  // ── UPSERT post metrics with COALESCE ──────────────────────────────────────
+  const postUrls = topPostsResult.posts.map(p => p.url).filter(Boolean)
+  const existingPostsMap = new Map<string, { impressions: number | null; engagements: number | null }>()
 
-  // Fetch matching linkedin posts from growth_agent_memory for these dates
-  const { data: memoryRows } = await supabase
-    .from('growth_agent_memory')
-    .select('article_id, created_at')
-    .eq('platform', 'linkedin')
-    .eq('outcome', 'approved')
-    .in('created_at', []) // placeholder; we'll use JS filter below
+  if (postUrls.length) {
+    const { data: existingPosts } = await supabase
+      .from('linkedin_post_metrics')
+      .select('post_url, impressions, engagements')
+      .in('post_url', postUrls)
+    for (const p of existingPosts ?? []) {
+      if (p.post_url) existingPostsMap.set(p.post_url, { impressions: p.impressions, engagements: p.engagements })
+    }
+  }
 
-  // Fetch all approved linkedin posts (no date filter on Supabase since DATE() isn't directly filterable via PostgREST)
+  // Fetch article_id matches via growth_agent_memory
   const { data: linkedinMemory } = await supabase
     .from('growth_agent_memory')
     .select('article_id, created_at')
     .eq('platform', 'linkedin')
     .eq('outcome', 'approved')
 
-  // Build date → article_id map
   const dateToArticleId: Record<string, string> = {}
-  for (const row of linkedinMemory || []) {
-    const postDate = row.created_at?.slice(0, 10)
-    if (postDate && row.article_id) {
-      dateToArticleId[postDate] = row.article_id
+  for (const row of linkedinMemory ?? []) {
+    const d = row.created_at?.slice(0, 10)
+    if (d && row.article_id) dateToArticleId[d] = row.article_id
+  }
+
+  const postUpsertRows = topPostsResult.posts
+    .filter(p => p.post_date) // skip rows with no parseable date
+    .map(p => {
+      const existing = existingPostsMap.get(p.url) ?? { impressions: null, engagements: null }
+      return {
+        post_url: p.url || null,
+        post_date: p.post_date,
+        impressions: p.impressions ?? existing.impressions,
+        engagements: p.engagements ?? existing.engagements,
+        article_id: p.post_date ? (dateToArticleId[p.post_date] ?? null) : null,
+        raw_row: p.raw_row,
+      }
+    })
+
+  let postsUpserted = 0
+  let postsError: string | null = null
+
+  if (postUpsertRows.length) {
+    const withUrl = postUpsertRows.filter(r => r.post_url)
+    const withoutUrl = postUpsertRows.filter(r => !r.post_url)
+
+    if (withUrl.length) {
+      const { error } = await supabase
+        .from('linkedin_post_metrics')
+        .upsert(withUrl, { onConflict: 'post_url', ignoreDuplicates: false })
+      if (error) postsError = error.message
+      else postsUpserted += withUrl.length
+    }
+    if (withoutUrl.length && !postsError) {
+      const { error } = await supabase
+        .from('linkedin_post_metrics')
+        .insert(withoutUrl)
+      if (error) postsError = error.message
+      else postsUpserted += withoutUrl.length
     }
   }
 
-  // Build upsert payload
-  const upsertRows = []
-  let skipped = 0
+  // ── UPSERT daily metrics with COALESCE ─────────────────────────────────────
+  const dailyDates = [...dailyMap.keys()]
+  const existingDailyMap = new Map<string, { impressions: number | null; engagements: number | null; new_followers: number | null; total_followers: number | null }>()
 
-  for (const row of allRows) {
-    const post_url = row[urlCol!] ? String(row[urlCol!]).trim() : null
-    const post_date = parseDate(row[dateCol!])
-    const impressions = parseNum(row[impressionsCol!])
-    const engagements = parseNum(row[engagementsCol!])
-
-    if (!post_date) { skipped++; continue }
-    // post_url may be null for some LinkedIn exports; use date as fallback key
-    const article_id = post_date ? (dateToArticleId[post_date] || null) : null
-
-    upsertRows.push({
-      post_url: post_url || null,
-      post_date,
-      impressions,
-      engagements,
-      article_id,
-      raw_row: row,
-    })
+  if (dailyDates.length) {
+    const { data: existingDaily } = await supabase
+      .from('linkedin_daily_metrics')
+      .select('metric_date, impressions, engagements, new_followers, total_followers')
+      .in('metric_date', dailyDates)
+    for (const d of existingDaily ?? []) {
+      existingDailyMap.set(d.metric_date, {
+        impressions: d.impressions,
+        engagements: d.engagements,
+        new_followers: d.new_followers,
+        total_followers: d.total_followers,
+      })
+    }
   }
 
-  if (!upsertRows.length) {
-    return NextResponse.json({ error: 'No valid rows found after parsing', skipped }, { status: 422 })
-  }
+  const dailyUpsertRows = [...dailyMap.entries()].map(([date, incoming]) => {
+    const existing = existingDailyMap.get(date) ?? { impressions: null, engagements: null, new_followers: null, total_followers: null }
+    return {
+      metric_date: date,
+      impressions: incoming.impressions ?? existing.impressions,
+      engagements: incoming.engagements ?? existing.engagements,
+      new_followers: incoming.new_followers ?? existing.new_followers,
+      total_followers: incoming.total_followers ?? existing.total_followers,
+    }
+  })
 
-  // UPSERT — idempotent on post_url (rows without post_url get INSERT only; duplicates possible but rare)
-  // Split: rows with post_url (upsert) vs rows without (insert)
-  const withUrl = upsertRows.filter(r => r.post_url)
-  const withoutUrl = upsertRows.filter(r => !r.post_url)
+  let dailyUpserted = 0
+  let dailyError: string | null = null
 
-  let upserted = 0
-  let inserted = 0
-  let errorMsg: string | null = null
-
-  if (withUrl.length) {
+  if (dailyUpsertRows.length) {
     const { error } = await supabase
-      .from('linkedin_post_metrics')
-      .upsert(withUrl, { onConflict: 'post_url', ignoreDuplicates: false })
-    if (error) errorMsg = error.message
-    else upserted = withUrl.length
+      .from('linkedin_daily_metrics')
+      .upsert(dailyUpsertRows, { onConflict: 'metric_date', ignoreDuplicates: false })
+    if (error) dailyError = error.message
+    else dailyUpserted = dailyUpsertRows.length
   }
 
-  if (withoutUrl.length && !errorMsg) {
-    const { error } = await supabase
-      .from('linkedin_post_metrics')
-      .insert(withoutUrl)
-    if (error) errorMsg = error.message
-    else inserted = withoutUrl.length
-  }
-
-  if (errorMsg) {
-    return NextResponse.json({ error: errorMsg }, { status: 500 })
+  if (postsError || dailyError) {
+    return NextResponse.json({ error: postsError ?? dailyError }, { status: 500 })
   }
 
   return NextResponse.json({
     success: true,
-    sheet: targetSheet,
-    total_parsed: upsertRows.length,
-    upserted,
-    inserted,
-    skipped,
-    matched_articles: upsertRows.filter(r => r.article_id).length,
-    date_range: uniqueDates.length ? { from: uniqueDates.sort()[0], to: uniqueDates.sort().at(-1) } : null,
+    posts_upserted: postsUpserted,
+    daily_rows_upserted: dailyUpserted,
+    total_followers: followersResult.totalFollowers,
+    total_followers_date: followersResult.totalFollowersDate,
+    matched_articles: postUpsertRows.filter(r => r.article_id).length,
+    discovery: discoverySummary,
+    demographics: demographicsSummary,
   })
 }

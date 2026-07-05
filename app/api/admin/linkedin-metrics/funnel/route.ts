@@ -140,5 +140,15 @@ export async function GET(request: NextRequest) {
     ? parseFloat(((totals.sessions / totals.impressions) * 100).toFixed(2))
     : 0
 
-  return NextResponse.json({ rows, totals })
+  // Fetch daily trend data for chart
+  let dailyQuery = supabase
+    .from('linkedin_daily_metrics')
+    .select('metric_date, impressions, new_followers')
+    .order('metric_date', { ascending: true })
+  if (from) dailyQuery = dailyQuery.gte('metric_date', from)
+  if (to) dailyQuery = dailyQuery.lte('metric_date', to)
+
+  const { data: dailyTrend } = await dailyQuery
+
+  return NextResponse.json({ rows, totals, daily_trend: dailyTrend ?? [] })
 }

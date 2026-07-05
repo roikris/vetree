@@ -193,11 +193,25 @@ export async function POST(request: NextRequest) {
           const engRate = m.impressions > 0
             ? ((m.engagements / m.impressions) * 100).toFixed(1)
             : '0'
-          return `  ${m.post_date}: ${m.impressions} impressions, ${m.engagements} engagements (${engRate}% rate) — "${m.articles?.title || m.article_id || 'unmatched'}"`
+          return `  ${m.post_date}: ${m.impressions ?? '—'} impressions, ${m.engagements ?? '—'} engagements (${engRate}% rate) — "${m.articles?.title || m.article_id || 'unmatched'}"`
         }).join('\n')
-      : '  No LinkedIn data uploaded yet'
+      : '  No LinkedIn post data uploaded yet'
 
-    console.log('[insights] Specific data — zero-result queries:', topZeroResults.length, 'thin-result:', topThinResults.length, 'churn candidates:', churnCandidateIds.length, 'recent saves:', recentSaves?.length || 0, 'linkedin posts:', linkedinMetrics?.length || 0)
+    // LinkedIn daily account totals (last 30 days)
+    const { data: linkedinDaily } = await supabase
+      .from('linkedin_daily_metrics')
+      .select('metric_date, impressions, new_followers')
+      .gte('metric_date', thirtyDaysAgo)
+      .order('metric_date', { ascending: false })
+      .limit(30)
+
+    const totalLinkedInImpressions = (linkedinDaily ?? []).reduce((s: number, r: any) => s + (r.impressions ?? 0), 0)
+    const totalNewFollowers = (linkedinDaily ?? []).reduce((s: number, r: any) => s + (r.new_followers ?? 0), 0)
+    const linkedinDailySummary = linkedinDaily && linkedinDaily.length > 0
+      ? `  ${linkedinDaily.length} days tracked | Total impressions: ${totalLinkedInImpressions.toLocaleString()} | New followers: ${totalNewFollowers}`
+      : '  No daily LinkedIn metrics uploaded yet'
+
+    console.log('[insights] Specific data — zero-result queries:', topZeroResults.length, 'thin-result:', topThinResults.length, 'churn candidates:', churnCandidateIds.length, 'recent saves:', recentSaves?.length || 0, 'linkedin posts:', linkedinMetrics?.length || 0, 'linkedin daily:', linkedinDaily?.length || 0)
 
     const specificDataSection = `
 SPECIFIC DATA — cite these exact items in your insights:
@@ -216,6 +230,9 @@ ${recentSaves && recentSaves.length > 0 ? (recentSaves as any[]).slice(0, 5).map
 
 LINKEDIN PER-POST PERFORMANCE (last 30 days — impressions, engagements, engagement rate):
 ${linkedinSummary}
+
+LINKEDIN DAILY ACCOUNT TOTALS (last 30 days):
+${linkedinDailySummary}
 `
 
     const pastActionsText = pastInsights?.flatMap(i =>
