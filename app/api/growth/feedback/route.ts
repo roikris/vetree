@@ -54,7 +54,8 @@ export async function POST(request: NextRequest) {
       hook_line,
       platform,
       language,
-      article_labels
+      article_labels,
+      posted_url
     } = body
 
     if (!article_id || !outcome || !platform || !language) {
@@ -73,7 +74,8 @@ export async function POST(request: NextRequest) {
         language,
         outcome,
         skip_reason: skip_reason || null,
-        hook_line: hook_line || null
+        hook_line: hook_line || null,
+        posted_url: posted_url || null,
       })
 
     if (memoryError) {

@@ -49,6 +49,9 @@ export function CampaignCalendar() {
   const [stats, setStats] = useState<CampaignStats | null>(null)
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
   const [approvedPosts, setApprovedPosts] = useState<Record<string, boolean>>({})
+  const [postedUrl, setPostedUrl] = useState('')
+  const [savedPostedUrl, setSavedPostedUrl] = useState<string | null>(null)
+  const [savingPostedUrl, setSavingPostedUrl] = useState(false)
   const [copied, setCopied] = useState(false)
   const [showRedesignMenu, setShowRedesignMenu] = useState(false)
   const [generatingAll, setGeneratingAll] = useState(false)
@@ -1107,6 +1110,30 @@ export function CampaignCalendar() {
     }
   }
 
+  // Save LinkedIn posted URL to growth_agent_memory for activity_id matching
+  const handleSavePostedUrl = async () => {
+    if (!postedUrl.trim() || !savedPostData?.article_id || !todaysPlatform) return
+    setSavingPostedUrl(true)
+    try {
+      await fetch('/api/admin/growth/memory/posted-url', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          article_id: savedPostData.article_id,
+          platform: todaysPlatform.platform,
+          date: today,
+          posted_url: postedUrl.trim(),
+        }),
+      })
+      setSavedPostedUrl(postedUrl.trim())
+      setPostedUrl('')
+    } catch {
+      // non-blocking
+    } finally {
+      setSavingPostedUrl(false)
+    }
+  }
+
   // Style rewrite: regenerate active platform's post with a tone instruction
   const handleStyleRewrite = async (platform: string, _style: string, instruction: string) => {
     const currentPost = allPlatformPosts[platform]
@@ -1784,6 +1811,42 @@ export function CampaignCalendar() {
             >
               ✅ Approved
             </button>
+          )}
+          {/* Posted URL input — LinkedIn only, shown after approval */}
+          {(approvedPosts[today] || todaysTask?.status === 'done') &&
+            todaysPlatform?.platform === 'linkedin' && (
+            <div className="flex flex-col gap-1 mt-2">
+              {savedPostedUrl ? (
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                  📎 URL saved for matching:{' '}
+                  <a href={savedPostedUrl} target="_blank" rel="noreferrer" className="text-[#3D7A5F] underline break-all">
+                    {savedPostedUrl.slice(0, 60)}…
+                  </a>
+                </p>
+              ) : (
+                <>
+                  <label className="text-xs text-zinc-500 dark:text-zinc-400">
+                    📎 Paste LinkedIn URL after publishing (enables performance tracking):
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="url"
+                      value={postedUrl}
+                      onChange={e => setPostedUrl(e.target.value)}
+                      placeholder="https://www.linkedin.com/posts/..."
+                      className="flex-1 px-3 py-1.5 text-sm border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-[#3D7A5F]"
+                    />
+                    <button
+                      onClick={handleSavePostedUrl}
+                      disabled={!postedUrl.trim() || savingPostedUrl}
+                      className="px-3 py-1.5 text-sm bg-[#3D7A5F] text-white rounded-md hover:bg-[#2F5F4A] disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      {savingPostedUrl ? 'Saving…' : 'Save'}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           )}
         </div>
       </div>

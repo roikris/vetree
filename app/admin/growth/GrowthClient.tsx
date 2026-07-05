@@ -5,8 +5,6 @@ import { ContentAgent } from './ContentAgent'
 import { CampaignCalendar } from './CampaignCalendar'
 import { SynthesisPosts } from './SynthesisPosts'
 import { DigestDryRun } from './DigestDryRun'
-import { LinkedInPerformance } from './LinkedInPerformance'
-
 // NOTE: Campaign uses growth_tasks table to track 90-day scheduled posts
 // Each day's content is generated fresh by Content Agent (not pre-written)
 // UTM tracking embedded automatically based on platform
@@ -21,7 +19,7 @@ type GrowthClientProps = {
 }
 
 export function GrowthClient({}: GrowthClientProps) {
-  const [activeTab, setActiveTab] = useState<'campaign' | 'agent' | 'synthesis' | 'digest' | 'linkedin'>('campaign')
+  const [activeTab, setActiveTab] = useState<'campaign' | 'agent' | 'synthesis' | 'digest'>('campaign')
 
   return (
     <div className="space-y-8">
@@ -67,16 +65,6 @@ export function GrowthClient({}: GrowthClientProps) {
         >
           📬 Digest Preview
         </button>
-        <button
-          onClick={() => setActiveTab('linkedin')}
-          className={`px-4 py-2 font-medium transition-colors ${
-            activeTab === 'linkedin'
-              ? 'text-[#3D7A5F] dark:text-[#4E9A78] border-b-2 border-[#3D7A5F] dark:border-[#4E9A78]'
-              : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300'
-          }`}
-        >
-          📊 LinkedIn
-        </button>
       </div>
 
       {/* Content based on active tab */}
@@ -86,8 +74,6 @@ export function GrowthClient({}: GrowthClientProps) {
         <ContentAgent />
       ) : activeTab === 'synthesis' ? (
         <SynthesisPosts />
-      ) : activeTab === 'linkedin' ? (
-        <LinkedInPerformance />
       ) : (
         <DigestDryRun />
       )}

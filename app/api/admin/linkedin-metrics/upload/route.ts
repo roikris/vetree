@@ -289,7 +289,7 @@ export async function POST(request: NextRequest) {
   // Fetch growth_agent_memory for tiered matching (slug → date → haiku)
   const { data: linkedinMemory } = await supabase
     .from('growth_agent_memory')
-    .select('id, article_id, hook_line, created_at')
+    .select('id, article_id, hook_line, created_at, posted_url')
     .eq('platform', 'linkedin')
     .eq('outcome', 'approved')
 

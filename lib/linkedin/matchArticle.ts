@@ -12,6 +12,7 @@ export type MemoryRow = {
   article_id: string
   hook_line: string | null
   created_at: string
+  posted_url?: string | null
 }
 
 export type PostInput = {
@@ -23,7 +24,15 @@ export type PostInput = {
 
 export type MatchResult = {
   article_id: string
-  method: 'slug' | 'date' | 'haiku'
+  method: 'activity_id' | 'slug' | 'date' | 'haiku'
+}
+
+// Extract the long numeric activity ID from a LinkedIn URL
+// Handles: share-7478467709375074307-XXXX and ugcPost-7478467709375074307-XXXX
+function extractActivityId(url: string): string | null {
+  if (!url) return null
+  const m = url.match(/(?:share|ugcPost)[-_]?(\d{15,})/)
+  return m ? m[1] : null
 }
 
 // ─── Text normalisation ───────────────────────────────────────────────────────
@@ -89,10 +98,32 @@ export async function matchArticlesToPosts(
     hookTokens.set(m.id, m.hook_line ? normalize(m.hook_line).slice(0, 12) : [])
   }
 
+  // Build activity_id → memory row map from posted_url
+  const activityIdToMemory = new Map<string, MemoryRow>()
+  for (const m of memory) {
+    if (m.posted_url) {
+      const aid = extractActivityId(m.posted_url)
+      if (aid) activityIdToMemory.set(aid, m)
+    }
+  }
+
+  const afterTier0: PostInput[] = []
+
+  // ── TIER 0: Activity ID exact match ─────────────────────────────────────────
+  for (const post of posts) {
+    const aid = extractActivityId(post.url)
+    if (aid && activityIdToMemory.has(aid)) {
+      const mem = activityIdToMemory.get(aid)!
+      results.set(post.key, { article_id: mem.article_id, method: 'activity_id' })
+    } else {
+      afterTier0.push(post)
+    }
+  }
+
   const afterTier1: PostInput[] = []
 
   // ── TIER 1: Slug ────────────────────────────────────────────────────────────
-  for (const post of posts) {
+  for (const post of afterTier0) {
     const slug = extractSlug(post.url)
     if (!slug) { afterTier1.push(post); continue }
 
