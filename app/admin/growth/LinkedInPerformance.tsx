@@ -13,6 +13,8 @@ type FunnelRow = {
   post_date: string
   article_id: string | null
   article_title: string | null
+  article_labels: string[]
+  match_method: string | null
   impressions: number | null
   engagements: number | null
   sessions: number
@@ -42,9 +44,12 @@ type ImportResult = {
   total_followers: number | null
   total_followers_date: string | null
   matched_articles: number
+  match_breakdown: { slug: number; date: number; haiku: number; unmatched: number }
   discovery: unknown[][]
   demographics: unknown[][]
 }
+
+type ArticleHit = { id: string; title: string; labels: string[] | null }
 
 type DryRunResult = {
   dry_run: true
@@ -103,6 +108,16 @@ export function LinkedInPerformance() {
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
+
+  // Re-match state
+  const [rematchLoading, setRematchLoading] = useState(false)
+  const [rematchResult, setRematchResult] = useState<{ updated: number; still_unmatched: number; breakdown: Record<string, number> } | null>(null)
+
+  // Article picker state per row
+  const [pickerRowId, setPickerRowId] = useState<string | null>(null)
+  const [pickerQuery, setPickerQuery] = useState('')
+  const [pickerResults, setPickerResults] = useState<ArticleHit[]>([])
+  const [pickerLoading, setPickerLoading] = useState(false)
 
   const loadFunnel = async () => {
     setFunnelLoading(true)
@@ -181,6 +196,52 @@ export function LinkedInPerformance() {
     } finally {
       setUploadLoading(false)
     }
+  }
+
+  const handleRematch = async () => {
+    setRematchLoading(true)
+    setRematchResult(null)
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/admin/linkedin-metrics/rematch', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Rematch failed')
+      setRematchResult(data)
+      await loadFunnel()
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : 'Rematch failed')
+    } finally {
+      setRematchLoading(false)
+    }
+  }
+
+  const handlePickerSearch = async (q: string) => {
+    setPickerQuery(q)
+    if (q.length < 3) { setPickerResults([]); return }
+    setPickerLoading(true)
+    try {
+      const res = await fetch(`/api/articles/search-quick?q=${encodeURIComponent(q)}&limit=6`)
+      const data = await res.json()
+      setPickerResults(data.articles ?? [])
+    } finally {
+      setPickerLoading(false)
+    }
+  }
+
+  const handleManualAssign = async (rowId: string, articleId: string) => {
+    const token = await getToken()
+    await fetch(`/api/admin/linkedin-metrics/${rowId}`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ article_id: articleId }),
+    })
+    setPickerRowId(null)
+    setPickerQuery('')
+    setPickerResults([])
+    await loadFunnel()
   }
 
   const th: React.CSSProperties = {
@@ -311,7 +372,7 @@ export function LinkedInPerformance() {
         {importResult && (
           <div style={{ marginTop: 12, padding: '12px 16px', background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 8, fontSize: 13 }}>
             <p style={{ margin: '0 0 8px', color: '#166534', fontWeight: 600 }}>Import complete</p>
-            <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: importResult.demographics.length ? 12 : 0 }}>
+            <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 10 }}>
               {[
                 { label: 'Posts imported/updated', val: importResult.posts_upserted },
                 { label: 'Daily rows imported', val: importResult.daily_rows_upserted },
@@ -324,6 +385,20 @@ export function LinkedInPerformance() {
                 </div>
               ))}
             </div>
+            {importResult.match_breakdown && (
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: importResult.demographics.length ? 12 : 0 }}>
+                {[
+                  { label: 'slug match', val: importResult.match_breakdown.slug, color: '#166534', bg: '#dcfce7' },
+                  { label: 'date match', val: importResult.match_breakdown.date, color: '#1e40af', bg: '#dbeafe' },
+                  { label: 'haiku match', val: importResult.match_breakdown.haiku, color: '#6b21a8', bg: '#f3e8ff' },
+                  { label: 'unmatched', val: importResult.match_breakdown.unmatched, color: '#991b1b', bg: '#fee2e2' },
+                ].map(({ label, val, color, bg }) => (
+                  <span key={label} style={{ fontSize: 11, padding: '2px 8px', borderRadius: 4, background: bg, color }}>
+                    {label}: {val}
+                  </span>
+                ))}
+              </div>
+            )}
 
             {/* Demographics summary */}
             {importResult.demographics.length > 1 && (
@@ -368,6 +443,24 @@ export function LinkedInPerformance() {
           >
             {funnelLoading ? 'Loading…' : 'Load'}
           </button>
+          <button
+            onClick={handleRematch}
+            disabled={rematchLoading}
+            style={{
+              padding: '6px 14px', background: 'transparent', color: '#3D7A5F',
+              border: '1px solid #3D7A5F', borderRadius: 5, fontSize: 13, fontWeight: 500,
+              cursor: rematchLoading ? 'not-allowed' : 'pointer', opacity: rematchLoading ? 0.7 : 1,
+            }}
+          >
+            {rematchLoading ? 'Re-matching…' : 'Re-match unmatched posts'}
+          </button>
+          {rematchResult && (
+            <span style={{ fontSize: 12, color: '#555' }}>
+              Updated {rematchResult.updated} rows
+              (slug: {rematchResult.breakdown.slug}, date: {rematchResult.breakdown.date}, haiku: {rematchResult.breakdown.haiku})
+              — {rematchResult.still_unmatched} still unmatched
+            </span>
+          )}
         </div>
 
         {funnelError && (
@@ -456,10 +549,11 @@ export function LinkedInPerformance() {
                 <tr>
                   <th style={th}>Date</th>
                   <th style={th}>Article</th>
+                  <th style={th}>Labels</th>
+                  <th style={th}>Match</th>
                   <th style={th}>Impressions</th>
                   <th style={th}>Engagements</th>
                   <th style={th}>Sessions</th>
-                  <th style={th}>Unique Visitors</th>
                   <th style={th}>Saves</th>
                   <th style={th}>CTR</th>
                   <th style={th}>Post</th>
@@ -467,20 +561,76 @@ export function LinkedInPerformance() {
               </thead>
               <tbody>
                 {rows.map(row => (
-                  <tr key={row.id} style={{ background: '#fff' }}>
+                  <tr key={row.id} style={{ background: row.article_id ? '#fff' : '#fffbf5' }}>
                     <td style={td}>{row.post_date}</td>
-                    <td style={{ ...td, maxWidth: 240 }}>
+                    <td style={{ ...td, maxWidth: 220 }}>
                       {row.article_id ? (
                         <a href={`/article/${row.article_id}`} target="_blank" rel="noreferrer"
-                          style={{ color: '#3D7A5F', textDecoration: 'none', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                          style={{ color: '#3D7A5F', textDecoration: 'none', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', fontSize: 12 }}>
                           {row.article_title || row.article_id}
                         </a>
-                      ) : <span style={{ color: '#aaa' }}>—</span>}
+                      ) : (
+                        <div>
+                          {pickerRowId === row.id ? (
+                            <div style={{ position: 'relative' }}>
+                              <input
+                                autoFocus
+                                value={pickerQuery}
+                                onChange={e => handlePickerSearch(e.target.value)}
+                                placeholder="Search articles…"
+                                style={{ width: '100%', fontSize: 12, padding: '4px 6px', border: '1px solid #d1d5db', borderRadius: 4 }}
+                              />
+                              {pickerLoading && <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>Searching…</div>}
+                              {pickerResults.length > 0 && (
+                                <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 4, boxShadow: '0 4px 12px rgba(0,0,0,.1)', zIndex: 50, maxHeight: 200, overflowY: 'auto' }}>
+                                  {pickerResults.map(a => (
+                                    <button
+                                      key={a.id}
+                                      onClick={() => handleManualAssign(row.id, a.id)}
+                                      style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 10px', fontSize: 12, background: 'none', border: 'none', cursor: 'pointer', borderBottom: '1px solid #f3f4f6' }}
+                                    >
+                                      {a.title}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                              <button onClick={() => { setPickerRowId(null); setPickerQuery(''); setPickerResults([]) }}
+                                style={{ marginTop: 4, fontSize: 11, color: '#888', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => { setPickerRowId(row.id); setPickerQuery(''); setPickerResults([]) }}
+                              style={{ fontSize: 11, color: '#0077b5', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}
+                            >
+                              + assign article
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </td>
+                    <td style={{ ...td, maxWidth: 160 }}>
+                      {row.article_labels.slice(0, 3).map(l => (
+                        <span key={l} style={{ fontSize: 10, padding: '1px 6px', borderRadius: 3, background: '#f0fdf4', color: '#166534', marginRight: 3, display: 'inline-block', marginBottom: 2 }}>
+                          {l}
+                        </span>
+                      ))}
+                    </td>
+                    <td style={td}>
+                      {row.match_method ? (
+                        <span style={{
+                          fontSize: 10, padding: '1px 6px', borderRadius: 3,
+                          background: row.match_method === 'slug' ? '#dcfce7' : row.match_method === 'date' ? '#dbeafe' : row.match_method === 'haiku' ? '#f3e8ff' : '#fef9c3',
+                          color: row.match_method === 'slug' ? '#166534' : row.match_method === 'date' ? '#1e40af' : row.match_method === 'haiku' ? '#6b21a8' : '#854d0e',
+                        }}>
+                          {row.match_method}
+                        </span>
+                      ) : <span style={{ color: '#aaa', fontSize: 11 }}>—</span>}
                     </td>
                     <td style={td}>{row.impressions?.toLocaleString() ?? '—'}</td>
                     <td style={td}>{row.engagements?.toLocaleString() ?? '—'}</td>
                     <td style={td}>{row.sessions}</td>
-                    <td style={td}>{row.unique_visitors}</td>
                     <td style={td}>{row.saves}</td>
                     <td style={{ ...td, fontWeight: row.ctr > 0 ? 600 : 400, color: row.ctr > 0.5 ? '#166534' : 'inherit' }}>
                       {row.ctr > 0 ? `${row.ctr}%` : '—'}
@@ -488,7 +638,7 @@ export function LinkedInPerformance() {
                     <td style={td}>
                       {row.post_url ? (
                         <a href={row.post_url} target="_blank" rel="noreferrer"
-                          style={{ color: '#0077b5', fontSize: 12 }}>↗ LinkedIn</a>
+                          style={{ color: '#0077b5', fontSize: 12 }}>↗</a>
                       ) : <span style={{ color: '#aaa' }}>—</span>}
                     </td>
                   </tr>

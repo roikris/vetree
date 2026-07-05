@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
   // 1. Fetch all linkedin post metrics
   let metricsQuery = supabase
     .from('linkedin_post_metrics')
-    .select('id, post_url, post_date, article_id, impressions, engagements')
+    .select('id, post_url, post_date, article_id, impressions, engagements, match_method')
     .order('post_date', { ascending: false })
 
   if (from) metricsQuery = metricsQuery.gte('post_date', from)
@@ -75,14 +75,16 @@ export async function GET(request: NextRequest) {
     savesData = data || []
   }
 
-  // 4. Fetch article titles for matched articles
-  let titles: Record<string, string> = {}
+  // 4. Fetch article titles + labels for matched articles
+  const articleMeta: Record<string, { title: string; labels: string[] }> = {}
   if (articleIds.length) {
     const { data: articles } = await supabase
       .from('articles')
-      .select('id, title')
+      .select('id, title, labels')
       .in('id', articleIds)
-    for (const a of articles || []) titles[a.id] = a.title
+    for (const a of articles || []) {
+      articleMeta[a.id] = { title: a.title, labels: a.labels ?? [] }
+    }
   }
 
   // Build per-article lookups
@@ -109,14 +111,17 @@ export async function GET(request: NextRequest) {
     const sessions = m.article_id ? (sessionsByArticle[m.article_id] || 0) : 0
     const unique_visitors = m.article_id ? (visitorsByArticle[m.article_id]?.size || 0) : 0
     const saves = m.article_id ? (savesByArticle[m.article_id] || 0) : 0
-    const ctr = m.impressions > 0 ? parseFloat(((sessions / m.impressions) * 100).toFixed(2)) : 0
+    const ctr = (m.impressions ?? 0) > 0 ? parseFloat(((sessions / m.impressions!) * 100).toFixed(2)) : 0
+    const meta = m.article_id ? (articleMeta[m.article_id] ?? null) : null
 
     return {
       id: m.id,
       post_url: m.post_url,
       post_date: m.post_date,
       article_id: m.article_id,
-      article_title: m.article_id ? (titles[m.article_id] || null) : null,
+      article_title: meta?.title ?? null,
+      article_labels: meta?.labels ?? [],
+      match_method: m.match_method ?? null,
       impressions: m.impressions,
       engagements: m.engagements,
       sessions,
@@ -128,8 +133,8 @@ export async function GET(request: NextRequest) {
 
   // Totals
   const totals = rows.reduce((acc, r) => ({
-    impressions: acc.impressions + r.impressions,
-    engagements: acc.engagements + r.engagements,
+    impressions: acc.impressions + (r.impressions ?? 0),
+    engagements: acc.engagements + (r.engagements ?? 0),
     sessions: acc.sessions + r.sessions,
     unique_visitors: acc.unique_visitors + r.unique_visitors,
     saves: acc.saves + r.saves,

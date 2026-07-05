@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import * as XLSX from 'xlsx'
+import { matchArticlesToPosts } from '@/lib/linkedin/matchArticle'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -285,29 +286,32 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // Fetch article_id matches via growth_agent_memory
+  // Fetch growth_agent_memory for tiered matching (slug → date → haiku)
   const { data: linkedinMemory } = await supabase
     .from('growth_agent_memory')
-    .select('article_id, created_at')
+    .select('id, article_id, hook_line, created_at')
     .eq('platform', 'linkedin')
     .eq('outcome', 'approved')
 
-  const dateToArticleId: Record<string, string> = {}
-  for (const row of linkedinMemory ?? []) {
-    const d = row.created_at?.slice(0, 10)
-    if (d && row.article_id) dateToArticleId[d] = row.article_id
-  }
+  // Run tiered matcher — key = post_url
+  const postsToMatch = topPostsResult.posts
+    .filter(p => p.url && p.post_date)
+    .map(p => ({ key: p.url, url: p.url, post_date: p.post_date }))
+
+  const matchMap = await matchArticlesToPosts(postsToMatch, linkedinMemory ?? [])
 
   const postUpsertRows = topPostsResult.posts
-    .filter(p => p.post_date) // skip rows with no parseable date
+    .filter(p => p.post_date)
     .map(p => {
       const existing = existingPostsMap.get(p.url) ?? { impressions: null, engagements: null }
+      const match = matchMap.get(p.url)
       return {
         post_url: p.url || null,
         post_date: p.post_date,
         impressions: p.impressions ?? existing.impressions,
         engagements: p.engagements ?? existing.engagements,
-        article_id: p.post_date ? (dateToArticleId[p.post_date] ?? null) : null,
+        article_id: match?.article_id ?? null,
+        match_method: match?.method ?? null,
         raw_row: p.raw_row,
       }
     })
@@ -387,6 +391,12 @@ export async function POST(request: NextRequest) {
     total_followers: followersResult.totalFollowers,
     total_followers_date: followersResult.totalFollowersDate,
     matched_articles: postUpsertRows.filter(r => r.article_id).length,
+    match_breakdown: {
+      slug: postUpsertRows.filter(r => r.match_method === 'slug').length,
+      date: postUpsertRows.filter(r => r.match_method === 'date').length,
+      haiku: postUpsertRows.filter(r => r.match_method === 'haiku').length,
+      unmatched: postUpsertRows.filter(r => !r.article_id).length,
+    },
     discovery: discoverySummary,
     demographics: demographicsSummary,
   })

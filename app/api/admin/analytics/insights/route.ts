@@ -183,17 +183,18 @@ export async function POST(request: NextRequest) {
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
     const { data: linkedinMetrics } = await supabase
       .from('linkedin_post_metrics')
-      .select('post_date, impressions, engagements, article_id, articles(title)')
+      .select('post_date, impressions, engagements, article_id, match_method, articles(title, labels)')
       .gte('post_date', thirtyDaysAgo)
       .order('post_date', { ascending: false })
       .limit(30)
 
     const linkedinSummary = linkedinMetrics && linkedinMetrics.length > 0
       ? linkedinMetrics.map((m: any) => {
-          const engRate = m.impressions > 0
+          const engRate = (m.impressions ?? 0) > 0
             ? ((m.engagements / m.impressions) * 100).toFixed(1)
             : '0'
-          return `  ${m.post_date}: ${m.impressions ?? '—'} impressions, ${m.engagements ?? '—'} engagements (${engRate}% rate) — "${m.articles?.title || m.article_id || 'unmatched'}"`
+          const labels = (m.articles?.labels ?? []).join(', ') || 'no tags'
+          return `  ${m.post_date}: ${m.impressions ?? '—'} impressions, ${m.engagements ?? '—'} engagements (${engRate}% rate) [${labels}] — "${m.articles?.title || m.article_id || 'unmatched'}" (matched via ${m.match_method ?? 'none'})`
         }).join('\n')
       : '  No LinkedIn post data uploaded yet'
 
