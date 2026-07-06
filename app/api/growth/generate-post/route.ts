@@ -115,6 +115,22 @@ export async function POST(request: NextRequest) {
     }
     console.log('[generate-post] View counts loaded for', viewCounts.size, 'articles')
 
+    // LinkedIn performance feedback: boost articles that resonated on LinkedIn
+    // Aggregates CTR + engagements across all historical posts for each article.
+    // Score = sum(ctr * 0.1 + engagements * 0.002) — high CTR/engagement → stronger boost.
+    const { data: liMetrics } = await supabase
+      .from('linkedin_post_metrics')
+      .select('article_id, ctr, engagements')
+      .not('article_id', 'is', null)
+
+    const liScore = new Map<string, number>()
+    for (const m of liMetrics || []) {
+      if (!m.article_id) continue
+      const score = (m.ctr ?? 0) * 0.1 + (m.engagements ?? 0) * 0.002
+      liScore.set(m.article_id, (liScore.get(m.article_id) || 0) + score)
+    }
+    console.log('[generate-post] LinkedIn scores loaded for', liScore.size, 'articles')
+
     // Improvement #3: Fetch recent zero-result searches as hot demand signal
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
     const { data: zeroResultSearches } = await supabase
@@ -216,13 +232,15 @@ export async function POST(request: NextRequest) {
       }
 
       // Weighted random selection - newer articles get higher probability,
-      // boosted further by real page view counts from the last 30 days.
-      // Each page view adds +20% weight so a 10-view article gets 3x the base weight.
+      // boosted by page views (last 30d) and LinkedIn performance (all-time CTR + engagements).
+      // Each page view adds +20% weight; LinkedIn score multiplies on top.
       const weighted = filteredArticles.map((article, index) => ({
         article,
-        weight: Math.pow(0.95, index) * (1 + (viewCounts.get(article.id) || 0) * 0.2)
+        weight: Math.pow(0.95, index)
+          * (1 + (viewCounts.get(article.id) || 0) * 0.2)
+          * (1 + (liScore.get(article.id) || 0))
       }))
-      console.log('[generate-post] Top 3 weighted articles:', weighted.slice(0,3).map(w => `${w.article.id.slice(-8)} w=${w.weight.toFixed(2)}`))
+      console.log('[generate-post] Top 3 weighted articles:', weighted.slice(0,3).map(w => `${w.article.id.slice(-8)} w=${w.weight.toFixed(2)} li=${(liScore.get(w.article.id) || 0).toFixed(2)}`))
 
       const totalWeight = weighted.reduce((sum, w) => sum + w.weight, 0)
       let random = Math.random() * totalWeight
