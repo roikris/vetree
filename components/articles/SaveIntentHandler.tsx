@@ -17,11 +17,11 @@ type Props = {
   relatedArticles: RelatedArticle[]
 }
 
-function trackEvent(path: string) {
-  fetch('/api/analytics/track', {
+function trackEvent(eventName: string, articleId?: string) {
+  fetch('/api/analytics/event', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ path }),
+    body: JSON.stringify({ event_name: eventName, article_id: articleId }),
   }).catch(() => {})
 }
 
@@ -255,10 +255,10 @@ export function SaveIntentHandler({ articleId, relatedArticles }: Props) {
     const newSearch = params.toString()
     history.replaceState(null, '', window.location.pathname + (newSearch ? '?' + newSearch : ''))
 
-    trackEvent('/events/save_intent_arrived')
+    trackEvent('save_intent_arrived', articleId)
 
     if (!user) {
-      trackEvent('/events/save_intent_auth_shown')
+      trackEvent('save_intent_auth_shown', articleId)
       setShowAuthPrompt(true)
       return
     }
@@ -277,7 +277,7 @@ export function SaveIntentHandler({ articleId, relatedArticles }: Props) {
 
     toggleSave(articleId).then(result => {
       if (!result?.error) {
-        trackEvent('/events/save_intent_completed')
+        trackEvent('save_intent_completed', articleId)
         if (isFirstSave && !shelfShown && relatedArticles.length > 0) {
           localStorage.setItem('vetree_first_save_shelf_shown', '1')
           setShowFirstSave(true)

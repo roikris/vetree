@@ -622,21 +622,17 @@ export async function getSaveIntentFunnel(days: number = 7) {
   startDate.setDate(startDate.getDate() - days)
 
   const { data } = await supabase
-    .from('page_views')
-    .select('path')
-    .in('path', [
-      '/events/save_intent_arrived',
-      '/events/save_intent_auth_shown',
-      '/events/save_intent_completed',
-    ])
+    .from('analytics_events')
+    .select('event_name')
+    .in('event_name', ['save_intent_arrived', 'save_intent_auth_shown', 'save_intent_completed'])
     .gte('created_at', startDate.toISOString())
     .or('user_id.is.null,user_id.neq.90cb8294-b593-4144-a9f5-23ca52dd5e35')
 
   const counts = { arrived: 0, auth_shown: 0, completed: 0 }
   for (const row of data || []) {
-    if (row.path === '/events/save_intent_arrived') counts.arrived++
-    else if (row.path === '/events/save_intent_auth_shown') counts.auth_shown++
-    else if (row.path === '/events/save_intent_completed') counts.completed++
+    if (row.event_name === 'save_intent_arrived') counts.arrived++
+    else if (row.event_name === 'save_intent_auth_shown') counts.auth_shown++
+    else if (row.event_name === 'save_intent_completed') counts.completed++
   }
 
   return { data: counts, error: null }
