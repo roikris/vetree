@@ -104,6 +104,38 @@ export function LinkedInSection() {
   const [pickerResults, setPickerResults] = useState<ArticleHit[]>([])
   const [pickerLoading, setPickerLoading] = useState(false)
 
+  const [sortCol, setSortCol] = useState<string>('post_date')
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
+
+  const handleSort = (col: string) => {
+    if (sortCol === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+    else { setSortCol(col); setSortDir('desc') }
+  }
+
+  const sortedRows = [...rows].sort((a, b) => {
+    const dir = sortDir === 'asc' ? 1 : -1
+    switch (sortCol) {
+      case 'post_date': return dir * a.post_date.localeCompare(b.post_date)
+      case 'impressions': return dir * ((a.impressions ?? 0) - (b.impressions ?? 0))
+      case 'engagements': return dir * ((a.engagements ?? 0) - (b.engagements ?? 0))
+      case 'sessions': return dir * (a.sessions - b.sessions)
+      case 'saves': return dir * (a.saves - b.saves)
+      case 'ctr': return dir * (a.ctr - b.ctr)
+      default: return 0
+    }
+  })
+
+  const handleDelete = async (rowId: string) => {
+    if (!confirm('Delete this row from the database?')) return
+    const token = await getToken()
+    const res = await fetch(`/api/admin/linkedin-metrics/${rowId}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (res.ok) setRows(r => r.filter(row => row.id !== rowId))
+    else alert('Delete failed')
+  }
+
   // Fetch on mount — navigating away and back shows the same data
   useEffect(() => {
     loadFunnel()
@@ -435,20 +467,22 @@ export function LinkedInSection() {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, background: 'var(--al-card)' }}>
             <thead style={{ background: 'var(--al-card2)' }}>
               <tr>
-                <th style={th}>Date</th>
-                <th style={th}>Article</th>
-                <th style={th}>Labels</th>
-                <th style={th}>Match</th>
-                <th style={th}>Impressions</th>
-                <th style={th}>Engagements</th>
-                <th style={th}>Sessions</th>
-                <th style={th}>Saves</th>
-                <th style={th}>CTR</th>
-                <th style={th}>Post</th>
+                {(['post_date', null, null, null, 'impressions', 'engagements', 'sessions', 'saves', 'ctr', null, null] as (string | null)[])
+                  .map((col, i) => {
+                    const labels = ['Date', 'Article', 'Labels', 'Match', 'Impressions', 'Engagements', 'Sessions', 'Saves', 'CTR', 'Post', '']
+                    const label = labels[i]
+                    const arrow = col && sortCol === col ? (sortDir === 'asc' ? ' ▲' : ' ▼') : (col ? ' ↕' : '')
+                    return (
+                      <th key={label} style={{ ...th, cursor: col ? 'pointer' : 'default', userSelect: 'none' }}
+                        onClick={col ? () => handleSort(col) : undefined}>
+                        {label}{col && <span style={{ fontSize: 10, opacity: sortCol === col ? 1 : 0.35 }}>{arrow}</span>}
+                      </th>
+                    )
+                  })}
               </tr>
             </thead>
             <tbody>
-              {rows.map(row => (
+              {sortedRows.map(row => (
                 <tr key={row.id} style={{ background: row.article_id ? 'transparent' : 'rgba(251,191,36,.05)' }}>
                   <td style={td}>{row.post_date}</td>
                   <td style={{ ...td, maxWidth: 220 }}>
@@ -512,6 +546,13 @@ export function LinkedInSection() {
                     {row.post_url
                       ? <a href={row.post_url} target="_blank" rel="noreferrer" style={{ color: '#0077b5', fontSize: 12 }}>↗</a>
                       : <span style={{ color: 'var(--al-mut6)' }}>—</span>}
+                  </td>
+                  <td style={{ ...td, textAlign: 'center' }}>
+                    <button onClick={() => handleDelete(row.id)}
+                      title="Delete row"
+                      style={{ fontSize: 13, color: '#dc2626', background: 'none', border: 'none', cursor: 'pointer', padding: '0 4px', lineHeight: 1 }}>
+                      ×
+                    </button>
                   </td>
                 </tr>
               ))}
