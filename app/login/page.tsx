@@ -20,10 +20,13 @@ export default function LoginPage() {
     setGoogleLoading(true)
     setError(null)
 
+    const returnUrl = new URLSearchParams(window.location.search).get('return') || '/'
+    const safeReturn = returnUrl.startsWith('/') ? returnUrl : '/'
+
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/`
+        redirectTo: `${window.location.origin}${safeReturn}`
       }
     })
 
@@ -56,8 +59,10 @@ export default function LoginPage() {
         return
       }
 
-      // Success - redirect to home page
-      router.push('/')
+      // Success - redirect to return URL or home
+      const returnUrl = new URLSearchParams(window.location.search).get('return') || '/'
+      const safeReturn = returnUrl.startsWith('/') ? returnUrl : '/'
+      router.push(safeReturn)
       router.refresh()
     } catch (err) {
       setError('An unexpected error occurred. Please try again.')

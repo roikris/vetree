@@ -6,6 +6,7 @@ import { ArticleViewTracker } from '@/components/articles/ArticleViewTracker'
 import { RegistrationWall } from '@/components/ui/RegistrationWall'
 import { SoftRegistrationPrompt } from '@/components/articles/SoftRegistrationPrompt'
 import { ArticleAppBar } from '@/components/articles/ArticleAppBar'
+import { SaveIntentHandler } from '@/components/articles/SaveIntentHandler'
 import Link from 'next/link'
 import type { Metadata } from 'next'
 import { getEvidenceLevel, getEvidenceBadgeProps } from '@/lib/utils/evidenceBadge'
@@ -173,6 +174,7 @@ export default async function ArticlePage({ params }: PageProps) {
 
       <ArticleViewTracker isLoggedIn={isLoggedIn} />
       {!isLoggedIn && <RegistrationWall />}
+      <SaveIntentHandler articleId={article.id} relatedArticles={relatedArticles} />
 
       {/* Article-specific app bar */}
       <ArticleAppBar

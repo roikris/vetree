@@ -286,6 +286,24 @@ export async function POST(request: NextRequest) {
 
     const articleUrl = `https://vetree.app/article/${article.id}?${utmParams[platform as keyof typeof utmParams] || 'utm_source=social&utm_medium=social'}`
 
+    // Save CTA — rotating clause by weekday, replaces 🌿 vetree.app footer
+    const saveUrl = `${articleUrl}&intent=save&utm_content=save-line`
+    const hebrewSaveClauses = [
+      'שמרו לספרייה שלכם — תצטרכו את זה בדיוק כשלא תזכרו איפה זה',
+      'המקרה שיצטרך את זה לא יודיע מראש. תייקו',
+      'עוד מאמר למדף שלכם',
+      'קראתם? שמרו. הספרייה שלכם זוכרת',
+    ]
+    const englishSaveClauses = [
+      "Save it — the case that needs it won't announce itself",
+      'File it in your library, one tap',
+      'Read now, retrieve mid-case. Your library remembers',
+    ]
+    const hebrewSavePlatforms = ['whatsapp', 'telegram', 'facebook_il']
+    const saveClauses = hebrewSavePlatforms.includes(platform) ? hebrewSaveClauses : englishSaveClauses
+    const saveClause = saveClauses[new Date().getDay() % saveClauses.length]
+    const saveCta = `${saveClause}: ${saveUrl}`
+
     // Call Anthropic API to generate post for the selected article
     const Anthropic = (await import('@anthropic-ai/sdk')).default
     const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
@@ -449,7 +467,7 @@ LinkedIn post structure:
 📄 ${article.title}
 🔗 ${articleUrl}
 
-🌿 vetree.app
+💾 ${saveCta}
 
 CRITICAL: The line starting with 📄 must contain the article title EXACTLY as written above — do not shorten, rephrase, or summarize it.
 
@@ -544,7 +562,7 @@ Format:
 
 📄 ${article.title}
 🔗 ${articleUrl}
-🌿 vetree.app
+💾 ${saveCta}
 
 CRITICAL: The line starting with 📄 must contain the article title EXACTLY as written above — do not shorten, rephrase, or summarize it.
 

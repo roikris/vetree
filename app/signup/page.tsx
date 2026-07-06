@@ -85,9 +85,11 @@ export default function SignUpPage() {
   const handleGoogleSignUp = async () => {
     setGoogleLoading(true)
     setError(null)
+    const returnUrl = new URLSearchParams(window.location.search).get('return') || '/'
+    const safeReturn = returnUrl.startsWith('/') ? returnUrl : '/'
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/` },
+      options: { redirectTo: `${window.location.origin}${safeReturn}` },
     })
     if (error) { setError(error.message); setGoogleLoading(false) }
   }
@@ -100,7 +102,13 @@ export default function SignUpPage() {
 
     setLoading(true)
     try {
-      const { data, error: signUpError } = await supabase.auth.signUp({ email, password })
+      const returnUrl = new URLSearchParams(window.location.search).get('return') || '/'
+      const safeReturn = returnUrl.startsWith('/') ? returnUrl : '/'
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { emailRedirectTo: `${window.location.origin}${safeReturn}` },
+      })
       if (signUpError) {
         setError(signUpError.message.includes('already registered')
           ? 'This email is already registered. Please log in instead.'

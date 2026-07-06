@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
-import { getAnalyticsOverview, getTopPages, getVisitorsOverTime, getTopArticles, getSessionDuration, getRecentSearches, getDeviceBreakdown, getTopCountries, getSavedArticlesStats, getTrafficSources, getSynthesisStats } from '@/app/actions/analytics'
+import { getAnalyticsOverview, getTopPages, getVisitorsOverTime, getTopArticles, getSessionDuration, getRecentSearches, getDeviceBreakdown, getTopCountries, getSavedArticlesStats, getTrafficSources, getSynthesisStats, getSaveIntentFunnel } from '@/app/actions/analytics'
 
 type AnalyticsClientProps = {
   initialOverview: any
@@ -16,6 +16,7 @@ type AnalyticsClientProps = {
   initialSavedArticlesStats: any
   initialTrafficSources: any[]
   initialSynthesisStats: { totalRuns: number; totalHelpful: number } | null
+  initialSaveIntentFunnel: { arrived: number; auth_shown: number; completed: number } | null
 }
 
 export function AnalyticsClient({
@@ -29,7 +30,8 @@ export function AnalyticsClient({
   initialTopCountries,
   initialSavedArticlesStats,
   initialTrafficSources,
-  initialSynthesisStats
+  initialSynthesisStats,
+  initialSaveIntentFunnel,
 }: AnalyticsClientProps) {
   const [dateRange, setDateRange] = useState<7 | 30 | 90>(7)
   const [overview, setOverview] = useState(initialOverview)
@@ -43,6 +45,7 @@ export function AnalyticsClient({
   const [savedArticlesStats, setSavedArticlesStats] = useState(initialSavedArticlesStats)
   const [trafficSources, setTrafficSources] = useState(initialTrafficSources || [])
   const [synthesisStats, setSynthesisStats] = useState(initialSynthesisStats)
+  const [saveIntentFunnel, setSaveIntentFunnel] = useState(initialSaveIntentFunnel)
   const [isLoading, setIsLoading] = useState(false)
   const [sortColumn, setSortColumn] = useState<'query' | 'count' | 'avg_results' | 'last_searched'>('count')
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
@@ -87,7 +90,7 @@ export function AnalyticsClient({
     setIsLoading(true)
 
     try {
-      const [overviewRes, topPagesRes, visitorsRes, articlesRes, sessionRes, searchesRes, deviceRes, countriesRes, savedRes, trafficRes, synthesisRes] = await Promise.all([
+      const [overviewRes, topPagesRes, visitorsRes, articlesRes, sessionRes, searchesRes, deviceRes, countriesRes, savedRes, trafficRes, synthesisRes, funnelRes] = await Promise.all([
         getAnalyticsOverview(newRange),
         getTopPages(newRange),
         getVisitorsOverTime(newRange),
@@ -98,7 +101,8 @@ export function AnalyticsClient({
         getTopCountries(newRange),
         getSavedArticlesStats(newRange),
         getTrafficSources(newRange),
-        getSynthesisStats(newRange)
+        getSynthesisStats(newRange),
+        getSaveIntentFunnel(newRange),
       ])
 
       setOverview(overviewRes.data)
@@ -112,6 +116,7 @@ export function AnalyticsClient({
       setSavedArticlesStats(savedRes.data)
       setTrafficSources(trafficRes.data || [])
       setSynthesisStats(synthesisRes.data || null)
+      setSaveIntentFunnel(funnelRes.data || null)
     } catch (error) {
       console.error('Error loading analytics:', error)
     } finally {
@@ -450,6 +455,56 @@ export function AnalyticsClient({
           </table>
         </div>
       )}
+
+      {/* Save-intent funnel */}
+      <div style={cardStyle}>
+        <h2 style={h2Style}>Save-link funnel</h2>
+        <p style={{ margin: '0 0 20px', fontFamily: 'var(--font-instrument,sans-serif)', fontSize: 12.5, color: 'var(--al-mut3)' }}>
+          Tracks clicks on the 💾 save line in social posts through to completed saves.
+        </p>
+        {saveIntentFunnel ? (
+          <div style={{ display: 'flex', gap: 0, alignItems: 'stretch' }}>
+            {[
+              { label: 'Arrived', value: saveIntentFunnel.arrived, sub: 'clicked save link' },
+              { label: 'Auth shown', value: saveIntentFunnel.auth_shown, sub: 'was logged out', prev: saveIntentFunnel.arrived },
+              { label: 'Completed', value: saveIntentFunnel.completed, sub: 'article saved', prev: saveIntentFunnel.arrived },
+            ].map((step, i) => {
+              const pct = step.prev && step.prev > 0 ? Math.round((step.value / step.prev) * 100) : null
+              return (
+                <div key={step.label} style={{ flex: 1, display: 'flex', alignItems: 'stretch', gap: 0 }}>
+                  {i > 0 && (
+                    <div style={{ display: 'flex', alignItems: 'center', padding: '0 8px', color: 'var(--al-mut6)', fontSize: 18 }}>→</div>
+                  )}
+                  <div style={{
+                    flex: 1, background: 'var(--al-card2)',
+                    border: '1px solid rgba(var(--al-line,62,54,36),.09)',
+                    borderRadius: 10, padding: '16px 18px',
+                  }}>
+                    <div style={labelStyle}>{step.label}</div>
+                    <div style={{ ...bigNumStyle, fontSize: 26, marginTop: 8 }}>{step.value.toLocaleString()}</div>
+                    <div style={{ ...subStyle, marginTop: 4 }}>{step.sub}</div>
+                    {pct !== null && (
+                      <div style={{
+                        marginTop: 6, display: 'inline-block',
+                        fontSize: 11, fontFamily: 'var(--font-instrument,sans-serif)', fontWeight: 600,
+                        padding: '2px 7px', borderRadius: 4,
+                        background: pct >= 50 ? '#dcfce7' : pct >= 20 ? '#fef9c3' : '#fee2e2',
+                        color: pct >= 50 ? '#166534' : pct >= 20 ? '#854d0e' : '#991b1b',
+                      }}>
+                        {pct}% of arrived
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        ) : (
+          <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--al-mut4)', fontFamily: 'var(--font-instrument,sans-serif)', fontSize: 14 }}>
+            No save-intent events yet — will populate once social posts with the 💾 line go live.
+          </div>
+        )}
+      </div>
 
       {/* Recent Searches */}
       <div style={cardStyle}>

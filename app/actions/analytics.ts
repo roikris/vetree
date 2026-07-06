@@ -608,6 +608,40 @@ export async function getTrafficSources(days: number = 7) {
   return { data: trafficSources, error: null }
 }
 
+export async function getSaveIntentFunnel(days: number = 7) {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated', data: null }
+
+  const { data: roleData } = await supabase
+    .from('user_roles').select('role').eq('user_id', user.id).single()
+  if (roleData?.role !== 'admin') return { error: 'Unauthorized', data: null }
+
+  const startDate = new Date()
+  startDate.setDate(startDate.getDate() - days)
+
+  const { data } = await supabase
+    .from('page_views')
+    .select('path')
+    .in('path', [
+      '/events/save_intent_arrived',
+      '/events/save_intent_auth_shown',
+      '/events/save_intent_completed',
+    ])
+    .gte('created_at', startDate.toISOString())
+    .or('user_id.is.null,user_id.neq.90cb8294-b593-4144-a9f5-23ca52dd5e35')
+
+  const counts = { arrived: 0, auth_shown: 0, completed: 0 }
+  for (const row of data || []) {
+    if (row.path === '/events/save_intent_arrived') counts.arrived++
+    else if (row.path === '/events/save_intent_auth_shown') counts.auth_shown++
+    else if (row.path === '/events/save_intent_completed') counts.completed++
+  }
+
+  return { data: counts, error: null }
+}
+
 export async function getSynthesisStats(days: number = 7) {
   const supabase = await createClient()
 
