@@ -116,19 +116,21 @@ test('auth round-trip: intent=save saves article, appears in library, unsave rem
   expect(articleId).toBeTruthy()
 
   try {
-    // Idempotent: unsave if already saved from a previous crashed run
+    // Idempotent: unsave if already saved from a previous crashed run.
+    // Wait for the button to reflect "Save to library" (confirms the API call completed)
+    // before navigating away — avoids a race where SaveIntentHandler still sees it as saved.
     await page.goto(`/article/${articleId}`)
-    await page.waitForTimeout(1500)
     const bookmarkBtn = page.locator('[aria-label="Remove from library"], [aria-label="Unsave"]').first()
-    if (await bookmarkBtn.isVisible()) {
+    if (await bookmarkBtn.isVisible({ timeout: 5_000 }).catch(() => false)) {
       await bookmarkBtn.click()
-      await page.waitForTimeout(800)
+      await page.locator('[aria-label="Save to library"]').first().waitFor({ timeout: 6_000 })
     }
 
     // Visit with intent=save
     await page.goto(`/article/${articleId}?intent=save`)
+    // SaveIntentHandler shows a toast (save-toast) or first-save shelf (first-save-shelf)
     await expect(
-      page.locator('text=נשמר').or(page.locator('text=הספרייה'))
+      page.locator('[data-testid="save-toast"]').or(page.locator('[data-testid="first-save-shelf"]'))
     ).toBeVisible({ timeout: 8_000 })
 
     // Verify in library
@@ -137,11 +139,10 @@ test('auth round-trip: intent=save saves article, appears in library, unsave rem
 
     // Unsave
     await page.goto(`/article/${articleId}`)
-    await page.waitForTimeout(1500)
     const unsaveBtn = page.locator('[aria-label="Remove from library"], [aria-label="Unsave"]').first()
     await expect(unsaveBtn).toBeVisible({ timeout: 6_000 })
     await unsaveBtn.click()
-    await page.waitForTimeout(800)
+    await page.locator('[aria-label="Save to library"]').first().waitFor({ timeout: 6_000 })
 
     // Verify removed from library
     await page.goto('/library')
@@ -150,9 +151,8 @@ test('auth round-trip: intent=save saves article, appears in library, unsave rem
   } finally {
     try {
       await page.goto(`/article/${articleId}`)
-      await page.waitForTimeout(1500)
       const cleanup = page.locator('[aria-label="Remove from library"], [aria-label="Unsave"]').first()
-      if (await cleanup.isVisible()) await cleanup.click()
+      if (await cleanup.isVisible({ timeout: 5_000 }).catch(() => false)) await cleanup.click()
     } catch { /* best-effort */ }
   }
 })

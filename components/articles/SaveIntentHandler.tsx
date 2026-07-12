@@ -49,6 +49,7 @@ function FirstSaveShelf({
 
   return (
     <div
+      data-testid="first-save-shelf"
       style={{
         position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 200,
         display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
@@ -302,7 +303,7 @@ export function SaveIntentHandler({ articleId, relatedArticles }: Props) {
     <>
       {/* Toast */}
       {toast && (
-        <div style={{
+        <div data-testid="save-toast" style={{
           position: 'fixed', bottom: 88, left: '50%', transform: 'translateX(-50%)',
           background: 'var(--al-ink2)', color: 'var(--al-bg)',
           padding: '12px 20px', borderRadius: 10,

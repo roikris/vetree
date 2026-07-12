@@ -185,7 +185,7 @@ export default async function ArticlePage({ params }: PageProps) {
 
       {/* Body */}
       <div style={{ maxWidth: 1040, margin: '0 auto', padding: '44px 32px 90px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 316px', gap: 52, alignItems: 'start' }}>
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_316px] gap-10 lg:gap-[52px]" style={{ alignItems: 'start' }}>
 
           {/* ===== MAIN READING COLUMN ===== */}
           <article style={{ minWidth: 0 }}>
