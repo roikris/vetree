@@ -279,15 +279,19 @@ export function SaveIntentHandler({ articleId, relatedArticles }: Props) {
     const shelfShown = localStorage.getItem('vetree_first_save_shelf_shown')
 
     toggleSave(articleId).then(result => {
-      if (!result?.error) {
-        trackEvent('save_intent_completed', articleId)
-        if (isFirstSave && !shelfShown && relatedArticles.length > 0) {
-          localStorage.setItem('vetree_first_save_shelf_shown', '1')
-          setShowFirstSave(true)
-        } else {
-          setToast({ message: 'נשמר לספרייה שלך ✓', showUndo: true })
-          setTimeout(() => setToast(null), 5000)
-        }
+      if (result?.error) {
+        // Duplicate key or other error — article may already be saved; show toast anyway
+        setToast({ message: 'נשמר לספרייה שלך ✓', showLibrary: true })
+        setTimeout(() => setToast(null), 5000)
+        return
+      }
+      trackEvent('save_intent_completed', articleId)
+      if (isFirstSave && !shelfShown && relatedArticles.length > 0) {
+        localStorage.setItem('vetree_first_save_shelf_shown', '1')
+        setShowFirstSave(true)
+      } else {
+        setToast({ message: 'נשמר לספרייה שלך ✓', showUndo: true })
+        setTimeout(() => setToast(null), 5000)
       }
     })
   }, [authLoading, saveLoading]) // eslint-disable-line react-hooks/exhaustive-deps

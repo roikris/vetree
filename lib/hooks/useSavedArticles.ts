@@ -17,9 +17,12 @@ export function useSavedArticles() {
     }
 
     async function loadSavedArticles() {
-      const { articleIds } = await getUserSavedArticleIds()
-      setSavedArticleIds(new Set(articleIds))
-      setLoading(false)
+      try {
+        const { articleIds } = await getUserSavedArticleIds()
+        setSavedArticleIds(new Set(articleIds))
+      } finally {
+        setLoading(false)
+      }
     }
 
     loadSavedArticles()
