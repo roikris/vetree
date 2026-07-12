@@ -74,7 +74,7 @@ export function StreamRow({ article }: { article: Article }) {
   }
 
   return (
-    <div style={rowStyle}>
+    <div style={rowStyle} data-testid="article-card">
       {/* Chips row */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 11, marginBottom: 15 }}>
         {specialty && (

@@ -245,6 +245,7 @@ export function SearchControls({
                   </svg>
                   <input
                     autoFocus
+                    data-testid="search-input"
                     value={searchQuery}
                     onChange={e => setSearchQuery(e.target.value)}
                     onKeyDown={handleSearchKeyDown}
@@ -272,6 +273,7 @@ export function SearchControls({
               ) : (
                 <button
                   onClick={() => setSearchOpen(true)}
+                  data-testid="search-toggle"
                   style={{
                     width: 38, height: 38, borderRadius: 10,
                     background: 'var(--al-card)',

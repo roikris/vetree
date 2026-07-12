@@ -24,15 +24,15 @@ test('landing page: hero CTAs visible and count >= 2', async ({ page }) => {
 test('browse flow: clicking Browse articles CTA renders article feed', async ({ page }) => {
   await page.goto('/')
   await page.locator('[data-testid="landing-cta-browse"]').click()
-  // Feed must render at least 3 cards after the CTA navigation
-  await expect(page.locator('[data-testid="article-card"]').nth(2)).toBeVisible()
+  // Feed must render at least 3 cards after the CTA navigation (15s for cold starts)
+  await expect(page.locator('[data-testid="article-card"]').nth(2)).toBeVisible({ timeout: 15_000 })
 })
 
 // ─── 2. Article page ─────────────────────────────────────────────────────────
 test('article page: title and clinical bottom line visible', async ({ page }) => {
   await page.goto('/')
   await page.locator('[data-testid="landing-cta-browse"]').click()
-  await page.locator('[data-testid="article-card"]').first().waitFor()
+  await page.locator('[data-testid="article-card"]').first().waitFor({ timeout: 15_000 })
   const firstLink = page.locator('[data-testid="article-card"] a').first()
   await firstLink.click()
   await expect(page.locator('[data-testid="article-title"]')).toBeVisible()
@@ -40,14 +40,16 @@ test('article page: title and clinical bottom line visible', async ({ page }) =>
 })
 
 // ─── 3. Search ───────────────────────────────────────────────────────────────
-// Search bar lives in the article feed, reached via Browse articles CTA.
+// Real search: click the search icon to open the input, type, press Enter.
+// The input is in SearchControls and is gated behind the toggle button.
 test('search: "pyometra" returns at least 1 result', async ({ page }) => {
   await page.goto('/')
   await page.locator('[data-testid="landing-cta-browse"]').click()
-  await page.locator('[data-testid="article-card"]').first().waitFor()
+  await page.locator('[data-testid="article-card"]').first().waitFor({ timeout: 15_000 })
+  await page.locator('[data-testid="search-toggle"]').click()
   await page.locator('[data-testid="search-input"]').fill('pyometra')
-  await page.locator('[data-testid="search-submit"]').click()
-  await expect(page.locator('[data-testid="article-card"]').first()).toBeVisible()
+  await page.keyboard.press('Enter')
+  await expect(page.locator('[data-testid="article-card"]').first()).toBeVisible({ timeout: 15_000 })
 })
 
 // ─── 4. Save-intent, logged out ──────────────────────────────────────────────
