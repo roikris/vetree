@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createHash } from 'crypto'
+import { EXCLUDED_USER_IDS } from '@/lib/analytics-excluded-ids'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -29,9 +30,8 @@ export async function POST(request: NextRequest) {
     // Get user if logged in
     const { data: { user } } = await supabase.auth.getUser()
 
-    // Don't log admin searches
-    const adminId = '90cb8294-b593-4144-a9f5-23ca52dd5e35'
-    if (user?.id === adminId) {
+    // Don't log excluded users (admin + test account)
+    if (user?.id && EXCLUDED_USER_IDS.includes(user.id)) {
       return NextResponse.json({ success: true })
     }
 

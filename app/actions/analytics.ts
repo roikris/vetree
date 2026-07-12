@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { excludedUsersOrFilter } from '@/lib/analytics-excluded-ids'
 
 export async function getAnalyticsOverview(days: number = 7) {
   const supabase = await createClient()
@@ -27,14 +28,14 @@ export async function getAnalyticsOverview(days: number = 7) {
     .from('page_views')
     .select('*', { count: 'exact', head: true })
     .gte('created_at', startDate.toISOString())
-    .or('user_id.is.null,user_id.neq.90cb8294-b593-4144-a9f5-23ca52dd5e35')
+    .or(excludedUsersOrFilter())
 
   // Unique visitors (exclude admin, include anonymous)
   const { data: uniqueVisitors } = await supabase
     .from('page_views')
     .select('ip_hash')
     .gte('created_at', startDate.toISOString())
-    .or('user_id.is.null,user_id.neq.90cb8294-b593-4144-a9f5-23ca52dd5e35')
+    .or(excludedUsersOrFilter())
 
   const uniqueCount = uniqueVisitors ? [...new Set(uniqueVisitors.map(v => v.ip_hash))].length : 0
 
@@ -44,7 +45,7 @@ export async function getAnalyticsOverview(days: number = 7) {
     .select('*', { count: 'exact', head: true })
     .gte('created_at', startDate.toISOString())
     .not('user_id', 'is', null)
-    .neq('user_id', '90cb8294-b593-4144-a9f5-23ca52dd5e35')
+    .or(excludedUsersOrFilter())
 
   return {
     data: {
@@ -80,7 +81,7 @@ export async function getTopPages(days: number = 7, limit: number = 10) {
     .from('page_views')
     .select('path')
     .gte('created_at', startDate.toISOString())
-    .or('user_id.is.null,user_id.neq.90cb8294-b593-4144-a9f5-23ca52dd5e35')
+    .or(excludedUsersOrFilter())
 
   if (!pageViews) return { data: [], error: null }
 
@@ -121,7 +122,7 @@ export async function getVisitorsOverTime(days: number = 7) {
     .from('page_views')
     .select('created_at, ip_hash')
     .gte('created_at', startDate.toISOString())
-    .or('user_id.is.null,user_id.neq.90cb8294-b593-4144-a9f5-23ca52dd5e35')
+    .or(excludedUsersOrFilter())
     .order('created_at', { ascending: true })
 
   if (!pageViews) return { data: [], error: null }
@@ -174,7 +175,7 @@ export async function getTopArticles(days: number = 7, limit: number = 10) {
     .select('path, ip_hash')
     .gte('created_at', startDate.toISOString())
     .like('path', '/article/%')
-    .or('user_id.is.null,user_id.neq.90cb8294-b593-4144-a9f5-23ca52dd5e35')
+    .or(excludedUsersOrFilter())
 
   if (!pageViews) return { data: [], error: null }
 
@@ -241,7 +242,7 @@ export async function getSessionDuration(days: number = 7) {
     .select('duration_seconds')
     .gte('created_at', startDate.toISOString())
     .not('duration_seconds', 'is', null)
-    .or('user_id.is.null,user_id.neq.90cb8294-b593-4144-a9f5-23ca52dd5e35')
+    .or(excludedUsersOrFilter())
 
   if (!sessions || sessions.length === 0) {
     return {
@@ -332,7 +333,7 @@ export async function getRecentSearches(days: number = 7, limit: number = 20) {
     .from('search_logs')
     .select('query, results_count, created_at')
     .gte('created_at', startDate.toISOString())
-    .or('user_id.is.null,user_id.neq.90cb8294-b593-4144-a9f5-23ca52dd5e35')
+    .or(excludedUsersOrFilter())
 
   if (!searches || searches.length === 0) {
     return { data: [], error: null }
@@ -398,7 +399,7 @@ export async function getDeviceBreakdown(days: number = 7) {
     .from('page_views')
     .select('device_type')
     .gte('created_at', startDate.toISOString())
-    .or('user_id.is.null,user_id.neq.90cb8294-b593-4144-a9f5-23ca52dd5e35')
+    .or(excludedUsersOrFilter())
 
   if (!pageViews) return { data: { mobile: 0, desktop: 0, unknown: 0 }, error: null }
 
@@ -446,7 +447,7 @@ export async function getTopCountries(days: number = 7, limit: number = 10) {
     .from('page_views')
     .select('country, ip_hash')
     .gte('created_at', startDate.toISOString())
-    .or('user_id.is.null,user_id.neq.90cb8294-b593-4144-a9f5-23ca52dd5e35')
+    .or(excludedUsersOrFilter())
 
   if (!pageViews) return { data: [], error: null }
 
@@ -499,14 +500,14 @@ export async function getSavedArticlesStats(days: number = 7) {
     .from('saved_articles')
     .select('*', { count: 'exact', head: true })
     .gte('saved_at', startDate.toISOString())
-    .neq('user_id', '90cb8294-b593-4144-a9f5-23ca52dd5e35')
+    .or(excludedUsersOrFilter())
 
   // Unique users who saved at least one article
   const { data: savedArticles } = await supabase
     .from('saved_articles')
     .select('user_id')
     .gte('saved_at', startDate.toISOString())
-    .neq('user_id', '90cb8294-b593-4144-a9f5-23ca52dd5e35')
+    .or(excludedUsersOrFilter())
 
   const uniqueUsers = savedArticles ? [...new Set(savedArticles.map(s => s.user_id))].length : 0
 
@@ -543,7 +544,7 @@ export async function getTrafficSources(days: number = 7) {
     .from('page_views')
     .select('utm_source, referrer, ip_hash, user_id')
     .gte('created_at', startDate.toISOString())
-    .or('user_id.is.null,user_id.neq.90cb8294-b593-4144-a9f5-23ca52dd5e35')
+    .or(excludedUsersOrFilter())
 
   if (!pageViews) return { data: [], error: null }
 
@@ -626,7 +627,7 @@ export async function getSaveIntentFunnel(days: number = 7) {
     .select('event_name')
     .in('event_name', ['save_intent_arrived', 'save_intent_auth_shown', 'save_intent_completed'])
     .gte('created_at', startDate.toISOString())
-    .or('user_id.is.null,user_id.neq.90cb8294-b593-4144-a9f5-23ca52dd5e35')
+    .or(excludedUsersOrFilter())
 
   const counts = { arrived: 0, auth_shown: 0, completed: 0 }
   for (const row of data || []) {

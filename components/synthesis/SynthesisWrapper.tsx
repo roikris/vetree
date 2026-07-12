@@ -60,6 +60,7 @@ export function SynthesisWrapper({ searchQuery, children, isLoggedIn, view }: Sy
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting && !engagedFiredRef.current) {
+          if (typeof navigator !== 'undefined' && navigator.webdriver) return
           engagedFiredRef.current = true
           fetch('/api/analytics/track', {
             method: 'POST',

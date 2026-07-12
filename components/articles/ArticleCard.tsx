@@ -45,7 +45,7 @@ export function ArticleCard({ article }: ArticleCardProps) {
   }
 
   return (
-    <article className="al-card" style={{ padding: '26px 28px' }} data-onboarding="article-card">
+    <article className="al-card" style={{ padding: '26px 28px' }} data-onboarding="article-card" data-testid="article-card">
 
       {/* Top row: journal + date | share + bookmark */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 13 }}>

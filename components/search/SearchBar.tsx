@@ -149,6 +149,7 @@ export function SearchBar({ defaultValue, onSearch, resultsCount }: SearchBarPro
         value={inputValue}
         onChange={(e) => setInputValue(e.target.value)}
         aria-label="Search veterinary articles"
+        data-testid="search-input"
         placeholder="Search articles by title, summary, clinical bottom line, or authors..."
         className="w-full pl-12 pr-24 py-3 text-base bg-white dark:bg-[#1A1A1A] border border-[#E5E5E5] dark:border-[#2A2A2A] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3D7A5F] dark:focus:ring-[#4E9A78] focus:border-transparent text-[#1A1A1A] dark:text-[#E8E8E8] placeholder-zinc-400 dark:placeholder-zinc-500"
       />
@@ -174,6 +175,7 @@ export function SearchBar({ defaultValue, onSearch, resultsCount }: SearchBarPro
         <button
           type="submit"
           aria-label="Search"
+          data-testid="search-submit"
           className="flex items-center justify-center w-7 h-7 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white transition-colors flex-shrink-0"
         >
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

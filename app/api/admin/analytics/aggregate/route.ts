@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { excludedUsersOrFilter } from '@/lib/analytics-excluded-ids'
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,7 +21,6 @@ export async function POST(request: NextRequest) {
     )
 
     const today = new Date().toISOString().split('T')[0]
-    const adminId = '90cb8294-b593-4144-a9f5-23ca52dd5e35'
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
     // DAU uses yesterday to capture a full day (aggregate runs at ~02:00 UTC)
@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
       .select('ip_hash')
       .gte('created_at', yesterday)
       .lt('created_at', today)
-      .or(`user_id.is.null,user_id.neq.${adminId}`)
+      .or(excludedUsersOrFilter())
     const dau = new Set(dauData?.map(r => r.ip_hash) ?? []).size
 
     // WAU - unique ip_hash last 7 days
@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
       .from('page_views')
       .select('ip_hash')
       .gte('created_at', sevenDaysAgo)
-      .or(`user_id.is.null,user_id.neq.${adminId}`)
+      .or(excludedUsersOrFilter())
     const wau = new Set(wauData?.map(r => r.ip_hash) ?? []).size
 
     // MAU - unique ip_hash last 30 days
@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
       .from('page_views')
       .select('ip_hash')
       .gte('created_at', thirtyDaysAgo)
-      .or(`user_id.is.null,user_id.neq.${adminId}`)
+      .or(excludedUsersOrFilter())
     const mau = new Set(mauData?.map(r => r.ip_hash) ?? []).size
 
     // Registered MAU — distinct authenticated users (non-admin, non-null user_id) in last 30 days
@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
       .from('page_views')
       .select('user_id')
       .not('user_id', 'is', null)
-      .neq('user_id', adminId)
+      .or(excludedUsersOrFilter())
       .gte('created_at', thirtyDaysAgo)
     const registeredMau = new Set(registeredMauData?.map(r => r.user_id) ?? []).size
 
@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
       .from('search_logs')
       .select('query, results_count, user_id')
       .gte('created_at', sevenDaysAgo)
-      .or(`user_id.is.null,user_id.neq.${adminId}`)
+      .or(excludedUsersOrFilter())
 
     const totalSearches = searchData?.length || 0
     const zeroResults = searchData?.filter(s => s.results_count === 0) || []
@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
       .select('*', { count: 'exact', head: true })
       .eq('path', '/synthesis/engaged')
       .gte('created_at', sevenDaysAgo)
-      .or(`user_id.is.null,user_id.neq.${adminId}`)
+      .or(excludedUsersOrFilter())
 
     // Synthesis runs — count all synthesis serves (cache hits + misses) from page_views tracking
     const { count: synthesisRuns } = await supabase
@@ -97,35 +97,35 @@ export async function POST(request: NextRequest) {
       .select('*', { count: 'exact', head: true })
       .eq('path', '/synthesis/run')
       .gte('created_at', sevenDaysAgo)
-      .or(`user_id.is.null,user_id.neq.${adminId}`)
+      .or(excludedUsersOrFilter())
 
     const { count: synthesisHelpful } = await supabase
       .from('synthesis_feedback')
       .select('*', { count: 'exact', head: true })
       .eq('feedback', 'helpful')
       .gte('created_at', sevenDaysAgo)
-      .or(`user_id.is.null,user_id.neq.${adminId}`)
+      .or(excludedUsersOrFilter())
 
     const { count: synthesisNotRelevant } = await supabase
       .from('synthesis_feedback')
       .select('*', { count: 'exact', head: true })
       .eq('feedback', 'not_relevant')
       .gte('created_at', sevenDaysAgo)
-      .or(`user_id.is.null,user_id.neq.${adminId}`)
+      .or(excludedUsersOrFilter())
 
     // Articles saved (exclude admin) — column is 'saved_at', not 'created_at'
     const { count: articlesSaved } = await supabase
       .from('saved_articles')
       .select('*', { count: 'exact', head: true })
       .gte('saved_at', sevenDaysAgo)
-      .neq('user_id', adminId)
+      .or(excludedUsersOrFilter())
 
     // Top saved articles (by saves, NOT views - avoid promotion bias)
     const { data: savedArticlesData } = await supabase
       .from('saved_articles')
       .select('article_id')
       .gte('saved_at', thirtyDaysAgo)
-      .neq('user_id', adminId)
+      .or(excludedUsersOrFilter())
 
     const saveCounts = savedArticlesData?.reduce((acc, s) => {
       acc[s.article_id] = (acc[s.article_id] || 0) + 1
@@ -143,7 +143,7 @@ export async function POST(request: NextRequest) {
       .select('duration_seconds')
       .gte('created_at', sevenDaysAgo)
       .not('duration_seconds', 'is', null)
-      .or(`user_id.is.null,user_id.neq.${adminId}`)
+      .or(excludedUsersOrFilter())
 
     // Filter valid sessions: 0 < duration <= 1800 seconds (30 min cap)
     const validSessions = sessionData?.filter(s =>
@@ -167,7 +167,7 @@ export async function POST(request: NextRequest) {
       .select('utm_source')
       .gte('created_at', sevenDaysAgo)
       .not('utm_source', 'is', null)
-      .or(`user_id.is.null,user_id.neq.${adminId}`)
+      .or(excludedUsersOrFilter())
 
     const trafficSources = trafficData?.reduce((acc, t) => {
       if (t.utm_source) {
@@ -182,7 +182,7 @@ export async function POST(request: NextRequest) {
       .from('page_views')
       .select('device_type')
       .gte('created_at', sevenDaysAgo)
-      .or(`user_id.is.null,user_id.neq.${adminId}`)
+      .or(excludedUsersOrFilter())
 
     const deviceBreakdown = (deviceData ?? []).reduce((acc, r) => {
       const key = r.device_type ?? 'unknown'

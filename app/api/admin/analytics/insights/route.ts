@@ -5,6 +5,7 @@ export const maxDuration = 300 // 3 sequential AI calls: Sonnet insights + Haiku
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import Anthropic from '@anthropic-ai/sdk'
+import { excludedUsersOrFilter } from '@/lib/analytics-excluded-ids'
 
 export async function POST(request: NextRequest) {
   try {
@@ -104,14 +105,13 @@ export async function POST(request: NextRequest) {
 
     // Specific row-level data for actionable insights
     const sevenDaysAgoISO = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
-    const adminId = '90cb8294-b593-4144-a9f5-23ca52dd5e35'
 
     // Zero-result searches (exact queries users searched with no results)
     const { data: zeroResultQueries } = await supabase
       .from('search_logs')
       .select('query, results_count, created_at')
       .eq('results_count', 0)
-      .or(`user_id.is.null,user_id.neq.${adminId}`)
+      .or(excludedUsersOrFilter())
       .gte('created_at', sevenDaysAgoISO)
       .order('created_at', { ascending: false })
       .limit(20)
@@ -122,7 +122,7 @@ export async function POST(request: NextRequest) {
       .select('query, results_count, created_at')
       .gt('results_count', 0)
       .lte('results_count', 4)
-      .or(`user_id.is.null,user_id.neq.${adminId}`)
+      .or(excludedUsersOrFilter())
       .gte('created_at', sevenDaysAgoISO)
       .order('created_at', { ascending: false })
       .limit(20)
@@ -141,7 +141,7 @@ export async function POST(request: NextRequest) {
       .from('page_views')
       .select('user_id, created_at')
       .not('user_id', 'is', null)
-      .neq('user_id', adminId)
+      .or(excludedUsersOrFilter())
       .gte('created_at', twentyEightDaysAgoISO)
       .lt('created_at', sevenDaysAgoISO)
       .order('created_at', { ascending: false })
@@ -151,7 +151,7 @@ export async function POST(request: NextRequest) {
       .from('page_views')
       .select('user_id')
       .not('user_id', 'is', null)
-      .neq('user_id', adminId)
+      .or(excludedUsersOrFilter())
       .gte('created_at', sevenDaysAgoISO)
       .limit(500)
 

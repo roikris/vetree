@@ -21,8 +21,9 @@ export function usePageTracking() {
   const { isAdmin } = useAdmin()
 
   useEffect(() => {
-    // Don't track admin users
+    // Don't track admin users or browser automation
     if (isAdmin) return
+    if (navigator.webdriver) return
 
     const sessionId = getSessionId()
     const startTime = Date.now()

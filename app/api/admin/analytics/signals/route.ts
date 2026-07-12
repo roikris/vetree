@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { excludedUsersOrFilter } from '@/lib/analytics-excluded-ids'
 
 export async function POST(request: NextRequest) {
   try {
@@ -156,7 +157,6 @@ export async function POST(request: NextRequest) {
     // Check for churned users (not seen in 7+ days)
     const sevenDaysAgoDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
     const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString()
-    const adminId = '90cb8294-b593-4144-a9f5-23ca52dd5e35'
 
     // Users active before 7 days ago but not since
     const { data: recentUsers } = await supabase
@@ -164,7 +164,7 @@ export async function POST(request: NextRequest) {
       .select('user_id')
       .gte('created_at', sevenDaysAgoDate)
       .not('user_id', 'is', null)
-      .neq('user_id', adminId)
+      .or(excludedUsersOrFilter())
 
     const recentUserIds = new Set(recentUsers?.map(u => u.user_id))
 
@@ -174,7 +174,7 @@ export async function POST(request: NextRequest) {
       .gte('created_at', fourteenDaysAgo)
       .lt('created_at', sevenDaysAgoDate)
       .not('user_id', 'is', null)
-      .neq('user_id', adminId)
+      .or(excludedUsersOrFilter())
 
     const churnedUserIds = [...new Set(olderUsers?.map(u => u.user_id) || [])]
       .filter(id => !recentUserIds.has(id))

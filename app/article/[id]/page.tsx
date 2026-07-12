@@ -207,7 +207,7 @@ export default async function ArticlePage({ params }: PageProps) {
             </div>
 
             {/* Title */}
-            <h1 style={{
+            <h1 data-testid="article-title" style={{
               margin: '0 0 18px',
               font: "600 38px/1.18 var(--font-spectral, serif)",
               color: 'var(--al-ink2)', letterSpacing: '-.015em',
@@ -229,7 +229,7 @@ export default async function ArticlePage({ params }: PageProps) {
             </p>
 
             {/* Clinical bottom line hero */}
-            <div style={{
+            <div data-testid="clinical-bottom-line" style={{
               background: 'linear-gradient(135deg,rgba(var(--al-acct),0.12),rgba(var(--al-acct),0.04))',
               border: '1px solid rgba(var(--al-acct),0.28)',
               borderRadius: 18, padding: '28px 30px', marginBottom: 38,

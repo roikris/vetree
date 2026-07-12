@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { excludedUsersOrFilter } from '@/lib/analytics-excluded-ids'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -50,7 +51,7 @@ export async function GET(request: NextRequest) {
     .select('path, ip_hash, user_id, utm_source')
     .eq('utm_source', 'linkedin')
     .like('path', '/article/%')
-    .neq('user_id', '90cb8294-b593-4144-a9f5-23ca52dd5e35') // exclude admin
+    .or(excludedUsersOrFilter())
 
   if (from) pvQuery = pvQuery.gte('created_at', from)
   if (to) pvQuery = pvQuery.lte('created_at', to + 'T23:59:59Z')
@@ -66,7 +67,7 @@ export async function GET(request: NextRequest) {
       .from('saved_articles')
       .select('article_id')
       .in('article_id', articleIds)
-      .neq('user_id', '90cb8294-b593-4144-a9f5-23ca52dd5e35') // exclude admin
+      .or(excludedUsersOrFilter())
 
     if (from) savesQuery = savesQuery.gte('saved_at', from)
     if (to) savesQuery = savesQuery.lte('saved_at', to + 'T23:59:59Z')
