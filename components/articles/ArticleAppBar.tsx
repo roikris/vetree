@@ -65,6 +65,7 @@ export function ArticleAppBar({ articleId, articleUrl, articleTitle }: ArticleAp
           {/* Save button */}
           <button
             onClick={() => user && toggleSave(articleId)}
+            aria-label={saved ? 'Remove from library' : 'Save to library'}
             style={{
               display: 'flex', alignItems: 'center', gap: 8,
               height: 38, padding: '0 15px', borderRadius: 10, cursor: 'pointer',
