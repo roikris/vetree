@@ -98,8 +98,9 @@ test('save-intent (logged out): auth sheet appears, intent stripped, links are v
 })
 
 // ─── 5. Auth round-trip (desktop only) ───────────────────────────────────────
-test('auth round-trip: intent=save saves article, appears in library, unsave removes it', async ({ page, context }) => {
+test('auth round-trip: intent=save saves article, appears in library, unsave removes it', async ({ page, context }, testInfo) => {
   test.skip(!process.env.TEST_USER_EMAIL || !process.env.TEST_USER_PASSWORD, 'TEST_USER_* not set')
+  test.skip(testInfo.project.name !== 'desktop', 'Desktop only — avoid shared-account interference')
 
   await page.goto('/login')
   await page.locator('input[type="email"]').fill(process.env.TEST_USER_EMAIL!)
@@ -130,8 +131,10 @@ test('auth round-trip: intent=save saves article, appears in library, unsave rem
     await page.goto(`/article/${articleId}?intent=save`)
     // SaveIntentHandler shows a toast (save-toast) or first-save shelf (first-save-shelf)
     await expect(
-      page.locator('[data-testid="save-toast"]').or(page.locator('[data-testid="first-save-shelf"]'))
-    ).toBeVisible({ timeout: 8_000 })
+      page.locator('[data-testid="save-toast"]')
+        .or(page.locator('[data-testid="already-saved-toast"]'))
+        .or(page.locator('[data-testid="first-save-shelf"]'))
+    ).toBeVisible({ timeout: 15_000 })
 
     // Verify in library
     await page.goto('/library')

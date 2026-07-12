@@ -237,6 +237,7 @@ export function SaveIntentHandler({ articleId, relatedArticles }: Props) {
   const { isSaved, toggleSave, savedArticleIds, loading: saveLoading } = useSavedArticles()
   const [toast, setToast] = useState<{
     message: string
+    testId?: string
     showUndo?: boolean
     showLibrary?: boolean
   } | null>(null)
@@ -267,7 +268,7 @@ export function SaveIntentHandler({ articleId, relatedArticles }: Props) {
     }
 
     if (isSaved(articleId)) {
-      setToast({ message: 'כבר בספרייה שלך', showLibrary: true })
+      setToast({ testId: 'already-saved-toast', message: 'כבר בספרייה שלך', showLibrary: true })
       setTimeout(() => setToast(null), 4500)
       return
     }
@@ -307,7 +308,7 @@ export function SaveIntentHandler({ articleId, relatedArticles }: Props) {
     <>
       {/* Toast */}
       {toast && (
-        <div data-testid="save-toast" style={{
+        <div data-testid={toast.testId ?? 'save-toast'} style={{
           position: 'fixed', bottom: 88, left: '50%', transform: 'translateX(-50%)',
           background: 'var(--al-ink2)', color: 'var(--al-bg)',
           padding: '12px 20px', borderRadius: 10,
