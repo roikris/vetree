@@ -1,19 +1,38 @@
 import { test, expect } from '@playwright/test'
 
-// For unauthenticated users, / shows LandingPage (no article cards, no search bar).
-// /?browse=1 bypasses isLanding and renders the full article feed + SearchBar.
-const BROWSE = '/?browse=1'
-
-// ─── 1. Homepage ─────────────────────────────────────────────────────────────
-test('homepage: renders at least 3 article cards', async ({ page }) => {
-  const res = await page.goto(BROWSE)
+// ─── 1a. Landing page ─────────────────────────────────────────────────────────
+// Logged-out visitors hit / and see LandingPage — not the article feed.
+// Assert the hero CTAs are present and interactive. Zero CTAs = broken landing.
+test('landing page: hero CTAs visible and count >= 2', async ({ page }) => {
+  const res = await page.goto('/')
   expect(res?.status()).toBe(200)
+
+  const primaryCta = page.locator('[data-testid="landing-cta-primary"]')
+  const browseCta  = page.locator('[data-testid="landing-cta-browse"]')
+
+  await expect(primaryCta).toBeVisible()
+  await expect(browseCta).toBeVisible()
+
+  // If this fails, the landing page rendered but CTAs are gone — critical regression.
+  const ctaCount = await page.locator('[data-testid^="landing-cta-"]').count()
+  expect(ctaCount, 'Expected at least 2 hero CTAs on landing page').toBeGreaterThanOrEqual(2)
+})
+
+// ─── 1b. Browse flow ──────────────────────────────────────────────────────────
+// Real visitors click "Browse articles" to enter the feed.
+// If this CTA is dead or the feed fails to render, that's the bug we're catching.
+test('browse flow: clicking Browse articles CTA renders article feed', async ({ page }) => {
+  await page.goto('/')
+  await page.locator('[data-testid="landing-cta-browse"]').click()
+  // Feed must render at least 3 cards after the CTA navigation
   await expect(page.locator('[data-testid="article-card"]').nth(2)).toBeVisible()
 })
 
 // ─── 2. Article page ─────────────────────────────────────────────────────────
 test('article page: title and clinical bottom line visible', async ({ page }) => {
-  await page.goto(BROWSE)
+  await page.goto('/')
+  await page.locator('[data-testid="landing-cta-browse"]').click()
+  await page.locator('[data-testid="article-card"]').first().waitFor()
   const firstLink = page.locator('[data-testid="article-card"] a').first()
   await firstLink.click()
   await expect(page.locator('[data-testid="article-title"]')).toBeVisible()
@@ -21,24 +40,29 @@ test('article page: title and clinical bottom line visible', async ({ page }) =>
 })
 
 // ─── 3. Search ───────────────────────────────────────────────────────────────
+// Search bar lives in the article feed, reached via Browse articles CTA.
 test('search: "pyometra" returns at least 1 result', async ({ page }) => {
-  await page.goto(BROWSE)
+  await page.goto('/')
+  await page.locator('[data-testid="landing-cta-browse"]').click()
+  await page.locator('[data-testid="article-card"]').first().waitFor()
   await page.locator('[data-testid="search-input"]').fill('pyometra')
   await page.locator('[data-testid="search-submit"]').click()
   await expect(page.locator('[data-testid="article-card"]').first()).toBeVisible()
 })
 
 // ─── 4. Save-intent, logged out ──────────────────────────────────────────────
+// Source article URL from sitemap.xml — avoids depending on the feed rendering.
 test('save-intent (logged out): auth sheet appears, intent stripped, links are valid', async ({ page, context }) => {
   await context.clearCookies()
-  await page.goto(BROWSE)
 
-  // Get the first article href
-  const firstLink = page.locator('[data-testid="article-card"] a').first()
-  const href = await firstLink.getAttribute('href')
-  expect(href).toBeTruthy()
+  // Parse an article path from the sitemap
+  await page.goto('/sitemap.xml')
+  const xml = await page.content()
+  const matches = [...xml.matchAll(/<loc>(https?:\/\/[^/]+\/article\/([^<]+))<\/loc>/g)]
+  expect(matches.length, 'Sitemap must contain at least one /article/ URL').toBeGreaterThan(0)
+  const articlePath = '/article/' + matches[0][2]
 
-  const intentUrl = href!.includes('?') ? `${href}&intent=save` : `${href}?intent=save`
+  const intentUrl = `${articlePath}?intent=save`
   await page.goto(intentUrl)
 
   // Auth sheet must appear

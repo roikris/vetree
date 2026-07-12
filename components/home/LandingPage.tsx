@@ -124,6 +124,7 @@ export function LandingPage({ exampleArticle }: LandingPageProps) {
             <div className="flex flex-wrap items-center gap-[14px] mb-[22px]">
               <Link
                 href="/signup"
+                data-testid="landing-cta-primary"
                 className="text-[14.5px] md:text-[15.5px] px-5 py-[14px] md:px-[26px] md:py-[15px]"
                 style={{ display: 'inline-flex', alignItems: 'center', gap: 9, background: 'var(--al-accent)', color: 'var(--al-on-accent)', fontWeight: 600, lineHeight: 1, fontFamily: 'var(--font-instrument, sans-serif)', borderRadius: 12, textDecoration: 'none' }}
               >
@@ -132,6 +133,7 @@ export function LandingPage({ exampleArticle }: LandingPageProps) {
               </Link>
               <Link
                 href="/?browse=1"
+                data-testid="landing-cta-browse"
                 className="text-[14.5px] md:text-[15.5px] px-5 py-[14px] md:px-[24px] md:py-[15px]"
                 style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'transparent', color: 'var(--al-ink3)', fontWeight: 600, lineHeight: 1, fontFamily: 'var(--font-instrument, sans-serif)', borderRadius: 12, border: '1px solid rgba(var(--al-line), .2)', textDecoration: 'none' }}
               >
