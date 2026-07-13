@@ -246,13 +246,11 @@ export function SaveIntentHandler({ articleId, relatedArticles }: Props) {
   const handled = useRef(false)
 
   useEffect(() => {
-    console.log('[SIH] effect: authLoading=', authLoading, 'saveLoading=', saveLoading, 'handled=', handled.current)
     if (authLoading || saveLoading) return
     if (handled.current) return
 
     const params = new URLSearchParams(window.location.search)
     const intentParam = params.get('intent')
-    console.log('[SIH] intent param:', intentParam, 'user:', user?.email ?? null)
     if (intentParam !== 'save') return
 
     handled.current = true
@@ -265,13 +263,10 @@ export function SaveIntentHandler({ articleId, relatedArticles }: Props) {
     trackEvent('save_intent_arrived', articleId)
 
     if (!user) {
-      console.log('[SIH] no user, showing auth prompt')
       trackEvent('save_intent_auth_shown', articleId)
       setShowAuthPrompt(true)
       return
     }
-
-    console.log('[SIH] user found, isSaved=', isSaved(articleId), 'savedIds.size=', savedArticleIds.size)
 
     if (isSaved(articleId)) {
       setToast({ testId: 'already-saved-toast', message: 'כבר בספרייה שלך', showLibrary: true })
@@ -285,11 +280,9 @@ export function SaveIntentHandler({ articleId, relatedArticles }: Props) {
     // Check localStorage so shelf only ever shows once
     const shelfShown = localStorage.getItem('vetree_first_save_shelf_shown')
 
-    console.log('[SIH] calling toggleSave, isFirstSave=', isFirstSave)
     toggleSave(articleId).then(result => {
-      console.log('[SIH] toggleSave result:', result)
       if (result?.error) {
-        // Duplicate key or other error — article may already be saved; show toast anyway
+        // Article may already be saved; show success toast anyway
         setToast({ message: 'נשמר לספרייה שלך ✓', showLibrary: true })
         setTimeout(() => setToast(null), 5000)
         return
@@ -302,8 +295,7 @@ export function SaveIntentHandler({ articleId, relatedArticles }: Props) {
         setToast({ message: 'נשמר לספרייה שלך ✓', showUndo: true })
         setTimeout(() => setToast(null), 5000)
       }
-    }).catch(err => {
-      console.error('[SIH] toggleSave threw:', err)
+    }).catch(() => {
       setToast({ message: 'נשמר לספרייה שלך ✓', showLibrary: true })
       setTimeout(() => setToast(null), 5000)
     })
