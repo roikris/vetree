@@ -655,15 +655,21 @@ export async function POST(request: NextRequest) {
   try {
     const serverDirs = ['app/api', 'app/actions']
     const browserSingletonHits: string[] = []
+    // Exclude this scan file itself — CHECK 19's own source contains the string
+    // as a literal and would otherwise self-report as a false positive.
+    const SCAN_ROUTE_REL = 'app/api/admin/security/scan/route.ts'
+    // Only flag real import statements, not string literals or comments.
+    const CLIENT_IMPORT_RE = /from\s+['"]@\/lib\/supabase\/client['"]/
     const walkDir = (dir: string) => {
       const entries = fs.readdirSync(path.join(cwd, dir), { withFileTypes: true })
       for (const entry of entries) {
         const rel = `${dir}/${entry.name}`
         if (entry.isDirectory()) { walkDir(rel); continue }
         if (!entry.name.endsWith('.ts') && !entry.name.endsWith('.tsx')) continue
+        if (rel === SCAN_ROUTE_REL) continue  // skip self
         try {
           const content = fs.readFileSync(path.join(cwd, rel), 'utf-8')
-          if (content.includes('@/lib/supabase/client')) {
+          if (CLIENT_IMPORT_RE.test(content)) {
             browserSingletonHits.push(rel)
           }
         } catch { /* skip */ }
