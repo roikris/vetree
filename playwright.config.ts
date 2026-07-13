@@ -9,6 +9,7 @@ export default defineConfig({
   use: {
     baseURL: process.env.SMOKE_BASE_URL || 'https://vetree.app',
     trace: 'on-first-retry',
+    ...(process.env.SMOKE_USER_AGENT ? { userAgent: process.env.SMOKE_USER_AGENT } : {}),
   },
   projects: [
     {

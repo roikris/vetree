@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * qa-triage.mjs
- * Reads playwright-report/results.json, triages failures with Claude Haiku,
+ * Reads playwright-report/results.json, triages failures with Claude Sonnet,
  * and posts a compact result to Slack.
  */
 
@@ -14,7 +14,7 @@ const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY
 const RUN_URL = process.env.GITHUB_RUN_URL || ''
 const TRIGGER = process.env.TRIGGER || 'unknown'
 
-// Map test title fragments → feature description for Haiku context
+// Map test title fragments → feature description for triage context
 const TEST_FEATURE_MAP = {
   'homepage': 'Homepage article feed render',
   'article page': 'Article detail page (title + clinical bottom line)',
@@ -51,11 +51,11 @@ async function postToSlack(message) {
   })
 }
 
-async function callHaiku(prompt) {
+async function callClaude(prompt) {
   if (!ANTHROPIC_KEY) throw new Error('No ANTHROPIC_API_KEY')
 
   const body = JSON.stringify({
-    model: 'claude-haiku-4-5-20251001',
+    model: 'claude-sonnet-4-6',
     max_tokens: 1024,
     messages: [{ role: 'user', content: prompt }],
     system: 'You are a QA engineer triaging Playwright smoke test failures for Vetree, a veterinary research platform. Be concise and actionable. Return only valid JSON, no markdown fences.',
@@ -145,12 +145,12 @@ Return JSON:
   "fix_prompt": "Ready-to-paste Claude Code fix prompt starting with: Read CLAUDE.md, app/api/CLAUDE.md, supabase/CLAUDE.md first. Then:"
 }`
 
-  let diagnosis = 'Haiku triage unavailable'
+  let diagnosis = 'Claude triage unavailable'
   let mostLikelyCause = ''
   let fixPrompt = ''
 
   try {
-    const raw = await callHaiku(prompt)
+    const raw = await callClaude(prompt)
     // Strip markdown fences per CLAUDE.md rule 7
     const clean = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim()
     const parsed = JSON.parse(clean)
@@ -158,7 +158,7 @@ Return JSON:
     mostLikelyCause = parsed.most_likely_cause || ''
     fixPrompt = parsed.fix_prompt || ''
   } catch (e) {
-    console.error('[triage] Haiku error:', e.message)
+    console.error('[triage] Claude error:', e.message)
     // Non-fatal — send plain failure message
   }
 

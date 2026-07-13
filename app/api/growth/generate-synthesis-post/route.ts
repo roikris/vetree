@@ -96,7 +96,7 @@ Write a LinkedIn post in "Myth vs Evidence" style:
   }
 
   const response = await anthropic.messages.create({
-    model: 'claude-haiku-4-5-20251001',
+    model: 'claude-sonnet-4-6',
     max_tokens: 800,
     system: 'You are a veterinary content writer. Write specific, clinically relevant LinkedIn posts for DVMs in small animal practice.',
     messages: [{ role: 'user', content: prompt }],
@@ -186,7 +186,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Generate all 3 formats in parallel using Claude Haiku
+    // Generate all 3 formats in parallel using Claude Sonnet
     const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
 
     const [evidenceReport, clinicalInsight, mythVsEvidence] = await Promise.all([

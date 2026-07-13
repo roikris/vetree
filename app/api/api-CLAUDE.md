@@ -188,7 +188,7 @@ const platformRules = {
 1. Daily (02:00 UTC): `/api/admin/analytics/aggregate` → SQL aggregation → `analytics_daily_snapshot`
 2. Daily (02:00 UTC): `/api/admin/analytics/signals` → signal extraction → `analytics_signals`
 3. Friday (12:00 UTC): `/api/admin/analytics/insights` → Claude Sonnet analysis → `analytics_insights` → Slack
-4. Critique pass: Claude Haiku reviews insights, removes those scoring < 0.6
+4. Critique pass: Claude Sonnet reviews insights, removes those scoring < 0.6
 5. Report markdown generated for paste into Claude.ai
 - Exclude admin ID from ALL analytics queries
 - Article views are NOT reliable signals (social promotion bias) — use saves/searches/synthesis
@@ -196,6 +196,6 @@ const platformRules = {
 ## Security Agent Flow
 1. Thursday (19:00 UTC): `/api/admin/security/scan`
 2. Checks: RLS status, exposed env vars, missing auth on routes, rate limiting coverage, hallucinated summaries, admin exclusion working
-3. For each finding: Claude Haiku generates a Claude Code fix prompt using Vetree patterns
+3. For each finding: Claude Sonnet generates a Claude Code fix prompt using Vetree patterns
 4. Fix prompts must start with: "Read CLAUDE.md, app/api/CLAUDE.md, supabase/CLAUDE.md first. Then:"
 5. Save to `security_reports` → Slack notification

@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
     breakdown: {
       slug: updates.filter(u => u.match_method === 'slug').length,
       date: updates.filter(u => u.match_method === 'date').length,
-      haiku: updates.filter(u => u.match_method === 'haiku').length,
+      ai: updates.filter(u => u.match_method === 'ai' || u.match_method === 'haiku').length,
     },
   })
 }

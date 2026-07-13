@@ -139,10 +139,7 @@ export async function POST(request: NextRequest) {
     }))
 
     // STEP 4: Call Claude to generate synthesis
-    // Use Haiku for speed/cost, fallback to Sonnet for large article sets
-    const modelToUse = articlesForSynthesis.length > 20
-      ? 'claude-sonnet-4-6'
-      : 'claude-haiku-4-5-20251001'
+    const modelToUse = 'claude-sonnet-4-6'
 
     const anthropic = new Anthropic({
       apiKey: process.env.ANTHROPIC_API_KEY!

@@ -1,6 +1,6 @@
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
-export const maxDuration = 300 // 3 sequential AI calls: Sonnet insights + Haiku critique + Haiku report
+export const maxDuration = 300 // 3 sequential AI calls: Sonnet insights + Sonnet critique + Sonnet report
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
@@ -261,7 +261,7 @@ PLATFORM CONTEXT — what already exists (do NOT suggest these):
 TECH STACK (important for recommendations):
 - Next.js App Router on Vercel
 - Supabase (PostgreSQL + Auth + RLS)
-- Claude Haiku/Sonnet for AI features
+- Claude Sonnet for AI features
 - Upstash Redis for rate limiting
 - Resend for email
 - Solo developer — 1 person builds everything
@@ -378,7 +378,7 @@ Insights to review:
 ${JSON.stringify(insightsData, null, 2)}`
 
     const critiqueResponse = await anthropic.messages.create({
-      model: 'claude-haiku-4-5-20251001',
+      model: 'claude-sonnet-4-6',
       max_tokens: 2000,
       messages: [{ role: 'user', content: critiquePrompt }],
       system: 'You are a quality checker for product insights. Return only valid JSON matching the input format, with low-quality insights removed.'
@@ -390,7 +390,7 @@ ${JSON.stringify(insightsData, null, 2)}`
       ? critiqueResponse.content[0].text
       : rawText
 
-    // Strip markdown code fences (Haiku sometimes wraps JSON in ```json ... ```)
+    // Strip markdown code fences (Sonnet sometimes wraps JSON in ```json ... ```)
     const cleanCritique = critiqueRaw
       .replace(/^```json\s*/i, '')
       .replace(/^```\s*/i, '')
@@ -412,7 +412,7 @@ ${JSON.stringify(insightsData, null, 2)}`
     const currentDate = new Date().toISOString().split('T')[0]
 
     const reportResponse = await anthropic.messages.create({
-      model: 'claude-haiku-4-5-20251001',
+      model: 'claude-sonnet-4-6',
       max_tokens: 2000,
       system: `You are generating a status briefing for Vetree, an evidence-based veterinary research platform. Output clean markdown only. No preamble.`,
       messages: [{

@@ -58,7 +58,7 @@ type ImportResult = {
   total_followers: number | null
   total_followers_date: string | null
   matched_articles: number
-  match_breakdown: { slug: number; date: number; haiku: number; activity_id: number; unmatched: number }
+  match_breakdown: { slug: number; date: number; ai?: number; haiku?: number; activity_id: number; unmatched: number }
   demographics: unknown[][]
 }
 
@@ -372,8 +372,8 @@ export function LinkedInSection() {
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                 {Object.entries(importResult.match_breakdown).map(([k, v]) => (
                   <span key={k} style={{ fontSize: 11, padding: '2px 8px', borderRadius: 3,
-                    background: k === 'activity_id' ? '#dbeafe' : k === 'slug' ? '#dcfce7' : k === 'date' ? '#e0e7ff' : k === 'haiku' ? '#f3e8ff' : '#fee2e2',
-                    color: k === 'activity_id' ? '#1e40af' : k === 'slug' ? '#166534' : k === 'date' ? '#3730a3' : k === 'haiku' ? '#6b21a8' : '#991b1b' }}>
+                    background: k === 'activity_id' ? '#dbeafe' : k === 'slug' ? '#dcfce7' : k === 'date' ? '#e0e7ff' : (k === 'ai' || k === 'haiku') ? '#f3e8ff' : '#fee2e2',
+                    color: k === 'activity_id' ? '#1e40af' : k === 'slug' ? '#166534' : k === 'date' ? '#3730a3' : (k === 'ai' || k === 'haiku') ? '#6b21a8' : '#991b1b' }}>
                     {k}: {v as number}
                   </span>
                 ))}
@@ -529,8 +529,8 @@ export function LinkedInSection() {
                   <td style={td}>
                     {row.match_method ? (
                       <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 3,
-                        background: row.match_method === 'activity_id' ? '#dbeafe' : row.match_method === 'slug' ? '#dcfce7' : row.match_method === 'date' ? '#e0e7ff' : row.match_method === 'haiku' ? '#f3e8ff' : '#fef9c3',
-                        color: row.match_method === 'activity_id' ? '#1e40af' : row.match_method === 'slug' ? '#166534' : row.match_method === 'date' ? '#3730a3' : row.match_method === 'haiku' ? '#6b21a8' : '#854d0e' }}>
+                        background: row.match_method === 'activity_id' ? '#dbeafe' : row.match_method === 'slug' ? '#dcfce7' : row.match_method === 'date' ? '#e0e7ff' : (row.match_method === 'ai' || row.match_method === 'haiku') ? '#f3e8ff' : '#fef9c3',
+                        color: row.match_method === 'activity_id' ? '#1e40af' : row.match_method === 'slug' ? '#166534' : row.match_method === 'date' ? '#3730a3' : (row.match_method === 'ai' || row.match_method === 'haiku') ? '#6b21a8' : '#854d0e' }}>
                         {row.match_method}
                       </span>
                     ) : <span style={{ color: 'var(--al-mut6)', fontSize: 11 }}>—</span>}

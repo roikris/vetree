@@ -286,7 +286,7 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // Fetch growth_agent_memory for tiered matching (slug → date → haiku)
+  // Fetch growth_agent_memory for tiered matching (slug → date → AI)
   const { data: linkedinMemory } = await supabase
     .from('growth_agent_memory')
     .select('id, article_id, hook_line, created_at, posted_url')
@@ -394,7 +394,7 @@ export async function POST(request: NextRequest) {
     match_breakdown: {
       slug: postUpsertRows.filter(r => r.match_method === 'slug').length,
       date: postUpsertRows.filter(r => r.match_method === 'date').length,
-      haiku: postUpsertRows.filter(r => r.match_method === 'haiku').length,
+      ai: postUpsertRows.filter(r => r.match_method === 'ai').length,
       unmatched: postUpsertRows.filter(r => !r.article_id).length,
     },
     discovery: discoverySummary,

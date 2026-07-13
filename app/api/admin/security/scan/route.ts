@@ -663,7 +663,7 @@ export async function POST(request: NextRequest) {
   const prevMostRecentIds = prevRunFindings[0] || new Set<string>()
   const resolvedIds = [...prevMostRecentIds].filter(id => !findings.some(f => f.id === id))
 
-  // PART 3: Generate Claude Haiku fix prompts for each finding
+  // PART 3: Generate Claude Sonnet fix prompts for each finding
   // Scrub PII from finding fields before sending to external services (Claude API, Slack).
   // The DB insert below uses the original findings — admin-only access, full detail is useful.
   const scrubPII = (s: string): string => s
@@ -678,7 +678,7 @@ export async function POST(request: NextRequest) {
       findings.map(async (finding) => {
         try {
           const response = await anthropic.messages.create({
-            model: 'claude-haiku-4-5-20251001',
+            model: 'claude-sonnet-4-6',
             max_tokens: 500,
             messages: [{
               role: 'user',
