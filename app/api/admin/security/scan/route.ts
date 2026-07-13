@@ -648,6 +648,42 @@ export async function POST(request: NextRequest) {
     // Storage API unavailable — skip
   }
 
+  // CHECK 19: Browser Supabase singleton imported in server code
+  // lib/supabase/client uses the anon key. Importing it in app/api/ or app/actions/
+  // means reads from RLS-protected tables (page_views, analytics data) silently return
+  // empty 200 responses — indistinguishable from "no data", corrupting analytics snapshots.
+  try {
+    const serverDirs = ['app/api', 'app/actions']
+    const browserSingletonHits: string[] = []
+    const walkDir = (dir: string) => {
+      const entries = fs.readdirSync(path.join(cwd, dir), { withFileTypes: true })
+      for (const entry of entries) {
+        const rel = `${dir}/${entry.name}`
+        if (entry.isDirectory()) { walkDir(rel); continue }
+        if (!entry.name.endsWith('.ts') && !entry.name.endsWith('.tsx')) continue
+        try {
+          const content = fs.readFileSync(path.join(cwd, rel), 'utf-8')
+          if (content.includes('@/lib/supabase/client')) {
+            browserSingletonHits.push(rel)
+          }
+        } catch { /* skip */ }
+      }
+    }
+    for (const dir of serverDirs) {
+      try { walkDir(dir) } catch { /* dir may not exist */ }
+    }
+    if (browserSingletonHits.length > 0) {
+      findings.push({
+        id: 'browser_singleton_in_server',
+        severity: 'high',
+        title: 'Browser Supabase singleton imported in server code',
+        description: `These server files import @/lib/supabase/client (anon key). RLS-protected tables return empty 200s, not errors — silently corrupting analytics and other data reads: ${browserSingletonHits.join(', ')}`,
+        affected: browserSingletonHits,
+        detected_at: new Date().toISOString(),
+      })
+    }
+  } catch { /* skip */ }
+
   // Remove intentionally acknowledged findings — see ACKNOWLEDGED map above
   {
     const active = findings.filter(f => !ACKNOWLEDGED[f.id])

@@ -44,12 +44,26 @@ export async function POST(request: NextRequest) {
     const wau = new Set(wauData?.map(r => r.ip_hash) ?? []).size
 
     // MAU - unique ip_hash last 30 days
-    const { data: mauData } = await supabase
+    const { data: mauData, error: mauError } = await supabase
       .from('page_views')
       .select('ip_hash')
       .gte('created_at', thirtyDaysAgo)
       .or(excludedUsersOrFilter())
     const mau = new Set(mauData?.map(r => r.ip_hash) ?? []).size
+
+    // Sanity guard: a live production site cannot have zero 30-day pageviews.
+    // Zero means the reads are broken (wrong key, RLS, network), not quiet traffic.
+    // Abort rather than write a zero-filled snapshot that poisons the insights agent.
+    if (mauError) {
+      console.error('[analytics/aggregate] MAU query error:', mauError)
+      return NextResponse.json({ error: `MAU query failed: ${mauError.message}` }, { status: 500 })
+    }
+    if (mau === 0) {
+      console.error('[analytics/aggregate] MAU is 0 — aborting to avoid writing a corrupt snapshot')
+      return NextResponse.json({
+        error: 'Sanity check failed: 30-day MAU is 0. Reads are broken (check service role key / RLS). Snapshot not written.'
+      }, { status: 500 })
+    }
 
     // Registered MAU — distinct authenticated users (non-admin, non-null user_id) in last 30 days
     // This is the real user count; mau above counts all visitors including anonymous/bots
