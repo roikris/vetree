@@ -282,8 +282,7 @@ export function SaveIntentHandler({ articleId, relatedArticles }: Props) {
 
     toggleSave(articleId).then(result => {
       if (result?.error) {
-        // Article may already be saved; show success toast anyway
-        setToast({ message: 'נשמר לספרייה שלך ✓', showLibrary: true })
+        setToast({ testId: 'save-error-toast', message: 'שגיאה בשמירה — נסו שוב' })
         setTimeout(() => setToast(null), 5000)
         return
       }
