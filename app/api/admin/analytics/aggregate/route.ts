@@ -26,47 +26,73 @@ export async function POST(request: NextRequest) {
     // DAU uses yesterday to capture a full day (aggregate runs at ~02:00 UTC)
     const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0]
 
+    // Abort helper — any Supabase error returns 500 immediately rather than silently using null data.
+    const fail = (label: string, err: { message: string } | null) => {
+      if (!err) return
+      const msg = `[analytics/aggregate] ${label} query failed: ${err.message}`
+      console.error(msg)
+      throw Object.assign(new Error(msg), { status: 500 })
+    }
+
     // DAU - unique ip_hash for yesterday (full day)
-    const { data: dauData } = await supabase
+    const { data: dauData, error: dauError } = await supabase
       .from('page_views')
       .select('ip_hash')
       .gte('created_at', yesterday)
       .lt('created_at', today)
       .or(excludedUsersOrFilter())
+    fail('DAU', dauError)
     const dau = new Set(dauData?.map(r => r.ip_hash) ?? []).size
 
     // WAU - unique ip_hash last 7 days
-    const { data: wauData } = await supabase
+    const { data: wauData, error: wauError } = await supabase
       .from('page_views')
       .select('ip_hash')
       .gte('created_at', sevenDaysAgo)
       .or(excludedUsersOrFilter())
+    fail('WAU', wauError)
     const wau = new Set(wauData?.map(r => r.ip_hash) ?? []).size
 
     // MAU - unique ip_hash last 30 days
-    const { data: mauData } = await supabase
+    const { data: mauData, error: mauError } = await supabase
       .from('page_views')
       .select('ip_hash')
       .gte('created_at', thirtyDaysAgo)
       .or(excludedUsersOrFilter())
     const mau = new Set(mauData?.map(r => r.ip_hash) ?? []).size
 
+    // Sanity guard: a live production site cannot have zero 30-day pageviews.
+    // Zero means the reads are broken (wrong key, RLS, network), not quiet traffic.
+    // Abort rather than write a zero-filled snapshot that poisons the insights agent.
+    if (mauError) {
+      console.error('[analytics/aggregate] MAU query error:', mauError)
+      return NextResponse.json({ error: `MAU query failed: ${mauError.message}` }, { status: 500 })
+    }
+    if (mau === 0) {
+      console.error('[analytics/aggregate] MAU is 0 — aborting to avoid writing a corrupt snapshot')
+      return NextResponse.json({
+        error: 'Sanity check failed: 30-day MAU is 0. Reads are broken (check service role key / RLS). Snapshot not written.'
+      }, { status: 500 })
+    }
+
     // Registered MAU — distinct authenticated users (non-admin, non-null user_id) in last 30 days
     // This is the real user count; mau above counts all visitors including anonymous/bots
-    const { data: registeredMauData } = await supabase
+    const { data: registeredMauData, error: regMauError } = await supabase
       .from('page_views')
       .select('user_id')
       .not('user_id', 'is', null)
       .or(excludedUsersOrFilter())
       .gte('created_at', thirtyDaysAgo)
+    fail('registered_mau', regMauError)
     const registeredMau = new Set(registeredMauData?.map(r => r.user_id) ?? []).size
 
     // Total searches + zero result searches (exclude admin)
-    const { data: searchData } = await supabase
+    const { data: searchData, error: searchError } = await supabase
       .from('search_logs')
       .select('query, results_count, user_id')
       .gte('created_at', sevenDaysAgo)
       .or(excludedUsersOrFilter())
+    fail('search_logs', searchError)
 
     const totalSearches = searchData?.length || 0
     const zeroResults = searchData?.filter(s => s.results_count === 0) || []
@@ -84,48 +110,54 @@ export async function POST(request: NextRequest) {
       .map(([query, count]) => ({ query, count }))
 
     // Synthesis engaged (auto-exposure tracked via IntersectionObserver, exclude admin)
-    const { count: synthesisEngaged } = await supabase
+    const { count: synthesisEngaged, error: synthEngErr } = await supabase
       .from('page_views')
       .select('*', { count: 'exact', head: true })
       .eq('path', '/synthesis/engaged')
       .gte('created_at', sevenDaysAgo)
       .or(excludedUsersOrFilter())
+    fail('synthesis_engaged', synthEngErr)
 
     // Synthesis runs — count all synthesis serves (cache hits + misses) from page_views tracking
-    const { count: synthesisRuns } = await supabase
+    const { count: synthesisRuns, error: synthRunErr } = await supabase
       .from('page_views')
       .select('*', { count: 'exact', head: true })
       .eq('path', '/synthesis/run')
       .gte('created_at', sevenDaysAgo)
       .or(excludedUsersOrFilter())
+    fail('synthesis_runs', synthRunErr)
 
-    const { count: synthesisHelpful } = await supabase
+    const { count: synthesisHelpful, error: synthHelpErr } = await supabase
       .from('synthesis_feedback')
       .select('*', { count: 'exact', head: true })
       .eq('feedback', 'helpful')
       .gte('created_at', sevenDaysAgo)
       .or(excludedUsersOrFilter())
+    fail('synthesis_helpful', synthHelpErr)
 
-    const { count: synthesisNotRelevant } = await supabase
+    const { count: synthesisNotRelevant, error: synthNotRelErr } = await supabase
       .from('synthesis_feedback')
       .select('*', { count: 'exact', head: true })
       .eq('feedback', 'not_relevant')
       .gte('created_at', sevenDaysAgo)
       .or(excludedUsersOrFilter())
+    fail('synthesis_not_relevant', synthNotRelErr)
 
     // Articles saved (exclude admin) — column is 'saved_at', not 'created_at'
-    const { count: articlesSaved } = await supabase
+    const { count: articlesSaved, error: savedCountErr } = await supabase
       .from('saved_articles')
       .select('*', { count: 'exact', head: true })
       .gte('saved_at', sevenDaysAgo)
       .or(excludedUsersOrFilter())
+    fail('articles_saved', savedCountErr)
 
     // Top saved articles (by saves, NOT views - avoid promotion bias)
-    const { data: savedArticlesData } = await supabase
+    const { data: savedArticlesData, error: savedDataErr } = await supabase
       .from('saved_articles')
       .select('article_id')
       .gte('saved_at', thirtyDaysAgo)
       .or(excludedUsersOrFilter())
+    fail('top_saved_articles', savedDataErr)
 
     const saveCounts = savedArticlesData?.reduce((acc, s) => {
       acc[s.article_id] = (acc[s.article_id] || 0) + 1
@@ -138,12 +170,13 @@ export async function POST(request: NextRequest) {
       .map(([id]) => id)
 
     // Avg session duration - filter outliers (cap at 30 min = 1800 seconds)
-    const { data: sessionData } = await supabase
+    const { data: sessionData, error: sessionError } = await supabase
       .from('page_views')
       .select('duration_seconds')
       .gte('created_at', sevenDaysAgo)
       .not('duration_seconds', 'is', null)
       .or(excludedUsersOrFilter())
+    fail('session_duration', sessionError)
 
     // Filter valid sessions: 0 < duration <= 1800 seconds (30 min cap)
     const validSessions = sessionData?.filter(s =>
@@ -162,12 +195,13 @@ export async function POST(request: NextRequest) {
       : 0
 
     // Traffic sources (exclude admin)
-    const { data: trafficData } = await supabase
+    const { data: trafficData, error: trafficError } = await supabase
       .from('page_views')
       .select('utm_source')
       .gte('created_at', sevenDaysAgo)
       .not('utm_source', 'is', null)
       .or(excludedUsersOrFilter())
+    fail('traffic_sources', trafficError)
 
     const trafficSources = trafficData?.reduce((acc, t) => {
       if (t.utm_source) {
@@ -178,11 +212,12 @@ export async function POST(request: NextRequest) {
     }, {} as Record<string, number>)
 
     // Device breakdown (exclude admin)
-    const { data: deviceData } = await supabase
+    const { data: deviceData, error: deviceError } = await supabase
       .from('page_views')
       .select('device_type')
       .gte('created_at', sevenDaysAgo)
       .or(excludedUsersOrFilter())
+    fail('device_breakdown', deviceError)
 
     const deviceBreakdown = (deviceData ?? []).reduce((acc, r) => {
       const key = r.device_type ?? 'unknown'

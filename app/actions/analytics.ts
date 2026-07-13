@@ -1,7 +1,16 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { createClient as createServiceClient } from '@supabase/supabase-js'
 import { excludedUsersOrFilter } from '@/lib/analytics-excluded-ids'
+
+/** Service-role client for admin data reads — bypasses RLS on page_views etc. */
+function adminDb() {
+  return createServiceClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+}
 
 export async function getAnalyticsOverview(days: number = 7) {
   const supabase = await createClient()
@@ -20,18 +29,19 @@ export async function getAnalyticsOverview(days: number = 7) {
     return { error: 'Unauthorized' }
   }
 
+  const db = adminDb()
   const startDate = new Date()
   startDate.setDate(startDate.getDate() - days)
 
   // Total pageviews (exclude admin, include anonymous)
-  const { count: totalViews } = await supabase
+  const { count: totalViews } = await db
     .from('page_views')
     .select('*', { count: 'exact', head: true })
     .gte('created_at', startDate.toISOString())
     .or(excludedUsersOrFilter())
 
   // Unique visitors (exclude admin, include anonymous)
-  const { data: uniqueVisitors } = await supabase
+  const { data: uniqueVisitors } = await db
     .from('page_views')
     .select('ip_hash')
     .gte('created_at', startDate.toISOString())
@@ -40,7 +50,7 @@ export async function getAnalyticsOverview(days: number = 7) {
   const uniqueCount = uniqueVisitors ? [...new Set(uniqueVisitors.map(v => v.ip_hash))].length : 0
 
   // Logged-in vs anonymous (exclude admin)
-  const { count: loggedInViews } = await supabase
+  const { count: loggedInViews } = await db
     .from('page_views')
     .select('*', { count: 'exact', head: true })
     .gte('created_at', startDate.toISOString())
@@ -74,10 +84,11 @@ export async function getTopPages(days: number = 7, limit: number = 10) {
     return { error: 'Unauthorized' }
   }
 
+  const db = adminDb()
   const startDate = new Date()
   startDate.setDate(startDate.getDate() - days)
 
-  const { data: pageViews } = await supabase
+  const { data: pageViews } = await db
     .from('page_views')
     .select('path')
     .gte('created_at', startDate.toISOString())
@@ -115,10 +126,11 @@ export async function getVisitorsOverTime(days: number = 7) {
     return { error: 'Unauthorized' }
   }
 
+  const db = adminDb()
   const startDate = new Date()
   startDate.setDate(startDate.getDate() - days)
 
-  const { data: pageViews } = await supabase
+  const { data: pageViews } = await db
     .from('page_views')
     .select('created_at, ip_hash')
     .gte('created_at', startDate.toISOString())
@@ -166,11 +178,12 @@ export async function getTopArticles(days: number = 7, limit: number = 10) {
     return { error: 'Unauthorized' }
   }
 
+  const db = adminDb()
   const startDate = new Date()
   startDate.setDate(startDate.getDate() - days)
 
   // Get article page views (exclude admin, include anonymous)
-  const { data: pageViews } = await supabase
+  const { data: pageViews } = await db
     .from('page_views')
     .select('path, ip_hash')
     .gte('created_at', startDate.toISOString())
@@ -196,7 +209,7 @@ export async function getTopArticles(days: number = 7, limit: number = 10) {
 
   // Get article details
   const articleIds = Object.keys(articleStats).slice(0, limit * 2) // Get more than needed
-  const { data: articles } = await supabase
+  const { data: articles } = await db
     .from('articles')
     .select('id, title')
     .in('id', articleIds)
@@ -233,11 +246,12 @@ export async function getSessionDuration(days: number = 7) {
     return { error: 'Unauthorized' }
   }
 
+  const db = adminDb()
   const startDate = new Date()
   startDate.setDate(startDate.getDate() - days)
 
   // Get all sessions with duration (exclude admin, include anonymous)
-  const { data: sessions } = await supabase
+  const { data: sessions } = await db
     .from('page_views')
     .select('duration_seconds')
     .gte('created_at', startDate.toISOString())
@@ -326,10 +340,11 @@ export async function getRecentSearches(days: number = 7, limit: number = 20) {
     return { error: 'Unauthorized' }
   }
 
+  const db = adminDb()
   const startDate = new Date()
   startDate.setDate(startDate.getDate() - days)
 
-  const { data: searches } = await supabase
+  const { data: searches } = await db
     .from('search_logs')
     .select('query, results_count, created_at')
     .gte('created_at', startDate.toISOString())
@@ -392,10 +407,11 @@ export async function getDeviceBreakdown(days: number = 7) {
     return { error: 'Unauthorized' }
   }
 
+  const db = adminDb()
   const startDate = new Date()
   startDate.setDate(startDate.getDate() - days)
 
-  const { data: pageViews } = await supabase
+  const { data: pageViews } = await db
     .from('page_views')
     .select('device_type')
     .gte('created_at', startDate.toISOString())
@@ -440,10 +456,11 @@ export async function getTopCountries(days: number = 7, limit: number = 10) {
     return { error: 'Unauthorized' }
   }
 
+  const db = adminDb()
   const startDate = new Date()
   startDate.setDate(startDate.getDate() - days)
 
-  const { data: pageViews } = await supabase
+  const { data: pageViews } = await db
     .from('page_views')
     .select('country, ip_hash')
     .gte('created_at', startDate.toISOString())
@@ -492,18 +509,19 @@ export async function getSavedArticlesStats(days: number = 7) {
     return { error: 'Unauthorized' }
   }
 
+  const db = adminDb()
   const startDate = new Date()
   startDate.setDate(startDate.getDate() - days)
 
   // Total saved articles count (exclude admin, column is 'saved_at')
-  const { count: totalSaved } = await supabase
+  const { count: totalSaved } = await db
     .from('saved_articles')
     .select('*', { count: 'exact', head: true })
     .gte('saved_at', startDate.toISOString())
     .or(excludedUsersOrFilter())
 
   // Unique users who saved at least one article
-  const { data: savedArticles } = await supabase
+  const { data: savedArticles } = await db
     .from('saved_articles')
     .select('user_id')
     .gte('saved_at', startDate.toISOString())
@@ -536,11 +554,12 @@ export async function getTrafficSources(days: number = 7) {
     return { error: 'Unauthorized' }
   }
 
+  const db = adminDb()
   const startDate = new Date()
   startDate.setDate(startDate.getDate() - days)
 
   // Get all page views with UTM data and referrers (exclude admin)
-  const { data: pageViews } = await supabase
+  const { data: pageViews } = await db
     .from('page_views')
     .select('utm_source, referrer, ip_hash, user_id')
     .gte('created_at', startDate.toISOString())
@@ -619,10 +638,11 @@ export async function getSaveIntentFunnel(days: number = 7) {
     .from('user_roles').select('role').eq('user_id', user.id).single()
   if (roleData?.role !== 'admin') return { error: 'Unauthorized', data: null }
 
+  const db = adminDb()
   const startDate = new Date()
   startDate.setDate(startDate.getDate() - days)
 
-  const { data } = await supabase
+  const { data } = await db
     .from('analytics_events')
     .select('event_name')
     .in('event_name', ['save_intent_arrived', 'save_intent_auth_shown', 'save_intent_completed'])
@@ -653,11 +673,12 @@ export async function getSynthesisStats(days: number = 7) {
 
   if (roleData?.role !== 'admin') return { error: 'Unauthorized' }
 
+  const db = adminDb()
   const sevenDaysAgo = new Date()
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - days)
   const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0]
 
-  const { data } = await supabase
+  const { data } = await db
     .from('analytics_daily_snapshot')
     .select('synthesis_runs, synthesis_helpful')
     .gte('date', sevenDaysAgoStr)
