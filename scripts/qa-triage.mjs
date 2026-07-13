@@ -102,34 +102,65 @@ async function main() {
   const suites = report.suites || []
 
   const passed = []
+  const skipped = []  // skipped tests are NEVER counted as failed, never sent to triage
+  const flaky = []   // passed on final attempt after earlier failure(s)
   const failed = []
+
+  function extractErrLoc(res) {
+    // file:line from error.location or errors[].location
+    const loc = res?.error?.location || res?.errors?.find(e => e?.location)?.location
+    if (!loc) return ''
+    return `${String(loc.file).replace(/.*\/e2e\//, 'e2e/')}:${loc.line}`
+  }
 
   function walkSuite(suite) {
     for (const spec of suite.specs || []) {
       for (const result of spec.tests || []) {
         const title = spec.title
-        const status = result.results?.[0]?.status
-        const error = result.results?.[0]?.error?.message || ''
-        if (status === 'passed') passed.push(title)
-        else failed.push({ title, error: error.slice(0, 400) })
+        // Use the LAST attempt (final outcome after retries), not [0]
+        const attempts = result.results || []
+        const res = attempts[attempts.length - 1]
+        const finalStatus = res?.status
+        // Extract error from error.message OR errors[] — "no error message" is impossible
+        const errMsg = res?.error?.message
+          || res?.errors?.find(e => e?.message)?.message
+          || '(no error message captured)'
+        const errLoc = extractErrLoc(res)
+        const wasRetried = attempts.length > 1
+
+        if (finalStatus === 'passed') {
+          if (wasRetried) flaky.push(title)  // passed only after retry = flaky
+          else passed.push(title)
+        } else if (finalStatus === 'skipped') {
+          skipped.push(title)  // skipped is never a failure
+        } else {
+          // 'failed', 'timedOut', 'interrupted', etc. — all are failures
+          failed.push({ title, error: errMsg.slice(0, 400), loc: errLoc })
+        }
       }
     }
     for (const s of suite.suites || []) walkSuite(s)
   }
   for (const suite of suites) walkSuite(suite)
 
-  const total = passed.length + failed.length
   const triggerLabel = TRIGGER === 'schedule' ? 'daily' : TRIGGER === 'push' ? 'push' : TRIGGER
 
+  // SANITY RULE: Slack verdict must agree with Playwright exit code.
+  // failed.length === 0 ↔ GitHub check is green ↔ Slack must say 🟢.
+  // If GitHub is green but Slack says 🔴, they disagree — this block prevents that.
   if (failed.length === 0) {
-    await postToSlack(`🟢 *Smoke*: ${passed.length}/${total} passed (${triggerLabel}) <${RUN_URL}|→ run>`)
+    const parts = [`${passed.length} passed`]
+    if (flaky.length > 0) parts.push(`${flaky.length} flaky`)
+    if (skipped.length > 0) parts.push(`${skipped.length} skipped`)
+    await postToSlack(`🟢 *Smoke*: ${parts.join(', ')} (${triggerLabel}) <${RUN_URL}|→ run>`)
     return
   }
 
-  // Build triage prompt for Haiku
-  const failedSummary = failed.map(f =>
-    `• "${f.title}" [${featureFor(f.title)}]\n  Error: ${f.error}`
-  ).join('\n\n')
+  // Build triage prompt for Claude
+  const failedSummary = failed.map(f => {
+    const locPart = f.loc ? `\n  Location: ${f.loc}` : ''
+    return `• "${f.title}" [${featureFor(f.title)}]${locPart}\n  Error: ${f.error}`
+  }).join('\n\n')
 
   const prompt = `These Playwright smoke tests failed against https://vetree.app:
 
@@ -162,9 +193,15 @@ Return JSON:
     // Non-fatal — send plain failure message
   }
 
-  const failedList = failed.map(f => `• ${f.title}`).join('\n')
+  const failedList = failed.map(f => {
+    const locPart = f.loc ? ` \`${f.loc}\`` : ''
+    return `• ${f.title}${locPart}`
+  }).join('\n')
 
-  let slackMsg = `🔴 *Smoke: ${failed.length} failed, ${passed.length} passed (${triggerLabel})*\n\n`
+  const redParts = [`${failed.length} failed`, `${passed.length} passed`]
+  if (flaky.length > 0) redParts.push(`${flaky.length} flaky`)
+  if (skipped.length > 0) redParts.push(`${skipped.length} skipped`)
+  let slackMsg = `🔴 *Smoke: ${redParts.join(', ')} (${triggerLabel})*\n\n`
   slackMsg += `*Failed tests:*\n${failedList}\n\n`
   slackMsg += `*Diagnosis:* ${diagnosis}\n`
   if (mostLikelyCause) slackMsg += `*Most likely cause:* ${mostLikelyCause}\n`
