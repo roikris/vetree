@@ -108,10 +108,20 @@ async function main() {
     for (const spec of suite.specs || []) {
       for (const result of spec.tests || []) {
         const title = spec.title
-        const status = result.results?.[0]?.status
-        const error = result.results?.[0]?.error?.message || ''
+        const res = result.results?.[0]
+        const status = res?.status
+        // Extract error from error.message OR errors[] — whichever is non-empty
+        const errMsg = res?.error?.message
+          || res?.errors?.find(e => e?.message)?.message
+          || '(no error message captured)'
+        // Extract file:line from error.location for pinpoint navigation
+        const errLoc = res?.error?.location
+          ? `${String(res.error.location.file).replace(/.*\/e2e\//, 'e2e/')}:${res.error.location.line}`
+          : res?.errors?.find(e => e?.location)?.location
+            ? (() => { const l = res.errors.find(e => e?.location).location; return `${String(l.file).replace(/.*\/e2e\//, 'e2e/')}:${l.line}` })()
+            : ''
         if (status === 'passed') passed.push(title)
-        else failed.push({ title, error: error.slice(0, 400) })
+        else failed.push({ title, error: errMsg.slice(0, 400), loc: errLoc })
       }
     }
     for (const s of suite.suites || []) walkSuite(s)
@@ -126,10 +136,11 @@ async function main() {
     return
   }
 
-  // Build triage prompt for Haiku
-  const failedSummary = failed.map(f =>
-    `• "${f.title}" [${featureFor(f.title)}]\n  Error: ${f.error}`
-  ).join('\n\n')
+  // Build triage prompt for Claude
+  const failedSummary = failed.map(f => {
+    const locPart = f.loc ? `\n  Location: ${f.loc}` : ''
+    return `• "${f.title}" [${featureFor(f.title)}]${locPart}\n  Error: ${f.error}`
+  }).join('\n\n')
 
   const prompt = `These Playwright smoke tests failed against https://vetree.app:
 
@@ -162,7 +173,10 @@ Return JSON:
     // Non-fatal — send plain failure message
   }
 
-  const failedList = failed.map(f => `• ${f.title}`).join('\n')
+  const failedList = failed.map(f => {
+    const locPart = f.loc ? ` \`${f.loc}\`` : ''
+    return `• ${f.title}${locPart}`
+  }).join('\n')
 
   let slackMsg = `🔴 *Smoke: ${failed.length} failed, ${passed.length} passed (${triggerLabel})*\n\n`
   slackMsg += `*Failed tests:*\n${failedList}\n\n`
