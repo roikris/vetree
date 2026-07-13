@@ -52,7 +52,7 @@ Add the following secrets to your GitHub repository:
 
 **What it does**:
 - Fetches up to 50 articles where `needs_enrichment = true`
-- Uses Claude Haiku to generate:
+- Uses Claude Sonnet to generate:
   - Comprehensive summary (150-250 words)
   - Clinical bottom line (one sentence)
   - Labels (3-5 from allowed list)
@@ -175,7 +175,7 @@ LIMIT 10;
 
 ## Cost Estimates
 
-### Anthropic API (Claude Haiku)
+### Anthropic API (Claude Sonnet)
 
 - ~$0.25 per 1M input tokens
 - ~$1.25 per 1M output tokens

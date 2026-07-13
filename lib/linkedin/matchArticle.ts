@@ -3,7 +3,7 @@
  *
  * TIER 1 — Slug: extract content words from URL, compare against stored hook_line
  * TIER 2 — Date window ±1 day against growth_agent_memory.created_at
- * TIER 3 — Claude Haiku batch for still-unmatched rows
+ * TIER 3 — Claude Sonnet batch for still-unmatched rows
  */
 import Anthropic from '@anthropic-ai/sdk'
 
@@ -24,7 +24,7 @@ export type PostInput = {
 
 export type MatchResult = {
   article_id: string
-  method: 'activity_id' | 'slug' | 'date' | 'haiku'
+  method: 'activity_id' | 'slug' | 'date' | 'ai'
 }
 
 // Extract the long numeric activity ID from a LinkedIn URL
@@ -175,7 +175,7 @@ export async function matchArticlesToPosts(
     }
   }
 
-  // ── TIER 3: Claude Haiku batch ──────────────────────────────────────────────
+  // ── TIER 3: Claude Sonnet batch ──────────────────────────────────────────────
   if (afterTier2.length > 0) {
     try {
       // Client initialised INSIDE function per critical rule
@@ -220,7 +220,7 @@ Posts:
 ${JSON.stringify(slugDescriptions, null, 2)}`
 
       const response = await anthropic.messages.create({
-        model: 'claude-haiku-4-5-20251001',
+        model: 'claude-sonnet-4-6',
         max_tokens: 1000,
         messages: [{ role: 'user', content: prompt }],
       })
@@ -229,14 +229,14 @@ ${JSON.stringify(slugDescriptions, null, 2)}`
       const clean = raw
         .replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim()
 
-      let haikusMap: Record<string, string | null> = {}
-      try { haikusMap = JSON.parse(clean) } catch { /* leave unmatched */ }
+      let aiMap: Record<string, string | null> = {}
+      try { aiMap = JSON.parse(clean) } catch { /* leave unmatched */ }
 
       for (const post of afterTier2) {
-        const memId = haikusMap[post.key]
+        const memId = aiMap[post.key]
         if (memId) {
           const mem = memory.find(m => m.id === memId)
-          if (mem) results.set(post.key, { article_id: mem.article_id, method: 'haiku' })
+          if (mem) results.set(post.key, { article_id: mem.article_id, method: 'ai' })
         }
       }
     } catch {

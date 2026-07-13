@@ -8,6 +8,12 @@
 - Always run `npm run build` before committing
 - Do NOT explore files freely — ask if blocked
 
+## BRANCH & PR POLICY (non-negotiable)
+- **Never commit directly to `main`** — all work goes on a feature branch
+- Open a PR; the smoke suite must be green before merging
+- Branch naming: `feat/`, `fix/`, `chore/` prefix
+- GitHub branch protection on `main`: require PR + require status check `smoke / smoke` to pass
+
 ## Project Overview
 Vetree (vetree.app) is an evidence-based veterinary research platform.
 Aggregates PubMed articles, enriches with AI clinical summaries, serves veterinary professionals.
@@ -16,7 +22,7 @@ Solo DVM developer. Target: Israeli + international vets.
 ## Stack
 - **Frontend/Backend:** Next.js 16 (App Router, Turbopack) on Vercel
 - **Database:** Supabase (PostgreSQL + Auth + Storage + RLS)
-- **AI enrichment:** Claude Haiku `claude-haiku-4-5-20251001` (articles), Claude Sonnet `claude-sonnet-4-6` (content agent, analysis agent)
+- **AI enrichment:** Claude Sonnet `claude-sonnet-4-6` (all AI calls — Haiku is retired)
 - **Email:** Resend (from: digest@digest.vetree.app)
 - **Monitoring:** Sentry (@sentry/nextjs@7)
 - **Rate limiting:** Upstash Redis (@upstash/ratelimit)
@@ -30,6 +36,16 @@ Solo DVM developer. Target: Israeli + international vets.
 - Admin: `vetree.app/admin`
 
 ## CRITICAL RULES — Never violate these
+
+### 0. Minimum AI model — Claude Sonnet 4.6 for ALL calls
+```ts
+// ✅ ONLY valid model string in this project
+const model = 'claude-sonnet-4-6'
+
+// ❌ NEVER use — Haiku is retired from this project
+// 'claude-haiku-4-5-20251001'
+```
+Every Claude API call — enrichment, synthesis, content agent, analysis agent, security agent, LinkedIn matcher — must use `claude-sonnet-4-6`. Do not introduce Haiku for any reason, including cost optimisation.
 
 ### 1. API Routes — always add
 ```ts

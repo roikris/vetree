@@ -193,9 +193,7 @@ export async function fetchOrGenerateSynthesis(
     labels: a.labels?.join(', ') || 'N/A',
   }))
 
-  const modelToUse = articlesForSynthesis.length > 20
-    ? 'claude-sonnet-4-6'
-    : 'claude-haiku-4-5-20251001'
+  const modelToUse = 'claude-sonnet-4-6'
 
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
 

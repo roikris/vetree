@@ -1,0 +1,109 @@
+name: PR Smoke Suite
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  smoke:
+    name: smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Poll Vercel for preview URL
+        id: vercel
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          COMMIT_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          node - <<'EOF'
+          const token = process.env.VERCEL_TOKEN
+          const sha = process.env.COMMIT_SHA
+
+          async function poll() {
+            for (let i = 0; i < 40; i++) {
+              const res = await fetch(
+                `https://api.vercel.com/v6/deployments?limit=20&target=preview&meta-githubCommitSha=${sha}`,
+                { headers: { Authorization: `Bearer ${token}` } }
+              )
+              const data = await res.json()
+              const dep = (data.deployments || []).find(d => d.state === 'READY')
+              if (dep) {
+                const url = `https://${dep.url}`
+                console.log(`Preview URL ready: ${url}`)
+                const { appendFileSync } = await import('fs')
+                appendFileSync(process.env.GITHUB_OUTPUT, `preview_url=${url}\n`)
+                return
+              }
+              const building = (data.deployments || [])[0]
+              const state = building?.state || 'not found'
+              console.log(`[${i + 1}/40] Deployment state: ${state} — waiting 15s`)
+              await new Promise(r => setTimeout(r, 15_000))
+            }
+            console.error('ERROR: Timed out waiting for Vercel preview deployment (10 min)')
+            process.exit(1)
+          }
+
+          poll()
+          EOF
+
+      - name: Check for Vercel deployment protection interstitial
+        env:
+          PREVIEW_URL: ${{ steps.vercel.outputs.preview_url }}
+        run: |
+          FINAL_URL=$(curl -sL -o /dev/null -w '%{url_effective}' "$PREVIEW_URL")
+          if echo "$FINAL_URL" | grep -q 'vercel.com'; then
+            echo "ERROR: Vercel deployment protection interstitial detected."
+            echo "Final URL after redirect: $FINAL_URL"
+            echo "To fix: disable deployment protection for this project in Vercel dashboard,"
+            echo "or add VERCEL_AUTOMATION_BYPASS_SECRET to GitHub secrets and pass"
+            echo "x-vercel-protection-bypass header via playwright extraHTTPHeaders."
+            exit 1
+          fi
+          echo "Preview accessible at: $PREVIEW_URL"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run smoke tests
+        id: smoke
+        run: npm run test:smoke
+        continue-on-error: true
+        env:
+          SMOKE_BASE_URL: ${{ steps.vercel.outputs.preview_url }}
+          SMOKE_USER_AGENT: vetree-smoke-pr
+          TEST_USER_EMAIL: ${{ secrets.TEST_USER_EMAIL }}
+          TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
+
+      - name: Triage + Slack
+        if: always()
+        run: node scripts/qa-triage.mjs
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SMOKE_OUTCOME: ${{ steps.smoke.outcome }}
+          GITHUB_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          TRIGGER: pull_request
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-pr-${{ github.event.pull_request.number }}
+          path: playwright-report/
+          retention-days: 7
+
+      - name: Fail job if tests failed
+        if: steps.smoke.outcome == 'failure'
+        run: exit 1
