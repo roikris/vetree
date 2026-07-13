@@ -136,3 +136,39 @@ link when user is null). This route doesn't exist (our auth is at `/login` and `
 3. Fix Bug A (useAdmin .single() → .maybeSingle())
 4. Fix Bug B (ArticleAppBar /auth/signin → /login)
 5. Commit clean version
+
+---
+
+# Analytics Pipeline Hardening — Session 2026-07-13
+
+## Mission
+Make the analytics pipeline trustworthy and prove it. Parked: PR #7, smoke test 5, bugs A/B, password rotation.
+
+## Current State (Phase 0 Anchor)
+- **PR #8 MERGED** (fix/analytics-server-client): analytics.ts now uses service role key; aggregate/route.ts has MAU sanity guard.
+- **Cron zeros (2026-07-13 snapshot)**: ALL zeros despite cron returning `{"success":true}`. Root cause confirmed: OLD aggregate route had `const { data: mauData }` (no error variable) — any query error silently made data=null → mau=0 → no sanity guard → zeros written → 200 success. The cron at 05:27 ran OLD code (PR #8 not yet merged). The 14:35 workflow_dispatch also ran old code.
+- **Helper two-ID bug**: `excludedUsersOrFilter()` uses flat OR: `user_id.is.null,user_id.neq.A,user_id.neq.B`. With 2+ IDs, a row with user_id=A satisfies `neq.B`=true → included (admin not excluded). Currently not triggered because TEST_USER_ID="" in Vercel → filtered out. Fix needed for safety.
+- **TEST_USER_ID=""**: Empty string in Vercel env → Boolean("") = false → filtered out → only admin excluded. Filter currently: `user_id.is.null,user_id.neq.90cb8294-b593-4144-a9f5-23ca52dd5e35`.
+
+## Phase 1 Decisive Test Results (2026-07-13)
+- Test: load prod env, print excludedUsersOrFilter(), run WAU+MAU queries via service role key
+- Result: WAU=86 unique ip_hash (218 rows), MAU=407 unique ip_hash (884 rows), no errors
+- **22P02 hypothesis FALSIFIED** — filter is valid, queries return non-zero data
+- **Correct conclusion**: zeros were caused by silent error swallowing in OLD code (no error variable captured → data=null → 0), not by a malformed filter
+
+## Hypothesis Log
+| Hypothesis | Test | Outcome |
+|---|---|---|
+| TEST_USER_ID is malformed UUID causing 22P02 | grep Vercel env + run local WAU query | FALSIFIED: TEST_USER_ID="" filtered out, WAU=86 no error |
+
+## Fix Plan (Phase 2 — fix/analytics-hardening)
+1. `lib/analytics-excluded-ids.ts`: UUID-validate + trim each ID; throw named error at init for non-empty invalid IDs; fix 2-ID OR semantics with `and(neq.A,neq.B)` nesting
+2. `app/api/admin/analytics/aggregate/route.ts`: add error variable to ALL queries (not just MAU); abort with 500 on any error
+3. Delete junk files (intent=save, tmp-*.jpeg, etc.) + add tmp-* to .gitignore
+
+## Parked
+- PR #7 (chore/sonnet-migration): open, do not touch this session
+- Smoke test 5 (save/unsave): fix described in DEBUG-NOTES above, parked
+- Bug A (useAdmin .single() → .maybeSingle()): parked
+- Bug B (ArticleAppBar /auth/signin → /login): parked
+- Password rotation: parked
