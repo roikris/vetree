@@ -166,6 +166,21 @@ Make the analytics pipeline trustworthy and prove it. Parked: PR #7, smoke test 
 2. `app/api/admin/analytics/aggregate/route.ts`: add error variable to ALL queries (not just MAU); abort with 500 on any error
 3. Delete junk files (intent=save, tmp-*.jpeg, etc.) + add tmp-* to .gitignore
 
+## Postmortem (two root causes, both confirmed)
+
+**Root cause 1 — TEST_USER_ID was an email, not a UUID.**
+`TEST_USER_ID=roi.kris+smoketest@gmail.com` was set in Vercel. The old `analytics-excluded-ids.ts` included it verbatim in the PostgREST filter string: `user_id.neq.roi.kris+smoketest@gmail.com`. Supabase returned `22P02` (invalid UUID syntax). The old aggregate route had `const { data: mauData }` with NO error variable — the 22P02 was silently swallowed, data=null, mau=0. No sanity guard existed, so zeros were written and `{"success":true}` was returned. The cron appeared green while the snapshot was corrupted. This happened on every cron run since TEST_USER_ID was set.
+
+**Root cause 2 — flat OR semantics wrong for 2+ IDs (preventive fix).**
+`excludedUsersOrFilter()` generated `user_id.is.null,user_id.neq.A,user_id.neq.B`. In a flat OR, a row with `user_id=A` satisfies `neq.B=true` → included (admin not excluded). Fixed to `user_id.is.null,and(user_id.neq.A,user_id.neq.B)`. Was not the primary cause (since the email caused 22P02 before the AND logic ran), but would have been wrong once TEST_USER_ID was corrected to a UUID.
+
+## Resolution
+- PR #8: analytics.ts uses service role key + MAU sanity guard (abort if mau=0)
+- PR #9: UUID validation at module init (throws loudly on bad value), 2-ID AND semantics fix, per-query error detection for all 13 aggregate queries
+- Vercel env: TEST_USER_ID updated from email to UUID `ce9bde59-2d18-4fd9-bcf5-57d925450d2b`
+- Snapshot 2026-07-13 rewritten: dau=27, wau=89, mau=409, avg_session=88s
+- Dashboard stats confirmed normal (user verified 2026-07-13)
+
 ## Parked
 - PR #7 (chore/sonnet-migration): open, do not touch this session
 - Smoke test 5 (save/unsave): fix described in DEBUG-NOTES above, parked
