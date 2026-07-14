@@ -27,8 +27,10 @@
 ---
 
 ## Open Bugs / Known Issues
-- LinkedIn metrics: `match_method` DB constraint still lists `'haiku'` not `'ai'`; new matches write `'ai'` which may fail the CHECK constraint — needs a migration to add `'ai'` to the allowed values
 - `saved_articles` missing from supabase-CLAUDE.md's created_at entry (now fixed in supabase/CLAUDE.md)
+
+## Recently Resolved
+- **2026-07-14:** `linkedin_post_metrics.match_method` DB constraint was missing `'ai'` (only had `'haiku'`). Migration `042_linkedin_match_method_add_ai.sql` applied to production — constraint now allows `activity_id | slug | date | ai | haiku | manual`.
 
 ---
 
