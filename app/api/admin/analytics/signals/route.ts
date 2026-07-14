@@ -32,6 +32,17 @@ export async function POST(request: NextRequest) {
     const signals: any[] = []
 
     if (latest) {
+      // Signal 0: Zero searches logged — likely a data pipeline gap
+      if ((latest.total_searches ?? 0) === 0) {
+        signals.push({
+          date: latest.date,
+          type: 'data_gap',
+          severity: 0.9,
+          description: 'Zero searches recorded this week — search logging may be broken',
+          data_json: { total_searches: 0 }
+        })
+      }
+
       // Signal 1: High zero-result rate
       if (latest.zero_result_rate > 0.3) {
         signals.push({
