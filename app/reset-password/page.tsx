@@ -21,27 +21,40 @@ function ResetPasswordForm() {
   const supabase = createClient()
 
   useEffect(() => {
-    // Subscribe to PASSWORD_RECOVERY event — fired when the PKCE code is
-    // exchanged for a recovery session (the normal path in @supabase/ssr).
+    const code = searchParams.get('code')
+    const isLegacyRecovery = searchParams.get('type') === 'recovery'
+
+    // Subscribe BEFORE the async exchange so PASSWORD_RECOVERY is never missed.
+    // Recovery evidence (code or legacy type=recovery) outranks any existing
+    // session — we enter recovery mode regardless of login state.
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY') {
         setIsRecoveryMode(true)
       }
     })
 
-    // PKCE flow: reset email arrives as /reset-password?code=xxxxx
-    // Exchange the code to establish the recovery session, which triggers
-    // the PASSWORD_RECOVERY event above.
-    const code = searchParams.get('code')
-    if (code) {
-      supabase.auth.exchangeCodeForSession(code).catch(() => {
-        setError('Invalid or expired reset link. Please request a new one.')
-      })
+    // Legacy implicit flow: tokens already resolved, no exchange needed.
+    if (isLegacyRecovery) {
+      setIsRecoveryMode(true)
     }
 
-    // Legacy implicit flow fallback: ?type=recovery in query string
-    if (searchParams.get('type') === 'recovery') {
-      setIsRecoveryMode(true)
+    if (code) {
+      // If a session already exists, sign it out first. Supabase requires a
+      // clean slate before exchangeCodeForSession — otherwise the exchange
+      // either errors or fires SIGNED_IN instead of PASSWORD_RECOVERY,
+      // leaving the user stranded on the request-reset form.
+      const doExchange = () =>
+        supabase.auth.exchangeCodeForSession(code).catch(() => {
+          setError('Invalid or expired reset link. Please request a new one.')
+        })
+
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session) {
+          supabase.auth.signOut({ scope: 'local' }).then(doExchange)
+        } else {
+          doExchange()
+        }
+      })
     }
 
     return () => subscription.unsubscribe()
