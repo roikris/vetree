@@ -11,8 +11,11 @@ export async function sendPasswordResetEmail() {
     return { error: 'Not authenticated' }
   }
 
+  // NEXT_PUBLIC_SITE_URL is not set in Vercel — fall back to the hardcoded
+  // production origin so Supabase never falls back to the dashboard Site URL.
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://vetree.app'
   const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
-    redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/reset-password`
+    redirectTo: `${siteUrl}/reset-password`,
   })
 
   if (error) {

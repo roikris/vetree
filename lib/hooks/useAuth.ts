@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter, usePathname } from 'next/navigation'
 import { User } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
 
@@ -25,6 +26,8 @@ function getSharedUser() {
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
+  const router = useRouter()
+  const pathname = usePathname()
 
   useEffect(() => {
     // Shared across all useAuth() instances — only one network call to Supabase.
@@ -39,6 +42,13 @@ export function useAuth() {
       // Invalidate cache on real auth changes so next getUser() is fresh.
       if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'USER_UPDATED') {
         _userPromise = null
+      }
+      // Safety net: wherever the PKCE code is exchanged, always land on the
+      // reset form. Handles any page that exchanges ?code= before /reset-password
+      // is visited (e.g. homepage silently consuming the code).
+      if (event === 'PASSWORD_RECOVERY' && pathname !== '/reset-password') {
+        router.replace('/reset-password')
+        return
       }
       setUser(session?.user ?? null)
       setLoading(false)
