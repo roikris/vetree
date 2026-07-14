@@ -13,7 +13,7 @@ export default async function LibraryPage() {
   // Fetch saved articles with saved_at timestamp
   const { data, error } = await supabase
     .from('saved_articles')
-    .select('article_id, saved_at, articles(id, title, clinical_bottom_line, labels, source_journal, publication_date, strength_of_evidence, authors, article_url, doi, pubmed_id)')
+    .select('article_id, saved_at, articles(id, title, clinical_bottom_line, labels, source_journal, published_date, strength_of_evidence, authors, article_url, doi, pubmed_id)')
     .eq('user_id', user.id)
     .order('saved_at', { ascending: false })
 
