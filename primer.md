@@ -1,139 +1,84 @@
 # Vetree — Current State (primer.md)
-*Last updated: April 3, 2026*
+*Last updated: 2026-07-14*
 *Update this file after every Claude Code session*
 
 ---
 
-## 🎯 Active Focus
-- Synonym mapping fix: "integrative veterinary medicine" + "NSAID" returning 0 results (17.2% zero-result rate)
-- Example search chips in hero section (pre-populated clinical terms → auto-synthesis)
-- Pagination performance fixes (select('*') → specific fields, cached filters, lazy summary load)
-- SEO fixes: meta description, canonical tags, OG tags, robots.txt, sitemap.ts
-- Accessibility fixes: <main> landmark, skip nav link, aria-labels
-- Security headers added to next.config.js
+## Active Focus
+- Analytics pipeline is stable and trusted (zeros = sensor failures, now guarded)
+- Password reset flow fully working (PKCE + session priority)
+- Search logging restored (SearchControls useEffect after Almanac redesign)
+- All PRs through #16 merged to main; smoke suite green
 
 ---
 
-## ✅ Recently Completed
-- Security Agent: weekly scan → findings → Claude fix prompts → Slack (/admin/security)
-- Analysis Agent: daily SQL aggregation + Friday insights → Slack + /admin/analytics
-- Topic Synthesis: AI evidence synthesis with citations, cached, feature-flagged
-- Content Agent: Generate All Platforms (same article, batched), Retry Failed, article picker
-- TikTok + Threads added to platform rotation and UTM map
-- Fuzzy search: pg_trgm + 3-tier fallback + initial synonym mapping
-- Articles blacklist: prevents re-adding deleted articles from PubMed
-- Security headers: X-Frame-Options, X-Content-Type-Options, Permissions-Policy, COOP
-- SEO: robots.txt, sitemap.ts, canonical tags, OG tags
-- Accessibility: <main>, skip nav, aria-labels
-- Weekly digest: sends to ALL confirmed users, 5-day dedup
-- Hero section hidden for logged-in users
-- Admin auth added to /api/growth/generate-post
-- Veterinary Ophthalmology added to PubMed journal list
-- CSP: intentionally skipped for now (too complex, low priority at current scale)
+## Recently Completed (2026-07 session)
+- **PR #7** chore/sonnet-migration-and-pr-smoke: all AI calls → Sonnet 4.6, Upstash noop for Preview, qa-triage fixes (skipped bucket, last-attempt verdict, file:line in Slack)
+- **PR #8** fix/analytics-server-client: service role key for analytics reads + MAU sanity guard
+- **PR #10** fix/security-scan-findings: CHECK 19 regex fix + self-exclusion; xlsx 0.18.5 → 0.20.3 (SheetJS CDN tarball)
+- **PR #11** fix/reset-password-pkce: exchangeCodeForSession + PASSWORD_RECOVERY handler
+- **PR #12** fix/small-fixes-queue: useAdmin .maybeSingle(), /auth/signin → /login, publication_date revert
+- **PR #13** fix/smoke-unsave-race: Promise.all(waitForResponse, click) for unsave
+- **PR #14** fix/reset-redirect-target: redirectTo hardcoded fallback; PASSWORD_RECOVERY safety net in useAuth
+- **PR #15** fix/reset-page-session-priority: signOut({ scope: 'local' }) before exchangeCodeForSession
+- **PR #16** fix/search-logging: SearchControls logging useEffect; data_gap signal in signals route
+- **chore/docs-current-state** (current): all .md files updated to verified current state; api-CLAUDE.md and supabase-CLAUDE.md renamed to canonical paths
 
 ---
 
-## 🐛 Open Bugs / Known Issues
-- Zero-result rate 17.2% — "integrative veterinary medicine" and "NSAID" not caught by synonyms
-- Malformed/autocomplete queries ("inetgr", "inet") causing zero results — search UX friction
-- Zero article saves from real users
-- Zero synthesis runs from real users (feature discovery problem)
-- Median session 11s vs average 58s — massive bounce rate, most users leave immediately
-- DAU/MAU stickiness 1.6% — users not returning after first visit
-- Retry Failed platforms still occasionally fails
-- Campaign calendar "Mark Done" stats don't always refresh after approve
-- GITHUB_PAT token flagged as expiring — needs renewal
-- Top Countries showing "Not available" in analytics dashboard
+## Open Bugs / Known Issues
+- LinkedIn metrics: `match_method` DB constraint still lists `'haiku'` not `'ai'`; new matches write `'ai'` which may fail the CHECK constraint — needs a migration to add `'ai'` to the allowed values
+- `saved_articles` missing from supabase-CLAUDE.md's created_at entry (now fixed in supabase/CLAUDE.md)
 
 ---
 
-## 📋 Next Planned
-1. **Synonym fixes** (1h): add "integrative" → holistic/alternative/complementary, "NSAID" → anti-inflammatory/analgesic
-2. **Hero search chips** (half-day): clickable pre-populated clinical terms → auto-trigger search + synthesis
-3. Verify pagination fixes deployed (no jump-back, fade overlay working)
-4. Verify robots.txt and sitemap.xml accessible
-5. Submit sitemap to Google Search Console
-6. Anonymous synthesis run before signup wall
-7. Re-engagement section in digest for users inactive >5 days
-8. Fix "Top Countries not available" in analytics
-9. Commit updated CLAUDE.md files + primer.md to repo
-
----
-
-## ⚠️ Hard-Won Lessons (never repeat these mistakes)
-
-### Architecture
-- `todaysTask` in campaign calendar comes from **pure JS rotation**, never DB writes
-- Large animal filtering is **JS only** — Supabase array syntax unreliable
-- `.neq('user_id', adminId)` **also excludes NULL rows** — always use `.or('user_id.is.null,user_id.neq.X')`
-- Supabase clients must be initialized **inside** handler functions, never at module level
-- `select('*')` on article lists causes pagination slowness — always select specific fields
-- `summary` field is **long text** — never include in list queries, fetch lazily on expand
-
-### Content Agent
-- All platforms in "Generate All" must use the **same article_id** (forced after first generation)
-- `growth_agent_memory` excludes only **approved** articles (not skipped) to avoid exhausting pool
-- Exclude articles used **today** across all platforms (not just last 14 days)
-- SKIP_LARGE_ANIMAL retry must ignore forced article_id on fallback
-- LinkedIn: BANNED phrases include "game changer", "revolutionary", "excited to share"
-- TikTok: scripts must be 80-100 words MAX (30-45 seconds), never start with "Did you know"
-- Do NOT increase LinkedIn posting to 2-3x daily — algorithm penalizes frequency
-
-### Analytics
-- Article **views are unreliable signals** — social promotion bias
-- Use **saves, synthesis runs, search demand** as primary quality signals
-- Admin ID `90cb8294-b593-4144-a9f5-23ca52dd5e35` must be excluded from ALL analytics queries
-- Session duration: cap at **1800 seconds** (30 min) before averaging
-- DAU/MAU with only 15 registered users is statistically meaningless — WAU (231) is more useful
-- Do NOT auto-trigger synthesis on every search — too expensive (Claude API cost)
-
-### Supabase
-- `topic_syntheses` and analytics tables need **service role** for writes
-- `articles_blacklist` must be checked **before** inserting from PubMed pipeline
-- `pubmed_id` has UNIQUE constraint — use upsert or check before insert
-
-### GitHub Actions
-- All workflows need `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true`
-- `weekly-digest.yml` calls `/api/digest/send` with Bearer DIGEST_SECRET header
-- Analysis agent insights job only runs on **Friday** (cron `0 12 * * 5`) or manual dispatch
-- Security agent runs **Thursday 19:00 UTC**
-
-### Next.js / Vercel
-- Vercel hobby plan timeout is **10 seconds** — add `export const maxDuration = 60` for Claude routes
-- `unstable_cache` for journal/evidence filters — 3600s revalidate
-- `getUniqueJournals()` and `getDistinctEvidenceLevels()` must NOT re-run on every page navigation
-- All Claude Code prompts must start with: "Read CLAUDE.md, app/api/CLAUDE.md, supabase/CLAUDE.md, primer.md first. Then:"
-
-### Growth Strategy
-- LinkedIn works because of professional audience, not frequency — keep rotation as-is
-- Viral spikes (+475% DAU) happen but don't stick — retention infrastructure needed first
-- "Quantum physics" searches = noise from one user, not a content gap to fill
-- Do NOT suggest "exit-intent capture" or "auto-trigger modals on every search"
-- Do NOT suggest "increase LinkedIn to 2-3x daily"
-
----
-
-## 📊 Current Metrics (April 3, 2026)
-- Articles in DB: ~15,000+ enriched
-- Registered users: ~15 confirmed
-- DAU: 23 | WAU: 231 | MAU: 1,449
-- DAU/MAU stickiness: 1.6% (target: >15%)
-- Top traffic: LinkedIn (33) > Facebook (16) > Instagram (6) > TikTok (1)
-- Zero-result search rate: 17.2% (regression — was near 0%)
-- Avg session: 58s | Median: 11s (large gap = onboarding friction)
-- Article saves: 0 | Synthesis runs: 0 (feature discovery problem)
-
----
-
-## 🏗️ Platform at a Glance
+## Platform at a Glance
 - **Live:** vetree.app
 - **Admin:** vetree.app/admin (Overview, Users, Reports, Pipeline, Analytics, Growth, Security)
 - **GitHub:** roikris/vetree
 - **Supabase project:** gnykidzijppxvrvvchxq
-- **Email domain:** digest.vetree.app (Resend, verified, DKIM configured by Resend)
-- **Journals:** 14 including Veterinary Ophthalmology (recently added)
-- **Enrichment:** daily 02:00 UTC
-- **Content posts:** daily reminder 03:00 UTC, admin generates + approves manually
-- **Analysis:** aggregates daily 02:00 UTC, insights every Friday 12:00 UTC
-- **Security scan:** every Thursday 19:00 UTC
-- **Weekly digest:** every Friday 10:00 UTC
+- **Digest email:** digest@digest.vetree.app (Resend)
+- **Auth email:** auth@digest.vetree.app (Resend custom SMTP)
+- **Enrichment:** daily 07:00 UTC (after PubMed sync at 06:00 UTC)
+- **Analysis:** aggregates + signals daily 02:00 UTC; insights Friday 12:00 UTC
+- **Security scan:** Thursday 19:00 UTC
+- **Weekly digest:** Friday 10:00 UTC
+- **Content post reminder:** daily 03:00 UTC
+
+---
+
+## Hard-Won Lessons (never repeat these mistakes)
+
+### Analytics
+- **Any metric hitting zero = broken sensor until proven otherwise.** Investigate the logger before concluding users stopped using the feature.
+- `analytics_daily_snapshot` is pre-filtered (admin + TEST_USER_ID excluded). Raw table queries are NOT.
+- Article views are unreliable signals (social promotion bias). Use saves, searches, synthesis runs.
+- Never hand-roll the excluded-users filter; always use `excludedUsersOrFilter()` from `lib/analytics-excluded-ids.ts`.
+
+### Save Flow
+- `toggleSave` must use plain `fetch('/api/save-article')`, not a server action. Server actions go through the sequential router action queue; slow auth refreshes can delay a save by 15+ seconds.
+- Any navigation after unsave must wait for the API response: `Promise.all([waitForResponse, click()])`.
+
+### Password Reset
+- `signOut({ scope: 'local' })` before `exchangeCodeForSession` — global scope revokes all devices.
+- `NEXT_PUBLIC_SITE_URL` is not set in Vercel; always use `|| 'https://vetree.app'` fallback for redirectTo.
+- Test password reset in incognito only.
+
+### Architecture
+- `todaysTask` in campaign calendar comes from pure JS rotation, never DB writes.
+- Large animal filtering is JS only — Supabase array syntax unreliable.
+- `.neq('user_id', adminId)` also excludes NULL rows — always use `.or('user_id.is.null,user_id.neq.X')`.
+- Supabase clients must be initialized inside handler functions, never at module level.
+- `select('*')` on article lists causes slowness — always select specific fields.
+- `summary` field is long text — never include in list queries, fetch lazily on expand.
+- Schema is the source of truth for column names. Verified: `publication_date` (not `published_date`), `saved_at` (not `created_at`) in saved_articles.
+
+### GitHub Actions
+- All workflows need `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true`.
+- `analysis-agent.yml` has two jobs: `aggregate` (daily) and `insights` (Friday only).
+- Weekly digest is Friday 10:00 UTC (insights is Friday 12:00 UTC — different schedule).
+
+### Next.js / Vercel
+- `vercel env pull` can be stale — use Vercel dashboard as source of truth for env vars.
+- `unstable_cache` for journal/evidence filters — 3600s revalidate.
+- All Claude Code prompts must start with: "Read CLAUDE.md, app/api/CLAUDE.md, supabase/CLAUDE.md first. Then:"

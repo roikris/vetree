@@ -1,194 +1,130 @@
 # GitHub Actions Workflows
 
-This directory contains automated workflows for the Vetree project.
+Cron times and triggers verified directly from workflow YAML files.
 
-## Setup
+## Workflow Inventory
 
-### 1. Run Database Migration
+### `daily-sync.yml` — Daily PubMed Sync
+**Schedule:** 06:00 UTC daily | **Manual:** workflow_dispatch
 
-Before using these workflows, run the migration to add required columns:
+Searches PubMed for articles from the last 5 days across 16+ veterinary journals.
+Normalises journal names, deduplicates by PubMed ID, saves new articles with `needs_enrichment: true`.
 
-1. Go to your Supabase dashboard: https://supabase.com/dashboard
-2. Navigate to **SQL Editor**
-3. Open `supabase/migrations/002_add_enrichment_columns.sql`
-4. Copy and paste the SQL into the editor
-5. Click **Run**
+---
 
-### 2. Configure GitHub Secrets
+### `enrich-articles.yml` — Enrich Articles
+**Schedule:** 07:00 UTC daily (1 hour after sync) | **Manual:** workflow_dispatch
 
-Add the following secrets to your GitHub repository:
+Fetches up to 50 articles where `needs_enrichment = true`. Calls Claude Sonnet to generate:
+summary, clinical bottom line, labels (3–5), strength of evidence, corrected authors.
+3-strike system — articles that fail 3× are quarantined.
 
-1. Go to your repo: https://github.com/roikris/vetree
-2. Navigate to **Settings → Secrets and variables → Actions**
-3. Click **New repository secret** and add:
+---
 
-   - `SUPABASE_URL`: Your Supabase project URL (e.g., `https://xxx.supabase.co`)
-   - `SUPABASE_SERVICE_ROLE_KEY`: Your Supabase service role key (found in Project Settings → API)
-   - `ANTHROPIC_API_KEY`: Your Anthropic API key (get one at https://console.anthropic.com/)
+### `weekly-digest.yml` — Weekly Email Digest
+**Schedule:** Friday 10:00 UTC | **Manual:** workflow_dispatch
 
-**Important**: Use the **service role key**, not the anon key, as these workflows need admin access.
+Calls `/api/digest/send` with DIGEST_SECRET bearer token.
+Sends to all confirmed users who have not opted out (`user_preferences.digest_opt_out = false`).
 
-## Workflows
+---
 
-### 1. Daily PubMed Sync (`daily-sync.yml`)
+### `analysis-agent.yml` — Analysis Agent
+**Schedule (aggregate job):** 02:00 UTC daily + Friday 12:00 UTC | **Manual:** workflow_dispatch
+**Schedule (insights job):** Friday 12:00 UTC only (or manual dispatch)
 
-**Schedule**: Daily at 6:00 AM UTC
+`aggregate` job (runs daily):
+1. POST `/api/admin/analytics/aggregate` → upserts `analytics_daily_snapshot`
+2. POST `/api/admin/analytics/signals` → upserts `analytics_signals`
 
-**What it does**:
-- Searches PubMed for articles from the last 5 days in 16 veterinary journals
-- Normalizes journal names using a standardized mapping
-- Checks for duplicates (by PubMed ID)
-- Saves new articles to Supabase with `needs_enrichment: true`
-- Processes in batches of 20 with 2-second delays
+`insights` job (runs Friday only):
+1. POST `/api/admin/analytics/insights` → Claude Sonnet analysis → `analytics_insights` → Slack
 
-**Manual trigger**:
-```bash
-# Via GitHub UI: Actions → Daily PubMed Sync → Run workflow
-```
+Both jobs use DIGEST_SECRET bearer auth.
 
-### 2. Enrich Articles (`enrich-articles.yml`)
+---
 
-**Schedule**: Daily at 7:00 AM UTC (1 hour after sync)
+### `security-agent.yml` — Security Scan
+**Schedule:** Thursday 19:00 UTC | **Manual:** workflow_dispatch
 
-**What it does**:
-- Fetches up to 50 articles where `needs_enrichment = true`
-- Uses Claude Sonnet to generate:
-  - Comprehensive summary (150-250 words)
-  - Clinical bottom line (one sentence)
-  - Labels (3-5 from allowed list)
-  - Strength of evidence classification
-  - Corrected authors (if duplicates found)
-- Validates labels against allowed list
-- Strike system: 3 attempts max, then gives up
-- Waits 1 second between articles
+Calls POST `/api/admin/security/scan`. Runs 19+ checks, generates Claude Sonnet fix prompts,
+posts findings to Slack, saves to `security_reports`.
 
-**Manual trigger**:
-```bash
-# Via GitHub UI: Actions → Enrich Articles → Run workflow
-```
+---
 
-### 3. Fix HTML Encoding (`fix-encoding.yml`)
+### `qa-smoke.yml` — QA Smoke Suite
+**Schedule:** 06:00 UTC daily | **Trigger:** push to `main` | **Manual:** workflow_dispatch
 
-**Trigger**: Manual only
+Runs Playwright smoke suite against `https://vetree.app`. After run (pass or fail):
+- Calls `scripts/qa-triage.mjs` (Claude Sonnet triage → Slack)
+- Uploads `playwright-report/` artifact (7-day retention)
 
-**What it does**:
-- Scans articles for HTML entities (&#x..., &#...)
-- Decodes entities in: authors, title, clinical_bottom_line, summary
-- Only updates articles where changes detected
-- Processes max 50 articles per run
-- Waits 50ms between updates
+Triage output includes: pass/fail/skipped/flaky buckets, file:line for failures, Claude analysis.
+Job name is `smoke` — this is the status check required by branch protection (`smoke / smoke`).
 
-**Usage**:
-```bash
-# Via GitHub UI: Actions → Fix HTML Encoding → Run workflow
-```
+On `push` trigger: waits 120s for Vercel deployment before running.
 
-### 4. Reset Enrichment Flag (`reset-enrichment.yml`)
+---
 
-**Trigger**: Manual only (one-time use)
+### `qa-smoke-pr.yml` — PR Smoke Suite
+**Trigger:** pull_request to `main` (preview-gated)
 
-**What it does**:
-- Sets `needs_enrichment: false` for ALL articles
-- Useful for disabling enrichment on existing articles
-- Processes in batches of 1000
+Polls Vercel API for the preview deployment URL (up to 10 min, 15s intervals).
+Checks that the preview URL is accessible (no Vercel protection interstitial).
+Runs the same smoke suite against the preview URL.
+Job name is `smoke` — same status check name as above (required for PR merge).
 
-**Usage**:
-```bash
-# Via GitHub UI: Actions → Reset Enrichment Flag → Run workflow
-```
+---
 
-## Allowed Labels
+### `growth-daily-reminder.yml` — Content Post Reminder
+**Schedule:** 03:00 UTC daily (06:00 Israel time)
 
-The enrichment workflow validates labels against this list:
+Posts a Slack reminder to generate and approve the day's content post.
+todaysTask is determined by pure JS 90-day rotation, NOT from DB.
 
-- Cardiology
-- Oncology
-- Soft Tissue Surgery
-- Orthopedics
-- Dermatology
-- Neurology
-- Internal Medicine
-- Small Animal
-- Large Animal
-- Equine
-- Exotic
-- Emergency
-- Anesthesia
-- Radiology
-- Pathology
-- Pharmacology
-- Nutrition
-- Behavior
-- Reproduction
-- Ophthalmology
-- Dentistry
+---
 
-## Monitoring
+### `fix-malformed-titles.yml` — Fix Malformed Titles
+**Schedule:** 03:30 UTC on 1st and 15th of each month | **Manual:** workflow_dispatch
 
-### View Workflow Runs
+Scans articles for malformed titles and fixes them.
 
-1. Go to your repo's **Actions** tab
-2. Click on a workflow name
-3. View run history and logs
+---
 
-### Check Enrichment Status
+### `backfill-articles.yml` — Historical Import
+**Trigger:** Manual (workflow_dispatch) only
 
-Query Supabase to see enrichment progress:
+Imports articles from a specified historical date range. One-off use.
 
-```sql
--- Articles needing enrichment
-SELECT COUNT(*) FROM articles WHERE needs_enrichment = true;
+---
 
--- Articles by attempt count
-SELECT enrichment_attempts, COUNT(*)
-FROM articles
-WHERE needs_enrichment = true
-GROUP BY enrichment_attempts;
+### `reset-enrichment.yml` — Reset Enrichment Flags
+**Trigger:** Manual only
 
--- Recent enrichments
-SELECT title, labels, strength_of_evidence, updated_at
-FROM articles
-WHERE needs_enrichment = false
-ORDER BY updated_at DESC
-LIMIT 10;
-```
+Sets `needs_enrichment = true` for articles. Used to re-queue articles for re-enrichment.
 
-## Troubleshooting
+---
 
-### Daily sync finds 0 articles
+### `fix-encoding.yml` — Fix HTML Entities
+**Trigger:** Manual only
 
-- Check if the journals list matches PubMed's journal names exactly
-- Verify the date range (default: last 5 days)
-- Check workflow logs for API errors
+Decodes HTML entities (`&#x…`, `&#…`) in authors, title, clinical_bottom_line, summary.
+Processes up to 50 articles per run.
 
-### Enrichment fails
+---
 
-- Verify `ANTHROPIC_API_KEY` is valid
-- Check API rate limits and quota
-- Review logs for JSON parsing errors
-- Articles that fail 3 times are automatically skipped
+## Required GitHub Secrets
 
-### Missing columns error
+| Secret | Used by |
+|--------|---------|
+| `SUPABASE_URL` | All workflows that call Supabase directly |
+| `SUPABASE_SERVICE_ROLE_KEY` | All workflows needing admin DB access |
+| `ANTHROPIC_API_KEY` | enrich-articles, qa-smoke (triage), analysis-agent (insights), security-agent |
+| `DIGEST_SECRET` | analysis-agent, security-agent, weekly-digest (bearer auth to API routes) |
+| `SLACK_WEBHOOK_URL` | qa-smoke, analysis-agent, security-agent, growth-daily-reminder |
+| `NCBI_API_KEY` | daily-sync (PubMed rate limit key) |
+| `TEST_USER_EMAIL` | qa-smoke, qa-smoke-pr |
+| `TEST_USER_PASSWORD` | qa-smoke, qa-smoke-pr |
+| `VERCEL_TOKEN` | qa-smoke-pr (polls Vercel API for preview URL) |
 
-- Run the database migration: `002_add_enrichment_columns.sql`
-- Verify columns exist: `SELECT needs_enrichment, enrichment_attempts FROM articles LIMIT 1;`
-
-## Cost Estimates
-
-### Anthropic API (Claude Sonnet)
-
-- ~$0.25 per 1M input tokens
-- ~$1.25 per 1M output tokens
-- Typical article enrichment: ~1,500 input + 400 output tokens
-- Cost per article: ~$0.0009
-- 50 articles/day: ~$0.045/day or ~$1.35/month
-
-### PubMed API
-
-- Free, no API key required
-- Rate limit: ~3 requests/second
-- Batching built in (20 articles per request)
-
-## License
-
-These workflows are part of the Vetree project.
+All workflows require `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true` in env.

@@ -4,12 +4,15 @@
 ```ts
 // Client components
 import { createClient } from '@/lib/supabase/client'
-// Server components / API routes (respects RLS)
+// Server components / API routes (respects RLS, reads session from cookies)
 import { createClient } from '@/lib/supabase/server'
-// Admin (bypasses RLS) — API routes only
+// Admin (bypasses RLS) — API routes only, NEVER in client or server components
 import { createClient } from '@supabase/supabase-js'
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
 ```
+
+**Never import `@/lib/supabase/client` in server-side code.** It uses the anon key, so RLS applies
+and reads return empty 200 instead of errors — silent data corruption. ESLint enforces this.
 
 ## Public Article Filter (always apply for user-facing queries)
 ```ts
@@ -22,6 +25,7 @@ const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env
 ## Article List Select (never use select('*') for lists)
 ```ts
 // For article cards — summary fetched lazily on expand
+// Column name is publication_date — verified in information_schema; schema is source of truth
 .select('id, title, clinical_bottom_line, labels, source_journal, publication_date, strength_of_evidence, authors, article_url, doi, pubmed_id')
 
 // For individual article page only
@@ -34,12 +38,21 @@ const LARGE_ANIMAL = ['Equine','equine','Large Animal','large animal','Livestock
 const filtered = articles.filter(a => !a.labels?.some((l: string) => LARGE_ANIMAL.includes(l)))
 ```
 
-## Exclude Admin from Analytics
+## Exclude Admin + TEST_USER_ID from Analytics
+Always use the shared helper — never hand-roll the filter:
 ```ts
-.or('user_id.is.null,user_id.neq.90cb8294-b593-4144-a9f5-23ca52dd5e35')
+import { excludedUsersOrFilter, EXCLUDED_USER_IDS } from '@/lib/analytics-excluded-ids'
+// In queries:
+.or(excludedUsersOrFilter())
 ```
+- `EXCLUDED_USER_IDS` = admin UUID + TEST_USER_ID (if env var is set and UUID-valid)
+- For 2+ IDs the helper uses `and(neq.A,neq.B)` — flat OR would wrongly include excluded users
+- The `analytics_daily_snapshot` table is pre-filtered (aggregate route excludes them)
+- Raw table queries (page_views, search_logs, etc.) are NOT pre-filtered — add the helper manually
 
 ## Tables
+
+Column names verified against information_schema and migrations. Schema is the source of truth.
 
 ### `articles`
 | Column | Type | Notes |
@@ -50,7 +63,7 @@ const filtered = articles.filter(a => !a.labels?.some((l: string) => LARGE_ANIMA
 | clinical_bottom_line | text | AI-generated — must exist to show publicly |
 | labels | text[] | GIN indexed |
 | source_journal | text | |
-| publication_date | date | |
+| publication_date | date | NOT published_date |
 | article_url | text | |
 | doi | text | |
 | authors | text | |
@@ -59,7 +72,7 @@ const filtered = articles.filter(a => !a.labels?.some((l: string) => LARGE_ANIMA
 | enrichment_attempts | integer | capped at 3 |
 | force_retry | boolean | admin override |
 | quarantined | boolean | hidden from public |
-| last_enrichment_error | text | error message |
+| last_enrichment_error | text | |
 | last_enrichment_at | timestamptz | |
 
 ### `user_roles`
@@ -68,12 +81,24 @@ const filtered = articles.filter(a => !a.labels?.some((l: string) => LARGE_ANIMA
 | user_id | uuid FK → auth.users |
 | role | text ('admin'/'user') |
 
+Use `.maybeSingle()` not `.single()` — non-admin users have no row, `.single()` returns 406.
+
 ### `saved_articles`
 | Column | Type |
 |--------|------|
 | user_id | uuid FK |
 | article_id | text FK → articles |
-| created_at | timestamptz |
+| saved_at | timestamptz | NOT created_at |
+
+### `user_preferences`
+| Column | Type | Notes |
+|--------|------|-------|
+| user_id | uuid PK FK → auth.users | |
+| digest_opt_out | boolean | DEFAULT false |
+| digest_opted_out_at | timestamptz | set when opt-out |
+| updated_at | timestamptz | |
+
+Digest exclusion is here, NOT on a profiles table (no profiles table exists).
 
 ### `followed_tags`
 | Column | Type |
@@ -114,6 +139,7 @@ UNIQUE(user_id, tag)
 | outcome | text ('approved'/'skipped') |
 | skip_reason | text |
 | hook_line | text |
+| posted_url | text | LinkedIn post URL (migration 039) |
 | created_at | timestamptz |
 
 ### `growth_agent_preferences`
@@ -141,6 +167,9 @@ UNIQUE(user_id, tag)
 | utm_campaign | text | |
 | created_at | timestamptz | |
 
+Note: `page_views` is also used for `/synthesis/run` tracking (path = '/synthesis/run').
+Funnel events (save_intent_*) go to `analytics_events`, NOT page_views.
+
 ### `search_logs`
 | Column | Type |
 |--------|------|
@@ -149,6 +178,17 @@ UNIQUE(user_id, tag)
 | user_id | uuid nullable |
 | ip_hash | text |
 | created_at | timestamptz |
+
+### `analytics_events`
+| Column | Type | Notes |
+|--------|------|-------|
+| id | uuid PK | |
+| event_name | text | save_intent_arrived / save_intent_auth_shown / save_intent_completed |
+| article_id | text nullable FK → articles | ON DELETE SET NULL |
+| user_id | uuid nullable | |
+| created_at | timestamptz | |
+
+Admin-only read policy. Public insert policy. Never write funnel events to page_views.
 
 ### `digest_logs`
 | Column | Type |
@@ -178,8 +218,10 @@ UNIQUE(user_id, tag)
 | article_ids | text[] | |
 | article_count | integer | |
 | study_type_breakdown | jsonb | |
+| search_version | integer | >= 2 = ranked RPC search (older = legacy, ignored) |
 | model_used | text | |
 | generation_time_ms | integer | |
+| hit_count | integer | increment on reuse |
 | cache_hits | integer | increment on reuse |
 | expires_at | timestamptz | 7 days from creation |
 | user_id | uuid nullable | |
@@ -212,21 +254,28 @@ UNIQUE(user_id, tag)
 | updated_by | uuid FK | |
 
 ### `analytics_daily_snapshot`
+Written by aggregate route; pre-filtered (admin + TEST_USER_ID excluded).
+
 | Column | Type |
 |--------|------|
 | date | date UNIQUE |
 | dau | integer |
 | wau | integer |
 | mau | integer |
+| registered_mau | integer |
 | total_searches | integer |
 | zero_result_searches | integer |
 | zero_result_rate | float |
 | synthesis_runs | integer |
+| synthesis_engaged | integer |
 | synthesis_helpful | integer |
+| synthesis_not_relevant | integer |
 | articles_saved | integer |
 | avg_session_duration_seconds | integer |
 | median_session_duration_seconds | integer |
 | top_searches | jsonb |
+| top_saved_articles | jsonb |
+| device_breakdown | jsonb |
 | traffic_sources | jsonb |
 
 ### `analytics_signals`
@@ -234,10 +283,12 @@ UNIQUE(user_id, tag)
 |--------|------|-------|
 | id | uuid PK | |
 | date | date | |
-| type | text | 'search_gap'/'churn_risk'/'content_opportunity'/'growth_signal'/'retention_driver'/'ux_problem' |
+| type | text | search_gap / churn_risk / content_opportunity / growth_signal / retention_driver / ux_problem / data_gap |
 | severity | float | 0.0–1.0 |
 | description | text | |
 | data_json | jsonb | |
+
+`data_gap` (severity 0.9) fires when total_searches == 0 in latest snapshot — logging sensor failure.
 
 ### `analytics_insights`
 | Column | Type |
@@ -284,6 +335,34 @@ UNIQUE(user_id, tag)
 | fixes_json | jsonb |
 | summary | text |
 
+### `linkedin_post_metrics`
+| Column | Type | Notes |
+|--------|------|-------|
+| id | uuid PK | |
+| post_url | text UNIQUE | idempotency key |
+| post_date | date | |
+| article_id | text FK → articles nullable | null if unmatched |
+| impressions | integer nullable | |
+| engagements | integer nullable | |
+| match_method | text | activity_id / slug / date / ai / haiku / manual |
+| raw_row | jsonb | original import row |
+| uploaded_at | timestamptz | |
+
+`match_method` constraint: `('activity_id', 'slug', 'date', 'haiku', 'manual')` in DB.
+`'ai'` is written by the current matcher code (post-Sonnet migration); `'haiku'` is legacy on old rows.
+The DB constraint has not yet been updated to add `'ai'` — old rows remain as `'haiku'`.
+
+### `linkedin_daily_metrics`
+| Column | Type | Notes |
+|--------|------|-------|
+| id | uuid PK | |
+| metric_date | date UNIQUE | |
+| impressions | integer nullable | |
+| engagements | integer nullable | |
+| new_followers | integer nullable | |
+| total_followers | integer nullable | only on LinkedIn snapshot dates |
+| uploaded_at | timestamptz | |
+
 ## RLS Patterns
 ```sql
 -- Public read
@@ -304,7 +383,6 @@ CREATE POLICY "Anyone can insert" ON t FOR INSERT WITH CHECK (true);
 ## Required Grants (Supabase enforces from Oct 30, 2026)
 Every new table needs explicit GRANTs or gets 42501 errors. Add after RLS policies:
 ```sql
--- Adjust privileges to match the table's access pattern:
 GRANT SELECT ON public.table_name TO anon;                              -- if public read
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.table_name TO authenticated; -- adjust as needed
 GRANT ALL ON public.table_name TO service_role;
@@ -315,9 +393,9 @@ GRANT ALL ON public.table_name TO service_role;
 ALTER FUNCTION public.function_name() SET search_path = public;
 ```
 
-## Fuzzy Search RPC
+## Fuzzy Search RPC (main feed)
+3-tier fallback: FTS → ILIKE → trigram similarity
 ```ts
-// 3-tier search: FTS → ILIKE → trigram similarity
 // Tier 3 uses search_articles_fuzzy RPC (pg_trgm extension required)
 const { data } = await supabase.rpc('search_articles_fuzzy', {
   search_query: query,
@@ -325,10 +403,19 @@ const { data } = await supabase.rpc('search_articles_fuzzy', {
 })
 ```
 
+## Synthesis Search RPC (synthesis only — different from feed search)
+Single RPC call, not the 3-tier fallback:
+```ts
+const { data } = await supabase.rpc('search_articles_synthesis', {
+  search_query: queryNormalized,
+  candidate_limit: 50,
+  final_limit: 15
+})
+```
+
 ## Storage
-- Bucket: `avatars` (public)
+- Bucket: `avatars` (private — signed URLs via /api/avatars/[userId], 1-hour TTL, service role)
 - Path: `{user_id}/avatar.jpg`
-- Stored in user metadata as `avatar_url`
 
 ## GIN Index (for labels filtering)
 ```sql
