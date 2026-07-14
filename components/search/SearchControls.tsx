@@ -75,6 +75,7 @@ export function SearchControls({
   initialFilters,
   availableJournals,
   availableEvidenceLevels,
+  resultsCount,
   children,
 }: SearchControlsProps) {
   const router = useRouter()
@@ -92,6 +93,23 @@ export function SearchControls({
 
   const { user } = useAuth()
   const { isAdmin } = useAdmin()
+
+  // ─── Search logging ───────────────────────────────────────────────────────
+  // Fire after navigation completes so resultsCount reflects actual results.
+  // Dedup ref prevents double-logging the same query on unrelated re-renders.
+  const lastLoggedQuery = useRef('')
+  useEffect(() => {
+    const query = initialFilters.search?.trim() ?? ''
+    if (query.length >= 2 && query !== lastLoggedQuery.current) {
+      lastLoggedQuery.current = query
+      fetch('/api/analytics/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query, results_count: resultsCount ?? 0 }),
+      }).catch(() => { /* best-effort */ })
+    }
+    if (!query) lastLoggedQuery.current = ''
+  }, [initialFilters.search, resultsCount])
 
   useEffect(() => { filtersRef.current = initialFilters }, [initialFilters])
 
