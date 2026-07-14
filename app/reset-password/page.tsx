@@ -21,12 +21,31 @@ function ResetPasswordForm() {
   const supabase = createClient()
 
   useEffect(() => {
-    // Check if we're in recovery mode (user clicked reset link in email)
-    const type = searchParams.get('type')
-    if (type === 'recovery') {
+    // Subscribe to PASSWORD_RECOVERY event — fired when the PKCE code is
+    // exchanged for a recovery session (the normal path in @supabase/ssr).
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setIsRecoveryMode(true)
+      }
+    })
+
+    // PKCE flow: reset email arrives as /reset-password?code=xxxxx
+    // Exchange the code to establish the recovery session, which triggers
+    // the PASSWORD_RECOVERY event above.
+    const code = searchParams.get('code')
+    if (code) {
+      supabase.auth.exchangeCodeForSession(code).catch(() => {
+        setError('Invalid or expired reset link. Please request a new one.')
+      })
+    }
+
+    // Legacy implicit flow fallback: ?type=recovery in query string
+    if (searchParams.get('type') === 'recovery') {
       setIsRecoveryMode(true)
     }
-  }, [searchParams])
+
+    return () => subscription.unsubscribe()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleRequestReset = async (e: React.FormEvent) => {
     e.preventDefault()
