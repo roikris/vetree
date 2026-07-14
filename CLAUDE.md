@@ -110,7 +110,9 @@ const parsed = JSON.parse(clean)
 .select('*')
 
 // ✅ CORRECT - only fields needed for card display
-.select('id, title, clinical_bottom_line, labels, source_journal, published_date, strength_of_evidence, authors, article_url, doi, pubmed_id')
+.select('id, title, clinical_bottom_line, labels, source_journal, publication_date, strength_of_evidence, authors, article_url, doi, pubmed_id')
+// NOTE: the column is publication_date (verified in information_schema).
+// Docs must match the schema — the schema is the source of truth.
 
 // Summary is fetched lazily via /api/articles/[id]/summary only when user expands card
 ```
