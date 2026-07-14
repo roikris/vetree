@@ -140,12 +140,14 @@ test('auth round-trip: intent=save saves article, appears in library, unsave rem
     await page.goto('/library')
     await expect(page.locator(`[href="/article/${articleId}"], [href*="${articleId}"]`).first()).toBeVisible({ timeout: 8_000 })
 
-    // Unsave
+    // Unsave — wait for API commit, not just optimistic UI, before navigating
     await page.goto(`/article/${articleId}`)
     const unsaveBtn = page.locator('[aria-label="Remove from library"], [aria-label="Unsave"]').first()
     await expect(unsaveBtn).toBeVisible({ timeout: 6_000 })
-    await unsaveBtn.click()
-    await page.locator('[aria-label="Save to library"]').first().waitFor({ timeout: 6_000 })
+    await Promise.all([
+      page.waitForResponse(r => r.url().includes('/api/save-article') && r.ok()),
+      unsaveBtn.click(),
+    ])
 
     // Verify removed from library
     await page.goto('/library')
@@ -155,7 +157,12 @@ test('auth round-trip: intent=save saves article, appears in library, unsave rem
     try {
       await page.goto(`/article/${articleId}`)
       const cleanup = page.locator('[aria-label="Remove from library"], [aria-label="Unsave"]').first()
-      if (await cleanup.isVisible({ timeout: 5_000 }).catch(() => false)) await cleanup.click()
+      if (await cleanup.isVisible({ timeout: 5_000 }).catch(() => false)) {
+        await Promise.all([
+          page.waitForResponse(r => r.url().includes('/api/save-article') && r.ok()),
+          cleanup.click(),
+        ])
+      }
     } catch { /* best-effort */ }
   }
 })
