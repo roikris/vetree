@@ -23,7 +23,7 @@
 - **PR #15** fix/reset-page-session-priority: signOut({ scope: 'local' }) before exchangeCodeForSession
 - **PR #16** fix/search-logging: SearchControls logging useEffect; data_gap signal in signals route
 - **PR #17** chore/docs-current-state: all .md files updated to verified current state; api-CLAUDE.md and supabase-CLAUDE.md renamed to canonical paths; migration 042 for linkedin match_method
-- **chore/retire-fix-malformed-titles** (current): deleted fix-malformed-titles workflow + script; 0 rows ever matched, 3 runs all failed, never fixed anything
+- **PR #18** chore/retire-fix-malformed-titles: deleted fix-malformed-titles workflow + script; 0 rows ever matched, 3 runs all failed, never fixed anything
 
 ---
 
