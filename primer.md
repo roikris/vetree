@@ -1,14 +1,14 @@
 # Vetree — Current State (primer.md)
-*Last updated: 2026-07-14*
+*Last updated: 2026-07-15*
 *Update this file after every Claude Code session*
 
 ---
 
 ## Active Focus
-- Analytics pipeline is stable and trusted (zeros = sensor failures, now guarded)
-- Password reset flow fully working (PKCE + session priority)
-- Search logging restored (SearchControls useEffect after Almanac redesign)
-- All PRs through #16 merged to main; smoke suite green
+- Growth memory capture fixed (hook_line, stale closure, premature clear) — rematch should now improve as new posts accumulate memory rows
+- LinkedIn metrics quality: no_article action, unmatched debt filter
+- Migration policy rule 14 in CLAUDE.md: all schema changes via migration file + db push
+- All PRs through #19 merged to main; smoke suite green
 
 ---
 
@@ -24,14 +24,16 @@
 - **PR #16** fix/search-logging: SearchControls logging useEffect; data_gap signal in signals route
 - **PR #17** chore/docs-current-state: all .md files updated to verified current state; api-CLAUDE.md and supabase-CLAUDE.md renamed to canonical paths; migration 042 for linkedin match_method
 - **PR #18** chore/retire-fix-malformed-titles: deleted fix-malformed-titles workflow + script; 0 rows ever matched, 3 runs all failed, never fixed anything
+- **PR #19** fix/growth-memory-capture: 3 memory-capture bugs fixed (hook_line missing, premature clearSavedPost, onPaste stale closure); unified "Copy & mark posted" button; LinkedIn tab inline URL input; no_article action + unmatched debt filter in metrics; migration 043 (no_article constraint); CLAUDE.md rule 14 (migration policy + drift reconciliation)
 
 ---
 
 ## Open Bugs / Known Issues
-- `saved_articles` missing from supabase-CLAUDE.md's created_at entry (now fixed in supabase/CLAUDE.md)
+- None known
 
 ## Recently Resolved
-- **2026-07-14:** `linkedin_post_metrics.match_method` DB constraint was missing `'ai'` (only had `'haiku'`). Migration `042_linkedin_match_method_add_ai.sql` applied to production — constraint now allows `activity_id | slug | date | ai | haiku | manual`.
+- **2026-07-14:** `linkedin_post_metrics.match_method` DB constraint was missing `'ai'`. Migration 042 applied → `activity_id | slug | date | ai | haiku | manual`.
+- **2026-07-15:** 3 compounding bugs caused growth_agent_memory to have near-zero coverage (no hook_line, premature clearSavedPost, stale closure on paste). Fixed in PR #19. Also added `no_article` to constraint via migration 043.
 
 ---
 
