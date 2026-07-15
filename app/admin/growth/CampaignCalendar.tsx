@@ -46,6 +46,11 @@ export function CampaignCalendar() {
   const [savedPostData, setSavedPostData] = useState<SavedPost | null>(null)
   const [isGenerating, setIsGenerating] = useState(false)
   const [markedPosted, setMarkedPosted] = useState(false)
+  const [memoryWriteFailed, setMemoryWriteFailed] = useState(false)
+  const [linkedinTabMarked, setLinkedinTabMarked] = useState(false)
+  const [linkedinTabPostedUrl, setLinkedinTabPostedUrl] = useState('')
+  const [linkedinTabSavedUrl, setLinkedinTabSavedUrl] = useState<string | null>(null)
+  const [linkedinTabSavingUrl, setLinkedinTabSavingUrl] = useState(false)
   const [stats, setStats] = useState<CampaignStats | null>(null)
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
   const [approvedPosts, setApprovedPosts] = useState<Record<string, boolean>>({})
@@ -468,12 +473,16 @@ export function CampaignCalendar() {
     // Extract hook line (first non-empty line) for slug matching later
     const hookLine = generatedPost.split('\n').find(l => l.trim()) ?? undefined
 
-    // Write memory row with hook_line (key fix: was missing hook_line before)
-    recordToMemory(savedPostData.article_id, todaysPlatform?.platform || '', 'approved', undefined, hookLine)
+    // Write memory row with hook_line — must succeed before marking posted
+    const ok = await recordToMemory(savedPostData.article_id, todaysPlatform?.platform || '', 'approved', undefined, hookLine)
+    if (!ok) {
+      setMemoryWriteFailed(true)
+      return
+    }
 
-    // Mark approved in localStorage immediately
     markAsApproved(today)
     setMarkedPosted(true)
+    setMemoryWriteFailed(false)
     refreshStats()
 
     // Update growth_tasks in background (non-blocking)
@@ -639,10 +648,43 @@ export function CampaignCalendar() {
     setTimeout(() => setMessage(null), 2000)
     if (platform === 'linkedin' && post.article_id) {
       const hookLine = (post.post_content as string).split('\n').find((l: string) => l.trim()) ?? undefined
-      recordToMemory(post.article_id, 'linkedin', 'approved', undefined, hookLine)
+      const ok = await recordToMemory(post.article_id, 'linkedin', 'approved', undefined, hookLine)
+      if (!ok) {
+        setMessage({ type: 'error', text: '⚠️ Memory write failed — try again' })
+        return
+      }
       markAsApproved(today)
-      setMarkedPosted(true)
+      setLinkedinTabMarked(true)
       refreshStats()
+    }
+  }
+
+  // Save URL for the LinkedIn tab (all-platforms view). article_id comes from
+  // allPlatformPosts rather than savedPostData, so this is independent of todaysPlatform.
+  const handleSaveLinkedinTabUrl = async (url?: string) => {
+    const urlToSave = url ?? linkedinTabPostedUrl
+    const articleId = allPlatformPosts['linkedin']?.article_id
+    if (!urlToSave.trim() || !articleId) return
+    setLinkedinTabSavingUrl(true)
+    try {
+      const res = await fetch('/api/admin/growth/memory/posted-url', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          article_id: articleId,
+          platform: 'linkedin',
+          date: today,
+          posted_url: urlToSave.trim(),
+        }),
+      })
+      if (res.ok) {
+        setLinkedinTabSavedUrl(urlToSave.trim())
+        setLinkedinTabPostedUrl('')
+      }
+    } catch {
+      // non-blocking
+    } finally {
+      setLinkedinTabSavingUrl(false)
     }
   }
 
@@ -1046,9 +1088,9 @@ export function CampaignCalendar() {
     outcome: 'approved' | 'skipped',
     skipReason?: string,
     hookLine?: string
-  ) => {
+  ): Promise<boolean> => {
     try {
-      await fetch('/api/growth/feedback', {
+      const res = await fetch('/api/growth/feedback', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1060,32 +1102,37 @@ export function CampaignCalendar() {
           hook_line: hookLine || null
         })
       })
+      return res.ok
     } catch (e) {
       console.warn('[growth] Failed to record memory:', e)
-      // Non-blocking — don't break the UI
+      return false
     }
   }
 
   // Save LinkedIn posted URL to growth_agent_memory for activity_id matching.
-  // savedPostData is kept alive until this point (not cleared on mark-posted)
-  // so article_id is still available here.
-  const handleSavePostedUrl = async () => {
-    if (!postedUrl.trim() || !savedPostData?.article_id || !todaysPlatform) return
+  // Accepts an optional url param so onPaste can pass the pasted value directly,
+  // avoiding stale-closure issues with the postedUrl state variable.
+  // savedPostData is kept alive until this point (not cleared on mark-posted).
+  const handleSavePostedUrl = async (url?: string) => {
+    const urlToSave = url ?? postedUrl
+    if (!urlToSave.trim() || !savedPostData?.article_id || !todaysPlatform) return
     setSavingPostedUrl(true)
     try {
-      await fetch('/api/admin/growth/memory/posted-url', {
+      const res = await fetch('/api/admin/growth/memory/posted-url', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           article_id: savedPostData.article_id,
           platform: todaysPlatform.platform,
           date: today,
-          posted_url: postedUrl.trim(),
+          posted_url: urlToSave.trim(),
         }),
       })
-      setSavedPostedUrl(postedUrl.trim())
-      setPostedUrl('')
-      clearSavedPost() // Safe to clear now — URL is persisted in DB
+      if (res.ok) {
+        setSavedPostedUrl(urlToSave.trim())
+        setPostedUrl('')
+        clearSavedPost() // Safe to clear now — URL is persisted in DB
+      }
     } catch {
       // non-blocking
     } finally {
@@ -1322,14 +1369,28 @@ export function CampaignCalendar() {
               </a>
             )}
             {!markedPosted ? (
-              <button
-                type="button"
-                onClick={handleCopyAndMark}
-                className="mt-2 flex items-center gap-1.5 text-sm text-white cursor-pointer bg-green-600 hover:bg-green-700 px-4 py-2 rounded-md transition font-medium w-fit"
-              >
-                {copied ? <Check size={14} /> : <Copy size={14} />}
-                <span>{copied ? 'Copied!' : 'Copy & mark posted'}</span>
-              </button>
+              <div className="mt-2 flex flex-col gap-1.5">
+                <button
+                  type="button"
+                  onClick={handleCopyAndMark}
+                  className="flex items-center gap-1.5 text-sm text-white cursor-pointer bg-green-600 hover:bg-green-700 px-4 py-2 rounded-md transition font-medium w-fit"
+                >
+                  {copied ? <Check size={14} /> : <Copy size={14} />}
+                  <span>{copied ? 'Copied!' : 'Copy & mark posted'}</span>
+                </button>
+                {memoryWriteFailed && (
+                  <div className="flex items-center gap-2 px-3 py-1.5 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md text-xs text-red-700 dark:text-red-400">
+                    ⚠️ Memory write failed —{' '}
+                    <button
+                      type="button"
+                      onClick={() => { setMemoryWriteFailed(false); handleCopyAndMark() }}
+                      className="underline font-medium"
+                    >
+                      retry
+                    </button>
+                  </div>
+                )}
+              </div>
             ) : (
               <span className="mt-2 flex items-center gap-1.5 text-sm text-green-600 dark:text-green-400">
                 <Check size={14} /> Marked posted
@@ -1403,6 +1464,45 @@ export function CampaignCalendar() {
                   </button>
                   {/* Image generation hidden — requires separate Google AI API billing */}
                 </div>
+
+                {/* LinkedIn tab: posted-URL input + badge (independent of todaysPlatform) */}
+                {activePlatformTab === 'linkedin' && linkedinTabMarked && !linkedinTabSavedUrl && (
+                  <div className="mt-3 flex flex-col gap-2 p-3 rounded-md bg-amber-950/30 border border-amber-700/40">
+                    <p className="text-xs text-amber-400">Paste the LinkedIn post URL to enable future matching:</p>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        autoFocus
+                        value={linkedinTabPostedUrl}
+                        onChange={e => setLinkedinTabPostedUrl(e.target.value)}
+                        onPaste={e => {
+                          const pasted = e.clipboardData.getData('text').trim()
+                          if (pasted.startsWith('https://www.linkedin.com/')) {
+                            setLinkedinTabPostedUrl(pasted)
+                            handleSaveLinkedinTabUrl(pasted)
+                          }
+                        }}
+                        placeholder="https://www.linkedin.com/posts/..."
+                        className="flex-1 text-xs bg-zinc-800 border border-zinc-600 rounded px-2 py-1 text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-amber-500"
+                      />
+                      <button
+                        type="button"
+                        disabled={linkedinTabSavingUrl || !linkedinTabPostedUrl.trim()}
+                        onClick={() => handleSaveLinkedinTabUrl()}
+                        className="text-xs px-3 py-1 bg-amber-700 hover:bg-amber-600 text-white rounded disabled:opacity-50 transition"
+                      >
+                        {linkedinTabSavingUrl ? 'Saving…' : 'Save'}
+                      </button>
+                    </div>
+                    <span className="text-xs text-amber-500/80 font-medium">⚠️ URL missing</span>
+                  </div>
+                )}
+                {activePlatformTab === 'linkedin' && linkedinTabSavedUrl && (
+                  <div className="mt-3 px-3 py-2 rounded-md bg-green-950/30 border border-green-700/40 flex items-center gap-2">
+                    <span className="text-xs text-green-400 font-medium">✓ URL saved</span>
+                    <span className="text-xs text-zinc-500 truncate">{linkedinTabSavedUrl}</span>
+                  </div>
+                )}
 
                 {/* Style rewrite buttons */}
                 <div className="flex gap-2 mt-3 flex-wrap">
@@ -1802,18 +1902,17 @@ export function CampaignCalendar() {
                       value={postedUrl}
                       onChange={e => setPostedUrl(e.target.value)}
                       onPaste={e => {
-                        // auto-submit on paste
                         const pasted = e.clipboardData.getData('text').trim()
                         if (pasted.startsWith('https://www.linkedin.com/')) {
                           setPostedUrl(pasted)
-                          setTimeout(handleSavePostedUrl, 0)
+                          handleSavePostedUrl(pasted) // pass value directly — no stale closure
                         }
                       }}
                       placeholder="https://www.linkedin.com/posts/..."
                       className="flex-1 px-3 py-1.5 text-sm border border-amber-300 dark:border-amber-700 rounded-md bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-amber-500"
                     />
                     <button
-                      onClick={handleSavePostedUrl}
+                      onClick={() => handleSavePostedUrl()}
                       disabled={!postedUrl.trim() || savingPostedUrl}
                       className="px-3 py-1.5 text-sm bg-[#3D7A5F] text-white rounded-md hover:bg-[#2F5F4A] disabled:opacity-40 disabled:cursor-not-allowed"
                     >
