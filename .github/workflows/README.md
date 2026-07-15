@@ -84,13 +84,6 @@ todaysTask is determined by pure JS 90-day rotation, NOT from DB.
 
 ---
 
-### `fix-malformed-titles.yml` — Fix Malformed Titles
-**Schedule:** 03:30 UTC on 1st and 15th of each month | **Manual:** workflow_dispatch
-
-Scans articles for malformed titles and fixes them.
-
----
-
 ### `backfill-articles.yml` — Historical Import
 **Trigger:** Manual (workflow_dispatch) only
 

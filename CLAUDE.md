@@ -319,7 +319,6 @@ export const getDistinctEvidenceLevels = unstable_cache(async () => { ... }, ['d
 | security-agent.yml | Thursday 19:00 UTC | Security scan |
 | qa-smoke.yml | 06:00 UTC daily + push to main + manual | Playwright smoke + Claude triage → Slack |
 | qa-smoke-pr.yml | Every PR to main (preview-gated) | Same smoke suite on Vercel preview URL |
-| fix-malformed-titles.yml | 03:30 UTC on 1st and 15th of month | Fix malformed article titles |
 | reset-enrichment.yml | Manual | Reset enrichment flags |
 | fix-encoding.yml | Manual | Fix HTML entities |
 
