@@ -348,9 +348,11 @@ Written by aggregate route; pre-filtered (admin + TEST_USER_ID excluded).
 | raw_row | jsonb | original import row |
 | uploaded_at | timestamptz | |
 
-`match_method` constraint: `('activity_id', 'slug', 'date', 'haiku', 'manual')` in DB.
-`'ai'` is written by the current matcher code (post-Sonnet migration); `'haiku'` is legacy on old rows.
-The DB constraint has not yet been updated to add `'ai'` — old rows remain as `'haiku'`.
+`match_method` constraint (live, fully reconciled via migrations 038→040→042→043):
+`('activity_id', 'slug', 'date', 'ai', 'haiku', 'manual', 'no_article')`
+- `'ai'` — written by current matcher (post-Sonnet migration); added in migration 042
+- `'haiku'` — legacy value on pre-migration rows; still accepted
+- `'no_article'` — reshares/group posts with no article; added in migration 043
 
 ### `linkedin_daily_metrics`
 | Column | Type | Notes |
