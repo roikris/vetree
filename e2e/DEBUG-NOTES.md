@@ -57,6 +57,13 @@ ever hits zero again.
 
 Nothing currently parked. All known smoke test and analytics issues resolved as of 2026-07-14.
 
+### RETIRED: fix-malformed-titles (2026-07-15)
+`.github/workflows/fix-malformed-titles.yml` and `scripts/fix-malformed-titles.js` deleted.
+- Script detected `title LIKE '{"_":%'` (PubMed JSON italic encoding for species names)
+- 0 rows ever matched; current enrichment pipeline never produces this pattern
+- 3 runs total (2026-06-23, 2026-07-01, 2026-07-15) — all failures (Node 20 lacks native WebSocket; script didn't install `ws`)
+- Rows fixed = 0; workflow never successfully ran once
+
 If a new flaky test or unexplained zero appears, apply the standing rule:
 **Any metric hitting zero is a broken sensor until proven otherwise.** Investigate the logging
 pipeline before concluding a feature is unused.
