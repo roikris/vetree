@@ -185,6 +185,28 @@ await fetch('/api/save-article', {
 // Never suppress the production warning; never add noop fallback to prod.
 ```
 
+### 14. Schema changes — migration files + db push, never dashboard SQL
+All schema changes (new tables, columns, constraints, indexes, RLS policies, functions) MUST:
+1. Be written as a numbered SQL file in `supabase/migrations/` (e.g. `044_my_change.sql`)
+2. Applied via `npx supabase db push --linked` — **never** typed raw into the Supabase dashboard editor
+
+`db push` is a **production schema change** and counts as an ASK — Claude Code will:
+- Create the migration file
+- Show the SQL to Roi
+- Wait for explicit "yes" before running `db push`
+
+**Dashboard drift rule:** If a schema change was previously applied via the dashboard editor
+(not via a migration file), a backfill migration must be created to record it so
+`supabase/migrations/` matches the live schema exactly. Run `npx supabase db diff --linked`
+to detect drift; Docker is required for this command.
+
+**Constraint history for `linkedin_post_metrics.match_method`** (fully reconciled):
+- 038 → ('slug', 'date', 'haiku', 'manual')
+- 040 → + 'activity_id'
+- 042 → + 'ai'  (backfill for dashboard change)
+- 043 → + 'no_article'
+Current live constraint: `('activity_id', 'slug', 'date', 'ai', 'haiku', 'manual', 'no_article')`
+
 ## Environment Variables
 ```
 NEXT_PUBLIC_SUPABASE_URL

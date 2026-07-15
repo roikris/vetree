@@ -27,9 +27,18 @@ export async function PATCH(
 
   const { id } = await params
   const body = await request.json()
-  const { article_id } = body
+  const { article_id, match_method } = body
 
-  if (!article_id) return NextResponse.json({ error: 'article_id required' }, { status: 400 })
+  if (match_method === 'no_article') {
+    const { error } = await supabase
+      .from('linkedin_post_metrics')
+      .update({ match_method: 'no_article' })
+      .eq('id', id)
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ success: true })
+  }
+
+  if (!article_id) return NextResponse.json({ error: 'article_id or match_method=no_article required' }, { status: 400 })
 
   const { error } = await supabase
     .from('linkedin_post_metrics')
