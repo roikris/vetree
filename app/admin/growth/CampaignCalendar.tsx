@@ -45,7 +45,7 @@ export function CampaignCalendar() {
   const [generatedPost, setGeneratedPost] = useState<string | null>(null)
   const [savedPostData, setSavedPostData] = useState<SavedPost | null>(null)
   const [isGenerating, setIsGenerating] = useState(false)
-  const [isApproving, setIsApproving] = useState(false)
+  const [markedPosted, setMarkedPosted] = useState(false)
   const [stats, setStats] = useState<CampaignStats | null>(null)
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
   const [approvedPosts, setApprovedPosts] = useState<Record<string, boolean>>({})
@@ -455,92 +455,40 @@ export function CampaignCalendar() {
     }
   }
 
-  const handleApprove = async () => {
-    // Only require generatedPost, not todaysTask
-    if (!generatedPost) {
-      console.log('[handleApprove] Missing generatedPost')
-      return
-    }
+  // Copy post text to clipboard AND write memory row + mark approved in one action.
+  // savedPostData is intentionally NOT cleared here so the URL input that follows
+  // can read article_id from it. clearSavedPost() is called after URL is saved.
+  const handleCopyAndMark = async () => {
+    if (!generatedPost || !savedPostData?.article_id) return
 
-    console.log('[handleApprove] Starting approval. todaysTask:', todaysTask ? todaysTask.id : 'null')
-    setIsApproving(true)
-    setMessage(null)
+    await navigator.clipboard.writeText(generatedPost)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
 
-    // Optimistic update: mark as approved immediately in localStorage
+    // Extract hook line (first non-empty line) for slug matching later
+    const hookLine = generatedPost.split('\n').find(l => l.trim()) ?? undefined
+
+    // Write memory row with hook_line (key fix: was missing hook_line before)
+    recordToMemory(savedPostData.article_id, todaysPlatform?.platform || '', 'approved', undefined, hookLine)
+
+    // Mark approved in localStorage immediately
     markAsApproved(today)
+    setMarkedPosted(true)
+    refreshStats()
 
-    try {
+    // Update growth_tasks in background (non-blocking)
+    ;(async () => {
       let taskId = todaysTask?.id
-
-      // Create task if it doesn't exist yet
       if (!taskId && todaysPlatform?.platform && todaysPlatform?.language) {
-        console.log('[handleApprove] Creating task for approval...')
-        const { task: newTask, error: createError } = await createTodaysTask(
-          currentDay,
-          todaysPlatform.platform,
-          todaysPlatform.language
-        )
-
-        if (createError || !newTask) {
-          console.error('[handleApprove] Failed to create task:', createError)
-          // Continue with localStorage-only approval
-        } else {
-          taskId = newTask.id
-          setTodaysTask(newTask)
-        }
+        const { task: newTask } = await createTodaysTask(currentDay, todaysPlatform.platform, todaysPlatform.language)
+        if (newTask) { taskId = newTask.id; setTodaysTask(newTask) }
       }
-
-      // Update database if we have a task ID
       if (taskId) {
-        const result = await markTaskComplete(taskId, generatedPost)
-        console.log('[handleApprove] markTaskComplete result:', result)
-
-        if (result.error) {
-          console.error('[handleApprove] Error from markTaskComplete:', result.error)
-          // Revert optimistic update on error
-          localStorage.removeItem(`vetree_campaign_approved_${today}`)
-          setApprovedPosts(prev => {
-            const updated = { ...prev }
-            delete updated[today]
-            return updated
-          })
-          setMessage({ type: 'error', text: result.error })
-          return
-        }
-
+        await markTaskComplete(taskId, generatedPost)
         await loadTodaysTask()
         await loadStats()
-      } else {
-        console.log('[handleApprove] No task ID - localStorage-only approval')
       }
-
-      console.log('[handleApprove] Success! Post approved.')
-      setMessage({ type: 'success', text: '✅ Post approved and marked as done!' })
-
-      // Record to growth_agent_memory
-      if (savedPostData?.article_id) {
-        recordToMemory(savedPostData.article_id, todaysPlatform?.platform || '', 'approved')
-      }
-
-      clearSavedPost() // Clear localStorage on approve
-
-      // Refresh stats from localStorage
-      refreshStats()
-
-    } catch (error) {
-      console.error('[handleApprove] Exception caught:', error)
-      // Revert optimistic update on error
-      localStorage.removeItem(`vetree_campaign_approved_${today}`)
-      setApprovedPosts(prev => {
-        const updated = { ...prev }
-        delete updated[today]
-        return updated
-      })
-      setMessage({ type: 'error', text: 'Failed to approve post' })
-    } finally {
-      setIsApproving(false)
-      console.log('[handleApprove] Finished approval flow')
-    }
+    })()
   }
 
   const handleRegenerate = async () => {
@@ -682,12 +630,20 @@ export function CampaignCalendar() {
     }
   }
 
-  const handleCopy = async () => {
-    if (!generatedPost) return
-
-    await navigator.clipboard.writeText(generatedPost)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+  // Copy for all-platforms tab view; marks posted when it's the LinkedIn tab.
+  const handleCopyPlatformTab = async (platform: string) => {
+    const post = allPlatformPosts[platform]
+    if (!post) return
+    await navigator.clipboard.writeText(post.post_content)
+    setMessage({ type: 'success', text: '✅ Copied to clipboard!' })
+    setTimeout(() => setMessage(null), 2000)
+    if (platform === 'linkedin' && post.article_id) {
+      const hookLine = (post.post_content as string).split('\n').find((l: string) => l.trim()) ?? undefined
+      recordToMemory(post.article_id, 'linkedin', 'approved', undefined, hookLine)
+      markAsApproved(today)
+      setMarkedPosted(true)
+      refreshStats()
+    }
   }
 
   const platformEmoji = (platform: string) => {
@@ -1110,7 +1066,9 @@ export function CampaignCalendar() {
     }
   }
 
-  // Save LinkedIn posted URL to growth_agent_memory for activity_id matching
+  // Save LinkedIn posted URL to growth_agent_memory for activity_id matching.
+  // savedPostData is kept alive until this point (not cleared on mark-posted)
+  // so article_id is still available here.
   const handleSavePostedUrl = async () => {
     if (!postedUrl.trim() || !savedPostData?.article_id || !todaysPlatform) return
     setSavingPostedUrl(true)
@@ -1127,6 +1085,7 @@ export function CampaignCalendar() {
       })
       setSavedPostedUrl(postedUrl.trim())
       setPostedUrl('')
+      clearSavedPost() // Safe to clear now — URL is persisted in DB
     } catch {
       // non-blocking
     } finally {
@@ -1307,7 +1266,7 @@ export function CampaignCalendar() {
         </div>
 
         {/* Status */}
-        <div className="mb-4">
+        <div className="mb-4 flex flex-wrap items-center gap-2">
           <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium ${
             approvedPosts[today] || todaysTask?.status === 'done'
               ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
@@ -1315,8 +1274,17 @@ export function CampaignCalendar() {
               ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
               : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400'
           }`}>
-            {approvedPosts[today] || todaysTask?.status === 'done' ? '✅ Approved' : generatedPost ? '📝 Generated - Pending Approval' : '⏳ Not generated yet'}
+            {approvedPosts[today] || todaysTask?.status === 'done' ? '✅ Posted' : generatedPost ? '📝 Ready to post' : '⏳ Not generated yet'}
           </div>
+          {markedPosted && todaysPlatform?.platform === 'linkedin' && (
+            <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium ${
+              savedPostedUrl
+                ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                : 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
+            }`}>
+              🔗 {savedPostedUrl ? 'URL saved' : 'URL missing'}
+            </div>
+          )}
         </div>
 
         {/* Message */}
@@ -1353,14 +1321,20 @@ export function CampaignCalendar() {
                 </svg>
               </a>
             )}
-            <button
-              type="button"
-              onClick={handleCopy}
-              className="mt-2 flex items-center gap-1.5 text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 cursor-pointer bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 px-3 py-1.5 rounded-md transition w-fit"
-            >
-              {copied ? <Check size={14} className="text-green-500 dark:text-green-400" /> : <Copy size={14} />}
-              <span>{copied ? 'Copied!' : 'Copy post'}</span>
-            </button>
+            {!markedPosted ? (
+              <button
+                type="button"
+                onClick={handleCopyAndMark}
+                className="mt-2 flex items-center gap-1.5 text-sm text-white cursor-pointer bg-green-600 hover:bg-green-700 px-4 py-2 rounded-md transition font-medium w-fit"
+              >
+                {copied ? <Check size={14} /> : <Copy size={14} />}
+                <span>{copied ? 'Copied!' : 'Copy & mark posted'}</span>
+              </button>
+            ) : (
+              <span className="mt-2 flex items-center gap-1.5 text-sm text-green-600 dark:text-green-400">
+                <Check size={14} /> Marked posted
+              </span>
+            )}
           </div>
         )}
 
@@ -1417,19 +1391,15 @@ export function CampaignCalendar() {
                   {allPlatformPosts[activePlatformTab].post_content}
                 </pre>
 
-                {/* Action row: Copy + Generate Image */}
+                {/* Action row: Copy (+ mark posted for LinkedIn) */}
                 <div className="flex items-center gap-2 mt-3 flex-wrap">
                   <button
                     type="button"
-                    onClick={() => {
-                      navigator.clipboard.writeText(allPlatformPosts[activePlatformTab].post_content)
-                      setMessage({ type: 'success', text: '✅ Copied to clipboard!' })
-                      setTimeout(() => setMessage(null), 2000)
-                    }}
+                    onClick={() => handleCopyPlatformTab(activePlatformTab)}
                     className="flex items-center gap-1.5 text-sm text-zinc-400 hover:text-white cursor-pointer bg-zinc-700 hover:bg-zinc-600 px-3 py-1.5 rounded-md transition"
                   >
                     <Copy size={14} />
-                    Copy
+                    {activePlatformTab === 'linkedin' ? 'Copy & mark posted' : 'Copy'}
                   </button>
                   {/* Image generation hidden — requires separate Google AI API billing */}
                 </div>
@@ -1708,13 +1678,6 @@ export function CampaignCalendar() {
               ) : (
                 <>
                   <button
-                    onClick={handleApprove}
-                    disabled={isApproving}
-                    className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
-                  >
-                    {isApproving ? 'Approving...' : '✅ Approve & Mark Done'}
-                  </button>
-                  <button
                     onClick={handleRegenerate}
                     disabled={isGenerating || regenerating || generatingAll}
                     className="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
@@ -1812,29 +1775,42 @@ export function CampaignCalendar() {
               ✅ Approved
             </button>
           )}
-          {/* Posted URL input — LinkedIn only, shown after approval */}
+          {/* Posted URL input — LinkedIn only, shown after marking posted */}
           {(approvedPosts[today] || todaysTask?.status === 'done') &&
             todaysPlatform?.platform === 'linkedin' && (
-            <div className="flex flex-col gap-1 mt-2">
+            <div className={`flex flex-col gap-1.5 mt-2 p-3 rounded-lg border ${
+              savedPostedUrl
+                ? 'border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20'
+                : 'border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20'
+            }`}>
               {savedPostedUrl ? (
-                <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                  📎 URL saved for matching:{' '}
-                  <a href={savedPostedUrl} target="_blank" rel="noreferrer" className="text-[#3D7A5F] underline break-all">
+                <p className="text-xs text-green-700 dark:text-green-400">
+                  🔗 URL saved:{' '}
+                  <a href={savedPostedUrl} target="_blank" rel="noreferrer" className="underline break-all">
                     {savedPostedUrl.slice(0, 60)}…
                   </a>
                 </p>
               ) : (
                 <>
-                  <label className="text-xs text-zinc-500 dark:text-zinc-400">
-                    📎 Paste LinkedIn URL after publishing (enables performance tracking):
-                  </label>
+                  <p className="text-xs font-medium text-amber-700 dark:text-amber-400">
+                    🔗 Paste the LinkedIn URL to enable exact tracking
+                  </p>
                   <div className="flex gap-2">
                     <input
+                      autoFocus
                       type="url"
                       value={postedUrl}
                       onChange={e => setPostedUrl(e.target.value)}
+                      onPaste={e => {
+                        // auto-submit on paste
+                        const pasted = e.clipboardData.getData('text').trim()
+                        if (pasted.startsWith('https://www.linkedin.com/')) {
+                          setPostedUrl(pasted)
+                          setTimeout(handleSavePostedUrl, 0)
+                        }
+                      }}
                       placeholder="https://www.linkedin.com/posts/..."
-                      className="flex-1 px-3 py-1.5 text-sm border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-[#3D7A5F]"
+                      className="flex-1 px-3 py-1.5 text-sm border border-amber-300 dark:border-amber-700 rounded-md bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-amber-500"
                     />
                     <button
                       onClick={handleSavePostedUrl}

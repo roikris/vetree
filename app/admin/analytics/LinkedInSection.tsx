@@ -106,13 +106,20 @@ export function LinkedInSection() {
 
   const [sortCol, setSortCol] = useState<string>('post_date')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
+  const [urlMissingOnly, setUrlMissingOnly] = useState(false)
 
   const handleSort = (col: string) => {
     if (sortCol === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
     else { setSortCol(col); setSortDir('desc') }
   }
 
-  const sortedRows = [...rows].sort((a, b) => {
+  const urlMissingCount = rows.filter(r => r.article_id === null && r.match_method !== 'no_article').length
+
+  const visibleRows = urlMissingOnly
+    ? rows.filter(r => r.article_id === null && r.match_method !== 'no_article')
+    : rows
+
+  const sortedRows = [...visibleRows].sort((a, b) => {
     const dir = sortDir === 'asc' ? 1 : -1
     switch (sortCol) {
       case 'post_date': return dir * a.post_date.localeCompare(b.post_date)
@@ -250,6 +257,17 @@ export function LinkedInSection() {
     } finally {
       setPickerLoading(false)
     }
+  }
+
+  const handleNoArticle = async (rowId: string) => {
+    const token = await getToken()
+    const res = await fetch(`/api/admin/linkedin-metrics/${rowId}`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ match_method: 'no_article' }),
+    })
+    if (res.ok) await loadFunnel()
+    else alert('Failed to mark as no article')
   }
 
   const handleManualAssign = async (rowId: string, articleId: string) => {
@@ -398,6 +416,17 @@ export function LinkedInSection() {
           style={{ padding: '6px 14px', background: 'transparent', color: 'var(--al-accent)', border: '1px solid var(--al-accent)', borderRadius: 6, fontSize: 13, cursor: rematchLoading ? 'not-allowed' : 'pointer', opacity: rematchLoading ? 0.7 : 1 }}>
           {rematchLoading ? 'Re-matching…' : 'Re-match unmatched'}
         </button>
+        <button
+          onClick={() => setUrlMissingOnly(v => !v)}
+          style={{
+            padding: '6px 14px', borderRadius: 6, fontSize: 13, cursor: 'pointer',
+            background: urlMissingOnly ? '#fef3c7' : 'transparent',
+            color: urlMissingOnly ? '#92400e' : 'var(--al-mut4)',
+            border: `1px solid ${urlMissingOnly ? '#f59e0b' : 'rgba(var(--al-line,62,54,36),.25)'}`,
+          }}
+        >
+          {urlMissingOnly ? `Unmatched (${urlMissingCount}) ×` : `Unmatched debt (${urlMissingCount})`}
+        </button>
         {rematchResult && (
           <span style={{ fontSize: 12, color: 'var(--al-mut4)' }}>
             Updated {rematchResult.updated} — {rematchResult.still_unmatched} still unmatched
@@ -491,6 +520,8 @@ export function LinkedInSection() {
                         style={{ color: 'var(--al-accent)', textDecoration: 'none', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', fontSize: 12 }}>
                         {row.article_title || row.article_id}
                       </a>
+                    ) : row.match_method === 'no_article' ? (
+                      <span style={{ fontSize: 11, color: 'var(--al-mut6)', fontStyle: 'italic' }}>no article</span>
                     ) : (
                       pickerRowId === row.id ? (
                         <div style={{ position: 'relative' }}>
@@ -514,10 +545,16 @@ export function LinkedInSection() {
                           </button>
                         </div>
                       ) : (
-                        <button onClick={() => { setPickerRowId(row.id); setPickerQuery(''); setPickerResults([]) }}
-                          style={{ fontSize: 11, color: '#0077b5', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}>
-                          + assign article
-                        </button>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                          <button onClick={() => { setPickerRowId(row.id); setPickerQuery(''); setPickerResults([]) }}
+                            style={{ fontSize: 11, color: '#0077b5', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline', textAlign: 'left' }}>
+                            + assign article
+                          </button>
+                          <button onClick={() => handleNoArticle(row.id)}
+                            style={{ fontSize: 11, color: 'var(--al-mut4)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline', textAlign: 'left' }}>
+                            no article
+                          </button>
+                        </div>
                       )
                     )}
                   </td>
@@ -529,8 +566,8 @@ export function LinkedInSection() {
                   <td style={td}>
                     {row.match_method ? (
                       <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 3,
-                        background: row.match_method === 'activity_id' ? '#dbeafe' : row.match_method === 'slug' ? '#dcfce7' : row.match_method === 'date' ? '#e0e7ff' : (row.match_method === 'ai' || row.match_method === 'haiku') ? '#f3e8ff' : '#fef9c3',
-                        color: row.match_method === 'activity_id' ? '#1e40af' : row.match_method === 'slug' ? '#166534' : row.match_method === 'date' ? '#3730a3' : (row.match_method === 'ai' || row.match_method === 'haiku') ? '#6b21a8' : '#854d0e' }}>
+                        background: row.match_method === 'activity_id' ? '#dbeafe' : row.match_method === 'slug' ? '#dcfce7' : row.match_method === 'date' ? '#e0e7ff' : (row.match_method === 'ai' || row.match_method === 'haiku') ? '#f3e8ff' : row.match_method === 'no_article' ? '#f1f5f9' : '#fef9c3',
+                        color: row.match_method === 'activity_id' ? '#1e40af' : row.match_method === 'slug' ? '#166534' : row.match_method === 'date' ? '#3730a3' : (row.match_method === 'ai' || row.match_method === 'haiku') ? '#6b21a8' : row.match_method === 'no_article' ? '#64748b' : '#854d0e' }}>
                         {row.match_method}
                       </span>
                     ) : <span style={{ color: 'var(--al-mut6)', fontSize: 11 }}>—</span>}
