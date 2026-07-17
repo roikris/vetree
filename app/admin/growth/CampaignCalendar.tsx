@@ -68,6 +68,7 @@ export function CampaignCalendar() {
   const [articleSearch, setArticleSearch] = useState('')
   const [articleResults, setArticleResults] = useState<any[]>([])
   const [selectedArticle, setSelectedArticle] = useState<{id: string, title: string} | null>(null)
+  const [manualSelectionLocked, setManualSelectionLocked] = useState(false)
   const [showArticleDropdown, setShowArticleDropdown] = useState(false)
   const [rewritingPlatform, setRewritingPlatform] = useState<string | null>(null)
   const [generatedImages, setGeneratedImages] = useState<Record<string, string>>({})
@@ -375,6 +376,7 @@ export function CampaignCalendar() {
     setMessage(null)
 
     try {
+      console.log('[handleGenerate] selectedArticle:', selectedArticle?.id, selectedArticle?.title?.slice(0, 60))
       const response = await fetch('/api/growth/generate-post', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -389,6 +391,13 @@ export function CampaignCalendar() {
 
       if (data.error) {
         setMessage({ type: 'error', text: data.error })
+        return
+      }
+
+      // Echo-assertion: if we forced an article, the server must echo back the same ID
+      if (selectedArticle?.id && data.article_id && data.article_id !== selectedArticle.id) {
+        console.error('[handleGenerate] MISMATCH — sent:', selectedArticle.id, 'got:', data.article_id)
+        setMessage({ type: 'error', text: `Generated for wrong article — expected "${selectedArticle.title}" but got "${data.article_title}". Please retry.` })
         return
       }
 
@@ -1637,6 +1646,7 @@ export function CampaignCalendar() {
                         className="flex-1 min-w-0 cursor-pointer"
                         onClick={() => {
                           setSelectedArticle({ id: article.id, title: article.title })
+                          setManualSelectionLocked(true)
                           setShowRecommendations(false)
                         }}
                       >
@@ -1707,6 +1717,7 @@ export function CampaignCalendar() {
                 <button
                   onClick={() => {
                     setSelectedArticle(null)
+                    setManualSelectionLocked(false)
                     setArticleSearch('')
                   }}
                   className="text-gray-400 hover:text-white transition-colors text-lg leading-none"
@@ -1735,6 +1746,7 @@ export function CampaignCalendar() {
                         type="button"
                         onClick={() => {
                           setSelectedArticle({ id: article.id, title: article.title })
+                          setManualSelectionLocked(true)
                           setArticleSearch('')
                           setShowArticleDropdown(false)
                         }}
@@ -1758,6 +1770,7 @@ export function CampaignCalendar() {
               {!generatedPost ? (
                 <>
                   <button
+                    type="button"
                     onClick={handleGenerate}
                     disabled={isGenerating || generatingAll}
                     className="px-6 py-3 bg-[#3D7A5F] dark:bg-[#4E9A78] text-white rounded-lg hover:bg-[#2F5F4A] dark:hover:bg-[#5FAA88] transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
