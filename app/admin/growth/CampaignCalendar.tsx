@@ -69,6 +69,7 @@ export function CampaignCalendar() {
   const [articleResults, setArticleResults] = useState<any[]>([])
   const [selectedArticle, setSelectedArticle] = useState<{id: string, title: string} | null>(null)
   const [manualSelectionLocked, setManualSelectionLocked] = useState(false)
+  const [generatingAllForArticle, setGeneratingAllForArticle] = useState<{id: string, title: string} | null>(null)
   const [showArticleDropdown, setShowArticleDropdown] = useState(false)
   const [rewritingPlatform, setRewritingPlatform] = useState<string | null>(null)
   const [generatedImages, setGeneratedImages] = useState<Record<string, string>>({})
@@ -716,6 +717,14 @@ export function CampaignCalendar() {
       return
     }
 
+    // ─── ONE article, chosen once ─────────────────────────────────────────────
+    // Snapshot the selection at call time. Explicit manual selection wins;
+    // server picks randomly only when no selection exists.
+    const lockedArticle = selectedArticle  // null = let server pick
+    console.log('[handleGenerateAll] Locked article:', lockedArticle?.id ?? '(server will pick)')
+    setGeneratingAllForArticle(lockedArticle)  // pre-flight indicator in UI
+    // ─────────────────────────────────────────────────────────────────────────
+
     setGeneratingAll(true)
     setMessage(null)
 
@@ -739,11 +748,11 @@ export function CampaignCalendar() {
         }
       }
 
-      console.log('[handleGenerateAll] Generating posts for all 8 platforms...')
+      console.log('[handleGenerateAll] Generating posts for all platforms...')
 
-      // STEP 1: Generate first post for today's platform to select article
+      // STEP 1: Generate first post for today's platform to lock the article
       // Retry up to 3 times if we get SKIP_LARGE_ANIMAL
-      console.log('[handleGenerateAll] Step 1: Generate for today\'s platform to select article')
+      console.log('[handleGenerateAll] Step 1: Generate for today\'s platform to lock article')
       let firstData = null
       let attempts = 0
 
@@ -755,7 +764,7 @@ export function CampaignCalendar() {
             platform: todaysPlatform.platform,
             language: todaysPlatform.language,
             recentPosts,
-            article_id: selectedArticle?.id || undefined
+            article_id: lockedArticle?.id || undefined  // use snapshot, not live state
           })
         })
 
@@ -772,12 +781,26 @@ export function CampaignCalendar() {
 
       if (!firstData) {
         setMessage({ type: 'error', text: 'Could not find suitable article after 3 attempts' })
+        setGeneratingAllForArticle(null)
+        setGeneratingAll(false)
+        return
+      }
+
+      // Echo-assert Step 1: server must echo back the article we forced (if any)
+      if (lockedArticle?.id && firstData.article_id !== lockedArticle.id) {
+        console.error('[handleGenerateAll] Step 1 MISMATCH — sent:', lockedArticle.id, 'got:', firstData.article_id)
+        setMessage({ type: 'error', text: `Generated for wrong article — expected "${lockedArticle.title}" but got "${firstData.article_title}". Please retry.` })
+        setGeneratingAllForArticle(null)
         setGeneratingAll(false)
         return
       }
 
       const sharedArticleId = firstData.article_id
-      console.log('[handleGenerateAll] Selected article:', sharedArticleId)
+      const sharedArticleTitle = firstData.article_title ?? sharedArticleId
+      console.log('[handleGenerateAll] Confirmed article:', sharedArticleId, sharedArticleTitle?.slice(0, 60))
+
+      // Update header to server-confirmed article (covers the "server picks" case)
+      setGeneratingAllForArticle({ id: sharedArticleId, title: sharedArticleTitle })
 
       // Save first post
       const today = new Date().toISOString().split('T')[0]
@@ -790,30 +813,36 @@ export function CampaignCalendar() {
         JSON.stringify(firstData)
       )
 
-      // STEP 2: Generate remaining 8 platforms with same article_id
+      // STEP 2: Generate remaining platforms with the SAME sharedArticleId
       // Use batching to avoid rate limits - 3 platforms at a time with 500ms delay
-      console.log('[handleGenerateAll] Step 2: Generate remaining platforms with same article')
+      console.log('[handleGenerateAll] Step 2: Generate remaining platforms for', sharedArticleId)
       const remainingPlatforms = PLATFORM_ROTATION.filter(
         ({ platform }) => platform !== todaysPlatform.platform
       )
 
-      // Helper function to generate for a platform with retry logic
+      // Helper: generate for one platform with retry and per-platform echo-assertion
       const generateForPlatform = async (platformInfo: any, articleId: string, recentPostsList: string[]) => {
-        try {
-          const res = await fetch('/api/growth/generate-post', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              platform: platformInfo.platform,
-              language: platformInfo.language,
-              recentPosts: recentPostsList,
-              article_id: articleId
-            })
+        const makeRequest = () => fetch('/api/growth/generate-post', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            platform: platformInfo.platform,
+            language: platformInfo.language,
+            recentPosts: recentPostsList,
+            article_id: articleId  // always the shared snapshot
           })
-          const data = await res.json()
+        })
+
+        try {
+          const data = await (await makeRequest()).json()
 
           if (!data.post_content || data.post_content.includes('SKIP_LARGE_ANIMAL')) {
             throw new Error('Invalid post content')
+          }
+          // Per-platform echo-assertion
+          if (data.article_id && data.article_id !== articleId) {
+            console.error(`[handleGenerateAll] ${platformInfo.platform} MISMATCH — sent:`, articleId, 'got:', data.article_id)
+            throw new Error(`Article mismatch on ${platformInfo.platform}`)
           }
 
           return { platform: platformInfo.platform, language: platformInfo.language, ...data }
@@ -822,17 +851,10 @@ export function CampaignCalendar() {
           console.log(`[handleGenerateAll] Retrying ${platformInfo.platform} after error`)
           await new Promise(r => setTimeout(r, 1000))
 
-          const res = await fetch('/api/growth/generate-post', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              platform: platformInfo.platform,
-              language: platformInfo.language,
-              recentPosts: recentPostsList,
-              article_id: articleId
-            })
-          })
-          const data = await res.json()
+          const data = await (await makeRequest()).json()
+          if (data.article_id && data.article_id !== articleId) {
+            throw new Error(`Article mismatch on ${platformInfo.platform} (retry)`)
+          }
           return { platform: platformInfo.platform, language: platformInfo.language, ...data }
         }
       }
@@ -907,6 +929,7 @@ export function CampaignCalendar() {
     } catch (error) {
       console.error('[handleGenerateAll] Error:', error)
       setMessage({ type: 'error', text: 'Failed to generate posts' })
+      setGeneratingAllForArticle(null)
     } finally {
       setGeneratingAll(false)
     }
@@ -928,6 +951,7 @@ export function CampaignCalendar() {
     setShowAllPlatforms(false)
     setActivePlatformTab('')
     setFailedPlatforms([])
+    setGeneratingAllForArticle(null)  // reset so pre-flight shows fresh snapshot
 
     // Now run Generate All (reuse existing handleGenerateAll)
     await handleGenerateAll()
@@ -1411,6 +1435,16 @@ export function CampaignCalendar() {
         {/* All Platforms Tabs */}
         {showAllPlatforms && Object.keys(allPlatformPosts).length > 0 && (
           <div className="mt-4 mb-4">
+            {/* Locked-article header — shown throughout generate-all and after */}
+            {generatingAllForArticle && (
+              <div className="mb-3 px-3 py-2 rounded-lg bg-emerald-900/20 border border-emerald-700/50">
+                <span className="text-emerald-400 text-xs font-medium">
+                  {generatingAll ? 'Generating all platforms for:' : 'Generated for:'}
+                </span>
+                <p className="text-white text-sm truncate mt-0.5">{generatingAllForArticle.title}</p>
+                <p className="text-zinc-500 text-xs mt-0.5">{generatingAllForArticle.id}</p>
+              </div>
+            )}
             <h3 className="text-sm font-medium text-zinc-600 dark:text-zinc-400 mb-2">
               All Platforms — {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
             </h3>
@@ -1769,6 +1803,22 @@ export function CampaignCalendar() {
             <>
               {!generatedPost ? (
                 <>
+                  {/* Article confirmation — shown before every Generate / Generate All */}
+                  <div className={`w-full mb-1 px-3 py-2 rounded-lg border text-sm ${
+                    selectedArticle
+                      ? 'bg-emerald-900/20 border-emerald-700/50'
+                      : 'bg-zinc-800/60 border-zinc-700'
+                  }`}>
+                    {selectedArticle ? (
+                      <>
+                        <span className="text-emerald-400 text-xs font-medium">Forced selection</span>
+                        <p className="text-white truncate mt-0.5 text-sm">{selectedArticle.title}</p>
+                        <p className="text-zinc-500 text-xs mt-0.5">{selectedArticle.id}</p>
+                      </>
+                    ) : (
+                      <span className="text-zinc-500 text-xs">Article will be auto-selected from today&apos;s feed — or search above to force one</span>
+                    )}
+                  </div>
                   <button
                     type="button"
                     onClick={handleGenerate}
@@ -1785,7 +1835,9 @@ export function CampaignCalendar() {
                   >
                     {generatingAll
                       ? <><Loader2 size={14} className="animate-spin" /> Generating all...</>
-                      : '⚡ Generate All Platforms'}
+                      : selectedArticle
+                        ? `⚡ Generate All — ${selectedArticle.title.slice(0, 40)}${selectedArticle.title.length > 40 ? '…' : ''}`
+                        : '⚡ Generate All Platforms'}
                   </button>
                 </>
               ) : (
