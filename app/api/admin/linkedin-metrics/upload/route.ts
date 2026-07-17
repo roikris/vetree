@@ -313,6 +313,7 @@ export async function POST(request: NextRequest) {
         article_id: match?.article_id ?? null,
         match_method: match?.method ?? null,
         raw_row: p.raw_row,
+        metrics_updated_at: new Date().toISOString(),
       }
     })
 

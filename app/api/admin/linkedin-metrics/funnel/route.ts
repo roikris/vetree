@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
   // 1. Fetch all linkedin post metrics
   let metricsQuery = supabase
     .from('linkedin_post_metrics')
-    .select('id, post_url, post_date, article_id, impressions, engagements, match_method')
+    .select('id, post_url, post_date, article_id, impressions, engagements, match_method, metrics_updated_at')
     .order('post_date', { ascending: false })
 
   if (from) metricsQuery = metricsQuery.gte('post_date', from)
@@ -125,6 +125,7 @@ export async function GET(request: NextRequest) {
       match_method: m.match_method ?? null,
       impressions: m.impressions,
       engagements: m.engagements,
+      metrics_updated_at: m.metrics_updated_at ?? null,
       sessions,
       unique_visitors,
       saves,
