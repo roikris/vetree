@@ -347,6 +347,7 @@ Written by aggregate route; pre-filtered (admin + TEST_USER_ID excluded).
 | match_method | text | activity_id / slug / date / ai / haiku / manual |
 | raw_row | jsonb | original import row |
 | uploaded_at | timestamptz | |
+| metrics_updated_at | timestamptz | when impressions/engagements were last written (XLSX upload or manual edit) |
 
 `match_method` constraint (live, fully reconciled via migrations 038→040→042→043):
 `('activity_id', 'slug', 'date', 'ai', 'haiku', 'manual', 'no_article')`
