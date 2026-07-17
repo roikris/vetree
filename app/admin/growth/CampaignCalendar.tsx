@@ -390,8 +390,8 @@ export function CampaignCalendar() {
 
       const data = await response.json()
 
-      if (data.error) {
-        setMessage({ type: 'error', text: data.error })
+      if (!response.ok || data.error) {
+        setMessage({ type: 'error', text: data.error || `Server error ${response.status}` })
         return
       }
 
@@ -769,6 +769,14 @@ export function CampaignCalendar() {
         })
 
         const data = await firstResponse.json()
+
+        // 4xx from server = actionable error (not found, excluded) — surface immediately, don't retry
+        if (!firstResponse.ok && firstResponse.status >= 400 && firstResponse.status < 500) {
+          setMessage({ type: 'error', text: data.error || `Server error ${firstResponse.status}` })
+          setGeneratingAllForArticle(null)
+          setGeneratingAll(false)
+          return
+        }
 
         if (data.post_content && !data.post_content.includes('SKIP_LARGE_ANIMAL') && data.article_id) {
           firstData = data

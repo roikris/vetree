@@ -65,7 +65,9 @@ export async function POST(request: NextRequest) {
       'Food Animal', 'food animal'
     ]
 
-    // If article_id is provided, fetch that specific article and skip selection
+    // If article_id is provided, fetch that specific article and use it VERBATIM.
+    // Principle: explicit article_id = use exactly that article. Never substitute.
+    // A failed or excluded lookup is an error to the caller — never a silent fallback.
     let forcedArticleId = articleId
     if (forcedArticleId) {
       const { data: specificArticle, error } = await supabase
@@ -75,29 +77,30 @@ export async function POST(request: NextRequest) {
         .single()
 
       if (error || !specificArticle) {
-        console.log('[generate-post] Forced article not found:', forcedArticleId, error?.message)
+        console.log('[generate-post] EXPLICIT article not found:', forcedArticleId, error?.message)
         return NextResponse.json({
-          error: 'Article not found',
+          error: `Article not found: ${forcedArticleId}`,
           details: error?.message
         }, { status: 404 })
       }
 
-      console.log('[generate-post] Forced article found:', specificArticle.id, specificArticle.title?.slice(0, 60))
-
-      // Check if forced article is large animal
+      // Check if forced article has large-animal labels
       const isLargeAnimal = specificArticle?.labels?.some((l: string) =>
         largeAnimalLabels.includes(l)
       )
 
       if (isLargeAnimal) {
-        // Fall back to random selection - don't use this large animal article
-        console.log('[generate-post] Forced article is large animal, falling back to random selection')
-        forcedArticleId = null
-        article = null
-      } else {
-        article = specificArticle
-        console.log('[generate-post] Using forced article (small animal)')
+        // Explicit id + large-animal → caller error, NOT silent fallback.
+        // An article can have mixed labels (e.g. "Small Animal" + "Equine") —
+        // caller must choose a different article. Never pick a substitute silently.
+        console.log('[generate-post] EXPLICIT article', forcedArticleId, 'has large-animal labels — rejecting, no fallback')
+        return NextResponse.json({
+          error: `Article ${forcedArticleId} is excluded (large animal / equine labels: ${specificArticle.labels?.filter((l: string) => largeAnimalLabels.includes(l)).join(', ')}). Please select a different article.`
+        }, { status: 422 })
       }
+
+      article = specificArticle
+      console.log('[generate-post] EXPLICIT: using forced article_id', forcedArticleId, '—', specificArticle.title?.slice(0, 70))
     }
 
     // Improvement #2: Fetch page view counts (last 30 days) to boost high-engagement articles
@@ -147,6 +150,7 @@ export async function POST(request: NextRequest) {
     console.log('[generate-post] Hot zero-result queries:', hotQueries)
 
     while (retryCount < MAX_RETRIES && !article) {
+      console.log('[generate-post] FALLBACK: no forced article_id — running weighted random selection, attempt', retryCount + 1)
       // Exclude approved articles from last 14 days (don't repeat published content)
       // and skipped articles from last 7 days (respect explicit skips, but recycle after a week)
       const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString()
