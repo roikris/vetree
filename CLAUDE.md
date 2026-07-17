@@ -185,7 +185,16 @@ await fetch('/api/save-article', {
 // Never suppress the production warning; never add noop fallback to prod.
 ```
 
-### 14. Schema changes — migration files + db push, never dashboard SQL
+### 14. Rebuild-vs-patch circuit breaker
+If the same component (file, route, or feature area) has received **3 fixes within a rolling 7-day window**, a 4th patch requires a mandatory rebuild-vs-patch cost assessment first:
+1. List the root causes of the 3 prior fixes — were they symptoms of the same underlying design flaw?
+2. Estimate: patch cost (complexity, risk of regression) vs. rewrite cost (scope, test surface)
+3. Present the assessment to Roi before writing any code; get explicit go-ahead on the chosen path
+
+This rule exists because iterating on a broken design is more expensive than replacing it.
+`CampaignCalendar.tsx` + `generate-post/route.ts` in 2026-07 week 3 paid the tuition (PRs #21–#24).
+
+### 15. Schema changes — migration files + db push, never dashboard SQL
 All schema changes (new tables, columns, constraints, indexes, RLS policies, functions) MUST:
 1. Be written as a numbered SQL file in `supabase/migrations/` (e.g. `044_my_change.sql`)
 2. Applied via `npx supabase db push --linked` — **never** typed raw into the Supabase dashboard editor
