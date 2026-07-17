@@ -5,9 +5,8 @@
 ---
 
 ## Active Focus
-- LinkedIn table: inline editing on impressions/engagements, full column sort, Eng% column, metrics_updated_at stamp
-- Growth memory capture fixed — rematch should improve as new posts accumulate memory rows
-- All PRs through #20 merged to main; smoke suite green
+- All PRs through #24 merged to main; smoke suite green
+- No known open bugs
 
 ---
 
@@ -25,6 +24,10 @@
 - **PR #18** chore/retire-fix-malformed-titles: deleted fix-malformed-titles workflow + script; 0 rows ever matched, 3 runs all failed, never fixed anything
 - **PR #19** fix/growth-memory-capture: 3 memory-capture bugs fixed (hook_line missing, premature clearSavedPost, onPaste stale closure); unified "Copy & mark posted" button; LinkedIn tab inline URL input; no_article action + unmatched debt filter in metrics; migration 043 (no_article constraint); CLAUDE.md rule 14 (migration policy + drift reconciliation)
 - **PR #20** feat/linkedin-table-edit-sort: inline editing on impressions/engagements (Enter/Esc, server + client validation, red error state); Eng% column; full 10-column sort; metrics_updated_at stamp per row; upload upsert bumps metrics_updated_at; insights agent gets per-post snapshot date + unequal-age caveat; migration 044 (metrics_updated_at, backfilled from uploaded_at)
+- **PR #21** fix/growth-manual-selection: echo-assertion guard in handleGenerate (wrong article_id → red error, no render); manualSelectionLocked flag; console.log before fetch; type=button on Generate button
+- **PR #22** fix/generate-all-selection: ONE article chosen once in handleGenerateAll; lockedArticle snapshot at top; Step 1 + per-platform echo-assertions; pre-flight generatingAllForArticle card; article confirmation card before buttons; Generate All button label includes article title; DB audit: zero approved rows today, no cleanup needed
+- **PR #23** fix/generate-route-override: remove silent large-animal fallback in generate-post route (route.ts:92-96); explicit article_id → VERBATIM use; large-animal label on forced article → 422 (not random substitute); not-found → 404; EXPLICIT/FALLBACK server log lines; gated Playwright spec e2e/generate-route.spec.ts
+- **PR #24** fix/manual-overrides-exclusions: explicit article_id bypasses ALL filters (large-animal check removed from explicit path); SKIP_LARGE_ANIMAL instruction excluded from Claude prompt on explicit pick; amber soft-inform notice in UI when forced article has normally-excluded labels; Playwright spec updated (mixed-label explicit → 200, not 422)
 
 ---
 
@@ -35,6 +38,8 @@
 - **2026-07-14:** `linkedin_post_metrics.match_method` DB constraint was missing `'ai'`. Migration 042 applied → `activity_id | slug | date | ai | haiku | manual`.
 - **2026-07-15:** 3 compounding bugs caused growth_agent_memory to have near-zero coverage (no hook_line, premature clearSavedPost, stale closure on paste). Fixed in PR #19. Also added `no_article` to constraint via migration 043.
 - **2026-07-17:** linkedin_post_metrics.metrics_updated_at added via migration 044; table now has inline editing + full sort.
+- **2026-07-17:** Growth OS manual article selection generated wrong article. Root cause (PR #23): route.ts:92-96 silently fell back to random selection when forced article had large-animal labels. pubmed-42444511 (UVC keratitis) has mixed labels [Small Animal + Equine + Large Animal] — large-animal check fired → random article each time. Fixed: explicit article_id is verbatim; large-animal on forced → 422; not-found → 404. PRs #21-#23 together close the full bug class.
+- **2026-07-17:** PR #23's 422 was over-correction — blocked deliberate manual picks of mixed-species articles. PR #24 corrects this: exclusion filters (large-animal and SKIP_LARGE_ANIMAL Claude instruction) now apply to automatic selection only. Explicit article_id = verbatim, no policy filters.
 
 ---
 
