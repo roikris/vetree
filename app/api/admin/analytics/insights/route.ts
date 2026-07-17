@@ -183,7 +183,7 @@ export async function POST(request: NextRequest) {
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
     const { data: linkedinMetrics } = await supabase
       .from('linkedin_post_metrics')
-      .select('post_date, impressions, engagements, article_id, match_method, articles(title, labels)')
+      .select('post_date, impressions, engagements, article_id, match_method, metrics_updated_at, articles(title, labels)')
       .gte('post_date', thirtyDaysAgo)
       .order('post_date', { ascending: false })
       .limit(30)
@@ -194,7 +194,8 @@ export async function POST(request: NextRequest) {
             ? ((m.engagements / m.impressions) * 100).toFixed(1)
             : '0'
           const labels = (m.articles?.labels ?? []).join(', ') || 'no tags'
-          return `  ${m.post_date}: ${m.impressions ?? '—'} impressions, ${m.engagements ?? '—'} engagements (${engRate}% rate) [${labels}] — "${m.articles?.title || m.article_id || 'unmatched'}" (matched via ${m.match_method ?? 'none'})`
+          const asOf = m.metrics_updated_at ? ` [snapshot as of ${m.metrics_updated_at.slice(0, 10)}]` : ''
+          return `  ${m.post_date}: ${m.impressions ?? '—'} impressions, ${m.engagements ?? '—'} engagements (${engRate}% rate)${asOf} [${labels}] — "${m.articles?.title || m.article_id || 'unmatched'}" (matched via ${m.match_method ?? 'none'})`
         }).join('\n')
       : '  No LinkedIn post data uploaded yet'
 
@@ -230,6 +231,7 @@ RECENTLY SAVED ARTICLES (what content resonates):
 ${recentSaves && recentSaves.length > 0 ? (recentSaves as any[]).slice(0, 5).map((s: any) => `  "${s.articles?.title || s.article_id}" — saved`).join('\n') : '  No saves this week'}
 
 LINKEDIN PER-POST PERFORMANCE (last 30 days — impressions, engagements, engagement rate):
+NOTE: Impressions/engagements are snapshots as of the listed date; posts have unequal exposure time. Do not rank posts of different ages by raw impressions; prefer CTR and engagement rate.
 ${linkedinSummary}
 
 LINKEDIN DAILY ACCOUNT TOTALS (last 30 days):

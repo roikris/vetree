@@ -27,7 +27,28 @@ export async function PATCH(
 
   const { id } = await params
   const body = await request.json()
-  const { article_id, match_method } = body
+  const { article_id, match_method, impressions, engagements } = body
+
+  // Metrics update — inline edit of impressions / engagements
+  if ('impressions' in body || 'engagements' in body) {
+    const updates: Record<string, unknown> = { metrics_updated_at: new Date().toISOString() }
+    if ('impressions' in body) {
+      if (!Number.isInteger(impressions) || impressions < 0)
+        return NextResponse.json({ error: 'impressions must be a non-negative integer' }, { status: 400 })
+      updates.impressions = impressions
+    }
+    if ('engagements' in body) {
+      if (!Number.isInteger(engagements) || engagements < 0)
+        return NextResponse.json({ error: 'engagements must be a non-negative integer' }, { status: 400 })
+      updates.engagements = engagements
+    }
+    const { error } = await supabase
+      .from('linkedin_post_metrics')
+      .update(updates)
+      .eq('id', id)
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ success: true })
+  }
 
   if (match_method === 'no_article') {
     const { error } = await supabase

@@ -17,6 +17,7 @@ type FunnelRow = {
   match_method: string | null
   impressions: number | null
   engagements: number | null
+  metrics_updated_at: string | null
   sessions: number
   unique_visitors: number
   saves: number
@@ -108,9 +109,47 @@ export function LinkedInSection() {
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
   const [urlMissingOnly, setUrlMissingOnly] = useState(false)
 
+  const [editingCell, setEditingCell] = useState<{ rowId: string; field: 'impressions' | 'engagements' } | null>(null)
+  const [editValue, setEditValue] = useState('')
+  const [editError, setEditError] = useState<string | null>(null)
+
   const handleSort = (col: string) => {
     if (sortCol === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
     else { setSortCol(col); setSortDir('desc') }
+  }
+
+  const handleEditSave = async (rowId: string, field: 'impressions' | 'engagements') => {
+    const val = parseInt(editValue, 10)
+    if (isNaN(val) || val < 0 || !Number.isInteger(val)) {
+      setEditError('Must be a non-negative integer')
+      return
+    }
+    const token = await getToken()
+    const res = await fetch(`/api/admin/linkedin-metrics/${rowId}`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ [field]: val }),
+    })
+    if (!res.ok) {
+      const data = await res.json()
+      setEditError(data.error || 'Save failed')
+      return
+    }
+    const now = new Date().toISOString()
+    setRows(prev => prev.map(r => {
+      if (r.id !== rowId) return r
+      const impressions = field === 'impressions' ? val : (r.impressions ?? 0)
+      const ctr = impressions > 0 ? parseFloat(((r.sessions / impressions) * 100).toFixed(2)) : 0
+      return { ...r, [field]: val, metrics_updated_at: now, ctr }
+    }))
+    setEditingCell(null)
+    setEditValue('')
+    setEditError(null)
+  }
+
+  const handleEditKeyDown = (e: React.KeyboardEvent, rowId: string, field: 'impressions' | 'engagements') => {
+    if (e.key === 'Enter') { e.preventDefault(); handleEditSave(rowId, field) }
+    if (e.key === 'Escape') { setEditingCell(null); setEditValue(''); setEditError(null) }
   }
 
   const urlMissingCount = rows.filter(r => r.article_id === null && r.match_method !== 'no_article').length
@@ -119,12 +158,19 @@ export function LinkedInSection() {
     ? rows.filter(r => r.article_id === null && r.match_method !== 'no_article')
     : rows
 
+  const engRate = (row: FunnelRow) =>
+    (row.impressions ?? 0) > 0 && row.engagements !== null
+      ? row.engagements / row.impressions!
+      : 0
+
   const sortedRows = [...visibleRows].sort((a, b) => {
     const dir = sortDir === 'asc' ? 1 : -1
     switch (sortCol) {
       case 'post_date': return dir * a.post_date.localeCompare(b.post_date)
+      case 'article_title': return dir * (a.article_title ?? '').localeCompare(b.article_title ?? '')
       case 'impressions': return dir * ((a.impressions ?? 0) - (b.impressions ?? 0))
       case 'engagements': return dir * ((a.engagements ?? 0) - (b.engagements ?? 0))
+      case 'engagement_rate': return dir * (engRate(a) - engRate(b))
       case 'sessions': return dir * (a.sessions - b.sessions)
       case 'saves': return dir * (a.saves - b.saves)
       case 'ctr': return dir * (a.ctr - b.ctr)
@@ -496,18 +542,30 @@ export function LinkedInSection() {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, background: 'var(--al-card)' }}>
             <thead style={{ background: 'var(--al-card2)' }}>
               <tr>
-                {(['post_date', null, null, null, 'impressions', 'engagements', 'sessions', 'saves', 'ctr', null, null] as (string | null)[])
-                  .map((col, i) => {
-                    const labels = ['Date', 'Article', 'Labels', 'Match', 'Impressions', 'Engagements', 'Sessions', 'Saves', 'CTR', 'Post', '']
-                    const label = labels[i]
-                    const arrow = col && sortCol === col ? (sortDir === 'asc' ? ' ▲' : ' ▼') : (col ? ' ↕' : '')
-                    return (
-                      <th key={label} style={{ ...th, cursor: col ? 'pointer' : 'default', userSelect: 'none' }}
-                        onClick={col ? () => handleSort(col) : undefined}>
-                        {label}{col && <span style={{ fontSize: 10, opacity: sortCol === col ? 1 : 0.35 }}>{arrow}</span>}
-                      </th>
-                    )
-                  })}
+                {(
+                  [
+                    ['Date', 'post_date'],
+                    ['Article', 'article_title'],
+                    ['Labels', null],
+                    ['Match', null],
+                    ['Impressions', 'impressions'],
+                    ['Engagements', 'engagements'],
+                    ['Eng%', 'engagement_rate'],
+                    ['Sessions', 'sessions'],
+                    ['Saves', 'saves'],
+                    ['CTR', 'ctr'],
+                    ['Post', null],
+                    ['', null],
+                  ] as [string, string | null][]
+                ).map(([label, col]) => {
+                  const arrow = col && sortCol === col ? (sortDir === 'asc' ? ' ▲' : ' ▼') : (col ? ' ↕' : '')
+                  return (
+                    <th key={label} style={{ ...th, cursor: col ? 'pointer' : 'default', userSelect: 'none' }}
+                      onClick={col ? () => handleSort(col) : undefined}>
+                      {label}{col && <span style={{ fontSize: 10, opacity: sortCol === col ? 1 : 0.35 }}>{arrow}</span>}
+                    </th>
+                  )
+                })}
               </tr>
             </thead>
             <tbody>
@@ -572,8 +630,76 @@ export function LinkedInSection() {
                       </span>
                     ) : <span style={{ color: 'var(--al-mut6)', fontSize: 11 }}>—</span>}
                   </td>
-                  <td style={td}>{row.impressions?.toLocaleString() ?? '—'}</td>
-                  <td style={td}>{row.engagements?.toLocaleString() ?? '—'}</td>
+                  {/* Impressions — click-to-edit */}
+                  <td style={td}>
+                    {editingCell?.rowId === row.id && editingCell.field === 'impressions' ? (
+                      <div>
+                        <input
+                          autoFocus
+                          type="number"
+                          min="0"
+                          value={editValue}
+                          onChange={e => setEditValue(e.target.value)}
+                          onKeyDown={e => handleEditKeyDown(e, row.id, 'impressions')}
+                          style={{ width: 72, fontSize: 12, padding: '2px 4px', border: '1px solid #3b82f6', borderRadius: 3, background: 'var(--al-card)', color: 'var(--al-ink2)' }}
+                        />
+                        {editError && <div style={{ fontSize: 10, color: '#dc2626', marginTop: 2 }}>{editError}</div>}
+                        <div style={{ fontSize: 10, color: 'var(--al-mut6)', marginTop: 2 }}>Enter to save · Esc to cancel</div>
+                      </div>
+                    ) : (
+                      <div>
+                        <span
+                          onClick={() => { setEditingCell({ rowId: row.id, field: 'impressions' }); setEditValue(String(row.impressions ?? '')); setEditError(null) }}
+                          style={{ cursor: 'text', borderBottom: '1px dotted #9ca3af' }}
+                          title="Click to edit"
+                        >
+                          {row.impressions?.toLocaleString() ?? '—'}
+                        </span>
+                        {row.metrics_updated_at && (
+                          <div
+                            style={{ fontSize: 10, color: 'var(--al-mut6)', marginTop: 1 }}
+                            title="Manual edits are stopgaps between uploads; the next XLSX upload will overwrite these values"
+                          >
+                            as of {row.metrics_updated_at.slice(0, 10)}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </td>
+                  {/* Engagements — click-to-edit */}
+                  <td style={td}>
+                    {editingCell?.rowId === row.id && editingCell.field === 'engagements' ? (
+                      <div>
+                        <input
+                          autoFocus
+                          type="number"
+                          min="0"
+                          value={editValue}
+                          onChange={e => setEditValue(e.target.value)}
+                          onKeyDown={e => handleEditKeyDown(e, row.id, 'engagements')}
+                          style={{ width: 72, fontSize: 12, padding: '2px 4px', border: '1px solid #3b82f6', borderRadius: 3, background: 'var(--al-card)', color: 'var(--al-ink2)' }}
+                        />
+                        {editError && <div style={{ fontSize: 10, color: '#dc2626', marginTop: 2 }}>{editError}</div>}
+                        <div style={{ fontSize: 10, color: 'var(--al-mut6)', marginTop: 2 }}>Enter to save · Esc to cancel</div>
+                      </div>
+                    ) : (
+                      <div>
+                        <span
+                          onClick={() => { setEditingCell({ rowId: row.id, field: 'engagements' }); setEditValue(String(row.engagements ?? '')); setEditError(null) }}
+                          style={{ cursor: 'text', borderBottom: '1px dotted #9ca3af' }}
+                          title="Click to edit"
+                        >
+                          {row.engagements?.toLocaleString() ?? '—'}
+                        </span>
+                      </div>
+                    )}
+                  </td>
+                  {/* Engagement rate — computed at render */}
+                  <td style={td}>
+                    {(row.impressions ?? 0) > 0 && row.engagements !== null
+                      ? `${((row.engagements / row.impressions!) * 100).toFixed(1)}%`
+                      : '—'}
+                  </td>
                   <td style={td}>{row.sessions}</td>
                   <td style={td}>{row.saves}</td>
                   <td style={{ ...td, fontWeight: row.ctr > 0 ? 600 : 400, color: row.ctr > 0.5 ? '#166534' : 'inherit' }}>
