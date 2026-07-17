@@ -70,6 +70,7 @@ export function CampaignCalendar() {
   const [selectedArticle, setSelectedArticle] = useState<{id: string, title: string} | null>(null)
   const [manualSelectionLocked, setManualSelectionLocked] = useState(false)
   const [generatingAllForArticle, setGeneratingAllForArticle] = useState<{id: string, title: string} | null>(null)
+  const [articleExclusionNote, setArticleExclusionNote] = useState<string | null>(null)
   const [showArticleDropdown, setShowArticleDropdown] = useState(false)
   const [rewritingPlatform, setRewritingPlatform] = useState<string | null>(null)
   const [generatedImages, setGeneratedImages] = useState<Record<string, string>>({})
@@ -403,6 +404,11 @@ export function CampaignCalendar() {
       }
 
       setGeneratedPost(data.post_content)
+
+      // Soft-inform: if the generated article has normally-excluded labels, show a notice
+      const NORMALLY_EXCLUDED = ['Equine', 'equine', 'Large Animal', 'large animal', 'Livestock', 'livestock', 'Poultry', 'poultry', 'Food Animal', 'food animal']
+      const excludedLabels = (data.article_labels || []).filter((l: string) => NORMALLY_EXCLUDED.includes(l))
+      setArticleExclusionNote(excludedLabels.length > 0 ? `Labeled: ${excludedLabels.join(', ')} — normally excluded from auto-rotation` : null)
 
       // Save to localStorage
       const postData: SavedPost = {
@@ -1453,6 +1459,11 @@ export function CampaignCalendar() {
                 <p className="text-zinc-500 text-xs mt-0.5">{generatingAllForArticle.id}</p>
               </div>
             )}
+            {articleExclusionNote && (
+              <div className="mb-3 px-3 py-2 rounded-lg bg-amber-900/20 border border-amber-700/50">
+                <span className="text-amber-400 text-xs">⚠ {articleExclusionNote}</span>
+              </div>
+            )}
             <h3 className="text-sm font-medium text-zinc-600 dark:text-zinc-400 mb-2">
               All Platforms — {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
             </h3>
@@ -1761,6 +1772,7 @@ export function CampaignCalendar() {
                     setSelectedArticle(null)
                     setManualSelectionLocked(false)
                     setArticleSearch('')
+                    setArticleExclusionNote(null)
                   }}
                   className="text-gray-400 hover:text-white transition-colors text-lg leading-none"
                   aria-label="Clear selection"
@@ -1802,6 +1814,13 @@ export function CampaignCalendar() {
                 )}
               </div>
             )}
+          </div>
+        )}
+
+        {/* Exclusion note — shown after generation when article has normally-excluded labels */}
+        {articleExclusionNote && !showAllPlatforms && (
+          <div className="w-full mb-2 px-3 py-2 rounded-lg bg-amber-900/20 border border-amber-700/50">
+            <span className="text-amber-400 text-xs">⚠ {articleExclusionNote}</span>
           </div>
         )}
 

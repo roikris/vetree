@@ -84,21 +84,8 @@ export async function POST(request: NextRequest) {
         }, { status: 404 })
       }
 
-      // Check if forced article has large-animal labels
-      const isLargeAnimal = specificArticle?.labels?.some((l: string) =>
-        largeAnimalLabels.includes(l)
-      )
-
-      if (isLargeAnimal) {
-        // Explicit id + large-animal → caller error, NOT silent fallback.
-        // An article can have mixed labels (e.g. "Small Animal" + "Equine") —
-        // caller must choose a different article. Never pick a substitute silently.
-        console.log('[generate-post] EXPLICIT article', forcedArticleId, 'has large-animal labels — rejecting, no fallback')
-        return NextResponse.json({
-          error: `Article ${forcedArticleId} is excluded (large animal / equine labels: ${specificArticle.labels?.filter((l: string) => largeAnimalLabels.includes(l)).join(', ')}). Please select a different article.`
-        }, { status: 422 })
-      }
-
+      // Explicit article_id is honoured verbatim — no policy filters (not even large-animal).
+      // Manual choice outranks automatic pickers and automatic filters alike.
       article = specificArticle
       console.log('[generate-post] EXPLICIT: using forced article_id', forcedArticleId, '—', specificArticle.title?.slice(0, 70))
     }
@@ -272,6 +259,13 @@ export async function POST(request: NextRequest) {
       }, { status: 500 })
     }
 
+    // Explicit picks bypass all exclusion filters (large-animal, etc.) — SKIP_LARGE_ANIMAL
+    // instruction is only injected into prompts for automatic selection.
+    const isExplicit = !!forcedArticleId
+    const skipLargeAnimalInstruction = isExplicit
+      ? ''
+      : '\n\nIMPORTANT: This post is for small animal first opinion practice only. If the article is about large animals, equine, livestock, or poultry - do not generate a post and return ONLY the text: SKIP_LARGE_ANIMAL'
+
     // Build article URL with UTM parameters for tracking
     // tiktok/threads kept for backward compat (not in rotation but route still handles them)
     const utmParams = {
@@ -424,7 +418,7 @@ Article: ${article.title}
 Clinical Bottom Line: ${article.clinical_bottom_line}
 Labels: ${article.labels?.join(', ') || 'N/A'}
 
-IMPORTANT: This post is for small animal first opinion practice only. If the article is about large animals, equine, livestock, or poultry - do not generate a post and return ONLY the text: SKIP_LARGE_ANIMAL
+${skipLargeAnimalInstruction}
 
 TWITTER RULES (CRITICAL):
 - Total post must be UNDER 280 characters including the link
@@ -448,7 +442,7 @@ Article: ${article.title}
 Clinical Bottom Line: ${article.clinical_bottom_line}
 Labels: ${article.labels?.join(', ') || 'N/A'}
 
-IMPORTANT: This post is for small animal first opinion practice only. If the article is about large animals, equine, livestock, or poultry - do not generate a post and return ONLY the text: SKIP_LARGE_ANIMAL
+${skipLargeAnimalInstruction}
 
 LINKEDIN RHYTHM FORMATTING (CRITICAL):
 - Alternate between short lines (1 sentence) and longer paragraphs (2-3 sentences)
@@ -486,7 +480,7 @@ Article: ${article.title}
 Clinical Bottom Line: ${article.clinical_bottom_line}
 Labels: ${article.labels?.join(', ') || 'N/A'}
 
-IMPORTANT: This post is for small animal first opinion practice only. If the article is about large animals, equine, livestock, or poultry - do not generate a post and return ONLY the text: SKIP_LARGE_ANIMAL
+${skipLargeAnimalInstruction}
 
 TIKTOK SCRIPT RULES (CRITICAL):
 - 80-100 words MAX — completable in 30-45 seconds spoken aloud
@@ -528,7 +522,7 @@ Article: ${article.title}
 Clinical Bottom Line: ${article.clinical_bottom_line}
 Labels: ${article.labels?.join(', ') || 'N/A'}
 
-IMPORTANT: This post is for small animal first opinion practice only. If the article is about large animals, equine, livestock, or poultry - do not generate a post and return ONLY the text: SKIP_LARGE_ANIMAL
+${skipLargeAnimalInstruction}
 
 THREADS RULES (CRITICAL):
 - 150-300 words
@@ -554,7 +548,7 @@ Article: ${article.title}
 Clinical Bottom Line: ${article.clinical_bottom_line}
 Labels: ${article.labels?.join(', ') || 'N/A'}
 
-IMPORTANT: This post is for small animal first opinion practice only. If the article is about large animals, equine, livestock, or poultry - do not generate a post and return ONLY the text: SKIP_LARGE_ANIMAL
+${skipLargeAnimalInstruction}
 
 FORMATTING REQUIREMENTS:
 ${platformRule}

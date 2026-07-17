@@ -75,19 +75,24 @@ test.describe('generate-post route: article resolution', () => {
     expect(body.article_id).toBeUndefined()
   })
 
-  test('mixed large-animal article_id → 422 error, no substitute article generated', async ({ page }) => {
+  test('explicit mixed large-animal article_id → 200, article id echoed verbatim', async ({ page }) => {
+    // PR #24: explicit picks bypass all exclusion filters (large-animal included).
+    // Manual choice outranks automatic pickers and automatic filters alike.
+    // Real Claude call — allow 60 s
     const response = await page.request.post('/api/growth/generate-post', {
       data: {
         platform: 'twitter',
         language: 'en',
         article_id: MIXED_LARGE_ANIMAL_ID,
       },
+      timeout: 60_000,
     })
 
-    expect(response.status()).toBe(422)
+    expect(response.status()).toBe(200)
     const body = await response.json()
-    expect(body.error).toMatch(/large animal|equine/i)
-    expect(body.post_content).toBeUndefined()
-    expect(body.article_id).toBeUndefined()
+    expect(body.post_content).toBeTruthy()
+    expect(body.article_id).toBe(MIXED_LARGE_ANIMAL_ID)
+    // article_labels may contain normally-excluded labels — that's expected and correct
+    expect(body.post_content).not.toContain('SKIP_LARGE_ANIMAL')
   })
 })
