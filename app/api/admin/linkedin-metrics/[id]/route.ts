@@ -27,7 +27,7 @@ export async function PATCH(
 
   const { id } = await params
   const body = await request.json()
-  const { article_id, match_method, impressions, engagements } = body
+  const { article_id, match_method, impressions, engagements, action } = body
 
   // Metrics update — inline edit of impressions / engagements
   if ('impressions' in body || 'engagements' in body) {
@@ -48,6 +48,32 @@ export async function PATCH(
       .eq('id', id)
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     return NextResponse.json({ success: true })
+  }
+
+  // Clear an erroneous match — distinct from 'no_article': this row is
+  // "unknown, needs assignment" and is excluded from automatic rematch
+  // (see rematch/route.ts) so the same wrong tier match can't reapply itself.
+  if (action === 'clear_match') {
+    const { data: existing, error: fetchError } = await supabase
+      .from('linkedin_post_metrics')
+      .select('article_id, match_method')
+      .eq('id', id)
+      .single()
+    if (fetchError) return NextResponse.json({ error: fetchError.message }, { status: 500 })
+
+    const { data: updated, error } = await supabase
+      .from('linkedin_post_metrics')
+      .update({ article_id: null, match_method: 'cleared' })
+      .eq('id', id)
+      .select()
+      .single()
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+    console.log(
+      `[linkedin-metrics] clear_match row=${id} previous_article_id=${existing?.article_id ?? 'null'} previous_match_method=${existing?.match_method ?? 'null'}`
+    )
+
+    return NextResponse.json({ success: true, row: updated })
   }
 
   if (match_method === 'no_article') {

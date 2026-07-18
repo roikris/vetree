@@ -281,9 +281,13 @@ This is NOT the 3-tier FTS/ILIKE/trigram used by the main article feed. The RPC 
   - `'haiku'` — legacy value on old DB rows (pre-migration); rematch display counter includes both
   - `'activity_id'` | `'slug'` | `'date'` — deterministic matching tiers
   - `'manual'` — admin-corrected in UI
+  - `'no_article'` — reshares/group posts with no article
+  - `'cleared'` — admin unassigned an erroneous match; article_id nulled, needs (re-)assignment
 
 `/api/admin/linkedin-metrics/rematch` — POST
-- Re-runs matching on all rows where match_method != 'manual'
+- Re-runs matching on all rows where match_method not in ('manual', 'no_article', 'cleared')
+- 'cleared' rows are excluded deliberately — otherwise a deterministic tier (e.g. date) would
+  immediately reassign the same wrong article an admin just unassigned
 - Returns counts: `{ slug, date, ai }` (ai bucket counts both 'ai' and legacy 'haiku' rows)
 
 `/api/admin/linkedin-metrics/funnel` — GET
@@ -291,3 +295,6 @@ This is NOT the 3-tier FTS/ILIKE/trigram used by the main article feed. The RPC 
 
 `/api/admin/linkedin-metrics/[id]` — PATCH/DELETE
 - Admin manually sets article_id (sets match_method = 'manual') or deletes row
+- `{ match_method: 'no_article' }` — marks row as having no associated article
+- `{ action: 'clear_match' }` — clears article_id and sets match_method = 'cleared';
+  logs the previous article_id + match_method server-side before overwriting

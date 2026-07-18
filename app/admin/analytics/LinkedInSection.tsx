@@ -305,6 +305,24 @@ export function LinkedInSection() {
     }
   }
 
+  const handleClearMatch = async (rowId: string) => {
+    const row = rows.find(r => r.id === rowId)
+    if (!row) return
+    const label = row.article_title || row.article_id
+    if (!confirm(`Unassign "${label}" from the LinkedIn post on ${row.post_date}?`)) return
+    const token = await getToken()
+    const res = await fetch(`/api/admin/linkedin-metrics/${rowId}`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'clear_match' }),
+    })
+    if (!res.ok) { alert('Failed to clear match'); return }
+    setRows(prev => prev.map(r => r.id === rowId
+      ? { ...r, article_id: null, article_title: null, article_labels: [], match_method: 'cleared', sessions: 0, unique_visitors: 0, saves: 0, ctr: 0 }
+      : r
+    ))
+  }
+
   const handleNoArticle = async (rowId: string) => {
     const token = await getToken()
     const res = await fetch(`/api/admin/linkedin-metrics/${rowId}`, {
@@ -574,10 +592,17 @@ export function LinkedInSection() {
                   <td style={td}>{row.post_date}</td>
                   <td style={{ ...td, maxWidth: 220 }}>
                     {row.article_id ? (
-                      <a href={`/article/${row.article_id}`} target="_blank" rel="noreferrer"
-                        style={{ color: 'var(--al-accent)', textDecoration: 'none', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', fontSize: 12 }}>
-                        {row.article_title || row.article_id}
-                      </a>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+                        <a href={`/article/${row.article_id}`} target="_blank" rel="noreferrer"
+                          style={{ color: 'var(--al-accent)', textDecoration: 'none', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', fontSize: 12 }}>
+                          {row.article_title || row.article_id}
+                        </a>
+                        <button onClick={() => handleClearMatch(row.id)}
+                          title="Unassign this article"
+                          style={{ fontSize: 12, color: '#dc2626', background: 'none', border: 'none', cursor: 'pointer', padding: 0, lineHeight: 1, flexShrink: 0 }}>
+                          ✕
+                        </button>
+                      </div>
                     ) : row.match_method === 'no_article' ? (
                       <span style={{ fontSize: 11, color: 'var(--al-mut6)', fontStyle: 'italic' }}>no article</span>
                     ) : (
@@ -624,8 +649,8 @@ export function LinkedInSection() {
                   <td style={td}>
                     {row.match_method ? (
                       <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 3,
-                        background: row.match_method === 'activity_id' ? '#dbeafe' : row.match_method === 'slug' ? '#dcfce7' : row.match_method === 'date' ? '#e0e7ff' : (row.match_method === 'ai' || row.match_method === 'haiku') ? '#f3e8ff' : row.match_method === 'no_article' ? '#f1f5f9' : '#fef9c3',
-                        color: row.match_method === 'activity_id' ? '#1e40af' : row.match_method === 'slug' ? '#166534' : row.match_method === 'date' ? '#3730a3' : (row.match_method === 'ai' || row.match_method === 'haiku') ? '#6b21a8' : row.match_method === 'no_article' ? '#64748b' : '#854d0e' }}>
+                        background: row.match_method === 'activity_id' ? '#dbeafe' : row.match_method === 'slug' ? '#dcfce7' : row.match_method === 'date' ? '#e0e7ff' : (row.match_method === 'ai' || row.match_method === 'haiku') ? '#f3e8ff' : row.match_method === 'no_article' ? '#f1f5f9' : row.match_method === 'cleared' ? '#fee2e2' : '#fef9c3',
+                        color: row.match_method === 'activity_id' ? '#1e40af' : row.match_method === 'slug' ? '#166534' : row.match_method === 'date' ? '#3730a3' : (row.match_method === 'ai' || row.match_method === 'haiku') ? '#6b21a8' : row.match_method === 'no_article' ? '#64748b' : row.match_method === 'cleared' ? '#991b1b' : '#854d0e' }}>
                         {row.match_method}
                       </span>
                     ) : <span style={{ color: 'var(--al-mut6)', fontSize: 11 }}>—</span>}

@@ -349,11 +349,12 @@ Written by aggregate route; pre-filtered (admin + TEST_USER_ID excluded).
 | uploaded_at | timestamptz | |
 | metrics_updated_at | timestamptz | when impressions/engagements were last written (XLSX upload or manual edit) |
 
-`match_method` constraint (live, fully reconciled via migrations 038→040→042→043):
-`('activity_id', 'slug', 'date', 'ai', 'haiku', 'manual', 'no_article')`
+`match_method` constraint (live, fully reconciled via migrations 038→040→042→043→045):
+`('activity_id', 'slug', 'date', 'ai', 'haiku', 'manual', 'no_article', 'cleared')`
 - `'ai'` — written by current matcher (post-Sonnet migration); added in migration 042
 - `'haiku'` — legacy value on pre-migration rows; still accepted
 - `'no_article'` — reshares/group posts with no article; added in migration 043
+- `'cleared'` — admin manually unassigned an erroneous article match (article_id set to null); added in migration 045. Distinct from `'no_article'`: a cleared row still needs assignment. Excluded from the automatic rematch pass — only resolvable via the manual picker or explicit "no article".
 
 ### `linkedin_daily_metrics`
 | Column | Type | Notes |
