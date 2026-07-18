@@ -628,6 +628,12 @@ export async function getTrafficSources(days: number = 7) {
   return { data: trafficSources, error: null }
 }
 
+function median(values: number[]): number | null {
+  if (!values.length) return null
+  const sorted = [...values].sort((a, b) => a - b)
+  return sorted[Math.floor(sorted.length / 2)]
+}
+
 export async function getSaveIntentFunnel(days: number = 7) {
   const supabase = await createClient()
 
@@ -644,19 +650,53 @@ export async function getSaveIntentFunnel(days: number = 7) {
 
   const { data } = await db
     .from('analytics_events')
-    .select('event_name')
-    .in('event_name', ['save_intent_arrived', 'save_intent_auth_shown', 'save_intent_completed'])
+    .select('event_name, user_id, detail')
+    .in('event_name', ['save_intent_arrived', 'save_intent_auth_shown', 'save_intent_completed', 'save_intent_resolved'])
     .gte('created_at', startDate.toISOString())
     .or(excludedUsersOrFilter())
 
   const counts = { arrived: 0, auth_shown: 0, completed: 0 }
+  const branchStats: Record<string, { count: number; actors: Set<string> }> = {}
+  const resolutionTimesMs: number[] = []
+  let resolvedTotal = 0
+
   for (const row of data || []) {
     if (row.event_name === 'save_intent_arrived') counts.arrived++
     else if (row.event_name === 'save_intent_auth_shown') counts.auth_shown++
     else if (row.event_name === 'save_intent_completed') counts.completed++
+    else if (row.event_name === 'save_intent_resolved') {
+      resolvedTotal++
+      const detail = (row.detail ?? {}) as Record<string, unknown>
+      const branch = typeof detail.branch === 'string' ? detail.branch : 'unknown'
+      const ipHash = typeof detail.ip_hash === 'string' ? detail.ip_hash : null
+      const actor = row.user_id || ipHash || 'anon'
+
+      if (!branchStats[branch]) branchStats[branch] = { count: 0, actors: new Set() }
+      branchStats[branch].count++
+      branchStats[branch].actors.add(actor)
+
+      if (typeof detail.ms_from_arrival === 'number' && detail.ms_from_arrival >= 0) {
+        resolutionTimesMs.push(detail.ms_from_arrival)
+      }
+    }
   }
 
-  return { data: counts, error: null }
+  const branches = Object.entries(branchStats)
+    .map(([branch, stats]) => ({ branch, count: stats.count, uniqueUsers: stats.actors.size }))
+    .sort((a, b) => b.count - a.count)
+
+  return {
+    data: {
+      ...counts,
+      resolved: resolvedTotal,
+      // Arrived with no matching resolved event — the SaveIntentHandler instance
+      // never reached a terminal branch (nav away, tab close, JS error, etc).
+      abandoned: Math.max(0, counts.arrived - resolvedTotal),
+      medianResolutionMs: median(resolutionTimesMs),
+      branches,
+    },
+    error: null,
+  }
 }
 
 export async function getSynthesisStats(days: number = 7) {

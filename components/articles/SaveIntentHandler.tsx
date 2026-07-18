@@ -17,12 +17,12 @@ type Props = {
   relatedArticles: RelatedArticle[]
 }
 
-function trackEvent(eventName: string, articleId?: string) {
+function trackEvent(eventName: string, articleId?: string, detail?: Record<string, unknown>) {
   if (typeof navigator !== 'undefined' && navigator.webdriver) return
   fetch('/api/analytics/event', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ event_name: eventName, article_id: articleId }),
+    body: JSON.stringify({ event_name: eventName, article_id: articleId, detail }),
   }).catch(() => {})
 }
 
@@ -244,6 +244,7 @@ export function SaveIntentHandler({ articleId, relatedArticles }: Props) {
   const [showAuthPrompt, setShowAuthPrompt] = useState(false)
   const [showFirstSave, setShowFirstSave] = useState(false)
   const handled = useRef(false)
+  const arrivedAtRef = useRef<number | null>(null)
 
   useEffect(() => {
     if (authLoading || saveLoading) return
@@ -255,21 +256,44 @@ export function SaveIntentHandler({ articleId, relatedArticles }: Props) {
 
     handled.current = true
 
+    // Passthrough for the resolved/arrived events — read before 'intent' is stripped below
+    const utm_source = params.get('utm_source') || undefined
+    const utm_content = params.get('utm_content') || undefined
+
     // Strip intent=save from URL immediately so refresh doesn't re-trigger
     params.delete('intent')
     const newSearch = params.toString()
     history.replaceState(null, '', window.location.pathname + (newSearch ? '?' + newSearch : ''))
 
-    trackEvent('save_intent_arrived', articleId)
+    arrivedAtRef.current = Date.now()
+    trackEvent('save_intent_arrived', articleId, { utm_source, utm_content })
+
+    // Fires once per arrival, at whichever branch this instance resolves to.
+    // Makes abandonment (arrived with no matching resolved event) and
+    // time-to-resolution directly measurable — see getSaveIntentFunnel.
+    const resolve = (
+      branch: 'saved_now' | 'already_saved' | 'auth_shown' | 'save_error',
+      authState: 'authenticated' | 'anonymous'
+    ) => {
+      trackEvent('save_intent_resolved', articleId, {
+        branch,
+        auth_state: authState,
+        ms_from_arrival: arrivedAtRef.current ? Date.now() - arrivedAtRef.current : null,
+        utm_source,
+        utm_content,
+      })
+    }
 
     if (!user) {
-      trackEvent('save_intent_auth_shown', articleId)
+      trackEvent('save_intent_auth_shown', articleId, { utm_source, utm_content })
+      resolve('auth_shown', 'anonymous')
       setShowAuthPrompt(true)
       return
     }
 
     if (isSaved(articleId)) {
       setToast({ testId: 'already-saved-toast', message: 'כבר בספרייה שלך', showLibrary: true })
+      resolve('already_saved', 'authenticated')
       setTimeout(() => setToast(null), 4500)
       return
     }
@@ -283,10 +307,12 @@ export function SaveIntentHandler({ articleId, relatedArticles }: Props) {
     toggleSave(articleId).then(result => {
       if (result?.error) {
         setToast({ testId: 'save-error-toast', message: 'שגיאה בשמירה — נסו שוב' })
+        resolve('save_error', 'authenticated')
         setTimeout(() => setToast(null), 5000)
         return
       }
       trackEvent('save_intent_completed', articleId)
+      resolve('saved_now', 'authenticated')
       if (isFirstSave && !shelfShown && relatedArticles.length > 0) {
         localStorage.setItem('vetree_first_save_shelf_shown', '1')
         setShowFirstSave(true)
@@ -295,7 +321,13 @@ export function SaveIntentHandler({ articleId, relatedArticles }: Props) {
         setTimeout(() => setToast(null), 5000)
       }
     }).catch(() => {
-      setToast({ message: 'נשמר לספרייה שלך ✓', showLibrary: true })
+      // toggleSave only rejects when fetch() itself throws (offline, dropped
+      // connection, aborted request) — every other outcome, including the
+      // server's duplicate-key "already saved" case, resolves normally and
+      // is handled above. We don't know if the write landed, so this is a
+      // real failure, not a completed save: same treatment as result?.error.
+      setToast({ testId: 'save-error-toast', message: 'שגיאה בשמירה — נסו שוב' })
+      resolve('save_error', 'authenticated')
       setTimeout(() => setToast(null), 5000)
     })
   }, [authLoading, saveLoading]) // eslint-disable-line react-hooks/exhaustive-deps
