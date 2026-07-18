@@ -214,7 +214,8 @@ to detect drift; Docker is required for this command.
 - 040 → + 'activity_id'
 - 042 → + 'ai'  (backfill for dashboard change)
 - 043 → + 'no_article'
-Current live constraint: `('activity_id', 'slug', 'date', 'ai', 'haiku', 'manual', 'no_article')`
+- 045 → + 'cleared'  (admin manually unassigned an erroneous match; excluded from auto-rematch)
+Current live constraint: `('activity_id', 'slug', 'date', 'ai', 'haiku', 'manual', 'no_article', 'cleared')`
 
 ## Environment Variables
 ```

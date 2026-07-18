@@ -24,12 +24,15 @@ export async function POST(request: NextRequest) {
     .from('user_roles').select('role').eq('user_id', user.id).single()
   if (role?.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  // Fetch all unmatched rows (article_id IS NULL, not manually resolved)
+  // Fetch all unmatched rows (article_id IS NULL, not manually resolved).
+  // 'cleared' rows are excluded: an admin explicitly unassigned a wrong match,
+  // and re-running the same deterministic tier (e.g. date) would just
+  // reassign the identical wrong article. Those go through the manual picker only.
   const { data: unmatched, error: fetchError } = await supabase
     .from('linkedin_post_metrics')
     .select('id, post_url, post_date')
     .is('article_id', null)
-    .or('match_method.is.null,and(match_method.neq.manual,match_method.neq.no_article)')
+    .or('match_method.is.null,and(match_method.neq.manual,match_method.neq.no_article,match_method.neq.cleared)')
 
   if (fetchError) return NextResponse.json({ error: fetchError.message }, { status: 500 })
   if (!unmatched?.length) return NextResponse.json({ updated: 0, message: 'No unmatched rows' })
