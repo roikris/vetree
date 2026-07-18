@@ -321,14 +321,13 @@ export function SaveIntentHandler({ articleId, relatedArticles }: Props) {
         setTimeout(() => setToast(null), 5000)
       }
     }).catch(() => {
-      setToast({ message: 'נשמר לספרייה שלך ✓', showLibrary: true })
-      // toggleSave rejected but the UI still tells the user it succeeded —
-      // count it as completed so the metric matches what's shown on screen.
-      // Previously this path fired neither 'completed' nor any tracking at
-      // all, undercounting completions; comparisons against older date
-      // ranges should account for this.
-      trackEvent('save_intent_completed', articleId)
-      resolve('saved_now', 'authenticated')
+      // toggleSave only rejects when fetch() itself throws (offline, dropped
+      // connection, aborted request) — every other outcome, including the
+      // server's duplicate-key "already saved" case, resolves normally and
+      // is handled above. We don't know if the write landed, so this is a
+      // real failure, not a completed save: same treatment as result?.error.
+      setToast({ testId: 'save-error-toast', message: 'שגיאה בשמירה — נסו שוב' })
+      resolve('save_error', 'authenticated')
       setTimeout(() => setToast(null), 5000)
     })
   }, [authLoading, saveLoading]) // eslint-disable-line react-hooks/exhaustive-deps
