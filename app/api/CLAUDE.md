@@ -174,10 +174,22 @@ then queries `user_roles` directly. If `role === 'admin'`, returns `{ success: t
 early. This does NOT use `EXCLUDED_USER_IDS` / `excludedUsersOrFilter()`.
 
 ```ts
-// Event names in use: save_intent_arrived, save_intent_auth_shown, save_intent_completed
-// Body: { event_name: string, article_id?: string }
+// Event names in use: save_intent_arrived, save_intent_auth_shown, save_intent_completed, save_intent_resolved
+// Body: { event_name: string, article_id?: string, detail?: Record<string, unknown> }
 // Always fire-and-forget — route never returns error to caller
 ```
+
+The route always merges `device: { type: 'mobile'|'desktop', in_app_browser: boolean }` (parsed from
+the `user-agent` header) and `ip_hash` (same SHA-256 scheme as `page_views.ip_hash`, never raw IP)
+into whatever `detail` the client sent, before insert. `ip_hash` is the dedup key for "unique actors"
+on events with no `user_id` (anonymous branches) — same `user_id || ip_hash || 'anon'` precedence
+pattern used in the LinkedIn funnel route.
+
+`save_intent_resolved` fires once per `SaveIntentHandler` arrival, at whichever branch it resolves
+to — `detail.branch`: `'saved_now' | 'already_saved' | 'auth_shown' | 'save_error'`. Also carries
+`auth_state`, `ms_from_arrival` (delta from the `save_intent_arrived` fire), `utm_source`, `utm_content`.
+Arrived events without a matching resolved event in the same window are abandonment (see
+`getSaveIntentFunnel` in `app/actions/analytics.ts`).
 
 **Never** write synthetic paths to `page_views` for funnel events. Use `analytics_events`.
 

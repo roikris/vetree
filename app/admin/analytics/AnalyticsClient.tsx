@@ -16,7 +16,15 @@ type AnalyticsClientProps = {
   initialSavedArticlesStats: any
   initialTrafficSources: any[]
   initialSynthesisStats: { totalRuns: number; totalHelpful: number } | null
-  initialSaveIntentFunnel: { arrived: number; auth_shown: number; completed: number } | null
+  initialSaveIntentFunnel: {
+    arrived: number
+    auth_shown: number
+    completed: number
+    resolved: number
+    abandoned: number
+    medianResolutionMs: number | null
+    branches: { branch: string; count: number; uniqueUsers: number }[]
+  } | null
 }
 
 export function AnalyticsClient({
@@ -503,6 +511,53 @@ export function AnalyticsClient({
           <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--al-mut4)', fontFamily: 'var(--font-instrument,sans-serif)', fontSize: 14 }}>
             No save-intent events yet — will populate once social posts with the 💾 line go live.
           </div>
+        )}
+
+        {saveIntentFunnel && saveIntentFunnel.arrived > 0 && (
+          <>
+            <div style={{ display: 'flex', gap: 24, marginTop: 20, flexWrap: 'wrap' }}>
+              <div>
+                <div style={labelStyle}>Abandoned</div>
+                <div style={{ ...bigNumStyle, fontSize: 20, marginTop: 4 }}>
+                  {saveIntentFunnel.abandoned.toLocaleString()}
+                  <span style={{ fontSize: 13, fontWeight: 400, color: 'var(--al-mut4)', marginLeft: 6 }}>
+                    ({Math.round((saveIntentFunnel.abandoned / saveIntentFunnel.arrived) * 100)}% of arrived — no resolved event)
+                  </span>
+                </div>
+              </div>
+              <div>
+                <div style={labelStyle}>Median time to resolution</div>
+                <div style={{ ...bigNumStyle, fontSize: 20, marginTop: 4 }}>
+                  {saveIntentFunnel.medianResolutionMs !== null
+                    ? `${(saveIntentFunnel.medianResolutionMs / 1000).toFixed(1)}s`
+                    : '—'}
+                </div>
+              </div>
+            </div>
+
+            {saveIntentFunnel.branches.length > 0 && (
+              <div style={{ marginTop: 20, overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr>
+                      <th style={{ ...thStyle }}>Branch</th>
+                      <th style={{ ...thStyle, textAlign: 'right' }}>Events</th>
+                      <th style={{ ...thStyle, textAlign: 'right' }}>Unique users</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {saveIntentFunnel.branches.map(b => (
+                      <tr key={b.branch}>
+                        <td style={{ ...tdStyle, fontFamily: 'monospace', fontSize: 12 }}>{b.branch}</td>
+                        <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 600 }}>{b.count.toLocaleString()}</td>
+                        <td style={{ ...tdStyle, textAlign: 'right' }}>{b.uniqueUsers.toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </>
         )}
       </div>
 

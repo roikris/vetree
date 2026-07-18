@@ -183,12 +183,17 @@ Funnel events (save_intent_*) go to `analytics_events`, NOT page_views.
 | Column | Type | Notes |
 |--------|------|-------|
 | id | uuid PK | |
-| event_name | text | save_intent_arrived / save_intent_auth_shown / save_intent_completed |
+| event_name | text | save_intent_arrived / save_intent_auth_shown / save_intent_completed / save_intent_resolved |
 | article_id | text nullable FK → articles | ON DELETE SET NULL |
 | user_id | uuid nullable | |
+| detail | jsonb nullable | added migration 046; free-form event context |
 | created_at | timestamptz | |
 
 Admin-only read policy. Public insert policy. Never write funnel events to page_views.
+
+`/api/analytics/event` always merges `device: {type, in_app_browser}` + `ip_hash` into `detail`
+server-side (see app/api/CLAUDE.md). `save_intent_resolved.detail` additionally carries `branch`,
+`auth_state`, `ms_from_arrival`, `utm_source`, `utm_content`.
 
 ### `digest_logs`
 | Column | Type |
