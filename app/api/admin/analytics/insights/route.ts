@@ -244,6 +244,9 @@ ${linkedinDailySummary}
 
     const systemPrompt = `You are the Lead Product Analyst for Vetree, an evidence-based veterinary research platform built for DVMs (veterinarians).
 
+STANDING CONSTRAINTS — set by the owner, not derived from data. These override any pattern you see below, no matter how compelling the numbers look. Preserve this section verbatim in any future rewrite of this prompt.
+- NEVER suggest increasing (or decreasing) LinkedIn posting frequency or cadence. Posting cadence is a fixed owner decision — not something this agent recommends changing, regardless of impressions, engagement rate, or follower growth.
+
 PLATFORM CONTEXT — what already exists (do NOT suggest these):
 - Hero section with CTA and "New!" synthesis banner on homepage
 - Soft registration wall after 3 article views
@@ -277,14 +280,16 @@ KNOWN CONSTRAINTS:
 WHAT GOOD RECOMMENDATIONS LOOK LIKE:
 Good: "52% zero-result searches — add these 5 specific missing topics to the search synonym map in lib/utils/normalizeQuery.ts"
 Good: "3 users haven't returned in 7 days — trigger re-engagement section in their next Friday digest automatically"
-Good: "LinkedIn traffic has 3x session duration — generate more LinkedIn posts in the Content Agent rotation"
+Good: "Synthesis engagement rate is 12% (4 helpful / 33 runs), up from 6% last week — surface the synthesis_feedback 'not relevant' notes in next week's signal extraction so the gap is diagnosable"
 
 Bad: "Create a landing page" (already have hero section)
 Bad: "Add a search feature" (already have fuzzy search)
 Bad: "Send email notifications" (already have weekly digest)
 Bad: "Add related content" (already have related articles)
 Bad: "Improve mobile experience" (already mobile-optimized)
-Bad: Suggesting a content_roadmap topic not found in the signals data — fabricating topics wastes synthesis tokens and produces empty output.
+Bad: "Post more frequently on LinkedIn" / "increase LinkedIn cadence" — violates the STANDING CONSTRAINT above, even when impressions or engagement look strong this week
+Bad: Suggesting a content_roadmap topic not found in the signals data — fabricating topics wastes synthesis tokens and produces empty output
+Bad: "Mobile users convert 2x better than desktop this week" when the underlying metric has fewer than 100 events — sample size does not support a segment claim
 
 YOUR PRIORITIES (in order):
 1. Retention — what specific friction prevents vets from returning?
@@ -292,14 +297,28 @@ YOUR PRIORITIES (in order):
 3. Growth — which platforms/channels are converting best?
 4. Feature depth — which existing features are underused and why?
 
+OUTPUT STRUCTURE — every run must produce exactly this shape, in this order:
+(a) FACTS — this week's numbers with deltas vs. the prior period. State them plainly: what changed and by how much. No interpretation, no "because," no recommendation here — that comes next.
+(b) ONE INSIGHT — not a list. The single most decision-relevant pattern found in the FACTS above. Must cite at least one specific number from FACTS. If nothing this week clears the bar (e.g. everything is flat, or the only signal is too thin — see sample-size rule below), say so plainly instead of manufacturing a pattern.
+(c) MAX TWO ACTIONS — at most 2, never more. Each action must:
+    - Name the exact metric/number it is intended to move (e.g., "would reduce the 52% zero-result rate on these 5 queries")
+    - Respect sample size: never conclude, suggest an A/B test, or make a per-segment/per-cohort claim from a metric with fewer than 100 events this week
+    - Reference a specific file, feature, or existing system to modify — never "build from scratch" when something similar already ships (see PLATFORM CONTEXT)
+    - Comply with every STANDING CONSTRAINT above
+
+FORBIDDEN — never include any of the following:
+- Generic growth advice not grounded in this week's specific data (e.g., "post more on social", "improve SEO", "add more content")
+- Any suggestion that repeats something already built (see PLATFORM CONTEXT)
+- Any conclusion, trend claim, or recommendation drawn from a metric with fewer than 30 events total this week
+- Anything that violates a STANDING CONSTRAINT above, however well the data seems to support it
+
 RULES:
-- Every insight MUST cite specific data from the SPECIFIC DATA section above — exact query strings, exact counts, exact article titles. Generic percentage observations are not acceptable.
-- Every recommendation must reference a specific file, feature, or existing system to modify — not build from scratch
+- FACTS must be real numbers pulled from the SPECIFIC DATA / METRICS SNAPSHOT / TOP SIGNALS sections below — never invented. Generic percentage observations with no source number are not acceptable.
 - Achievable by a solo developer in under 1 day
 - Veterinary clinical relevance > generic SaaS patterns
 - Return ONLY valid JSON, no markdown, no preamble`
 
-    const userPrompt = `Analyze these signals from the past 7 days and generate actionable insights.
+    const userPrompt = `Analyze these signals from the past 7 days and produce the strict FACTS / ONE INSIGHT / MAX TWO ACTIONS output defined in your system prompt.
 
 METRICS SNAPSHOT:
 ${JSON.stringify(snapshot, null, 2)}
@@ -315,21 +334,22 @@ Return this exact JSON structure:
   "insights": [
     {
       "area": "content|ux|growth|retention|feature",
-      "observation": "specific pattern with exact numbers",
+      "facts": ["this week's numbers with deltas, no interpretation — e.g. '140/270 searches (52%) returned zero results, up from 31% last week'"],
+      "observation": "the ONE most decision-relevant pattern — must cite a specific number from facts above",
       "why_it_matters": "clinical or business relevance for DVMs",
-      "recommendation": "specific executable action",
+      "recommendation": "the primary action — see top_3_actions for the full (max 2) list",
       "time_to_implement": "1h|half-day|1-day|1-week",
       "impact": "low|medium|high",
       "confidence": 0.0
     }
   ],
-  "top_3_actions": ["action 1", "action 2", "action 3"],
+  "top_3_actions": ["action 1 — names the metric it would move", "action 2 — names the metric it would move"],
   "content_roadmap": ["synthesis topic 1", "synthesis topic 2", "synthesis topic 3"],
   "churn_risks": ["plain text description of churn risk — NEVER include user IDs, UUIDs, or any personal identifiers"],
   "weekly_summary": "2-3 sentence summary for Slack notification"
 }
 
-Generate 4-6 insights maximum. Quality over quantity.
+insights MUST contain EXACTLY ONE item — the single most decision-relevant pattern this week, not a survey of everything that moved. top_3_actions MUST contain AT MOST TWO items (the field name is historical; two is the hard cap, not a target — return fewer, or none, if fewer clear the bar). Every action must respect sample size (no A/B tests or per-segment/per-cohort conclusions on any metric with fewer than 100 events this week) and must not violate a STANDING CONSTRAINT from your system prompt.
 
 CONTENT ROADMAP RULE: Populate content_roadmap ONLY from signals with type=content_opportunity (zero-result or thin-result searches). These are topics users actually searched for and found nothing. Do NOT invent topics. If no content_opportunity signals exist, return an empty array []. An empty content_roadmap is correct when there is no evidence of unmet demand.`
 
@@ -368,22 +388,27 @@ CONTENT ROADMAP RULE: Populate content_roadmap ONLY from signals with type=conte
 
     // Run critique pass
     console.log('[insights] Running critique pass...')
-    const critiquePrompt = `Review these insights for quality. For each insight, check:
-1. Is it backed by specific numbers?
-2. Is the recommendation concrete and executable this week?
-3. Is it relevant for veterinarians (not generic SaaS advice)?
-4. Score each 0-1 for quality.
+    const critiquePrompt = `Review this output for quality and contract compliance. Check:
+1. Are the facts real numbers pulled from the data provided, not invented, with no interpretation mixed in?
+2. Does the insight's observation cite at least one specific number from facts?
+3. Does top_3_actions contain more than 2 items? If so, trim it down to at most 2, keeping the strongest.
+4. Does each remaining action name the specific metric/number it would move?
+5. Does any insight or action violate a STANDING CONSTRAINT — most notably, recommending any change to LinkedIn posting frequency or cadence?
+6. Does any conclusion, trend claim, or action rest on a metric with fewer than 30 events this week, or a segment/cohort claim on a metric with fewer than 100 events?
+7. Does anything repeat a feature that already exists on the platform?
+8. Is it relevant for veterinarians, not generic SaaS advice?
+9. Score the insight 0-1 for quality.
 
-Remove insights scoring below 0.6 and return the filtered list in the same JSON format.
+If the insight scores below 0.6, or violates a STANDING CONSTRAINT, or fails the sample-size rule with no fix possible, remove it (return an empty insights array). Otherwise return the corrected result in the same JSON format — trimmed, not rewritten.
 
-Insights to review:
+Output to review:
 ${JSON.stringify(insightsData, null, 2)}`
 
     const critiqueResponse = await anthropic.messages.create({
       model: 'claude-sonnet-4-6',
       max_tokens: 2000,
       messages: [{ role: 'user', content: critiquePrompt }],
-      system: 'You are a quality checker for product insights. Return only valid JSON matching the input format, with low-quality insights removed.'
+      system: 'You are a quality and contract-compliance checker for product insights. Return only valid JSON matching the input format, with low-quality or non-compliant content removed or trimmed.'
     })
 
     console.log('[insights] Critique response received, tokens:', critiqueResponse.usage.input_tokens, 'in /', critiqueResponse.usage.output_tokens, 'out')
@@ -445,17 +470,16 @@ Output this exact markdown structure:
 - Top searched queries: [list top 5 with counts]
 - Zero-result queries: [list top 5 — these are content gaps]
 
-## 🧠 AI Analysis — [X] Insights This Week
-[For each insight:]
+## 🧠 AI Analysis
 ### [area]: [observation]
+- Facts: [each item in facts, one per line]
 - Why it matters: [why_it_matters]
 - Recommended action: [recommendation]
 - Time to implement: [time] | Impact: [impact] | Confidence: [confidence]
+(If INSIGHTS is empty, write: "No insight cleared the bar this week — see Facts above.")
 
-## 🎯 Top 3 Priority Actions
-1. [action 1]
-2. [action 2]
-3. [action 3]
+## 🎯 Priority Actions
+[Number each item in TOP ACTIONS in order, 1 line each. There will be at most 2 — never invent a 3rd. If TOP ACTIONS is empty, write "None this week."]
 
 ## 📚 Content Roadmap (Unmet Search Demand)
 [list topics]
@@ -508,7 +532,7 @@ Output this exact markdown structure:
         console.error('[insights] finalInsights is invalid, skipping Slack')
       } else {
         const slackMessage = {
-          text: `🧠 *Vetree Weekly Analysis*\n\n${finalInsights.weekly_summary || 'Weekly analysis complete.'}\n\n*TOP 3 ACTIONS:*\n${
+          text: `🧠 *Vetree Weekly Analysis*\n\n${finalInsights.weekly_summary || 'Weekly analysis complete.'}\n\n*PRIORITY ACTIONS:*\n${
             (finalInsights.top_3_actions || []).map((a: string, i: number) => `${i+1}. ${a}`).join('\n') || 'None'
           }\n\n*CONTENT ROADMAP:*\n${
             (finalInsights.content_roadmap || []).map((t: string) => `• ${t}`).join('\n') || 'None'

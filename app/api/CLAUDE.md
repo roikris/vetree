@@ -264,12 +264,21 @@ This is NOT the 3-tier FTS/ILIKE/trigram used by the main article feed. The RPC 
 1. Daily (02:00 UTC): `/api/admin/analytics/aggregate` → SQL aggregation → `analytics_daily_snapshot`
 2. Daily (02:00 UTC): `/api/admin/analytics/signals` → signal extraction → `analytics_signals`
 3. Friday (12:00 UTC): `/api/admin/analytics/insights` → Claude Sonnet analysis → `analytics_insights` → Slack
-4. Critique pass: Claude Sonnet reviews insights, removes those scoring < 0.6
+4. Critique pass: Claude Sonnet reviews the output for quality AND contract compliance (below), removes/trims violations
 5. Report markdown generated for paste into Claude.ai
 - Exclude admin + TEST_USER_ID from ALL analytics queries via `excludedUsersOrFilter()`
 - Article views are NOT reliable signals (social promotion bias) — use saves/searches/synthesis
 - Signal types: search_gap, churn_risk, content_opportunity, growth_signal, retention_driver, ux_problem, data_gap
 - `data_gap` fires when total_searches == 0 in latest snapshot (logging sensor failure)
+
+### Insights output contract (systemPrompt in insights/route.ts)
+- **Standing constraints** — set by the owner, never derived from data, must survive any future prompt rewrite. Currently: never suggest changing LinkedIn posting cadence/frequency.
+- **Structure**, enforced by both the generation prompt and the critique pass:
+  (a) FACTS — this week's numbers with deltas, no interpretation
+  (b) ONE INSIGHT (`insights` array capped at exactly 1 item) — the single most decision-relevant pattern, must cite a specific number from FACTS
+  (c) MAX TWO ACTIONS (`top_3_actions` array capped at 2 — field name is historical, do not read it as a target of 3) — each must name the metric it would move, respect sample size (no A/B/per-segment conclusions on n<100), and not repeat an existing feature
+- **Forbidden**: generic growth advice, repeating something already built, conclusions from single-week deltas on metrics with <30 events, anything violating a standing constraint
+- The report-generation prompt and Slack message must stay in sync with the max-2 cap (no hardcoded "Top 3" language) — see `report_markdown` template and Slack `text` in insights/route.ts
 
 ## Security Agent Flow
 1. Thursday (19:00 UTC): `/api/admin/security/scan`
