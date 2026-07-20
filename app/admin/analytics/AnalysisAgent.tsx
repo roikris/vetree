@@ -318,7 +318,7 @@ Please implement this change and commit.`
       {latestAnalysis && latestAnalysis.top_3_actions.length > 0 && (
         <div className="bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800 rounded-lg p-6">
           <h3 className="text-lg font-semibold text-green-900 dark:text-green-100 mb-4">
-            ⭐ Top 3 Actions This Week
+            ⭐ Priority Actions This Week
           </h3>
           <div className="space-y-3">
             {latestAnalysis.top_3_actions.map((action, index) => (
