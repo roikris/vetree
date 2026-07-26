@@ -217,6 +217,23 @@ to detect drift; Docker is required for this command.
 - 045 → + 'cleared'  (admin manually unassigned an erroneous match; excluded from auto-rematch)
 Current live constraint: `('activity_id', 'slug', 'date', 'ai', 'haiku', 'manual', 'no_article', 'cleared')`
 
+### 16. security-acknowledged.json — Roi's decisions only, never a session's own judgment
+```
+// Parks specific npm audit advisories (by GHSA ID) that were reviewed and consciously
+// deferred — e.g. the fix requires a major version bump, or the vulnerable code path
+// isn't reachable in Vetree's config. Schema: { advisory_id, package, reason, decision,
+// decided_on, severity }. `severity` records the severity AT the time of the decision —
+// required so the security scan's dependency check (CHECK 14) can detect escalation.
+//
+// A session may propose an entry, but adding or editing one requires Roi's explicit
+// go-ahead first — a session deciding an advisory is "probably fine" is not the same
+// as Roi deciding to park it. Never add/edit this file without that sign-off.
+//
+// The safety valve: an acknowledgment only covers the severity it was made at. If the
+// same advisory later escalates (e.g. high -> critical), or a different advisory shows
+// up against the same package, it alarms as NEW regardless of this file's contents.
+```
+
 ## Environment Variables
 ```
 NEXT_PUBLIC_SUPABASE_URL
