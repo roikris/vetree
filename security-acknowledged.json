@@ -1,0 +1,18 @@
+[
+  {
+    "advisory_id": "GHSA-f88m-g3jw-g9cj",
+    "package": "sharp",
+    "reason": "sharp is unused in the app — no server-side image processing paths",
+    "decision": "ignore",
+    "decided_on": "2026-07-26",
+    "severity": "high"
+  },
+  {
+    "advisory_id": "GHSA-8988-4f7v-96qf",
+    "package": "@opentelemetry/core",
+    "reason": "requires @sentry/nextjs v10 major; scheduled as standalone task",
+    "decision": "upgrade later",
+    "decided_on": "2026-07-26",
+    "severity": "moderate"
+  }
+]

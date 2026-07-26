@@ -77,6 +77,9 @@ export async function POST(request: NextRequest) {
   )
 
   const findings: Finding[] = []
+  // Count of distinct dependency advisories matched against security-acknowledged.json
+  // (CHECK 14) — reported as a compact footer line, never as alarming findings.
+  let acknowledgedAdvisoryCount = 0
 
   // CHECK 1: RLS — try accessing sensitive tables with anon key
   // These tables should never return data to unauthenticated requests
@@ -408,7 +411,14 @@ export async function POST(request: NextRequest) {
 
   // CHECK 14: Dependency vulnerabilities (npm audit)
   // Checks installed packages against the npm advisory database.
-  // Flags high and critical severity CVEs only.
+  // Considers high and critical severity CVEs only.
+  //
+  // npm audit fans a single advisory out across every package in the dependency graph
+  // it touches (e.g. one OpenTelemetry advisory can appear under 13 instrumentation
+  // packages) — reporting raw package-entry counts overstates distinct risk (PR #28
+  // found "11 high" was really 8 distinct advisories). We dedupe by GHSA ID first,
+  // then split into NEW (alarm) vs ACKNOWLEDGED (Roi's parked decisions in
+  // security-acknowledged.json — footer line only, no fix prompt, not in the headline).
   try {
     const { execSync } = await import('child_process')
     let auditJson = ''
@@ -429,15 +439,65 @@ export async function POST(request: NextRequest) {
       const vulns: Array<[string, any]> = Object.entries(audit.vulnerabilities || {})
       const highCrit = vulns.filter(([, v]) => ['critical', 'high'].includes(v.severity))
 
-      if (highCrit.length > 0) {
-        const critCount = highCrit.filter(([, v]) => v.severity === 'critical').length
-        const highCount = highCrit.filter(([, v]) => v.severity === 'high').length
+      // Dedupe: group every real advisory object (not the string dep-chain edges)
+      // in each flagged package's `via` array by its GHSA ID.
+      type AdvisoryGroup = { advisory_id: string; title: string; severity: string; packages: Set<string> }
+      const advisoryMap = new Map<string, AdvisoryGroup>()
+      for (const [pkgName, v] of highCrit) {
+        for (const via of v.via || []) {
+          if (typeof via === 'string') continue // dep-chain edge, not an advisory itself
+          const ghsaMatch = /advisories\/(GHSA-[a-z0-9-]+)/i.exec(via.url || '')
+          const advisoryId = ghsaMatch ? ghsaMatch[1] : (via.url || via.title)
+          const existing = advisoryMap.get(advisoryId)
+          if (existing) {
+            existing.packages.add(pkgName)
+          } else {
+            advisoryMap.set(advisoryId, {
+              advisory_id: advisoryId,
+              title: via.title || advisoryId,
+              severity: via.severity || v.severity,
+              packages: new Set([pkgName]),
+            })
+          }
+        }
+      }
+
+      // Load Roi's acknowledged/parked advisories — never a session's own judgment.
+      // See CLAUDE.md rule 16 and security-acknowledged.json.
+      type Ack = { advisory_id: string; package: string; reason: string; decision: string; decided_on: string; severity: string }
+      let acknowledged: Ack[] = []
+      try {
+        acknowledged = JSON.parse(fs.readFileSync(path.join(cwd, 'security-acknowledged.json'), 'utf-8'))
+      } catch {
+        // Missing/invalid file → fail open to alarming (nothing acknowledged), not silent
+      }
+      const ackMap = new Map(acknowledged.map(a => [a.advisory_id, a]))
+      const severityRank: Record<string, number> = { low: 0, moderate: 1, high: 2, critical: 3 }
+
+      const newAdvisories: AdvisoryGroup[] = []
+      let acknowledgedCount = 0
+      for (const group of advisoryMap.values()) {
+        const ack = ackMap.get(group.advisory_id)
+        // Safety valve: an acknowledgment only covers the severity it was made at.
+        // If the advisory has since escalated (e.g. high -> critical), it alarms
+        // as NEW despite being in security-acknowledged.json.
+        const escalated = ack ? severityRank[group.severity] > (severityRank[ack.severity] ?? -1) : false
+        if (ack && !escalated) {
+          acknowledgedCount++
+        } else {
+          newAdvisories.push(group)
+        }
+      }
+      acknowledgedAdvisoryCount = acknowledgedCount
+
+      if (newAdvisories.length > 0) {
+        const critCount = newAdvisories.filter(g => g.severity === 'critical').length
         findings.push({
           id: 'dependency_vulnerabilities',
           severity: critCount > 0 ? 'critical' : 'high',
-          title: `${highCrit.length} high/critical dependency vulnerabilities`,
-          description: `npm audit found ${critCount} critical and ${highCount} high severity CVEs in installed packages: ${highCrit.map(([n, v]) => `${n} (${v.severity})`).join(', ')}.`,
-          affected: highCrit.map(([name]) => name),
+          title: `${newAdvisories.length} unacknowledged dependency ${newAdvisories.length === 1 ? 'advisory' : 'advisories'}`,
+          description: `npm audit found ${newAdvisories.length} distinct advisories not covered by security-acknowledged.json: ${newAdvisories.map(g => `${g.title} [${g.advisory_id}] severity=${g.severity} (${[...g.packages].join(', ')})`).join('; ')}.`,
+          affected: [...new Set(newAdvisories.flatMap(g => [...g.packages]))],
           detected_at: new Date().toISOString(),
         })
       }
@@ -797,7 +857,8 @@ Generate a ready-to-paste Claude Code prompt that:
     severity: overallSeverity,
     findings_json: findings,
     fixes_json: fixes,
-    summary: `${findings.length} issue${findings.length !== 1 ? 's' : ''} found. Severity: ${overallSeverity}`,
+    summary: `${findings.length} issue${findings.length !== 1 ? 's' : ''} found. Severity: ${overallSeverity}`
+      + (acknowledgedAdvisoryCount > 0 ? ` (${acknowledgedAdvisoryCount} known/parked advisor${acknowledgedAdvisoryCount === 1 ? 'y' : 'ies'} excluded)` : ''),
   })
 
   // Slack notification
@@ -816,6 +877,10 @@ Generate a ready-to-paste Claude Code prompt that:
       ? `\n\n*🟢 Resolved since last run:*\n${resolvedIds.map(id => `✓ ${id}`).join('\n')}`
       : ''
 
+    const acknowledgedSection = acknowledgedAdvisoryCount > 0
+      ? `\n\n${acknowledgedAdvisoryCount} known/parked advisor${acknowledgedAdvisoryCount === 1 ? 'y' : 'ies'} (see security-acknowledged.json)`
+      : ''
+
     await fetch(process.env.SLACK_WEBHOOK_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -827,6 +892,7 @@ Generate a ready-to-paste Claude Code prompt that:
             ? `*Issues:*\n${issueLines}`
             : '🎉 No issues detected — all checks passed!') +
           resolvedSection +
+          acknowledgedSection +
           `\n\n<https://vetree.app/admin/security|View Full Report & Fix Prompts →>`,
       }),
     }).catch(err => console.error('[security] Slack error:', err))
@@ -837,5 +903,6 @@ Generate a ready-to-paste Claude Code prompt that:
     run_id: runId,
     severity: overallSeverity,
     findings_count: findings.length,
+    acknowledged_count: acknowledgedAdvisoryCount,
   })
 }
