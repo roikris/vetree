@@ -224,6 +224,10 @@ Current live constraint: `('activity_id', 'slug', 'date', 'ai', 'haiku', 'manual
 // isn't reachable in Vetree's config. Schema: { advisory_id, package, reason, decision,
 // decided_on, severity }. `severity` records the severity AT the time of the decision —
 // required so the security scan's dependency check (CHECK 14) can detect escalation.
+// `advisory_id` may be a single GHSA string, or an array of GHSA strings when one
+// decision covers several sibling advisories bundled into the same vendored/pinned
+// copy (e.g. postcss vendored inside next carries 3 separate GHSA IDs for one
+// "upgrade later" call — that's one parked decision, not three).
 //
 // A session may propose an entry, but adding or editing one requires Roi's explicit
 // go-ahead first — a session deciding an advisory is "probably fine" is not the same

@@ -14,5 +14,21 @@
     "decision": "upgrade later",
     "decided_on": "2026-07-26",
     "severity": "moderate"
+  },
+  {
+    "advisory_id": ["GHSA-qx2v-qp2m-jg93", "GHSA-6g55-p6wh-862q", "GHSA-r28c-9q8g-f849"],
+    "package": "postcss",
+    "reason": "build-time only, no runtime path to users; awaiting upstream Next.js dependency bump",
+    "decision": "upgrade later",
+    "decided_on": "2026-07-26",
+    "severity": "high"
+  },
+  {
+    "advisory_id": "GHSA-mh99-v99m-4gvg",
+    "package": "brace-expansion",
+    "reason": "build-time only, no runtime path to users; awaiting upstream Next.js dependency bump",
+    "decision": "upgrade later",
+    "decided_on": "2026-07-26",
+    "severity": "high"
   }
 ]
