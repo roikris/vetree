@@ -464,31 +464,38 @@ export async function POST(request: NextRequest) {
 
       // Load Roi's acknowledged/parked advisories — never a session's own judgment.
       // See CLAUDE.md rule 16 and security-acknowledged.json.
-      type Ack = { advisory_id: string; package: string; reason: string; decision: string; decided_on: string; severity: string }
+      // advisory_id may be a single GHSA string, or an array when one decision covers
+      // several sibling advisories on the same bundled/vendored copy (e.g. postcss
+      // vendored inside next carries 3 separate GHSA IDs for one "upgrade later" call).
+      type Ack = { advisory_id: string | string[]; package: string; reason: string; decision: string; decided_on: string; severity: string }
       let acknowledged: Ack[] = []
       try {
         acknowledged = JSON.parse(fs.readFileSync(path.join(cwd, 'security-acknowledged.json'), 'utf-8'))
       } catch {
         // Missing/invalid file → fail open to alarming (nothing acknowledged), not silent
       }
-      const ackMap = new Map(acknowledged.map(a => [a.advisory_id, a]))
+      const ackIds = (a: Ack): string[] => Array.isArray(a.advisory_id) ? a.advisory_id : [a.advisory_id]
+      const findAck = (advisoryId: string): Ack | undefined => acknowledged.find(a => ackIds(a).includes(advisoryId))
       const severityRank: Record<string, number> = { low: 0, moderate: 1, high: 2, critical: 3 }
 
       const newAdvisories: AdvisoryGroup[] = []
-      let acknowledgedCount = 0
+      const firedAckEntries = new Set<Ack>()
       for (const group of advisoryMap.values()) {
-        const ack = ackMap.get(group.advisory_id)
+        const ack = findAck(group.advisory_id)
         // Safety valve: an acknowledgment only covers the severity it was made at.
         // If the advisory has since escalated (e.g. high -> critical), it alarms
         // as NEW despite being in security-acknowledged.json.
         const escalated = ack ? severityRank[group.severity] > (severityRank[ack.severity] ?? -1) : false
         if (ack && !escalated) {
-          acknowledgedCount++
+          firedAckEntries.add(ack)
         } else {
           newAdvisories.push(group)
         }
       }
-      acknowledgedAdvisoryCount = acknowledgedCount
+      // Reported count = distinct acknowledged-file entries that matched this run,
+      // not raw GHSA IDs — a 3-GHSA bundle (like postcss above) is one parked
+      // decision and should read as one line, not three.
+      acknowledgedAdvisoryCount = firedAckEntries.size
 
       if (newAdvisories.length > 0) {
         const critCount = newAdvisories.filter(g => g.severity === 'critical').length
