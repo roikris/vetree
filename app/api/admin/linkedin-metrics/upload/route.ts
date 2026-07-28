@@ -249,6 +249,38 @@ export async function POST(request: NextRequest) {
     dailyMap.set(followersResult.totalFollowersDate, { ...existing, total_followers: followersResult.totalFollowers })
   }
 
+  // ── Look up which post_urls already exist — needed by both the dry-run
+  // preview and the real write path, so the "assignments preserved" count is
+  // never a guess. article_id/match_method are fetched here ONLY to snapshot
+  // the pre-upload state for the post-write verification guard below —
+  // they are never copied into the upsert payload itself.
+  const postUrls = topPostsResult.posts.map(p => p.url).filter(Boolean)
+  const existingPostsMap = new Map<string, {
+    impressions: number | null
+    engagements: number | null
+    article_id: string | null
+    match_method: string | null
+  }>()
+
+  if (postUrls.length) {
+    const { data: existingPosts } = await supabase
+      .from('linkedin_post_metrics')
+      .select('post_url, impressions, engagements, article_id, match_method')
+      .in('post_url', postUrls)
+    for (const p of existingPosts ?? []) {
+      if (p.post_url) existingPostsMap.set(p.post_url, {
+        impressions: p.impressions,
+        engagements: p.engagements,
+        article_id: p.article_id,
+        match_method: p.match_method,
+      })
+    }
+  }
+
+  const postsWithDate = topPostsResult.posts.filter(p => p.post_date)
+  const existingRowCount = postsWithDate.filter(p => p.url && existingPostsMap.has(p.url)).length
+  const newRowCount = postsWithDate.length - existingRowCount
+
   const parsedSummary = {
     sheets_found: workbook.SheetNames,
     top_posts_count: topPostsResult.posts.length,
@@ -267,23 +299,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       dry_run: true,
       ...parsedSummary,
+      existing_rows_metric_update_only: existingRowCount,
+      new_rows_to_insert: newRowCount,
+      assignment_note: `${existingRowCount} existing row${existingRowCount === 1 ? '' : 's'} will be metric-updated (assignments preserved); ${newRowCount} new row${newRowCount === 1 ? '' : 's'} will be inserted with fresh matches`,
       sample_posts: topPostsResult.posts.slice(0, 5),
       sample_daily: [...dailyMap.entries()].slice(0, 5).map(([date, v]) => ({ date, ...v })),
     })
-  }
-
-  // ── UPSERT post metrics with COALESCE ──────────────────────────────────────
-  const postUrls = topPostsResult.posts.map(p => p.url).filter(Boolean)
-  const existingPostsMap = new Map<string, { impressions: number | null; engagements: number | null }>()
-
-  if (postUrls.length) {
-    const { data: existingPosts } = await supabase
-      .from('linkedin_post_metrics')
-      .select('post_url, impressions, engagements')
-      .in('post_url', postUrls)
-    for (const p of existingPosts ?? []) {
-      if (p.post_url) existingPostsMap.set(p.post_url, { impressions: p.impressions, engagements: p.engagements })
-    }
   }
 
   // Fetch growth_agent_memory for tiered matching (slug → date → AI)
@@ -300,44 +321,91 @@ export async function POST(request: NextRequest) {
 
   const matchMap = await matchArticlesToPosts(postsToMatch, linkedinMemory ?? [])
 
-  const postUpsertRows = topPostsResult.posts
-    .filter(p => p.post_date)
-    .map(p => {
-      const existing = existingPostsMap.get(p.url) ?? { impressions: null, engagements: null }
+  // The XLSX knows numbers; humans know articles. Uploads may never overwrite
+  // a human (or matcher) decision already sitting on an existing row — so for
+  // rows that already exist, article_id/match_method are omitted from the
+  // upsert payload entirely (not set to their current value, OMITTED), which
+  // means Postgres's ON CONFLICT DO UPDATE leaves those columns untouched.
+  // Only genuinely new rows get article_id/match_method from this run's matcher.
+  const newRows: Array<Record<string, unknown>> = []       // no post_url — always a fresh insert
+  const newRowsWithUrl: Array<Record<string, unknown>> = []   // post_url not seen before — full columns
+  const existingRowsWithUrl: Array<Record<string, unknown>> = [] // post_url already exists — metric columns only
+
+  for (const p of topPostsResult.posts) {
+    if (!p.post_date) continue
+    const existing = existingPostsMap.get(p.url)
+    const metricFields = {
+      post_url: p.url || null,
+      post_date: p.post_date,
+      impressions: p.impressions ?? existing?.impressions ?? null,
+      engagements: p.engagements ?? existing?.engagements ?? null,
+      raw_row: p.raw_row,
+      metrics_updated_at: new Date().toISOString(),
+    }
+
+    if (!p.url) {
+      newRows.push(metricFields)
+    } else if (existing) {
+      existingRowsWithUrl.push(metricFields)
+    } else {
       const match = matchMap.get(p.url)
-      return {
-        post_url: p.url || null,
-        post_date: p.post_date,
-        impressions: p.impressions ?? existing.impressions,
-        engagements: p.engagements ?? existing.engagements,
+      newRowsWithUrl.push({
+        ...metricFields,
         article_id: match?.article_id ?? null,
         match_method: match?.method ?? null,
-        raw_row: p.raw_row,
-        metrics_updated_at: new Date().toISOString(),
-      }
-    })
+      })
+    }
+  }
 
   let postsUpserted = 0
   let postsError: string | null = null
 
-  if (postUpsertRows.length) {
-    const withUrl = postUpsertRows.filter(r => r.post_url)
-    const withoutUrl = postUpsertRows.filter(r => !r.post_url)
+  if (newRowsWithUrl.length) {
+    const { error } = await supabase
+      .from('linkedin_post_metrics')
+      .upsert(newRowsWithUrl, { onConflict: 'post_url', ignoreDuplicates: false })
+    if (error) postsError = error.message
+    else postsUpserted += newRowsWithUrl.length
+  }
+  if (existingRowsWithUrl.length && !postsError) {
+    const { error } = await supabase
+      .from('linkedin_post_metrics')
+      .upsert(existingRowsWithUrl, { onConflict: 'post_url', ignoreDuplicates: false })
+    if (error) postsError = error.message
+    else postsUpserted += existingRowsWithUrl.length
 
-    if (withUrl.length) {
-      const { error } = await supabase
+    // Safety-net guard: assignment columns were never sent for these rows, so
+    // they must be byte-for-byte identical to the pre-upload snapshot. If a
+    // future refactor accidentally reintroduces article_id/match_method into
+    // this payload, this is what catches it — refuse loudly instead of
+    // silently wiping a human decision.
+    if (!postsError) {
+      const touchedUrls = existingRowsWithUrl.map(r => r.post_url as string)
+      const { data: postWriteRows, error: verifyError } = await supabase
         .from('linkedin_post_metrics')
-        .upsert(withUrl, { onConflict: 'post_url', ignoreDuplicates: false })
-      if (error) postsError = error.message
-      else postsUpserted += withUrl.length
+        .select('post_url, article_id, match_method')
+        .in('post_url', touchedUrls)
+      if (verifyError) {
+        postsError = `Post-write verification failed: ${verifyError.message}`
+      } else {
+        const mutated = (postWriteRows ?? []).filter(row => {
+          const before = existingPostsMap.get(row.post_url!)
+          return before && (before.article_id !== row.article_id || before.match_method !== row.match_method)
+        })
+        if (mutated.length > 0) {
+          postsError = `REFUSED: upload mutated assignment columns on ${mutated.length} existing row(s) — ` +
+            `the XLSX knows numbers, humans know articles. Affected: ${mutated.map(r => r.post_url).join(', ')}`
+          console.error('[linkedin-metrics/upload]', postsError)
+        }
+      }
     }
-    if (withoutUrl.length && !postsError) {
-      const { error } = await supabase
-        .from('linkedin_post_metrics')
-        .insert(withoutUrl)
-      if (error) postsError = error.message
-      else postsUpserted += withoutUrl.length
-    }
+  }
+  if (newRows.length && !postsError) {
+    const { error } = await supabase
+      .from('linkedin_post_metrics')
+      .insert(newRows)
+    if (error) postsError = error.message
+    else postsUpserted += newRows.length
   }
 
   // ── UPSERT daily metrics with COALESCE ─────────────────────────────────────
@@ -391,12 +459,18 @@ export async function POST(request: NextRequest) {
     daily_rows_upserted: dailyUpserted,
     total_followers: followersResult.totalFollowers,
     total_followers_date: followersResult.totalFollowersDate,
-    matched_articles: postUpsertRows.filter(r => r.article_id).length,
+    // Only newRowsWithUrl carries article_id/match_method from this run's
+    // matcher — existing rows' assignments were never touched, so they're
+    // deliberately excluded from these stats (see assignment_note below).
+    existing_rows_metric_update_only: existingRowsWithUrl.length,
+    new_rows_inserted: newRowsWithUrl.length + newRows.length,
+    assignment_note: `${existingRowsWithUrl.length} existing row${existingRowsWithUrl.length === 1 ? '' : 's'} were metric-updated (assignments preserved); ${newRowsWithUrl.length + newRows.length} new row${(newRowsWithUrl.length + newRows.length) === 1 ? '' : 's'} inserted with fresh matches`,
+    matched_articles: newRowsWithUrl.filter(r => r.article_id).length,
     match_breakdown: {
-      slug: postUpsertRows.filter(r => r.match_method === 'slug').length,
-      date: postUpsertRows.filter(r => r.match_method === 'date').length,
-      ai: postUpsertRows.filter(r => r.match_method === 'ai').length,
-      unmatched: postUpsertRows.filter(r => !r.article_id).length,
+      slug: newRowsWithUrl.filter(r => r.match_method === 'slug').length,
+      date: newRowsWithUrl.filter(r => r.match_method === 'date').length,
+      ai: newRowsWithUrl.filter(r => r.match_method === 'ai').length,
+      unmatched: newRowsWithUrl.filter(r => !r.article_id).length,
     },
     discovery: discoverySummary,
     demographics: demographicsSummary,

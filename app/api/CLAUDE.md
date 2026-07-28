@@ -297,6 +297,19 @@ This is NOT the 3-tier FTS/ILIKE/trigram used by the main article feed. The RPC 
 - Parses impressions + engagements sheets from LinkedIn analytics export
 - Runs article matching: activity_id → slug → date → AI (Claude Sonnet)
 - Upserts to `linkedin_post_metrics` (idempotent via post_url UNIQUE constraint)
+
+**Assignment-preserving upsert (critical — read before touching this route):** the XLSX
+knows numbers; humans know articles. On conflict (existing post_url), the upsert payload
+for that row omits `article_id`/`match_method` entirely — never sets them to null, never
+copies back their current value, just doesn't include the keys — so Postgres's
+`ON CONFLICT DO UPDATE` leaves whatever a human (or the matcher) already assigned
+completely untouched. Only genuinely new rows get `article_id`/`match_method` from that
+run's matcher. A post-write verification read confirms this held and refuses loudly
+(500, not silent) if an existing row's assignment ever changes. A prior version of this
+route included those columns unconditionally in every upsert row, which nulled ~29
+manually-assigned rows on 2026-07-28 when the matcher didn't find a fresh match for them
+(fixed in PR for fix/xlsx-upsert-preserves-assignments; repair script:
+`scripts/repair-linkedin-metrics-assignments.ts`).
 - `match_method` values:
   - `'ai'` — current value written by Claude Sonnet matcher (post-Sonnet migration)
   - `'haiku'` — legacy value on old DB rows (pre-migration); rematch display counter includes both
