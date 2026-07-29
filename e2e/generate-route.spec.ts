@@ -29,7 +29,7 @@ const BOGUS_ID              = 'pubmed-BOGUS-00000000'
 test.describe('generate-post route: article resolution', () => {
   test.skip(
     !process.env.ADMIN_EMAIL || !process.env.ADMIN_PASSWORD,
-    'Skipped: ADMIN_EMAIL and ADMIN_PASSWORD must be set to run admin route tests'
+    'gated on missing ADMIN_EMAIL/ADMIN_PASSWORD'
   )
 
   test.beforeEach(async ({ page }) => {

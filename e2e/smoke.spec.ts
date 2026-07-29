@@ -99,8 +99,8 @@ test('save-intent (logged out): auth sheet appears, intent stripped, links are v
 
 // ─── 5. Auth round-trip (desktop only) ───────────────────────────────────────
 test('auth round-trip: intent=save saves article, appears in library, unsave removes it', async ({ page, context }, testInfo) => {
-  test.skip(!process.env.TEST_USER_EMAIL || !process.env.TEST_USER_PASSWORD, 'TEST_USER_* not set')
-  test.skip(testInfo.project.name !== 'desktop', 'Desktop only — avoid shared-account interference')
+  test.skip(!process.env.TEST_USER_EMAIL || !process.env.TEST_USER_PASSWORD, 'gated on missing TEST_USER_EMAIL/TEST_USER_PASSWORD')
+  test.skip(testInfo.project.name !== 'desktop', 'mobile-scoped (by design — avoid shared-account interference)')
 
   await page.goto('/login')
   await page.locator('input[type="email"]').fill(process.env.TEST_USER_EMAIL!)

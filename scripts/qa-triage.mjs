@@ -31,6 +31,17 @@ function featureFor(title) {
   return title
 }
 
+// Group skipped tests by their skip reason (sourced from the test.skip(condition,
+// description) annotation in the spec file) and format as "N reason" entries,
+// most common first — e.g. "8 mobile-scoped (by design), 1 gated on missing X".
+function summarizeSkips(skipped) {
+  const counts = new Map()
+  for (const { reason } of skipped) counts.set(reason, (counts.get(reason) || 0) + 1)
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([reason, count]) => `${count} ${reason}`)
+}
+
 async function postToSlack(message) {
   if (!WEBHOOK_URL) { console.log('[triage] No SLACK_WEBHOOK_URL set'); return }
   const body = JSON.stringify({ text: message })
@@ -132,7 +143,11 @@ async function main() {
           if (wasRetried) flaky.push(title)  // passed only after retry = flaky
           else passed.push(title)
         } else if (finalStatus === 'skipped') {
-          skipped.push(title)  // skipped is never a failure
+          // Reason comes from the test.skip(condition, description) call itself —
+          // Playwright records it as a { type: 'skip', description } annotation on
+          // the test case. Source of truth is the spec file, not this script.
+          const reason = result.annotations?.find(a => a.type === 'skip')?.description || 'no reason given'
+          skipped.push({ title, reason })  // skipped is never a failure
         } else {
           // 'failed', 'timedOut', 'interrupted', etc. — all are failures
           failed.push({ title, error: errMsg.slice(0, 400), loc: errLoc })
@@ -151,7 +166,7 @@ async function main() {
   if (failed.length === 0) {
     const parts = [`${passed.length} passed`]
     if (flaky.length > 0) parts.push(`${flaky.length} flaky`)
-    if (skipped.length > 0) parts.push(`${skipped.length} skipped`)
+    if (skipped.length > 0) parts.push(...summarizeSkips(skipped))
     await postToSlack(`🟢 *Smoke*: ${parts.join(', ')} (${triggerLabel}) <${RUN_URL}|→ run>`)
     return
   }

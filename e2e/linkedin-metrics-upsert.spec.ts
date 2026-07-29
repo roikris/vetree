@@ -46,7 +46,7 @@ function buildTopPostsXlsx(impressions: number, engagements: number): Buffer {
 test.describe('linkedin-metrics upload: existing-row upsert preserves assignments', () => {
   test.skip(
     !process.env.ADMIN_EMAIL || !process.env.ADMIN_PASSWORD || !process.env.SUPABASE_SERVICE_ROLE_KEY,
-    'Skipped: ADMIN_EMAIL, ADMIN_PASSWORD, and SUPABASE_SERVICE_ROLE_KEY must be set to run this test'
+    'gated on missing ADMIN_EMAIL/ADMIN_PASSWORD/SUPABASE_SERVICE_ROLE_KEY'
   )
 
   test('re-upload with new metrics: metrics change, manual assignment survives', async ({ page, request }) => {
