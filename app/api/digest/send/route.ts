@@ -13,7 +13,17 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 300 // 5 minutes for sending emails
 
-async function sendSlackNotification(sentCount: number, skippedCount: number, errorCount: number, totalUsers: number) {
+// Every place a user is skipped must go through skip() with one of these reasons —
+// a skip count without a reason is the bug class this project has been fixing all month.
+type SkipReason = 'opted_out' | 'no_consent' | 'recent_digest' | 'no_articles'
+
+function formatSkipReasons(counts: Record<string, number>): string {
+  const entries = Object.entries(counts).filter(([, n]) => n > 0)
+  if (entries.length === 0) return 'none'
+  return entries.map(([reason, n]) => `${reason}: ${n}`).join(', ')
+}
+
+async function sendSlackNotification(sentCount: number, skippedCount: number, errorCount: number, totalUsers: number, skipReasonCounts: Record<string, number>) {
   const webhookUrl = process.env.SLACK_WEBHOOK_URL
   if (!webhookUrl) return
 
@@ -22,7 +32,7 @@ async function sendSlackNotification(sentCount: number, skippedCount: number, er
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        text: `🌿 *Vetree Weekly Digest Sent*\n• Emails sent: ${sentCount}\n• Skipped: ${skippedCount}\n• Errors: ${errorCount}\n• Total users: ${totalUsers}`
+        text: `🌿 *Vetree Weekly Digest Sent*\n• Emails sent: ${sentCount}\n• Skipped: ${skippedCount} (${formatSkipReasons(skipReasonCounts)})\n• Errors: ${errorCount}\n• Total users: ${totalUsers}`
       })
     })
   } catch (error) {
@@ -91,6 +101,15 @@ export async function POST(request: NextRequest) {
     let sentCount = 0
     let skippedCount = 0
     let errorCount = 0
+    const skipReasonCounts: Record<SkipReason, number> = {
+      opted_out: 0, no_consent: 0, recent_digest: 0, no_articles: 0,
+    }
+    const skipDetail: { email: string; reason: SkipReason }[] = []
+    function skip(email: string, reason: SkipReason) {
+      skippedCount++
+      skipReasonCounts[reason]++
+      skipDetail.push({ email, reason })
+    }
     const fiveDaysAgo = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000)
     const fiveDaysAgoISO = fiveDaysAgo.toISOString()
     const digestDate = new Date().toISOString().split('T')[0]
@@ -209,20 +228,20 @@ export async function POST(request: NextRequest) {
 
       // Skip users who have explicitly unsubscribed
       if (optedOutIds.has(user.id)) {
-        skippedCount++
+        skip(user.email, 'opted_out')
         continue
       }
 
       // Skip users without explicit marketing consent (Israeli Anti-Spam Law)
       if (!consentedIds.has(user.id)) {
-        skippedCount++
+        skip(user.email, 'no_consent')
         continue
       }
 
       // DEDUP CHECK: Skip if user got an email in the last 5 days (batch lookup)
       if (recentDigestIds.has(user.id)) {
         console.log(`[digest] Skipping ${user.email} - already sent in last 5 days`)
-        skippedCount++
+        skip(user.email, 'recent_digest')
         continue
       }
 
@@ -290,7 +309,7 @@ export async function POST(request: NextRequest) {
       // Skip user if no articles found even after backfill
       if (!articles || articles.length === 0) {
         console.log(`[digest] Skipping ${user.email} - no unsent articles found`)
-        skippedCount++
+        skip(user.email, 'no_articles')
         continue
       }
 
@@ -379,6 +398,8 @@ export async function POST(request: NextRequest) {
         dry_run: true,
         would_send: previewList,
         would_skip: skippedCount,
+        would_skip_reasons: skipReasonCounts,
+        skip_detail: skipDetail,
         total_users: users.length,
       })
     }
@@ -411,12 +432,13 @@ export async function POST(request: NextRequest) {
       console.error('[digest] Failed to log run:', logError)
     }
 
-    await sendSlackNotification(sentCount, skippedCount, errorCount, users.length)
+    await sendSlackNotification(sentCount, skippedCount, errorCount, users.length, skipReasonCounts)
 
     return NextResponse.json({
       success: true,
       sentCount,
       skippedCount,
+      skippedReasons: skipReasonCounts,
       totalUsers: users.length
     })
 
