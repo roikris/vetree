@@ -208,7 +208,7 @@ Silent error swallowing (missing error variable) caused two weeks of all-zero sn
 2. Fetch already-used article_ids from `growth_agent_memory` (approved only, last 14 days)
 3. Also exclude articles used TODAY across all platforms
 4. If `article_id` forced (Generate All mode) → skip article selection, use that article
-5. Fetch articles (top 200 by publication_date DESC), filter large animal in JS
+5. Fetch articles (top 200 by created_at DESC — ingestion time, not publication_date), filter large animal in JS
 6. Weighted random selection by recency (exponential decay: weight = 0.95^index)
 7. Call Claude Sonnet with platform-specific prompt
 8. If SKIP_LARGE_ANIMAL response → retry up to 3x (ignore forced article_id on retry)
