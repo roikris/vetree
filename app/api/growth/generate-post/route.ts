@@ -174,7 +174,11 @@ export async function POST(request: NextRequest) {
         allExcludedIds = Array.from(new Set([...recentArticleIds, ...todayArticleIds]))
       }
 
-      // FIX 3: Query for enriched articles - fetch top 200 most recent by publication date
+      // FIX 3: Query for enriched articles - fetch top 200 most recently ingested (created_at,
+      // NOT publication_date — preprints can carry a publication_date months in the future,
+      // which would permanently pin them at index 0 and, combined with the exponential-decay
+      // recency weighting below, make them win selection every single day. created_at is when
+      // Vetree ingested the article; publication_date remains display-only. See CLAUDE.md.
       // NOTE: GIN index exists on labels column (idx_articles_labels_gin) for efficient array operations.
       // Ideally we'd filter large animals server-side with .not('labels', 'ov', largeAnimalLabels),
       // but Supabase PostgREST doesn't reliably support .not() with overlap operators.
@@ -186,7 +190,7 @@ export async function POST(request: NextRequest) {
         .not('clinical_bottom_line', 'is', null)
         .not('summary', 'is', null)
         .limit(200)  // Increased from 50 to 200
-        .order('publication_date', { ascending: false })
+        .order('created_at', { ascending: false })
 
       if (error || !articles || articles.length === 0) {
         return NextResponse.json({

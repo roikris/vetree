@@ -351,6 +351,18 @@ if (!success) return NextResponse.json({ error: 'Too many requests' }, { status:
 - Articles hidden until: needs_enrichment=false AND summary IS NOT NULL AND clinical_bottom_line IS NOT NULL AND (quarantined=false OR quarantined IS NULL)
 - Blacklist: check articles_blacklist before inserting; add to blacklist when admin deletes
 
+## Content Ranking Clock
+Ranking by "new" means new-to-Vetree (`created_at`), not `publication_date` — `publication_date`
+is display metadata only. A future-dated preprint permanently tops any `publication_date`-desc
+sort until its cover date actually arrives, which can be months away (~30 articles currently
+carry a future `publication_date`).
+- Uses `created_at`: weekly digest (`/api/digest/send`), Growth OS daily auto-pick
+  (`/api/growth/generate-post`), personalized "For You" feed (`app/actions/personalized-feed.ts`).
+- Exceptions (deliberate product decision, do not "fix"): the homepage/stream browsing feed and
+  hero (a hot preprint front-and-center is correct editorial behavior for a browsing surface) and
+  synthesis/related-article pools (want the best evidence on a topic regardless of arrival date —
+  recency is not their ranking clock).
+
 ## Filter Caching (pagination performance)
 ```ts
 // Cache journal and evidence level lists — they rarely change

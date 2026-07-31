@@ -23,7 +23,9 @@ export async function getPersonalizedArticles() {
     return { articles: [], hasFollowedTags: false }
   }
 
-  // Fetch articles matching any of the user's followed tags
+  // Fetch articles matching any of the user's followed tags — ranked by created_at
+  // (ingestion time, not publication_date). See CLAUDE.md: publication_date is
+  // display-only; preprints can carry a publication_date months in the future.
   const { data: articles, error } = await supabase
     .from('articles')
     .select('*')
@@ -32,7 +34,7 @@ export async function getPersonalizedArticles() {
     .not('summary', 'is', null)
     .or('quarantined.is.null,quarantined.eq.false')
     .overlaps('labels', followedTags)
-    .order('publication_date', { ascending: false })
+    .order('created_at', { ascending: false })
     .limit(5)
 
   if (error) {
