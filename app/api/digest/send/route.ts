@@ -93,7 +93,16 @@ export async function POST(request: NextRequest) {
     let errorCount = 0
     const fiveDaysAgo = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000)
     const fiveDaysAgoISO = fiveDaysAgo.toISOString()
-    const fiveDaysAgoDate = fiveDaysAgo.toISOString().split('T')[0]
+    const digestDate = new Date().toISOString().split('T')[0]
+
+    // Recency clock for article selection is created_at (when Vetree ingested the
+    // article), never publication_date. publication_date is journal metadata only —
+    // preprints can carry a publication_date months in the future, which would
+    // otherwise pin them at the top of every publication_date-desc sort forever.
+    const DIGEST_SIZE = 5
+    const PRIMARY_FETCH_LIMIT = 20 // overfetch so large-animal + sent-article JS filtering still leaves enough
+    const RE_ENGAGEMENT_SIZE = 3
+    const RE_ENGAGEMENT_FETCH_LIMIT = 10
 
     // Define large animal labels to filter (as per CLAUDE.md)
     const LARGE_ANIMAL = ['Equine','equine','Large Animal','large animal','Livestock','livestock','Poultry','poultry','Food Animal','food animal']
@@ -148,6 +157,52 @@ export async function POST(request: NextRequest) {
       if (!lastViewByUser.has(row.user_id)) lastViewByUser.set(row.user_id, row.viewed_at)
     }
 
+    // Batch 4: Digest memory — every article ever included in a digest send, globally.
+    // Selection below excludes these unconditionally; an article is never re-sent.
+    const { data: everSent } = await supabase
+      .from('digest_sent_articles')
+      .select('article_id')
+    const sentArticleIds = new Set((everSent || []).map(r => r.article_id))
+
+    // Batch 5: Save counts, used to rank backfill candidates by engagement
+    const { data: allSaves } = await supabase.from('saved_articles').select('article_id')
+    const savedCountByArticle = new Map<string, number>()
+    for (const row of allSaves || []) {
+      savedCountByArticle.set(row.article_id, (savedCountByArticle.get(row.article_id) || 0) + 1)
+    }
+
+    // Batch 6: Global backfill pool — eligible, never-sent articles, newest-ingested first,
+    // then re-ranked by engagement (saves). Used when a user's tag-matched pool is too thin.
+    const { data: backfillRaw } = await supabase
+      .from('articles')
+      .select('id, title, clinical_bottom_line, labels, source_journal, publication_date, strength_of_evidence')
+      .eq('needs_enrichment', false)
+      .not('clinical_bottom_line', 'is', null)
+      .or('quarantined.is.null,quarantined.eq.false')
+      .order('created_at', { ascending: false })
+      .limit(300)
+    const backfillPool = (backfillRaw || [])
+      .filter(a => !sentArticleIds.has(a.id))
+      .filter(a => !a.labels?.some((l: string) => LARGE_ANIMAL.includes(l)))
+      .sort((a, b) => (savedCountByArticle.get(b.id) || 0) - (savedCountByArticle.get(a.id) || 0))
+
+    // Fill `articles` up to DIGEST_SIZE from backfillPool, skipping ids already present
+    function backfillTo(articles: any[], targetSize: number): any[] {
+      if (articles.length >= targetSize) return articles
+      const haveIds = new Set(articles.map(a => a.id))
+      const filled = [...articles]
+      for (const candidate of backfillPool) {
+        if (filled.length >= targetSize) break
+        if (haveIds.has(candidate.id)) continue
+        filled.push(candidate)
+        haveIds.add(candidate.id)
+      }
+      return filled
+    }
+
+    // Track every article actually emailed this run, for the batch digest_sent_articles write below
+    const sentThisRun = new Set<string>()
+
     // Process each user
     for (const user of users) {
       if (!user.email) continue
@@ -178,10 +233,11 @@ export async function POST(request: NextRequest) {
         ? Math.floor((Date.now() - new Date(lastViewedAt).getTime()) / (1000 * 60 * 60 * 24))
         : 999
 
-      // Article selection logic
+      // Article selection logic — ranked by created_at (when Vetree ingested the
+      // article), never publication_date. publication_date remains display-only.
       let articles
       if (tags.length > 0) {
-        // Try fresh articles first (last 5 days matching tags)
+        // Try freshly-ingested articles first (last 5 days matching tags)
         const { data: freshData } = await supabase
           .from('articles')
           .select('id, title, clinical_bottom_line, labels, source_journal, publication_date, strength_of_evidence')
@@ -189,14 +245,14 @@ export async function POST(request: NextRequest) {
           .not('clinical_bottom_line', 'is', null)
           .or('quarantined.is.null,quarantined.eq.false')
           .overlaps('labels', tags)
-          .gte('publication_date', fiveDaysAgoDate)
-          .order('publication_date', { ascending: false })
-          .limit(5)
+          .gte('created_at', fiveDaysAgoISO)
+          .order('created_at', { ascending: false })
+          .limit(PRIMARY_FETCH_LIMIT)
 
         if (freshData && freshData.length > 0) {
           articles = freshData
         } else {
-          // Fall back to most recent if no fresh articles in their topics
+          // Fall back to most recently ingested if nothing fresh in their topics
           const { data: fallback } = await supabase
             .from('articles')
             .select('id, title, clinical_bottom_line, labels, source_journal, publication_date, strength_of_evidence')
@@ -204,36 +260,36 @@ export async function POST(request: NextRequest) {
             .not('clinical_bottom_line', 'is', null)
             .or('quarantined.is.null,quarantined.eq.false')
             .overlaps('labels', tags)
-            .order('publication_date', { ascending: false })
-            .limit(5)
+            .order('created_at', { ascending: false })
+            .limit(PRIMARY_FETCH_LIMIT)
           articles = fallback || []
         }
       } else {
-        // User has no tags → show 5 most recent articles from last 5 days
+        // User has no tags → show DIGEST_SIZE most recently ingested articles from last 5 days
         const { data } = await supabase
           .from('articles')
           .select('id, title, clinical_bottom_line, labels, source_journal, publication_date, strength_of_evidence')
           .eq('needs_enrichment', false)
           .not('clinical_bottom_line', 'is', null)
           .or('quarantined.is.null,quarantined.eq.false')
-          .gte('publication_date', fiveDaysAgoDate)
-          .order('publication_date', { ascending: false })
-          .limit(5)
+          .gte('created_at', fiveDaysAgoISO)
+          .order('created_at', { ascending: false })
+          .limit(PRIMARY_FETCH_LIMIT)
         articles = data || []
       }
 
-      // Skip user if no articles found
+      // Filter large animals + never-resend articles in JS, then cap to DIGEST_SIZE
+      articles = (articles || [])
+        .filter(a => !a.labels?.some((l: string) => LARGE_ANIMAL.includes(l)))
+        .filter(a => !sentArticleIds.has(a.id))
+        .slice(0, DIGEST_SIZE)
+
+      // Backfill from the highest-engagement unsent pool if the tag-matched pool is thin
+      articles = backfillTo(articles, DIGEST_SIZE)
+
+      // Skip user if no articles found even after backfill
       if (!articles || articles.length === 0) {
-        console.log(`[digest] Skipping ${user.email} - no articles found`)
-        skippedCount++
-        continue
-      }
-
-      // Filter large animals in JS (as per CLAUDE.md)
-      articles = articles.filter(a => !a.labels?.some((l: string) => LARGE_ANIMAL.includes(l)))
-
-      if (articles.length === 0) {
-        console.log(`[digest] Skipping ${user.email} - only large animal articles`)
+        console.log(`[digest] Skipping ${user.email} - no unsent articles found`)
         skippedCount++
         continue
       }
@@ -244,6 +300,7 @@ export async function POST(request: NextRequest) {
       // Fetch re-engagement articles if user is at-risk AND has followed tags
       let reEngagementArticles = null
       if (isAtRisk && tags.length > 0) {
+        const mainArticleIds = new Set(articles.map(a => a.id))
         const { data: reEngageArticles } = await supabase
           .from('articles')
           .select('id, title, clinical_bottom_line, source_journal, publication_date, labels')
@@ -251,14 +308,17 @@ export async function POST(request: NextRequest) {
           .not('clinical_bottom_line', 'is', null)
           .or('quarantined.is.null,quarantined.eq.false')
           .overlaps('labels', tags)
-          .order('publication_date', { ascending: false })
-          .limit(3)
+          .order('created_at', { ascending: false })
+          .limit(RE_ENGAGEMENT_FETCH_LIMIT)
 
-        if (reEngageArticles && reEngageArticles.length > 0) {
-          const filtered = reEngageArticles.filter(a => !a.labels?.some((l: string) => LARGE_ANIMAL.includes(l)))
-          if (filtered.length > 0) {
-            reEngagementArticles = filtered
-          }
+        const filtered = (reEngageArticles || [])
+          .filter(a => !a.labels?.some((l: string) => LARGE_ANIMAL.includes(l)))
+          .filter(a => !sentArticleIds.has(a.id))
+          .filter(a => !mainArticleIds.has(a.id))
+          .slice(0, RE_ENGAGEMENT_SIZE)
+
+        if (filtered.length > 0) {
+          reEngagementArticles = filtered
         }
       }
 
@@ -302,6 +362,10 @@ export async function POST(request: NextRequest) {
           tags: tags.length > 0 ? tags : null
         })
 
+        // Record every article actually delivered — written in one batch after the loop
+        for (const a of articles) sentThisRun.add(a.id)
+        for (const a of reEngagementArticles || []) sentThisRun.add(a.id)
+
         sentCount++
       } catch (emailError) {
         console.error(`[digest] Failed to send to ${user.email}:`, emailError)
@@ -317,6 +381,19 @@ export async function POST(request: NextRequest) {
         would_skip: skippedCount,
         total_users: users.length,
       })
+    }
+
+    // Record digest memory — every article delivered this run, so it's never selected again
+    if (sentThisRun.size > 0) {
+      const { error: memoryError } = await supabase
+        .from('digest_sent_articles')
+        .upsert(
+          Array.from(sentThisRun).map(article_id => ({ digest_date: digestDate, article_id })),
+          { onConflict: 'digest_date,article_id', ignoreDuplicates: true }
+        )
+      if (memoryError) {
+        console.error('[digest] Failed to record digest_sent_articles:', memoryError)
+      }
     }
 
     // Log the digest run
