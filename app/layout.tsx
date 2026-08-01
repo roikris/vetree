@@ -5,6 +5,7 @@ import { PageTracker } from '@/components/PageTracker';
 import { PWARegister } from '@/components/PWARegister';
 import { PWAInstallPrompt } from '@/components/ui/PWAInstallPrompt';
 import { ConsentGate } from '@/components/ConsentGate';
+import { DigestConsentPrompt } from '@/components/DigestConsentPrompt';
 import "./globals.css";
 
 const spectral = Spectral({
@@ -101,6 +102,7 @@ export default function RootLayout({
         <PWARegister />
         <PageTracker />
         <ConsentGate />
+        <DigestConsentPrompt />
         <main id="main-content">
           {children}
         </main>

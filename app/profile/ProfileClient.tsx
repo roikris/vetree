@@ -3,14 +3,28 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { sendPasswordResetEmail } from '@/app/actions/profile'
+import { sendPasswordResetEmail, setDigestConsent } from '@/app/actions/profile'
 
-export function ProfileClient() {
+export function ProfileClient({ initialDigestOptIn }: { initialDigestOptIn: boolean }) {
   const router = useRouter()
   const supabase = createClient()
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
+  const [digestOptIn, setDigestOptIn] = useState(initialDigestOptIn)
+  const [digestSaving, setDigestSaving] = useState(false)
+
+  const handleDigestToggle = async () => {
+    const next = !digestOptIn
+    setDigestOptIn(next) // optimistic
+    setDigestSaving(true)
+    const result = await setDigestConsent(next)
+    setDigestSaving(false)
+    if (result.error) {
+      setDigestOptIn(!next) // revert
+      setMessage({ type: 'error', text: 'Could not update digest preference. Please try again.' })
+    }
+  }
 
   const handleSignOut = async () => {
     setLoading(true)
@@ -82,6 +96,35 @@ export function ProfileClient() {
           {message.text}
         </div>
       )}
+
+      {/* Email Preferences */}
+      <div className="bg-white dark:bg-[#1A1A1A] border border-zinc-200 dark:border-zinc-800 rounded-lg p-6 mb-8">
+        <h2 className="text-xl font-semibold text-[#1A1A1A] dark:text-[#E8E8E8] mb-4">
+          Email Preferences
+        </h2>
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <div className="font-medium text-[#1A1A1A] dark:text-[#E8E8E8]">Weekly evidence digest</div>
+            <div className="text-sm text-zinc-500 dark:text-zinc-400">The week&apos;s new research, once, Fridays.</div>
+          </div>
+          <button
+            onClick={handleDigestToggle}
+            disabled={digestSaving}
+            role="switch"
+            aria-checked={digestOptIn}
+            aria-label="Weekly evidence digest"
+            className={`relative inline-flex h-7 w-12 flex-shrink-0 items-center rounded-full transition-colors disabled:opacity-50 ${
+              digestOptIn ? 'bg-[#3D7A5F] dark:bg-[#4E9A78]' : 'bg-zinc-300 dark:bg-zinc-700'
+            }`}
+          >
+            <span
+              className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
+                digestOptIn ? 'translate-x-6' : 'translate-x-1'
+              }`}
+            />
+          </button>
+        </div>
+      </div>
 
       {/* Account Actions */}
       <div className="bg-white dark:bg-[#1A1A1A] border border-zinc-200 dark:border-zinc-800 rounded-lg p-6 mb-8">

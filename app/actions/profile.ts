@@ -85,3 +85,62 @@ export async function getUserStats() {
     error: null
   }
 }
+
+// "On" means: ever gave true consent AND hasn't since flipped the reversible
+// digest_opt_out flag. Consent itself is an append-only audit log (never delete
+// a past true row — that's the compliance record) — digest_opt_out is the actual,
+// reversible on/off switch the send route checks first.
+export async function getDigestConsentStatus() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { optedIn: false, error: 'Not authenticated' }
+
+  const [{ data: consents }, { data: prefs }] = await Promise.all([
+    supabase.from('user_consents').select('marketing_opted_in').eq('user_id', user.id),
+    supabase.from('user_preferences').select('digest_opt_out').eq('user_id', user.id).maybeSingle(),
+  ])
+
+  const everConsented = (consents || []).some(c => c.marketing_opted_in === true)
+  const optedOut = prefs?.digest_opt_out === true
+
+  return { optedIn: everConsented && !optedOut, error: null }
+}
+
+export async function setDigestConsent(optIn: boolean) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  // user_consents has no INSERT policy for authenticated users (append-only audit
+  // log, service-role-write-only by design) — go through the same route every
+  // other consent write in the app uses, so this genuinely is "the same recorded path".
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://vetree.app'
+  const consentRes = await fetch(`${siteUrl}/api/auth/save-consent`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      userId: user.id,
+      termsAccepted: true, // already true — settings is only reachable by an active, terms-accepted user
+      marketingOptIn: optIn,
+      consentSource: 'settings',
+    }),
+  })
+  if (!consentRes.ok) {
+    const data = await consentRes.json().catch(() => ({}))
+    return { error: data.error || 'Failed to record consent' }
+  }
+
+  const { error: prefError } = await supabase.from('user_preferences').upsert(
+    {
+      user_id: user.id,
+      digest_opt_out: !optIn,
+      digest_opted_out_at: optIn ? null : new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: 'user_id' }
+  )
+  if (prefError) return { error: prefError.message }
+
+  revalidatePath('/profile')
+  return { error: null }
+}

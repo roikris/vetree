@@ -2,12 +2,21 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { PENDING_DIGEST_CONSENT_KEY } from '@/lib/constants/consent'
 
+// Terms-acceptance gate only — mandatory, blocking. Marketing/digest consent is
+// NOT asked here; it's asked properly by the dedicated signup step (Part 2) and
+// the one-time dismissible in-app prompt (Part 3). This still has to write a
+// marketing_opted_in value on submit (the column is NOT NULL), but writes it with
+// consent_source: null — a placeholder, not a decline — so those two other flows
+// remain free to make a real, dedicated ask later. The one exception: a Google
+// signup that already answered the digest question on the signup page before the
+// OAuth redirect (which React state can't survive) — that choice is picked up
+// from localStorage here, on this same first-consent-row write, correctly sourced.
 export function ConsentGate() {
   const [show, setShow] = useState(false)
   const [userId, setUserId] = useState<string | null>(null)
   const [termsAccepted, setTermsAccepted] = useState(false)
-  const [marketingOptIn, setMarketingOptIn] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -42,11 +51,24 @@ export function ConsentGate() {
     setSaving(true)
     setError(null)
 
+    // A Google signup on app/signup/page.tsx may have already asked and stashed
+    // the digest choice before the OAuth redirect. Pick it up here, on this same
+    // first-ever consent row, correctly sourced — otherwise it's a placeholder.
+    let marketingOptIn = false
+    let consentSource: 'signup' | null = null
+    const pending = localStorage.getItem(PENDING_DIGEST_CONSENT_KEY)
+    if (pending !== null) {
+      try {
+        marketingOptIn = JSON.parse(pending) === true
+        consentSource = 'signup'
+      } catch { /* malformed value, ignore */ }
+    }
+
     try {
       const res = await fetch('/api/auth/save-consent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, termsAccepted, marketingOptIn }),
+        body: JSON.stringify({ userId, termsAccepted, marketingOptIn, consentSource }),
       })
 
       if (!res.ok) {
@@ -56,6 +78,7 @@ export function ConsentGate() {
         return
       }
 
+      localStorage.removeItem(PENDING_DIGEST_CONSENT_KEY)
       setShow(false)
     } catch {
       setError('שגיאה בשמירת ההסכמה. נסה/י שוב.')
@@ -97,19 +120,6 @@ export function ConsentGate() {
               <a href="/privacy" target="_blank" className="text-[#3D7A5F] dark:text-[#4E9A78] hover:underline">מדיניות הפרטיות</a>
               {' '}של Vetree.{' '}
               <span className="text-red-500">*</span>
-            </span>
-          </label>
-
-          <label className="flex items-start gap-3 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={marketingOptIn}
-              onChange={(e) => setMarketingOptIn(e.target.checked)}
-              className="mt-0.5 h-4 w-4 rounded border-zinc-300 text-[#3D7A5F] focus:ring-[#3D7A5F] flex-shrink-0"
-            />
-            <span className="text-sm text-zinc-700 dark:text-zinc-300 leading-snug">
-              אני מאשר/ת קבלת עדכונים שבועיים ומידע על מאמרים חדשים מ-Vetree בדוא"ל.
-              ניתן לבטל בכל עת.
             </span>
           </label>
         </div>

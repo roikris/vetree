@@ -5,12 +5,23 @@ import { getClientIP } from '@/lib/ratelimit'
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
+// Rows where consentSource is one of these were a genuine, dedicated marketing ask —
+// used by the digest route to tell "declined" apart from "never_asked". Omitting
+// consentSource (or passing null) records a row without claiming marketing was the
+// subject of it — e.g. the mandatory terms-acceptance gate, which still needs a
+// marketing_opted_in value because the column is NOT NULL, but isn't asking.
+const CONSENT_SOURCES = ['signup', 'in_app_prompt', 'settings'] as const
+type ConsentSource = typeof CONSENT_SOURCES[number]
+
 export async function POST(request: NextRequest) {
   try {
-    const { userId, termsAccepted, marketingOptIn } = await request.json()
+    const { userId, termsAccepted, marketingOptIn, consentSource } = await request.json()
 
     if (!userId || typeof termsAccepted !== 'boolean') {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    }
+    if (consentSource != null && !CONSENT_SOURCES.includes(consentSource)) {
+      return NextResponse.json({ error: `consentSource must be one of ${CONSENT_SOURCES.join(', ')} or omitted` }, { status: 400 })
     }
 
     const supabase = createSupabaseClient(
@@ -32,6 +43,8 @@ export async function POST(request: NextRequest) {
       terms_accepted: termsAccepted,
       marketing_opted_in: marketingOptIn ?? false,
       consent_version: '1.0',
+      consent_source: (consentSource ?? null) as ConsentSource | null,
+      consented_at: new Date().toISOString(),
       ip_address: ip,
       user_agent: userAgent,
     })

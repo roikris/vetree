@@ -5,6 +5,8 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { getLabelHue } from '@/lib/constants/labelColors'
+import { DigestConsentQuestion } from '@/components/DigestConsentQuestion'
+import { PENDING_DIGEST_CONSENT_KEY } from '@/lib/constants/consent'
 
 // ─── Data ────────────────────────────────────────────────────────────────────
 
@@ -64,7 +66,7 @@ export default function SignUpPage() {
   const [password, setPassword]         = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [termsAccepted, setTermsAccepted]     = useState(false)
-  const [marketingOptIn, setMarketingOptIn]   = useState(false)
+  const [marketingChoice, setMarketingChoice] = useState<boolean | null>(null)
   const [error, setError]   = useState<string | null>(null)
   const [loading, setLoading]         = useState(false)
   const [googleLoading, setGoogleLoading]   = useState(false)
@@ -85,13 +87,21 @@ export default function SignUpPage() {
   const handleGoogleSignUp = async () => {
     setGoogleLoading(true)
     setError(null)
+    // The OAuth redirect is a full page navigation — React state (marketingChoice)
+    // doesn't survive it. Persist the choice made on this page so ConsentGate can
+    // record it, correctly sourced, the first time it sees this user post-redirect.
+    localStorage.setItem(PENDING_DIGEST_CONSENT_KEY, JSON.stringify(marketingChoice === true))
     const returnUrl = new URLSearchParams(window.location.search).get('return') || '/'
     const safeReturn = returnUrl.startsWith('/') ? returnUrl : '/'
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo: `${window.location.origin}${safeReturn}` },
     })
-    if (error) { setError(error.message); setGoogleLoading(false) }
+    if (error) {
+      localStorage.removeItem(PENDING_DIGEST_CONSENT_KEY)
+      setError(error.message)
+      setGoogleLoading(false)
+    }
   }
 
   const handleCreateAccount = async () => {
@@ -122,7 +132,12 @@ export default function SignUpPage() {
         fetch('/api/auth/save-consent', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: data.user.id, termsAccepted, marketingOptIn }),
+          body: JSON.stringify({
+            userId: data.user.id,
+            termsAccepted,
+            marketingOptIn: marketingChoice === true,
+            consentSource: 'signup',
+          }),
         }).catch(() => {})
       }
       // Advance to step 2
@@ -347,8 +362,8 @@ export default function SignUpPage() {
                 />
               </div>
 
-              {/* Consent checkboxes — Israeli Privacy Protection Law requirement */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16, direction: 'rtl' }}>
+              {/* Terms checkbox — Israeli Privacy Protection Law requirement */}
+              <div style={{ marginBottom: 16, direction: 'rtl' }}>
                 <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
                   <input
                     type="checkbox"
@@ -360,17 +375,11 @@ export default function SignUpPage() {
                     קראתי ואני מסכים/ה ל<a href="/terms" target="_blank" style={{ color: 'var(--al-accent)' }}>תנאי השימוש</a> ול<a href="/privacy" target="_blank" style={{ color: 'var(--al-accent)' }}>מדיניות הפרטיות</a> של Vetree. <span style={{ color: '#E07070' }}>*</span>
                   </span>
                 </label>
-                <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
-                  <input
-                    type="checkbox"
-                    checked={marketingOptIn}
-                    onChange={e => setMarketingOptIn(e.target.checked)}
-                    style={{ marginTop: 2, flexShrink: 0, accentColor: 'var(--al-accent)' }}
-                  />
-                  <span style={{ font: "400 12.5px/1.5 var(--font-instrument, sans-serif)", color: 'var(--al-mut2)' }}>
-                    אני מאשר/ת קבלת עדכונים שבועיים מ-Vetree בדוא&quot;ל. ניתן לבטל בכל עת.
-                  </span>
-                </label>
+              </div>
+
+              {/* Digest consent — dedicated element, explicit Yes/No, never pre-checked */}
+              <div style={{ marginBottom: 16 }}>
+                <DigestConsentQuestion value={marketingChoice} onChange={setMarketingChoice} />
               </div>
 
               <div style={{ font: "400 13px/1 var(--font-instrument, sans-serif)", color: 'var(--al-mut4)', textAlign: 'center' }}>
