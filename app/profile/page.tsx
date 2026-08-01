@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getSavedArticles } from '@/app/actions/saved-articles'
-import { getUserStats } from '@/app/actions/profile'
+import { getUserStats, getDigestConsentStatus } from '@/app/actions/profile'
 import { getFollowedTags } from '@/app/actions/followed-tags'
 import { ProfileClient } from './ProfileClient'
 import { ProfileHeader } from './ProfileHeader'
@@ -28,6 +28,9 @@ export default async function ProfilePage() {
 
   // Get followed tags
   const { tags: followedTags } = await getFollowedTags()
+
+  // Get current digest consent state
+  const { optedIn: digestOptedIn } = await getDigestConsentStatus()
 
   // Get user initials for avatar
   const email = user.email || ''
@@ -146,7 +149,7 @@ export default async function ProfilePage() {
         </div>
 
         {/* Account Actions - Client Component */}
-        <ProfileClient />
+        <ProfileClient initialDigestOptIn={digestOptedIn} />
         </div>
       </div>
       <BottomNav />

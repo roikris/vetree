@@ -15,7 +15,11 @@ export const maxDuration = 300 // 5 minutes for sending emails
 
 // Every place a user is skipped must go through skip() with one of these reasons —
 // a skip count without a reason is the bug class this project has been fixing all month.
-type SkipReason = 'opted_out' | 'no_consent' | 'recent_digest' | 'no_articles'
+// 'declined' vs 'never_asked' distinguishes a real "no" (a user_consents row with a
+// non-null consent_source — asked via signup/in_app_prompt/settings, said no) from
+// never having had a dedicated ask at all (zero rows, or only a ConsentGate
+// terms-only placeholder row with consent_source null) — see CLAUDE.md.
+type SkipReason = 'opted_out' | 'declined' | 'never_asked' | 'recent_digest' | 'no_articles'
 
 function formatSkipReasons(counts: Record<string, number>): string {
   const entries = Object.entries(counts).filter(([, n]) => n > 0)
@@ -102,7 +106,7 @@ export async function POST(request: NextRequest) {
     let skippedCount = 0
     let errorCount = 0
     const skipReasonCounts: Record<SkipReason, number> = {
-      opted_out: 0, no_consent: 0, recent_digest: 0, no_articles: 0,
+      opted_out: 0, declined: 0, never_asked: 0, recent_digest: 0, no_articles: 0,
     }
     const skipDetail: { email: string; reason: SkipReason }[] = []
     function skip(email: string, reason: SkipReason) {
@@ -134,14 +138,22 @@ export async function POST(request: NextRequest) {
 
     const optedOutIds = new Set((optedOut || []).map(r => r.user_id))
 
-    // Fetch users with explicit marketing consent (Israeli Anti-Spam Law)
-    // Only users who have ticked the marketing opt-in checkbox may receive digest emails
-    const { data: consented } = await supabase
+    // Fetch ALL consent rows (not just true) so a non-consented user can be told
+    // apart as 'declined' (has a row with non-null consent_source, none true) vs
+    // 'never_asked' (no non-null-source row exists) — see supabase/CLAUDE.md's
+    // `user_consents` table doc for the full model. Israeli Anti-Spam Law: only
+    // users with an explicit true row may receive digest emails — consentedIds
+    // logic itself is unchanged from before this distinction was added.
+    const { data: allConsents } = await supabase
       .from('user_consents')
-      .select('user_id')
-      .eq('marketing_opted_in', true)
+      .select('user_id, marketing_opted_in, consent_source')
 
-    const consentedIds = new Set((consented || []).map(r => r.user_id))
+    const consentedIds = new Set(
+      (allConsents || []).filter(r => r.marketing_opted_in === true).map(r => r.user_id)
+    )
+    const everAskedIds = new Set(
+      (allConsents || []).filter(r => r.consent_source != null).map(r => r.user_id)
+    )
 
     // Dry-run mode: collect preview, skip sends and DB writes
     const dryRun = body.dry_run === true
@@ -234,7 +246,7 @@ export async function POST(request: NextRequest) {
 
       // Skip users without explicit marketing consent (Israeli Anti-Spam Law)
       if (!consentedIds.has(user.id)) {
-        skip(user.email, 'no_consent')
+        skip(user.email, everAskedIds.has(user.id) ? 'declined' : 'never_asked')
         continue
       }
 

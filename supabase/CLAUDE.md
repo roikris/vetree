@@ -98,7 +98,41 @@ Use `.maybeSingle()` not `.single()` — non-admin users have no row, `.single()
 | digest_opted_out_at | timestamptz | set when opt-out |
 | updated_at | timestamptz | |
 
-Digest exclusion is here, NOT on a profiles table (no profiles table exists).
+Digest exclusion is here, NOT on a profiles table (no profiles table exists). This is the
+REVERSIBLE on/off switch the digest send route checks first — see `user_consents` below for
+the append-only compliance record of whether they ever consented in the first place.
+
+### `user_consents`
+| Column | Type | Notes |
+|--------|------|-------|
+| id | uuid PK | |
+| user_id | uuid FK → auth.users | |
+| terms_accepted | boolean | NOT NULL DEFAULT false |
+| marketing_opted_in | boolean | NOT NULL DEFAULT false |
+| consent_version | text | DEFAULT '1.0' |
+| consent_source | text nullable | 'signup' \| 'in_app_prompt' \| 'settings' \| NULL — added migration 048 |
+| consented_at | timestamptz | NOT NULL DEFAULT now() — always populated, never backfilled null |
+| ip_address | text | |
+| user_agent | text | |
+| created_at | timestamptz | |
+
+Append-only audit log — no unique constraint on `user_id`, multiple rows per user are normal
+and expected. No INSERT policy for `authenticated`/`anon` (RLS default-denies inserts) — every
+write goes through `/api/auth/save-consent` (service role). Only SELECT policies exist ("Users
+can read own consents", "Admins can read all consents").
+
+`consent_source = null` means the row's `marketing_opted_in` value is a placeholder, not a
+decline — written by `ConsentGate` (the mandatory terms-acceptance gate), which must supply
+*some* boolean for the NOT NULL column even though it isn't asking about marketing. Non-null
+`consent_source` means the user was genuinely, dedicatedly asked. This is how the digest send
+route tells `'declined'` (has a non-null-source row, none true) apart from `'never_asked'` (no
+non-null-source row exists) in its skip-reason breakdown — collapsing both into a single
+"no_consent" reason was the bug the 2026-07-31 skip-reason PR fixed for other reasons and this
+distinction closes for good.
+
+`consentedIds` (may-receive-digest) is `marketing_opted_in = true` on ANY row, sticky forever —
+opting in once satisfies the legal consent requirement permanently; `user_preferences.digest_opt_out`
+is the separate, reversible switch for whether they're currently receiving it.
 
 ### `followed_tags`
 | Column | Type |
