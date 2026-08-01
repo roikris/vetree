@@ -7,6 +7,19 @@ const VIEWS_KEY = 'vetree_guest_views'
 const SESSION_DISMISSED_KEY = 'vetree_wall_dismissed'
 const VIEW_THRESHOLD = 3
 
+// Closes the observability gap flagged by the growth-funnel investigation:
+// this wall previously had no server-visible signal at all — it was pure
+// localStorage/sessionStorage, so there was no way to tell "the wall never
+// fires" apart from "the wall fires constantly and nobody converts."
+function trackWallShown(viewCount: number) {
+  if (typeof navigator !== 'undefined' && navigator.webdriver) return
+  fetch('/api/analytics/event', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ event_name: 'wall_shown', detail: { view_count: viewCount } }),
+  }).catch(() => {})
+}
+
 export function RegistrationWall() {
   const [showWall, setShowWall] = useState(false)
   const [isBlurred, setIsBlurred] = useState(false)
@@ -24,6 +37,7 @@ export function RegistrationWall() {
     if (viewCount >= VIEW_THRESHOLD) {
       setShowWall(true)
       setIsBlurred(true)
+      trackWallShown(viewCount)
     }
   }, [])
 
