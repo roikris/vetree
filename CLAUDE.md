@@ -266,6 +266,19 @@ TEST_USER_PASSWORD
 - Email verification enforced in `middleware.ts` (pages only — /api/* excluded)
 - User-facing API routes must also check `email_confirmed_at` after auth: return 403 'Email verification required' if null
 - Exclude admin + TEST_USER_ID from ALL analytics queries — use `excludedUsersOrFilter()`
+- **Post-login navigation must never be `router.push()` + `router.refresh()`.** That combo
+  is a known App Router race: `push()` schedules an async client transition, and a `refresh()`
+  fired immediately after can apply to the wrong route or lose to the Router Cache — the
+  destination can render before the session cookie is actually visible server-side. Email/password
+  login (`app/login/page.tsx`): confirm the session with `getSession()` after `signInWithPassword()`,
+  then hard-navigate (`window.location.assign`). Google OAuth (`app/login/page.tsx`,
+  `app/signup/page.tsx`): `redirectTo` must point at `/auth/callback?next=<destination>`, never at
+  the destination directly — `app/auth/callback/route.ts` exchanges the code for a session
+  **server-side** before redirecting, so a hard-redirect guard (`redirect('/login')` in
+  `app/profile/page.tsx`, `app/library/page.tsx`, `app/admin/layout.tsx`) never renders before the
+  session exists. `lib/hooks/useAuth.ts`'s shared `_userPromise` is replaced with an already-resolved
+  promise (not nulled) on `SIGNED_IN`/`SIGNED_OUT`/`USER_UPDATED`/`TOKEN_REFRESHED`, and it calls
+  `router.refresh()` on `SIGNED_IN` — closes the same class of race for any other sign-in path.
 
 ## OPS NOTES
 

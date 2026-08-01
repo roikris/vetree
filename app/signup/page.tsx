@@ -135,9 +135,13 @@ export default function SignUpPage() {
     localStorage.setItem(PENDING_DIGEST_CONSENT_KEY, JSON.stringify(marketingChoice === true))
     const returnUrl = new URLSearchParams(window.location.search).get('return') || '/'
     const safeReturn = returnUrl.startsWith('/') ? returnUrl : '/'
+    // Through /auth/callback, not the destination directly — see app/login/page.tsx's
+    // handleGoogleLogin for why: it exchanges the code for a session server-side
+    // before ever redirecting to safeReturn, so a server-guarded page's first
+    // render always has it.
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}${safeReturn}` },
+      options: { redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(safeReturn)}` },
     })
     if (error) {
       localStorage.removeItem(PENDING_DIGEST_CONSENT_KEY)

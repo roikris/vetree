@@ -39,9 +39,15 @@ export function useAuth() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
-      // Invalidate cache on real auth changes so next getUser() is fresh.
-      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'USER_UPDATED') {
-        _userPromise = null
+      // Replace the cache with the answer we already have, synchronously, at
+      // the moment of the event — not null-then-wait-for-the-next-caller-to-
+      // refetch. A null cache has a real gap: a getSharedUser() call between
+      // invalidation and the next network round-trip could still be served a
+      // promise that was already in flight from BEFORE this event, i.e. the
+      // pre-login "no user" answer. Setting an already-resolved promise here
+      // closes that gap outright.
+      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'USER_UPDATED' || event === 'TOKEN_REFRESHED') {
+        _userPromise = Promise.resolve(session?.user ?? null)
       }
       // Safety net: wherever the PKCE code is exchanged, always land on the
       // reset form. Handles any page that exchanges ?code= before /reset-password
@@ -52,6 +58,13 @@ export function useAuth() {
       }
       setUser(session?.user ?? null)
       setLoading(false)
+      // A fresh SIGNED_IN can mean a Server Component on the current page
+      // already rendered without this session (e.g. right after an OAuth code
+      // exchange finishes client-side). Refresh so anything server-rendered
+      // here picks up the cookie that was just written, no manual reload.
+      if (event === 'SIGNED_IN') {
+        router.refresh()
+      }
     })
 
     return () => subscription.unsubscribe()
