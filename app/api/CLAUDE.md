@@ -174,7 +174,8 @@ then queries `user_roles` directly. If `role === 'admin'`, returns `{ success: t
 early. This does NOT use `EXCLUDED_USER_IDS` / `excludedUsersOrFilter()`.
 
 ```ts
-// Event names in use: save_intent_arrived, save_intent_auth_shown, save_intent_completed, save_intent_resolved
+// Event names in use: save_intent_arrived, save_intent_auth_shown, save_intent_completed,
+// save_intent_resolved, signup_step_viewed, signup_step_completed, signup_error, wall_shown
 // Body: { event_name: string, article_id?: string, detail?: Record<string, unknown> }
 // Always fire-and-forget — route never returns error to caller
 ```
@@ -190,6 +191,23 @@ to — `detail.branch`: `'saved_now' | 'already_saved' | 'auth_shown' | 'save_er
 `auth_state`, `ms_from_arrival` (delta from the `save_intent_arrived` fire), `utm_source`, `utm_content`.
 Arrived events without a matching resolved event in the same window are abandonment (see
 `getSaveIntentFunnel` in `app/actions/analytics.ts`).
+
+**Signup wizard funnel** (`app/signup/page.tsx`) — added after 31 consecutive sessions reached
+`/signup` post the 2026-07-03 redesign with zero completions:
+- `signup_step_viewed` — `detail: { step: 1|2|3|4 }` — fires on every render of a step, including
+  the initial mount and re-visits via Back.
+- `signup_step_completed` — `detail: { step, method?: 'email'|'google' }` — fires when a step is
+  successfully left forward. For step 1 + `method: 'google'`, this fires *before* the OAuth
+  redirect (there's no "after" to fire from — the whole page navigates away), so it means "chose
+  Google and the call didn't error before redirecting," not proof the round-trip completed.
+- `signup_error` — `detail: { step, message, surfaced: boolean }` — every validation/API failure
+  in the wizard, `surfaced` distinguishing an error the user actually saw (`setError`, rendered in
+  the UI) from one previously swallowed silently (e.g. the save-consent / follow-tags requests,
+  which used to fail into an empty `catch`).
+
+`wall_shown` (`components/ui/RegistrationWall.tsx`) — `detail: { view_count }` — fires when the
+soft registration wall actually renders for a guest (3rd+ article view). The wall was pure
+localStorage/sessionStorage before this — there was no server-visible signal it fired at all.
 
 **Never** write synthetic paths to `page_views` for funnel events. Use `analytics_events`.
 

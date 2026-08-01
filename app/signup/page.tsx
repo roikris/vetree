@@ -1,12 +1,24 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { getLabelHue } from '@/lib/constants/labelColors'
 import { DigestConsentQuestion } from '@/components/DigestConsentQuestion'
 import { PENDING_DIGEST_CONSENT_KEY } from '@/lib/constants/consent'
+
+// Fire-and-forget, mirrors SaveIntentHandler's trackEvent — the server merges
+// device type from the user-agent header, so step-by-device breakdowns don't
+// need the client to compute or pass device itself.
+function trackEvent(eventName: string, detail?: Record<string, unknown>) {
+  if (typeof navigator !== 'undefined' && navigator.webdriver) return
+  fetch('/api/analytics/event', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ event_name: eventName, detail }),
+  }).catch(() => {})
+}
 
 // ─── Data ────────────────────────────────────────────────────────────────────
 
@@ -82,9 +94,39 @@ export default function SignUpPage() {
     new Set(['Cardiology', 'Emergency', 'Internal Medicine', 'Ophthalmology'])
   )
 
+  // Validation errors render near the top of step 1 (right after the hero copy);
+  // the submit button lives in a sticky footer at the bottom. On any viewport
+  // shorter than step 1's full content — most phones, plenty of laptops — a
+  // fresh error is off-screen with no visual cue, so a rejected submit looks
+  // like nothing happened. Scroll it into view whenever it appears.
+  const errorRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (error) errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [error])
+
+  // Fires on every step render, including the initial mount — the funnel this
+  // is meant to expose is per-step render vs per-step completion.
+  useEffect(() => {
+    trackEvent('signup_step_viewed', { step })
+  }, [step])
+
+  const trackError = (step: number, message: string, surfaced: boolean) => {
+    trackEvent('signup_error', { step, message, surfaced })
+  }
+
+  const advanceStep = (fromStep: number) => {
+    trackEvent('signup_step_completed', { step: fromStep })
+    setStep(s => s + 1)
+  }
+
   // ── Handlers ────────────────────────────────────────────────────────────
 
   const handleGoogleSignUp = async () => {
+    // Fired before the OAuth call, not after — signInWithOAuth navigates the
+    // whole page away on success, so there's no "after" to fire from. This is
+    // "chose Google and the call didn't error before redirecting," not proof
+    // the OAuth round-trip actually completed.
+    trackEvent('signup_step_completed', { step: 1, method: 'google' })
     setGoogleLoading(true)
     setError(null)
     // The OAuth redirect is a full page navigation — React state (marketingChoice)
@@ -99,6 +141,7 @@ export default function SignUpPage() {
     })
     if (error) {
       localStorage.removeItem(PENDING_DIGEST_CONSENT_KEY)
+      trackError(1, error.message, true)
       setError(error.message)
       setGoogleLoading(false)
     }
@@ -106,9 +149,9 @@ export default function SignUpPage() {
 
   const handleCreateAccount = async () => {
     setError(null)
-    if (password !== confirmPassword) { setError('Passwords do not match'); return }
-    if (password.length < 6) { setError('Password must be at least 6 characters'); return }
-    if (!termsAccepted) { setError('יש לאשר את תנאי השימוש ומדיניות הפרטיות כדי להמשיך'); return }
+    if (password !== confirmPassword) { trackError(1, 'Passwords do not match', true); setError('Passwords do not match'); return }
+    if (password.length < 6) { trackError(1, 'Password must be at least 6 characters', true); setError('Password must be at least 6 characters'); return }
+    if (!termsAccepted) { trackError(1, 'Terms not accepted', true); setError('יש לאשר את תנאי השימוש ומדיניות הפרטיות כדי להמשיך'); return }
 
     setLoading(true)
     try {
@@ -120,9 +163,22 @@ export default function SignUpPage() {
         options: { emailRedirectTo: `${window.location.origin}${safeReturn}` },
       })
       if (signUpError) {
-        setError(signUpError.message.includes('already registered')
-          ? 'This email is already registered. Please log in instead.'
-          : signUpError.message)
+        // supabase-js deliberately does NOT parse the response body for 5xx
+        // statuses (auth-js lib/fetch.js NETWORK_ERROR_CODES) — it wraps the raw
+        // fetch Response in an AuthRetryableFetchError instead, whose .message
+        // is JSON.stringify(Response), which is the literal string "{}" (a
+        // Response has no own enumerable properties). Rendered verbatim, a user
+        // sees a blank, meaningless "{}" and no indication anything went wrong.
+        // Confirmed live: Supabase Auth 500s with "Error sending confirmation
+        // email" whenever the SMTP send fails synchronously (e.g. no MX record
+        // on the recipient domain) — give a real, actionable message instead.
+        const isRetryable = signUpError.name === 'AuthRetryableFetchError'
+        trackError(1, isRetryable ? `retryable (${signUpError.status}): ${signUpError.message}` : signUpError.message, true)
+        setError(isRetryable
+          ? 'We couldn’t send your confirmation email just now — this is usually temporary. Please try again in a moment, or use Google instead.'
+          : signUpError.message.includes('already registered')
+            ? 'This email is already registered. Please log in instead.'
+            : signUpError.message)
         setLoading(false)
         return
       }
@@ -138,17 +194,20 @@ export default function SignUpPage() {
             marketingOptIn: marketingChoice === true,
             consentSource: 'signup',
           }),
-        }).catch(() => {})
+        }).catch(() => trackError(1, 'save-consent request failed', false))
       }
       // Advance to step 2
+      trackEvent('signup_step_completed', { step: 1, method: 'email' })
       setStep(2)
     } catch {
+      trackError(1, 'Unexpected error', true)
       setError('An unexpected error occurred. Please try again.')
     }
     setLoading(false)
   }
 
   const handleEnterVetree = async () => {
+    trackEvent('signup_step_completed', { step: 4 })
     // Save specialties to localStorage so they can be applied post-verification
     if (typeof window !== 'undefined') {
       localStorage.setItem('vetree_onboarding_role', role)
@@ -165,7 +224,7 @@ export default function SignUpPage() {
           })
         )
       )
-    } catch { /* non-critical */ }
+    } catch { trackError(4, 'follow-tags request failed', false) }
 
     // Show verification reminder if email signup, then go home
     setPendingVerification(true)
@@ -220,9 +279,20 @@ export default function SignUpPage() {
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--al-bg)' }}>
+      {/* Below 768px the fixed 322px rail leaves ~50-90px for the actual form —
+          hide it and let the form take the full viewport. AuthLayout (still used
+          by /login) is fluid and never had this problem; this component's custom
+          two-column layout (July 3 redesign) never got a mobile breakpoint. */}
+      <style>{`
+        @media (max-width: 768px) {
+          .signup-rail { display: none !important; }
+          .signup-main-content { padding: 32px 20px 24px !important; }
+          .signup-footer-inner { padding: 16px 20px !important; }
+        }
+      `}</style>
 
       {/* ===== BRAND RAIL ===== */}
-      <aside style={{
+      <aside className="signup-rail" style={{
         width: 322, flexShrink: 0,
         borderRight: '1px solid rgba(var(--al-line),.1)',
         background: 'radial-gradient(circle at 30% 20%, rgba(var(--al-acct),.08), transparent 55%)',
@@ -272,7 +342,7 @@ export default function SignUpPage() {
 
       {/* ===== CONTENT ===== */}
       <main style={{ flex: 1, height: '100vh', overflowY: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-        <div style={{ width: '100%', maxWidth: 660, padding: '64px 44px 48px', flex: 1 }}>
+        <div className="signup-main-content" style={{ width: '100%', maxWidth: 660, padding: '64px 44px 48px', flex: 1 }}>
 
           {/* ── STEP 1: ACCOUNT ── */}
           {step === 1 && (
@@ -288,7 +358,7 @@ export default function SignUpPage() {
               </p>
 
               {error && (
-                <div style={{ background: 'rgba(220,60,60,.08)', border: '1px solid rgba(220,60,60,.22)', borderRadius: 12, padding: '12px 16px', marginBottom: 20, font: "400 13.5px/1.5 var(--font-instrument, sans-serif)", color: '#E07070' }}>
+                <div ref={errorRef} style={{ background: 'rgba(220,60,60,.08)', border: '1px solid rgba(220,60,60,.22)', borderRadius: 12, padding: '12px 16px', marginBottom: 20, font: "400 13.5px/1.5 var(--font-instrument, sans-serif)", color: '#E07070' }}>
                   {error}
                 </div>
               )}
@@ -571,7 +641,7 @@ export default function SignUpPage() {
           backdropFilter: 'blur(12px)',
           borderTop: '1px solid rgba(var(--al-line),.1)',
         }}>
-          <div style={{
+          <div className="signup-footer-inner" style={{
             maxWidth: 660, margin: '0 auto', padding: '18px 44px',
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           }}>
@@ -594,7 +664,7 @@ export default function SignUpPage() {
             {/* Continue / Create account / Enter Vetree */}
             {step < 4 ? (
               <button
-                onClick={step === 1 ? handleCreateAccount : () => setStep(s => s + 1)}
+                onClick={step === 1 ? handleCreateAccount : () => advanceStep(step)}
                 disabled={loading}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 9,
