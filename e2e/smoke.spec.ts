@@ -167,6 +167,36 @@ test('auth round-trip: intent=save saves article, appears in library, unsave rem
   }
 })
 
+// ─── 5b. Post-login redirect: no race, no manual refresh ────────────────────
+// Real bug: after signInWithPassword, the redirect could fire before the
+// session was actually persisted/readable server-side — landing the user
+// back on /login instead of their destination (fixed in app/login/page.tsx,
+// lib/hooks/useAuth.ts, app/auth/callback/route.ts). return=/profile
+// exercises a genuine hard-redirect guard (app/profile/page.tsx's
+// redirect('/login') on a null server-side user) — the literal mechanism
+// Roi hit, not just a soft "wrong content flashed" symptom. Deliberately does
+// NOT call page.goto() again after clicking submit — that would be exactly
+// the "everyone just refreshes" workaround this test exists to make
+// impossible to hide behind. Runs on both desktop and mobile (read-only, no
+// shared-account interference risk unlike the save/unsave test above).
+test('post-login redirect: lands on the protected destination immediately, no refresh', async ({ page }) => {
+  test.skip(!process.env.TEST_USER_EMAIL || !process.env.TEST_USER_PASSWORD, 'gated on missing TEST_USER_EMAIL/TEST_USER_PASSWORD')
+
+  await page.goto('/login?return=%2Fprofile')
+  await page.locator('input[type="email"]').fill(process.env.TEST_USER_EMAIL!)
+  await page.locator('input[type="password"]').fill(process.env.TEST_USER_PASSWORD!)
+  await page.locator('button[type="submit"]').click()
+
+  // No page.goto() here. The login flow's own navigation must land us on
+  // /profile directly — if it bounces to /login first, this fails.
+  await page.waitForURL(url => url.pathname === '/profile', { timeout: 15_000 })
+  await expect(page).toHaveURL(/\/profile$/)
+
+  // Confirm it's genuinely the authenticated profile page, not a login form
+  // that happens to share a URL prefix.
+  await expect(page.getByText('Email Preferences')).toBeVisible({ timeout: 10_000 })
+})
+
 // ─── 6. Sitemap + robots ─────────────────────────────────────────────────────
 test('sitemap and robots.txt: 200 and valid content', async ({ page }) => {
   const sitemapRes = await page.goto('/sitemap.xml')

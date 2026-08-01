@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { AuthLayout } from '@/components/auth/AuthLayout'
 import { FormInput } from '@/components/auth/FormInput'
 import { createClient } from '@/lib/supabase/client'
@@ -13,7 +12,6 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
-  const router = useRouter()
   const supabase = createClient()
 
   const handleGoogleLogin = async () => {
@@ -23,10 +21,13 @@ export default function LoginPage() {
     const returnUrl = new URLSearchParams(window.location.search).get('return') || '/'
     const safeReturn = returnUrl.startsWith('/') ? returnUrl : '/'
 
+    // Through /auth/callback, not the destination directly — that route
+    // exchanges the code for a session server-side before ever redirecting
+    // to safeReturn, so a server-guarded page's first render always has it.
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}${safeReturn}`
+        redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(safeReturn)}`
       }
     })
 
@@ -42,7 +43,7 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
-      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+      const { error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
@@ -59,11 +60,26 @@ export default function LoginPage() {
         return
       }
 
-      // Success - redirect to return URL or home
+      // signInWithPassword() resolving only confirms the client received
+      // tokens — not that a subsequent request will see them. Confirm the
+      // session is actually persisted and re-readable (same storage adapter
+      // middleware/RSC reads from) before navigating at all.
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) {
+        setError('Signed in, but the session did not persist. Please try again.')
+        setLoading(false)
+        return
+      }
+
+      // Hard navigation, not router.push()+router.refresh(): a full browser
+      // navigation is guaranteed to hit the server fresh with whatever
+      // cookies are in the jar right now — zero Router Cache / soft-navigation
+      // race exposure. push()+refresh() is a known App Router footgun: push()
+      // schedules an async client transition, and a refresh() fired
+      // immediately after can race or apply to the wrong route.
       const returnUrl = new URLSearchParams(window.location.search).get('return') || '/'
       const safeReturn = returnUrl.startsWith('/') ? returnUrl : '/'
-      router.push(safeReturn)
-      router.refresh()
+      window.location.assign(safeReturn)
     } catch (err) {
       setError('An unexpected error occurred. Please try again.')
       setLoading(false)

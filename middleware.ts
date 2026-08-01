@@ -1,15 +1,14 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { updateSession } from '@/lib/supabase/middleware'
-import { createClient } from '@/lib/supabase/server'
 
 // Middleware handles auth token refresh and email verification
 export async function middleware(request: NextRequest) {
-  // First, update the session
-  const response = await updateSession(request)
-
-  // Check email verification for authenticated users
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  // Single session read per request — this used to call getUser() a second
+  // time here via a separate server client reading the same request cookies
+  // updateSession() had already read, at the cost of an extra Supabase
+  // round-trip on every request. updateSession() now returns the user it
+  // already fetched.
+  const { response, user } = await updateSession(request)
 
   if (user) {
     // Allow verification page and auth callbacks
