@@ -9,10 +9,24 @@ type PreviewUser = {
   titles: string[]
 }
 
+type SkipReason = 'opted_out' | 'declined' | 'never_asked' | 'recent_digest' | 'no_articles'
+
+const SKIP_REASON_LABELS: Record<SkipReason, string> = {
+  opted_out: 'Opted out (unsubscribed)',
+  declined: 'Declined marketing consent',
+  never_asked: 'Never asked for consent',
+  recent_digest: 'Already sent in last 5 days',
+  no_articles: 'No unsent articles available',
+}
+
+type SkipDetail = { email: string; reason: SkipReason }
+
 type DryRunResult = {
   dry_run: true
   would_send: PreviewUser[]
   would_skip: number
+  would_skip_reasons: Record<SkipReason, number>
+  skip_detail: SkipDetail[]
   total_users: number
 }
 
@@ -24,6 +38,35 @@ function buildReport(result: DryRunResult): string {
   lines.push(`Total users:   ${result.total_users}`)
   lines.push(`Would send:    ${result.would_send.length}`)
   lines.push(`Would skip:    ${result.would_skip}`)
+  lines.push(``)
+  lines.push(`─────────────────────────────────────────`)
+  lines.push(`SKIP REASONS (${result.would_skip})`)
+  lines.push(`─────────────────────────────────────────`)
+
+  const reasonEntries = (Object.entries(result.would_skip_reasons || {}) as [SkipReason, number][])
+    .filter(([, n]) => n > 0)
+    .sort(([, a], [, b]) => b - a)
+
+  if (reasonEntries.length === 0) {
+    lines.push(`(no skips)`)
+  } else {
+    for (const [reason, n] of reasonEntries) {
+      lines.push(`  ${String(n).padStart(3)}  ${SKIP_REASON_LABELS[reason] || reason}`)
+    }
+    lines.push(``)
+    const byReason = new Map<SkipReason, string[]>()
+    for (const { email, reason } of result.skip_detail || []) {
+      if (!byReason.has(reason)) byReason.set(reason, [])
+      byReason.get(reason)!.push(email)
+    }
+    for (const [reason, n] of reasonEntries) {
+      lines.push(`  ${SKIP_REASON_LABELS[reason] || reason}:`)
+      for (const email of byReason.get(reason) || []) {
+        lines.push(`    - ${email}`)
+      }
+    }
+  }
+
   lines.push(``)
   lines.push(`─────────────────────────────────────────`)
   lines.push(`RECIPIENTS (${result.would_send.length})`)
