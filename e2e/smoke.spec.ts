@@ -197,6 +197,22 @@ test('post-login redirect: lands on the protected destination immediately, no re
   await expect(page.getByText('Email Preferences')).toBeVisible({ timeout: 10_000 })
 })
 
+// ─── 5c. Protected routes redirect anonymous visitors ───────────────────────
+// The guarantee perf/middleware-cost (PR #40) promises not to weaken: /profile,
+// /library, and /admin each hard-redirect(' /login') a null server-side user
+// (app/profile/page.tsx, app/library/page.tsx, app/admin/layout.tsx). This is
+// the regression test for both that guard and the middleware matcher/cookie-
+// presence check still letting these requests reach it.
+for (const path of ['/profile', '/library', '/admin']) {
+  test(`protected route ${path}: anonymous visitor is redirected to /login`, async ({ page, context }) => {
+    await context.clearCookies()
+    const response = await page.goto(path)
+    expect(response?.status()).toBe(200)
+    await expect(page).toHaveURL(/\/login/)
+    await expect(page.locator('input[type="email"]').first()).toBeVisible()
+  })
+}
+
 // ─── 6. Sitemap + robots ─────────────────────────────────────────────────────
 test('sitemap and robots.txt: 200 and valid content', async ({ page }) => {
   const sitemapRes = await page.goto('/sitemap.xml')
