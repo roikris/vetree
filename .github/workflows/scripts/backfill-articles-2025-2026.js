@@ -139,20 +139,30 @@ async function fetchArticleDetails(pmids) {
       // Get publication date
       let pubDate = '';
       const pubDateData = articleData?.Journal?.[0]?.JournalIssue?.[0]?.PubDate?.[0];
-      if (pubDateData) {
-        const year = pubDateData.Year?.[0] || '';
+      const monthMap = {
+        'Jan': '01', 'Feb': '02', 'Mar': '03', 'Apr': '04',
+        'May': '05', 'Jun': '06', 'Jul': '07', 'Aug': '08',
+        'Sep': '09', 'Oct': '10', 'Nov': '11', 'Dec': '12'
+      };
+      if (pubDateData?.Year?.[0]) {
+        const year = pubDateData.Year[0];
         const month = pubDateData.Month?.[0] || '01';
         const day = pubDateData.Day?.[0] || '01';
-
-        // Convert month name to number
-        const monthMap = {
-          'Jan': '01', 'Feb': '02', 'Mar': '03', 'Apr': '04',
-          'May': '05', 'Jun': '06', 'Jul': '07', 'Aug': '08',
-          'Sep': '09', 'Oct': '10', 'Nov': '11', 'Dec': '12'
-        };
         const monthNum = monthMap[month] || month.padStart(2, '0');
 
         pubDate = `${year}-${monthNum}-${day.padStart(2, '0')}`;
+      } else if (pubDateData?.MedlineDate?.[0]) {
+        // Some journals (e.g. The Veterinary Record) publish issue dates as free text
+        // ("2026 May/Jun 30") instead of separate Year/Month/Day fields — no reliable
+        // day, so pin to the 1st of whatever month (if any) is parseable. Better than
+        // leaving pubDate as "" (invalid Postgres date, drops the whole insert batch).
+        const medlineDate = pubDateData.MedlineDate[0];
+        const yearMatch = medlineDate.match(/(19|20)\d{2}/);
+        if (yearMatch) {
+          const monthMatch = medlineDate.match(/Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec/);
+          const monthNum = monthMatch ? monthMap[monthMatch[0]] : '01';
+          pubDate = `${yearMatch[0]}-${monthNum}-01`;
+        }
       }
 
       const articleUrl = doi
