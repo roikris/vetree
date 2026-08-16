@@ -43,7 +43,11 @@ Return ONLY valid JSON, no markdown formatting.`;
       }]
     });
 
-    const responseText = message.content[0].text;
+    const textBlock = message.content?.find(block => block.type === 'text');
+    if (!textBlock) {
+      throw new Error(`No text content in Claude response (stop_reason: ${message.stop_reason})`);
+    }
+    const responseText = textBlock.text;
 
     // Try to extract JSON from the response
     let jsonMatch = responseText.match(/\{[\s\S]*\}/);
