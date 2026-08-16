@@ -48,6 +48,7 @@ const JOURNALS = [
   'The Journal of small animal practice',
   'Journal of veterinary internal medicine',
   'Journal of the American Veterinary Medical Association',
+  'American Journal of Veterinary Research',
   'Journal of veterinary emergency and critical care',
   'J Vet Cardiol',
   'J Vet Emerg Crit Care',
