@@ -28,10 +28,14 @@ export type MatchResult = {
 }
 
 // Extract the long numeric activity ID from a LinkedIn URL
-// Handles: share-7478467709375074307-XXXX and ugcPost-7478467709375074307-XXXX
+// Handles: share-7478467709375074307-XXXX, ugcPost-7478467709375074307-XXXX,
+// activity-7478467709375074307-XXXX, and the canonical "Copy link to post"
+// share-URN format urn:li:share:7478467709375074307 (colon-delimited — the
+// original [-_]? separator class didn't match ":", so growth_agent_memory
+// rows saved in this format silently never matched via this tier at all).
 function extractActivityId(url: string): string | null {
   if (!url) return null
-  const m = url.match(/(?:share|ugcPost)[-_]?(\d{15,})/)
+  const m = url.match(/(?:share|ugcPost|activity)\D{0,3}(\d{15,})/)
   return m ? m[1] : null
 }
 
