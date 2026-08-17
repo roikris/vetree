@@ -16,8 +16,12 @@ function filterLabels(labels) {
   return labels.filter(label => ALLOWED_LABELS.includes(label));
 }
 
+const PROMPT_VERSION = 'v2-context-framing';
+
 async function enrichArticle(client, anthropic, article) {
-  const prompt = `You are a veterinary medicine expert. Analyze the following research article and extract the requested information.
+  const system = `You are a veterinary medicine expert supporting Vetree, an evidence-based clinical reference platform for licensed veterinary professionals. Your task is to summarize a single article that is already published and publicly indexed on PubMed — peer-reviewed veterinary and biomedical literature. You are not generating new research, protocols, or technical instructions; you are only extracting and restating what the published abstract already states, for clinical-reference use by practicing veterinarians.`;
+
+  const prompt = `Analyze the following already-published, peer-reviewed article and extract the requested information for a clinical reference summary.
 
 Title: ${article.title}
 Authors: ${article.authors}
@@ -37,6 +41,7 @@ Return ONLY valid JSON, no markdown formatting.`;
     const message = await anthropic.messages.create({
       model: 'claude-sonnet-4-6',
       max_tokens: 1024,
+      system: system,
       messages: [{
         role: 'user',
         content: prompt
@@ -88,7 +93,8 @@ Return ONLY valid JSON, no markdown formatting.`;
       enrichment_attempts: attemptNumber,
       force_retry: false,  // Reset force_retry flag after processing
       last_enrichment_at: new Date().toISOString(),
-      last_enrichment_error: errorMessage  // Set error if incomplete, null if complete
+      last_enrichment_error: errorMessage,  // Set error if incomplete, null if complete
+      prompt_version: PROMPT_VERSION  // Which prompt produced summary/clinical_bottom_line — enables precise rollback
     };
 
     // Update authors if corrected
