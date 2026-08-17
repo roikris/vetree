@@ -119,7 +119,14 @@ async function fetchArticleDetails(pmids) {
       const articleData = medlineCitation?.Article?.[0];
 
       const pmid = medlineCitation?.PMID?.[0]?._ || medlineCitation?.PMID?.[0];
-      const title = articleData?.ArticleTitle?.[0] || '';
+      // ArticleTitle can be an object (not a string) when it contains inline
+      // markup like <i>species name</i> — common in microbiology/virology
+      // titles. Same fallback AbstractText already uses below: take the
+      // direct text node, drop nested tag content. Without this, xml2js's
+      // mixed-content object got passed straight into a text column and
+      // stored as literal JSON (e.g. {"_":"...","i":["Brucella melitensis"]}).
+      const titleRaw = articleData?.ArticleTitle?.[0] || '';
+      const title = typeof titleRaw === 'string' ? titleRaw : (titleRaw._ || '');
       const abstractTexts = articleData?.Abstract?.[0]?.AbstractText || [];
       const abstract = abstractTexts.map(t => typeof t === 'string' ? t : t._).join(' ');
 
