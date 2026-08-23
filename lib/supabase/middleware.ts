@@ -1,6 +1,27 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+// Supabase Auth outages/slowdowns must not hang the whole site: every
+// request carrying a session cookie awaits this call, and Vercel kills the
+// function (and the page) at 25s with no fallback. Timing out here and
+// treating the request as unauthenticated only affects the /verify-email
+// redirect in middleware.ts — real auth enforcement (RLS, API route checks,
+// page-level redirect guards) happens downstream and independently.
+const AUTH_TIMEOUT_MS = 4000
+
+async function getUserWithTimeout(
+  supabase: ReturnType<typeof createServerClient>
+): Promise<{ data: { user: Awaited<ReturnType<typeof supabase.auth.getUser>>['data']['user'] } }> {
+  const timeout = new Promise<{ data: { user: null } }>((resolve) => {
+    setTimeout(() => resolve({ data: { user: null } }), AUTH_TIMEOUT_MS)
+  })
+  try {
+    return await Promise.race([supabase.auth.getUser(), timeout])
+  } catch {
+    return { data: { user: null } }
+  }
+}
+
 export async function updateSession(request: NextRequest) {
   const supabaseResponse = NextResponse.next({
     request,
@@ -43,7 +64,7 @@ export async function updateSession(request: NextRequest) {
   // exact same incoming request cookies a second time — that redundant call
   // used to cost a full extra Supabase round-trip on every request for no
   // benefit (it could never see anything this call didn't).
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user } } = await getUserWithTimeout(supabase)
 
   return { response: supabaseResponse, user }
 }
