@@ -16,6 +16,27 @@ type PageProps = {
   params: Promise<{ id: string }>
 }
 
+// Supabase Auth outages/slowdowns must not hang this page: it renders
+// dynamically on every request (cookies() usage opts it out of ISR caching
+// despite generateStaticParams/revalidate below), so an unbounded
+// getUser() call here stalls every single page load, not just the first.
+// Timing out and treating the request as logged-out only affects the
+// registration-wall / soft-prompt UI shown below, not real auth enforcement.
+const AUTH_TIMEOUT_MS = 4000
+
+async function getUserWithTimeout(
+  supabase: Awaited<ReturnType<typeof createClient>>
+): Promise<{ data: { user: Awaited<ReturnType<typeof supabase.auth.getUser>>['data']['user'] } }> {
+  const timeout = new Promise<{ data: { user: null } }>((resolve) => {
+    setTimeout(() => resolve({ data: { user: null } }), AUTH_TIMEOUT_MS)
+  })
+  try {
+    return await Promise.race([supabase.auth.getUser(), timeout])
+  } catch {
+    return { data: { user: null } }
+  }
+}
+
 // Pre-build 100 newest enriched articles at deploy time
 export async function generateStaticParams() {
   const supabase = createPublicClient(
@@ -124,7 +145,7 @@ export default async function ArticlePage({ params }: PageProps) {
   if (!article) notFound()
 
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user } } = await getUserWithTimeout(supabase)
   const isLoggedIn = !!user
 
   const relatedArticles = await getRelatedArticles(article.labels, article.id)
