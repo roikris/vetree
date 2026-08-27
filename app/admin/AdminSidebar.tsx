@@ -59,6 +59,7 @@ export function AdminSidebar() {
               <li key={item.href}>
                 <Link
                   href={item.href}
+                  prefetch={false}
                   style={{
                     display: 'flex', alignItems: 'center', gap: 11,
                     padding: '9px 12px', borderRadius: 9,
@@ -94,6 +95,7 @@ export function AdminSidebar() {
       }}>
         <Link
           href="/"
+          prefetch={false}
           style={{
             display: 'flex', alignItems: 'center', gap: 8,
             padding: '8px 12px', borderRadius: 9,
