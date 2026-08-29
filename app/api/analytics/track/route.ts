@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
 
     const supabase = await createClient()
     const body = await request.json()
-    const { path: rawPath, event, referrer, session_id, duration_seconds, utm_source, utm_medium, utm_campaign } = body
+    const { path: rawPath, event, referrer, session_id, duration_seconds, utm_source, utm_medium, utm_campaign, utm_id } = body
 
     const path = rawPath || (event === 'synthesis_engaged' ? '/synthesis/engaged' : null)
 
@@ -106,7 +106,8 @@ export async function POST(request: NextRequest) {
         duration_seconds: duration_seconds || undefined,
         utm_source: utm_source || undefined,
         utm_medium: utm_medium || undefined,
-        utm_campaign: utm_campaign || undefined
+        utm_campaign: utm_campaign || undefined,
+        utm_id: utm_id || undefined
       })
 
     if (error) {

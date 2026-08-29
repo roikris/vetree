@@ -197,8 +197,9 @@ UNIQUE(user_id, tag)
 | country | text | from x-vercel-ip-country |
 | device_type | text | mobile/desktop/tablet |
 | utm_source | text | |
-| utm_medium | text | |
+| utm_medium | text | 'social' = organic, 'paid-social' = paid ads |
 | utm_campaign | text | |
+| utm_id | text | ad set / campaign id from paid platforms (LinkedIn `{{AD_SET_ID}}` etc.) — migration 050 |
 | created_at | timestamptz | |
 
 Note: `page_views` is also used for `/synthesis/run` tracking (path = '/synthesis/run').

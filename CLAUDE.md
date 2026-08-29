@@ -257,6 +257,8 @@ TEST_USER_ID          # smoke-test account UUID; excluded from analytics if set
 VERCEL_TOKEN          # used by qa-smoke-pr to poll Vercel preview URL
 TEST_USER_EMAIL       # Playwright smoke credentials
 TEST_USER_PASSWORD
+NEXT_PUBLIC_LINKEDIN_PARTNER_ID  # LinkedIn Insight Tag partner ID; script is a no-op if unset
+NEXT_PUBLIC_FB_PIXEL_ID          # Meta Pixel ID; script is a no-op if unset
 ```
 
 ## Auth & Roles
