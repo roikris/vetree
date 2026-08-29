@@ -3,6 +3,7 @@ import { AnalyticsClient } from './AnalyticsClient'
 import { UserRetention } from './UserRetention'
 import { AnalysisAgent } from './AnalysisAgent'
 import { LinkedInSection } from './LinkedInSection'
+import { PaidCampaigns } from './PaidCampaigns'
 
 export default async function AdminAnalyticsPage() {
   const days = 7 // Default to 7 days
@@ -67,6 +68,10 @@ export default async function AdminAnalyticsPage() {
 
       <div style={{ marginTop: 32 }}>
         <LinkedInSection />
+      </div>
+
+      <div style={{ marginTop: 32 }}>
+        <PaidCampaigns />
       </div>
     </div>
   )

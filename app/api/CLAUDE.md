@@ -75,6 +75,7 @@ Routes verified from `app/api/` directory tree.
 | `/api/admin/analytics/latest-insights` | GET | Fetch most recent insights | Admin |
 | `/api/admin/analytics/insight-feedback` | POST | Implemented/ignored/noted | Admin |
 | `/api/admin/analytics/retention` | GET | Retention cohort data | Admin |
+| `/api/admin/analytics/paid-campaigns` | GET | Paid ad traffic by campaign/ad set (utm_medium=paid-social) | Admin |
 | `/api/admin/security/scan` | POST | Security audit | DIGEST_SECRET |
 | `/api/admin/linkedin-metrics/upload` | POST | XLSX import | Admin session |
 | `/api/admin/linkedin-metrics/rematch` | POST | Re-run article matching | Admin session |
@@ -210,6 +211,17 @@ soft registration wall actually renders for a guest (3rd+ article view). The wal
 localStorage/sessionStorage before this — there was no server-visible signal it fired at all.
 
 **Never** write synthetic paths to `page_views` for funnel events. Use `analytics_events`.
+
+## Paid Campaign Tracking
+Paid ads (LinkedIn, Facebook) use `utm_medium=paid-social` to stay distinguishable from organic
+social (`utm_medium=social`) sharing the same `utm_source` — e.g. a LinkedIn ad and a LinkedIn
+organic post both carry `utm_source=linkedin`; only `utm_medium` tells them apart. `utm_id` carries
+the platform's ad set / campaign id (e.g. LinkedIn's `{{AD_SET_ID}}` dynamic parameter) for
+per-ad-set breakdown. `usePageTracking.ts` captures `utm_id` the same way as the other three UTM
+params (URL → sessionStorage → `/api/analytics/track` → `page_views.utm_id`).
+`/api/admin/analytics/paid-campaigns` reads `page_views` filtered to `utm_medium=paid-social`,
+grouped by `utm_source`+`utm_campaign`+`utm_id` — kept as its own route/view rather than folded
+into `getTrafficSources` (which groups only by `utm_source` and would merge paid with organic).
 
 ## Aggregate Hardening (critical — read this before touching aggregate route)
 The aggregate route must:

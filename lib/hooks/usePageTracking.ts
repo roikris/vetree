@@ -33,11 +33,13 @@ export function usePageTracking() {
     const utm_source = searchParams.get('utm_source') || null
     const utm_medium = searchParams.get('utm_medium') || null
     const utm_campaign = searchParams.get('utm_campaign') || null
+    const utm_id = searchParams.get('utm_id') || null
 
     // Store in sessionStorage so UTMs persist across pages within same session
     if (utm_source) sessionStorage.setItem('utm_source', utm_source)
     if (utm_medium) sessionStorage.setItem('utm_medium', utm_medium)
     if (utm_campaign) sessionStorage.setItem('utm_campaign', utm_campaign)
+    if (utm_id) sessionStorage.setItem('utm_id', utm_id)
 
     // Track page view on load
     const trackPageView = async () => {
@@ -46,6 +48,7 @@ export function usePageTracking() {
         const tracked_utm_source = sessionStorage.getItem('utm_source')
         const tracked_utm_medium = sessionStorage.getItem('utm_medium')
         const tracked_utm_campaign = sessionStorage.getItem('utm_campaign')
+        const tracked_utm_id = sessionStorage.getItem('utm_id')
 
         await fetch('/api/analytics/track', {
           method: 'POST',
@@ -58,7 +61,8 @@ export function usePageTracking() {
             session_id: sessionId,
             utm_source: tracked_utm_source,
             utm_medium: tracked_utm_medium,
-            utm_campaign: tracked_utm_campaign
+            utm_campaign: tracked_utm_campaign,
+            utm_id: tracked_utm_id
           })
         })
       } catch (error) {
