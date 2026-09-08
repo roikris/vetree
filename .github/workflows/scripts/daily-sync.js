@@ -85,9 +85,16 @@ async function searchPubMed(journal, daysAgo = 5) {
   date.setDate(date.getDate() - daysAgo);
   const dateStr = date.toISOString().split('T')[0].replace(/-/g, '/');
 
-  const query = `${journal}[Journal] AND ("${dateStr}"[Date - Publication] : "3000"[Date - Publication])`;
+  // Filter on EDAT (date PubMed actually indexed the record), not PDAT
+  // (nominal journal issue date). For most articles these are close, but
+  // supplement/guideline issues can have a PDAT stamped to the start of
+  // the issue month while NLM doesn't index the record for weeks — a PDAT
+  // window anchored to "today" permanently skips those once the gap
+  // exceeds daysAgo, since PDAT never moves but the window only slides
+  // forward. EDAT reflects when the record actually became searchable.
+  const query = `${journal}[Journal]`;
   const apiKey = process.env.NCBI_API_KEY || '';
-  const searchUrl = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term=${encodeURIComponent(query)}&retmax=100&retmode=json&api_key=${apiKey}`;
+  const searchUrl = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term=${encodeURIComponent(query)}&retmax=100&retmode=json&datetype=edat&mindate=${dateStr}&maxdate=3000&api_key=${apiKey}`;
 
   const response = await fetch(searchUrl, {
     headers: { 'User-Agent': 'VetResearch/1.0 (mailto:research@vetapp.com)' }
