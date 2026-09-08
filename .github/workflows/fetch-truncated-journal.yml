@@ -1,17 +1,18 @@
-name: Daily PubMed Sync
+name: Fetch Truncated Journal Backlog
 
 on:
-  schedule:
-    - cron: '0 6 * * *'
   workflow_dispatch:
     inputs:
+      journal:
+        description: 'Exact journal name from the Slack truncation warning line'
+        required: true
       days_back:
-        description: 'EDAT lookback window in days (default 14; use e.g. 30 for a one-off burst run to catch a backlog)'
-        required: false
-        default: '14'
+        description: 'EDAT lookback window in days (match the window that produced the warning, e.g. 30)'
+        required: true
+        default: '30'
 
 jobs:
-  sync:
+  fetch-truncated:
     runs-on: ubuntu-latest
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -28,12 +29,13 @@ jobs:
         run: npm install @supabase/supabase-js xml2js ws
         working-directory: .github/workflows
 
-      - name: Run sync script
-        run: node scripts/daily-sync.js
+      - name: Run remediation script
+        run: node scripts/fetch-truncated-journal.js
         working-directory: .github/workflows
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           NCBI_API_KEY: ${{ secrets.NCBI_API_KEY }}
-          SYNC_DAYS_BACK: ${{ github.event.inputs.days_back }}
+          JOURNAL: ${{ github.event.inputs.journal }}
+          DAYS_BACK: ${{ github.event.inputs.days_back }}

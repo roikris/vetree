@@ -80,7 +80,7 @@ function formatAuthors(authorList) {
   }).join(', ');
 }
 
-async function searchPubMed(journal, daysAgo = 5) {
+async function searchPubMed(journal, daysAgo) {
   const date = new Date();
   date.setDate(date.getDate() - daysAgo);
   const dateStr = date.toISOString().split('T')[0].replace(/-/g, '/');
@@ -94,14 +94,20 @@ async function searchPubMed(journal, daysAgo = 5) {
   // forward. EDAT reflects when the record actually became searchable.
   const query = `${journal}[Journal]`;
   const apiKey = process.env.NCBI_API_KEY || '';
-  const searchUrl = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term=${encodeURIComponent(query)}&retmax=100&retmode=json&datetype=edat&mindate=${dateStr}&maxdate=3000&api_key=${apiKey}`;
+  const retmax = 100;
+  const searchUrl = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term=${encodeURIComponent(query)}&retmax=${retmax}&retmode=json&datetype=edat&mindate=${dateStr}&maxdate=3000&api_key=${apiKey}`;
 
   const response = await fetch(searchUrl, {
     headers: { 'User-Agent': 'VetResearch/1.0 (mailto:research@vetapp.com)' }
   });
 
   const data = await response.json();
-  return data.esearchresult?.idlist || [];
+  const pmids = data.esearchresult?.idlist || [];
+  // esearchresult.count is the true total match count; idlist is capped at
+  // retmax. When count exceeds retmax, the excess is silently dropped
+  // unless a caller checks for it — surfaced to main() so it can flag it.
+  const count = parseInt(data.esearchresult?.count, 10) || pmids.length;
+  return { pmids, truncated: count > pmids.length, totalCount: count };
 }
 
 async function fetchArticleDetails(pmids) {
@@ -209,7 +215,7 @@ async function fetchArticleDetails(pmids) {
   return articles;
 }
 
-async function sendSlackNotification(stats, skippedBlacklistDetails, skippedNoAbstractDetails) {
+async function sendSlackNotification(stats, skippedBlacklistDetails, skippedNoAbstractDetails, truncatedJournals) {
   const webhookUrl = process.env.SLACK_WEBHOOK_URL;
 
   if (!webhookUrl) {
@@ -263,12 +269,23 @@ async function sendSlackNotification(stats, skippedBlacklistDetails, skippedNoAb
     noAbstractSamples = `\n\n📭 *No abstract samples:*\n${samples}${more}`;
   }
 
+  // esearch caps results at retmax (100) per journal per run. If PubMed has
+  // more matches than that in the window, run fetch-truncated-journal.js
+  // for the named journal to pull the rest (see workflow_dispatch inputs).
+  let truncationWarning = '';
+  if (truncatedJournals.length > 0) {
+    const lines = truncatedJournals
+      .map(t => `• ${t.journal}: PubMed reports ${t.totalCount} matches, only fetched ${t.fetched} — run fetch-truncated-journal.js for this journal`)
+      .join('\n');
+    truncationWarning = `\n\n⚠️ *PubMed truncation warning:*\n${lines}`;
+  }
+
   const message = {
     text: `🌿 *Vetree Daily Sync Report*
 • New articles found on PubMed: ${stats.totalFound}
 • Already in database: ${stats.totalExisting}
 • Successfully added: ${stats.totalAdded}
-${skippedLines ? skippedLines + '\n' : ''}${balanceCheck}${journalBreakdown}${blacklistSamples}${noAbstractSamples}`
+${skippedLines ? skippedLines + '\n' : ''}${balanceCheck}${journalBreakdown}${blacklistSamples}${noAbstractSamples}${truncationWarning}`
   };
 
   try {
@@ -289,7 +306,11 @@ ${skippedLines ? skippedLines + '\n' : ''}${balanceCheck}${journalBreakdown}${bl
 }
 
 async function main() {
-  console.log('Starting PubMed sync...');
+  // Configurable via workflow_dispatch input (SYNC_DAYS_BACK) for one-off
+  // wider-window runs (e.g. a 30-day burst to catch a backlog); defaults to
+  // 14 for the daily scheduled run.
+  const daysAgo = parseInt(process.env.SYNC_DAYS_BACK, 10) || 14;
+  console.log(`Starting PubMed sync (${daysAgo}-day EDAT window)...`);
 
   const supabase = createClient(
     process.env.SUPABASE_URL,
@@ -315,20 +336,28 @@ async function main() {
     totalBlacklisted: 0,  // in articles_blacklist
     totalNoAbstract: 0,   // abstract missing or < 50 chars
     totalDuplicate: 0,    // 23505 conflicts at insert time (not caught by pre-check)
+    totalTruncated: 0,    // matches beyond retmax that esearch didn't return
     byJournal: {}
   };
 
   const skippedBlacklistDetails = [];  // { pubmed_id, title, url }
   const skippedNoAbstractDetails = []; // { pubmed_id, title, url }
+  const truncatedJournals = [];        // { journal, totalCount, fetched }
 
   for (const journal of JOURNALS) {
     console.log(`\nSearching ${journal}...`);
     stats.byJournal[journal] = 0;
 
     try {
-      const pmids = await searchPubMed(journal);
+      const { pmids, truncated, totalCount } = await searchPubMed(journal, daysAgo);
       console.log(`  Found ${pmids.length} articles`);
       stats.totalFound += pmids.length;
+
+      if (truncated) {
+        console.log(`  ⚠️ PubMed reports ${totalCount} matches, only fetched ${pmids.length} — some may be missed`);
+        stats.totalTruncated += totalCount - pmids.length;
+        truncatedJournals.push({ journal, totalCount, fetched: pmids.length });
+      }
 
       if (pmids.length === 0) continue;
 
@@ -463,6 +492,9 @@ async function main() {
   if (unaccounted !== 0) {
     console.log(`   ⚠️ Unaccounted: ${unaccounted}`);
   }
+  if (stats.totalTruncated > 0) {
+    console.log(`   ⚠️ Truncated (beyond retmax): ${stats.totalTruncated}`);
+  }
 
   // Auto-cleanup: delete sync_skipped_articles older than 30 days
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
@@ -475,7 +507,7 @@ async function main() {
   }
 
   // Send Slack notification
-  await sendSlackNotification(stats, skippedBlacklistDetails, skippedNoAbstractDetails);
+  await sendSlackNotification(stats, skippedBlacklistDetails, skippedNoAbstractDetails, truncatedJournals);
 }
 
 main().catch(error => {
