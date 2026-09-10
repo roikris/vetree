@@ -9,4 +9,52 @@ Disallow: /reset-password
 Disallow: /library
 Disallow: /profile
 
+# SEO tool crawlers -- no organic search value, no product benefit, but
+# AhrefsBot was confirmed (via Vercel Observability + live request logs on
+# 2026-09-10) systematically walking every /article/[id] page at a steady
+# cadence, driving a large share of Fluid Active CPU usage toward the
+# Vercel free-tier cap. These all publish and respect robots.txt.
+User-agent: AhrefsBot
+Disallow: /
+
+User-agent: SemrushBot
+Disallow: /
+
+User-agent: MJ12bot
+Disallow: /
+
+User-agent: DotBot
+Disallow: /
+
+User-agent: BLEXBot
+Disallow: /
+
+User-agent: SerpstatBot
+Disallow: /
+
+# AI training crawlers -- scrape article content to train models with no
+# referral traffic or product benefit back to Vetree. Distinct from
+# ChatGPT-User/live-browsing agents (not blocked), which fetch pages on
+# behalf of a user looking something up, same as a human visit.
+User-agent: GPTBot
+Disallow: /
+
+User-agent: ClaudeBot
+Disallow: /
+
+User-agent: anthropic-ai
+Disallow: /
+
+User-agent: CCBot
+Disallow: /
+
+User-agent: Google-Extended
+Disallow: /
+
+User-agent: Bytespider
+Disallow: /
+
+User-agent: PerplexityBot
+Disallow: /
+
 Sitemap: https://vetree.app/sitemap.xml
