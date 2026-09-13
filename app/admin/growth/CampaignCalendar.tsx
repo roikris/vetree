@@ -80,6 +80,12 @@ export function CampaignCalendar() {
   const [loadingRecs, setLoadingRecs] = useState(false)
   const [insights, setInsights] = useState<any>(null)
 
+  // LinkedIn posted-URL backlog — DB-driven, survives reloads (unlike markedPosted/
+  // linkedinTabMarked, which only remind within the same unrefreshed session)
+  const [missingUrlRows, setMissingUrlRows] = useState<{ id: string; article_id: string; article_title: string | null; date: string }[]>([])
+  const [missingUrlDrafts, setMissingUrlDrafts] = useState<Record<string, string>>({})
+  const [missingUrlSaving, setMissingUrlSaving] = useState<Record<string, boolean>>({})
+
   const currentDay = getCurrentCampaignDay()
   const todaysPlatform = getTodaysPlatform()
   const weekSchedule = getWeekSchedule()
@@ -156,9 +162,45 @@ export function CampaignCalendar() {
     loadSavedPost()
     loadTodaysTask()
     loadStats()
+    loadMissingUrls()
     // Calculate stats from localStorage (source of truth)
     refreshStats()
   }, [])
+
+  const loadMissingUrls = async () => {
+    try {
+      const res = await fetch('/api/admin/growth/memory/posted-url')
+      const data = await res.json()
+      if (res.ok) setMissingUrlRows(data.rows || [])
+    } catch {
+      // non-blocking
+    }
+  }
+
+  const handleSaveMissingUrl = async (row: { id: string; article_id: string; date: string }) => {
+    const url = (missingUrlDrafts[row.id] || '').trim()
+    if (!url) return
+    setMissingUrlSaving(prev => ({ ...prev, [row.id]: true }))
+    try {
+      const res = await fetch('/api/admin/growth/memory/posted-url', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ article_id: row.article_id, platform: 'linkedin', date: row.date, posted_url: url }),
+      })
+      if (res.ok) {
+        setMissingUrlRows(prev => prev.filter(r => r.id !== row.id))
+        setMissingUrlDrafts(prev => {
+          const next = { ...prev }
+          delete next[row.id]
+          return next
+        })
+      }
+    } catch {
+      // non-blocking
+    } finally {
+      setMissingUrlSaving(prev => ({ ...prev, [row.id]: false }))
+    }
+  }
 
   // Debug: Log whenever approvedPosts changes
   useEffect(() => {
@@ -696,6 +738,7 @@ export function CampaignCalendar() {
       if (res.ok) {
         setLinkedinTabSavedUrl(urlToSave.trim())
         setLinkedinTabPostedUrl('')
+        loadMissingUrls()
       }
     } catch {
       // non-blocking
@@ -1179,6 +1222,7 @@ export function CampaignCalendar() {
         setSavedPostedUrl(urlToSave.trim())
         setPostedUrl('')
         clearSavedPost() // Safe to clear now — URL is persisted in DB
+        loadMissingUrls()
       }
     } catch {
       // non-blocking
@@ -1338,6 +1382,54 @@ export function CampaignCalendar() {
 
   return (
     <div className="space-y-6">
+
+      {/* Missing LinkedIn post URLs — persists across reloads, unlike the inline
+          reminder below which only lives in this session's React state */}
+      {missingUrlRows.length > 0 && (
+        <div className="bg-amber-50 dark:bg-amber-950/30 border-2 border-amber-400 dark:border-amber-700/50 rounded-lg p-5">
+          <h3 className="text-sm font-semibold text-amber-800 dark:text-amber-400 mb-1">
+            🔗 Missing LinkedIn post URLs ({missingUrlRows.length})
+          </h3>
+          <p className="text-xs text-amber-700/80 dark:text-amber-500/70 mb-3">
+            These were marked posted but never got a URL saved — without it they can only match to
+            metrics via slug/date/AI, not the more reliable activity_id.
+          </p>
+          <div className="space-y-2">
+            {missingUrlRows.map(row => (
+              <div key={row.id} className="flex flex-wrap items-center gap-2 bg-white dark:bg-[#1A1A1A] rounded-md p-2.5">
+                <div className="flex-1 min-w-[200px]">
+                  <div className="text-sm text-[#1A1A1A] dark:text-[#E8E8E8] truncate">
+                    {row.article_title || row.article_id}
+                  </div>
+                  <div className="text-xs text-zinc-500 dark:text-zinc-500">{row.date}</div>
+                </div>
+                <input
+                  type="text"
+                  value={missingUrlDrafts[row.id] || ''}
+                  onChange={e => setMissingUrlDrafts(prev => ({ ...prev, [row.id]: e.target.value }))}
+                  onPaste={e => {
+                    const pasted = e.clipboardData.getData('text').trim()
+                    if (pasted.startsWith('https://www.linkedin.com/')) {
+                      setMissingUrlDrafts(prev => ({ ...prev, [row.id]: pasted }))
+                      handleSaveMissingUrl({ ...row, date: row.date })
+                    }
+                  }}
+                  placeholder="https://www.linkedin.com/posts/..."
+                  className="flex-1 min-w-[220px] text-xs bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded px-2 py-1.5 text-zinc-800 dark:text-zinc-200 placeholder-zinc-400 focus:outline-none focus:border-amber-500"
+                />
+                <button
+                  type="button"
+                  disabled={missingUrlSaving[row.id] || !(missingUrlDrafts[row.id] || '').trim()}
+                  onClick={() => handleSaveMissingUrl(row)}
+                  className="text-xs px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded disabled:opacity-50 transition"
+                >
+                  {missingUrlSaving[row.id] ? 'Saving…' : 'Save'}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Today's Task */}
       <div className={`bg-white dark:bg-[#1A1A1A] border-2 rounded-lg p-6 transition-colors ${
