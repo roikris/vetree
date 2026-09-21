@@ -69,10 +69,10 @@ export async function PATCH(request: NextRequest) {
   if (roleData?.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const body = await request.json()
-  const { article_id, platform, date, posted_url } = body
+  const { id, article_id, platform, date, posted_url } = body
 
-  if (!article_id || !platform || !date || !posted_url) {
-    return NextResponse.json({ error: 'article_id, platform, date, posted_url required' }, { status: 400 })
+  if (!posted_url || (!id && (!article_id || !platform || !date))) {
+    return NextResponse.json({ error: 'posted_url and either id, or article_id+platform+date, are required' }, { status: 400 })
   }
 
   const supabase = createServiceClient(
@@ -80,31 +80,40 @@ export async function PATCH(request: NextRequest) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
-  // Find the most recent approved memory row for this article+platform on this date
-  const dayStart = `${date}T00:00:00.000Z`
-  const dayEnd = `${date}T23:59:59.999Z`
+  let targetId = id
 
-  const { data: rows } = await supabase
-    .from('growth_agent_memory')
-    .select('id')
-    .eq('article_id', article_id)
-    .eq('platform', platform)
-    .eq('outcome', 'approved')
-    .gte('created_at', dayStart)
-    .lte('created_at', dayEnd)
-    .order('created_at', { ascending: false })
-    .limit(1)
+  if (!targetId) {
+    // No row id supplied (session-save flows right after posting) — derive it.
+    // Multiple approved rows can exist for the same article+platform+day (no unique
+    // constraint), so scope to the one still missing a URL rather than "most recent",
+    // which could silently overwrite an already-saved sibling row.
+    const dayStart = `${date}T00:00:00.000Z`
+    const dayEnd = `${date}T23:59:59.999Z`
 
-  if (!rows?.length) {
-    return NextResponse.json({ error: 'No approved memory row found for this article/platform/date' }, { status: 500 })
+    const { data: rows } = await supabase
+      .from('growth_agent_memory')
+      .select('id')
+      .eq('article_id', article_id)
+      .eq('platform', platform)
+      .eq('outcome', 'approved')
+      .is('posted_url', null)
+      .gte('created_at', dayStart)
+      .lte('created_at', dayEnd)
+      .order('created_at', { ascending: false })
+      .limit(1)
+
+    if (!rows?.length) {
+      return NextResponse.json({ error: 'No approved memory row still missing a posted_url for this article/platform/date' }, { status: 500 })
+    }
+    targetId = rows[0].id
   }
 
   const { error } = await supabase
     .from('growth_agent_memory')
     .update({ posted_url })
-    .eq('id', rows[0].id)
+    .eq('id', targetId)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  return NextResponse.json({ success: true, memory_id: rows[0].id })
+  return NextResponse.json({ success: true, memory_id: targetId })
 }
