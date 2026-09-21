@@ -185,7 +185,7 @@ export function CampaignCalendar() {
       const res = await fetch('/api/admin/growth/memory/posted-url', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ article_id: row.article_id, platform: 'linkedin', date: row.date, posted_url: url }),
+        body: JSON.stringify({ id: row.id, posted_url: url }),
       })
       if (res.ok) {
         setMissingUrlRows(prev => prev.filter(r => r.id !== row.id))
@@ -1632,6 +1632,7 @@ export function CampaignCalendar() {
                         onPaste={e => {
                           const pasted = e.clipboardData.getData('text').trim()
                           if (pasted.startsWith('https://www.linkedin.com/')) {
+                            e.preventDefault() // avoid native paste double-writing the controlled input
                             setLinkedinTabPostedUrl(pasted)
                             handleSaveLinkedinTabUrl(pasted)
                           }
@@ -2088,6 +2089,7 @@ export function CampaignCalendar() {
                       onPaste={e => {
                         const pasted = e.clipboardData.getData('text').trim()
                         if (pasted.startsWith('https://www.linkedin.com/')) {
+                          e.preventDefault() // avoid native paste double-writing the controlled input
                           setPostedUrl(pasted)
                           handleSavePostedUrl(pasted) // pass value directly — no stale closure
                         }
