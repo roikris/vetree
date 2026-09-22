@@ -1,4 +1,4 @@
-import { getAnalyticsOverview, getTopPages, getVisitorsOverTime, getTopArticles, getSessionDuration, getRecentSearches, getDeviceBreakdown, getTopCountries, getSavedArticlesStats, getTrafficSources, getSynthesisStats, getSaveIntentFunnel } from '@/app/actions/analytics'
+import { getAnalyticsOverview, getTopPages, getVisitorsOverTime, getTopArticles, getSessionDuration, getRecentSearches, getDeviceBreakdown, getTopCountries, getSavedArticlesStats, getTrafficSources, getSynthesisStats, getSaveIntentFunnel, getBotTraffic } from '@/app/actions/analytics'
 import { AnalyticsClient } from './AnalyticsClient'
 import { UserRetention } from './UserRetention'
 import { AnalysisAgent } from './AnalysisAgent'
@@ -8,7 +8,7 @@ import { PaidCampaigns } from './PaidCampaigns'
 export default async function AdminAnalyticsPage() {
   const days = 7 // Default to 7 days
 
-  const [overview, topPages, visitorsOverTime, topArticles, sessionDuration, recentSearches, deviceBreakdown, topCountries, savedArticlesStats, trafficSources, synthesisStats, saveIntentFunnel] = await Promise.all([
+  const [overview, topPages, visitorsOverTime, topArticles, sessionDuration, recentSearches, deviceBreakdown, topCountries, savedArticlesStats, trafficSources, synthesisStats, saveIntentFunnel, botTraffic] = await Promise.all([
     getAnalyticsOverview(days),
     getTopPages(days),
     getVisitorsOverTime(days),
@@ -21,6 +21,7 @@ export default async function AdminAnalyticsPage() {
     getTrafficSources(days),
     getSynthesisStats(days),
     getSaveIntentFunnel(days),
+    getBotTraffic(days),
   ])
 
   return (
@@ -56,6 +57,7 @@ export default async function AdminAnalyticsPage() {
         initialTrafficSources={trafficSources.data || []}
         initialSynthesisStats={synthesisStats.data || null}
         initialSaveIntentFunnel={saveIntentFunnel.data || null}
+        initialBotTraffic={botTraffic.data || null}
       />
 
       <div style={{ marginTop: 32 }}>

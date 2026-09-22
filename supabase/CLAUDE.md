@@ -190,7 +190,9 @@ UNIQUE(user_id, tag)
 | Column | Type | Notes |
 |--------|------|-------|
 | path | text | |
+| referrer | text nullable | raw `document.referrer`, empty on direct/in-app opens |
 | ip_hash | text | SHA-256, never raw IP |
+| user_agent | text nullable | raw UA string — captured but not surfaced in any dashboard read; used by `lib/bot-detection.ts` at write time |
 | user_id | uuid nullable | |
 | session_id | text | |
 | duration_seconds | integer | capped at 1800 (30 min) |
@@ -200,10 +202,23 @@ UNIQUE(user_id, tag)
 | utm_medium | text | 'social' = organic, 'paid-social' = paid ads |
 | utm_campaign | text | |
 | utm_id | text | ad set / campaign id from paid platforms (LinkedIn `{{AD_SET_ID}}` etc.) — migration 050 |
+| bot_name | text nullable | set by `/api/analytics/track` via `lib/bot-detection.ts` (`meta-externalagent`, `adsbot-google`, `googlebot`, `gptbot`, `other-bot`, etc.) — migration 051 |
 | created_at | timestamptz | |
 
 Note: `page_views` is also used for `/synthesis/run` tracking (path = '/synthesis/run').
 Funnel events (save_intent_*) go to `analytics_events`, NOT page_views.
+
+**Bot traffic is tagged, not dropped.** Known crawlers (Meta's link-preview bot firing
+whenever someone privately shares an article link, `AdsBot-Google` re-fetching an
+ad-clicked URL to verify the landing page, generic `bot|crawler|spider` UAs) still get a
+row inserted — `bot_name` is set instead of leaving the row indistinguishable from a real
+visit. This exists so a crawl burst (e.g. ~140 hits in a few hours from one link-preview
+bot) is still visible for resource monitoring instead of silently vanishing. Every
+human-facing analytics read (`app/actions/analytics.ts`, the daily aggregate route, the
+paid-campaigns/LinkedIn-funnel/Growth-OS-recommendation routes) filters
+`.is('bot_name', null)`; `getBotTraffic()` in `app/actions/analytics.ts` reads the
+opposite (`.not('bot_name', 'is', null)`) for the admin "Bot Traffic" panel. Don't add a
+new page_views-reading query without deciding which side of that filter it belongs on.
 
 ### `search_logs`
 | Column | Type |

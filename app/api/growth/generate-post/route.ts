@@ -91,12 +91,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Improvement #2: Fetch page view counts (last 30 days) to boost high-engagement articles
+    // Excludes bots — a crawler burst hitting many articles once each would otherwise
+    // look like organic reader interest and skew which article gets picked.
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
     const { data: topViewedPaths } = await supabase
       .from('page_views')
       .select('path')
       .ilike('path', '/article/%')
       .gte('created_at', thirtyDaysAgo)
+      .is('bot_name', null)
 
     const viewCounts = new Map<string, number>()
     for (const row of topViewedPaths || []) {

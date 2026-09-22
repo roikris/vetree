@@ -46,11 +46,15 @@ export async function GET(request: NextRequest) {
   }
 
   // 2. Fetch LinkedIn page_view sessions (utm_source=linkedin, path starts with /article/)
+  // Excludes bots — meta-externalagent fetches the same UTM-tagged article URL when
+  // someone forwards a LinkedIn post's link in DM, which would otherwise count as a
+  // real click-through in this funnel.
   let pvQuery = supabase
     .from('page_views')
     .select('path, ip_hash, user_id, utm_source')
     .eq('utm_source', 'linkedin')
     .like('path', '/article/%')
+    .is('bot_name', null)
     .or(excludedUsersOrFilter())
 
   if (from) pvQuery = pvQuery.gte('created_at', from)
