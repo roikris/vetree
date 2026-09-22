@@ -33,28 +33,31 @@ export async function getAnalyticsOverview(days: number = 7) {
   const startDate = new Date()
   startDate.setDate(startDate.getDate() - days)
 
-  // Total pageviews (exclude admin, include anonymous)
+  // Total pageviews (exclude admin + known bots, include anonymous)
   const { count: totalViews } = await db
     .from('page_views')
     .select('*', { count: 'exact', head: true })
     .gte('created_at', startDate.toISOString())
+    .is('bot_name', null)
     .or(excludedUsersOrFilter())
 
-  // Unique visitors (exclude admin, include anonymous)
+  // Unique visitors (exclude admin + known bots, include anonymous)
   const { data: uniqueVisitors } = await db
     .from('page_views')
     .select('ip_hash')
     .gte('created_at', startDate.toISOString())
+    .is('bot_name', null)
     .or(excludedUsersOrFilter())
 
   const uniqueCount = uniqueVisitors ? [...new Set(uniqueVisitors.map(v => v.ip_hash))].length : 0
 
-  // Logged-in vs anonymous (exclude admin)
+  // Logged-in vs anonymous (exclude admin + known bots)
   const { count: loggedInViews } = await db
     .from('page_views')
     .select('*', { count: 'exact', head: true })
     .gte('created_at', startDate.toISOString())
     .not('user_id', 'is', null)
+    .is('bot_name', null)
     .or(excludedUsersOrFilter())
 
   return {
@@ -92,6 +95,7 @@ export async function getTopPages(days: number = 7, limit: number = 10) {
     .from('page_views')
     .select('path')
     .gte('created_at', startDate.toISOString())
+    .is('bot_name', null)
     .or(excludedUsersOrFilter())
 
   if (!pageViews) return { data: [], error: null }
@@ -134,6 +138,7 @@ export async function getVisitorsOverTime(days: number = 7) {
     .from('page_views')
     .select('created_at, ip_hash')
     .gte('created_at', startDate.toISOString())
+    .is('bot_name', null)
     .or(excludedUsersOrFilter())
     .order('created_at', { ascending: true })
 
@@ -182,12 +187,13 @@ export async function getTopArticles(days: number = 7, limit: number = 10) {
   const startDate = new Date()
   startDate.setDate(startDate.getDate() - days)
 
-  // Get article page views (exclude admin, include anonymous)
+  // Get article page views (exclude admin + known bots, include anonymous)
   const { data: pageViews } = await db
     .from('page_views')
     .select('path, ip_hash')
     .gte('created_at', startDate.toISOString())
     .like('path', '/article/%')
+    .is('bot_name', null)
     .or(excludedUsersOrFilter())
 
   if (!pageViews) return { data: [], error: null }
@@ -250,12 +256,13 @@ export async function getSessionDuration(days: number = 7) {
   const startDate = new Date()
   startDate.setDate(startDate.getDate() - days)
 
-  // Get all sessions with duration (exclude admin, include anonymous)
+  // Get all sessions with duration (exclude admin + known bots, include anonymous)
   const { data: sessions } = await db
     .from('page_views')
     .select('duration_seconds')
     .gte('created_at', startDate.toISOString())
     .not('duration_seconds', 'is', null)
+    .is('bot_name', null)
     .or(excludedUsersOrFilter())
 
   if (!sessions || sessions.length === 0) {
@@ -415,6 +422,7 @@ export async function getDeviceBreakdown(days: number = 7) {
     .from('page_views')
     .select('device_type')
     .gte('created_at', startDate.toISOString())
+    .is('bot_name', null)
     .or(excludedUsersOrFilter())
 
   if (!pageViews) return { data: { mobile: 0, desktop: 0, unknown: 0 }, error: null }
@@ -464,6 +472,7 @@ export async function getTopCountries(days: number = 7, limit: number = 10) {
     .from('page_views')
     .select('country, ip_hash')
     .gte('created_at', startDate.toISOString())
+    .is('bot_name', null)
     .or(excludedUsersOrFilter())
 
   if (!pageViews) return { data: [], error: null }
@@ -558,14 +567,16 @@ export async function getTrafficSources(days: number = 7) {
   const startDate = new Date()
   startDate.setDate(startDate.getDate() - days)
 
-  // Get all page views with UTM data and referrers (exclude admin)
+  // Get all page views with UTM data, referrers and bot tag (exclude admin)
   const { data: pageViews } = await db
     .from('page_views')
-    .select('utm_source, referrer, ip_hash, user_id')
+    .select('utm_source, referrer, ip_hash, user_id, bot_name')
     .gte('created_at', startDate.toISOString())
     .or(excludedUsersOrFilter())
 
   if (!pageViews) return { data: [], error: null }
+
+  const BOT_SOURCE = '🤖 Bot / Crawler'
 
   // Categorize traffic sources
   const sourceStats: Record<string, { visits: number, uniqueVisitors: Set<string>, signups: Set<string> }> = {}
@@ -600,7 +611,11 @@ export async function getTrafficSources(days: number = 7) {
   }
 
   pageViews.forEach(view => {
-    const source = categorizeSource(view.utm_source, view.referrer)
+    // Known bots (meta-externalagent link previews, AdsBot-Google landing-page
+    // checks, etc.) get their own bucket instead of Direct/Unknown or whatever
+    // UTM they happened to carry — they're not real visitors, but we keep the
+    // row instead of dropping it so bursts are still visible in the table.
+    const source = view.bot_name ? BOT_SOURCE : categorizeSource(view.utm_source, view.referrer)
 
     if (!sourceStats[source]) {
       sourceStats[source] = { visits: 0, uniqueVisitors: new Set(), signups: new Set() }
@@ -621,11 +636,66 @@ export async function getTrafficSources(days: number = 7) {
       source,
       visits: stats.visits,
       uniqueVisitors: stats.uniqueVisitors.size,
-      signups: stats.signups.size
+      signups: stats.signups.size,
+      isBot: source === BOT_SOURCE
     }))
     .sort((a, b) => b.visits - a.visits)
 
   return { data: trafficSources, error: null }
+}
+
+/**
+ * Daily bot-hit trend + breakdown by bot name, for spotting a crawl burst
+ * (e.g. a link-preview bot fetching hundreds of article pages in a few hours)
+ * that's eating serverless/DB resources without inflating human traffic metrics.
+ */
+export async function getBotTraffic(days: number = 7) {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const { data: roleData } = await supabase
+    .from('user_roles')
+    .select('role')
+    .eq('user_id', user.id)
+    .single()
+
+  if (roleData?.role !== 'admin') {
+    return { error: 'Unauthorized' }
+  }
+
+  const db = adminDb()
+  const startDate = new Date()
+  startDate.setDate(startDate.getDate() - days)
+
+  const { data: pageViews } = await db
+    .from('page_views')
+    .select('created_at, bot_name')
+    .gte('created_at', startDate.toISOString())
+    .not('bot_name', 'is', null)
+    .or(excludedUsersOrFilter())
+
+  if (!pageViews) return { data: { totalHits: 0, daily: [], byName: [] }, error: null }
+
+  const dailyCounts: Record<string, number> = {}
+  const nameCounts: Record<string, number> = {}
+
+  pageViews.forEach(view => {
+    const date = view.created_at.slice(0, 10)
+    dailyCounts[date] = (dailyCounts[date] || 0) + 1
+    nameCounts[view.bot_name!] = (nameCounts[view.bot_name!] || 0) + 1
+  })
+
+  const daily = Object.entries(dailyCounts)
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([date, hits]) => ({ date, hits }))
+
+  const byName = Object.entries(nameCounts)
+    .sort((a, b) => b[1] - a[1])
+    .map(([name, hits]) => ({ name, hits }))
+
+  return { data: { totalHits: pageViews.length, daily, byName }, error: null }
 }
 
 function median(values: number[]): number | null {

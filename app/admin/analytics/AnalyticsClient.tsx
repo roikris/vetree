@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
-import { getAnalyticsOverview, getTopPages, getVisitorsOverTime, getTopArticles, getSessionDuration, getRecentSearches, getDeviceBreakdown, getTopCountries, getSavedArticlesStats, getTrafficSources, getSynthesisStats, getSaveIntentFunnel } from '@/app/actions/analytics'
+import { getAnalyticsOverview, getTopPages, getVisitorsOverTime, getTopArticles, getSessionDuration, getRecentSearches, getDeviceBreakdown, getTopCountries, getSavedArticlesStats, getTrafficSources, getSynthesisStats, getSaveIntentFunnel, getBotTraffic } from '@/app/actions/analytics'
 
 type AnalyticsClientProps = {
   initialOverview: any
@@ -25,6 +25,11 @@ type AnalyticsClientProps = {
     medianResolutionMs: number | null
     branches: { branch: string; count: number; uniqueUsers: number }[]
   } | null
+  initialBotTraffic: {
+    totalHits: number
+    daily: { date: string; hits: number }[]
+    byName: { name: string; hits: number }[]
+  } | null
 }
 
 export function AnalyticsClient({
@@ -40,6 +45,7 @@ export function AnalyticsClient({
   initialTrafficSources,
   initialSynthesisStats,
   initialSaveIntentFunnel,
+  initialBotTraffic,
 }: AnalyticsClientProps) {
   const [dateRange, setDateRange] = useState<7 | 30 | 90>(7)
   const [overview, setOverview] = useState(initialOverview)
@@ -54,6 +60,7 @@ export function AnalyticsClient({
   const [trafficSources, setTrafficSources] = useState(initialTrafficSources || [])
   const [synthesisStats, setSynthesisStats] = useState(initialSynthesisStats)
   const [saveIntentFunnel, setSaveIntentFunnel] = useState(initialSaveIntentFunnel)
+  const [botTraffic, setBotTraffic] = useState(initialBotTraffic)
   const [isLoading, setIsLoading] = useState(false)
   const [sortColumn, setSortColumn] = useState<'query' | 'count' | 'avg_results' | 'last_searched'>('count')
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
@@ -98,7 +105,7 @@ export function AnalyticsClient({
     setIsLoading(true)
 
     try {
-      const [overviewRes, topPagesRes, visitorsRes, articlesRes, sessionRes, searchesRes, deviceRes, countriesRes, savedRes, trafficRes, synthesisRes, funnelRes] = await Promise.all([
+      const [overviewRes, topPagesRes, visitorsRes, articlesRes, sessionRes, searchesRes, deviceRes, countriesRes, savedRes, trafficRes, synthesisRes, funnelRes, botTrafficRes] = await Promise.all([
         getAnalyticsOverview(newRange),
         getTopPages(newRange),
         getVisitorsOverTime(newRange),
@@ -111,6 +118,7 @@ export function AnalyticsClient({
         getTrafficSources(newRange),
         getSynthesisStats(newRange),
         getSaveIntentFunnel(newRange),
+        getBotTraffic(newRange),
       ])
 
       setOverview(overviewRes.data)
@@ -125,6 +133,7 @@ export function AnalyticsClient({
       setTrafficSources(trafficRes.data || [])
       setSynthesisStats(synthesisRes.data || null)
       setSaveIntentFunnel(funnelRes.data || null)
+      setBotTraffic(botTrafficRes.data || null)
     } catch (error) {
       console.error('Error loading analytics:', error)
     } finally {
@@ -453,10 +462,58 @@ export function AnalyticsClient({
             <tbody>
               {trafficSources.map((source, idx) => (
                 <tr key={idx}>
-                  <td style={{ ...tdStyle, fontWeight: 500 }}>{source.source}</td>
-                  <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 600 }}>{source.visits}</td>
-                  <td style={{ ...tdStyle, textAlign: 'right' }}>{source.uniqueVisitors}</td>
-                  <td style={{ ...tdStyle, textAlign: 'right' }}>{source.signups}</td>
+                  <td style={{ ...tdStyle, fontWeight: 500, fontStyle: source.isBot ? 'italic' : 'normal', color: source.isBot ? 'var(--al-mut4)' : tdStyle.color }}>
+                    {source.source}
+                  </td>
+                  <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 600, color: source.isBot ? 'var(--al-mut4)' : tdStyle.color }}>{source.visits}</td>
+                  <td style={{ ...tdStyle, textAlign: 'right', color: source.isBot ? 'var(--al-mut4)' : tdStyle.color }}>{source.uniqueVisitors}</td>
+                  <td style={{ ...tdStyle, textAlign: 'right', color: source.isBot ? 'var(--al-mut4)' : tdStyle.color }}>{source.signups}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {trafficSources.some(s => s.isBot) && (
+            <p style={{ margin: '10px 0 0', fontFamily: 'var(--font-instrument,sans-serif)', fontSize: 11.5, color: 'var(--al-mut4)' }}>
+              🤖 Bot / Crawler visits (link-preview bots, ad verifiers, etc.) are excluded from Total Pageviews / Unique Visitors above — see Bot Traffic below for the daily trend.
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Bot Traffic */}
+      {botTraffic && botTraffic.totalHits > 0 && (
+        <div style={cardStyle}>
+          <h2 style={h2Style}>Bot traffic</h2>
+          <p style={{ margin: '0 0 20px', fontFamily: 'var(--font-instrument,sans-serif)', fontSize: 12.5, color: 'var(--al-mut3)' }}>
+            Known crawlers and link-preview bots — kept out of every metric above, tracked here so a crawl burst eating resources is still visible.
+          </p>
+          <div style={{ display: 'flex', gap: 14, marginBottom: 20 }}>
+            <div style={{ ...cardStyle, background: 'var(--al-card2)', flex: '0 0 auto', padding: '16px 20px' }}>
+              <div style={labelStyle}>Total bot hits ({dateRange}d)</div>
+              <div style={{ ...bigNumStyle, fontSize: 26, marginTop: 8 }}>{botTraffic.totalHits.toLocaleString()}</div>
+            </div>
+          </div>
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={botTraffic.daily}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(var(--al-line,62,54,36),.12)" />
+              <XAxis dataKey="date" stroke="var(--al-mut6)" tick={{ fontFamily: 'var(--font-instrument,sans-serif)', fontSize: 11 }} />
+              <YAxis stroke="var(--al-mut6)" tick={{ fontFamily: 'var(--font-instrument,sans-serif)', fontSize: 11 }} />
+              <Tooltip contentStyle={tooltipStyle} />
+              <Bar dataKey="hits" fill="var(--al-mut4)" radius={[4, 4, 0, 0]} name="Bot hits" />
+            </BarChart>
+          </ResponsiveContainer>
+          <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 20 }}>
+            <thead>
+              <tr>
+                <th style={thStyle}>Bot</th>
+                <th style={{ ...thStyle, textAlign: 'right' }}>Hits</th>
+              </tr>
+            </thead>
+            <tbody>
+              {botTraffic.byName.map((bot, idx) => (
+                <tr key={idx}>
+                  <td style={{ ...tdStyle, fontWeight: 500 }}>{bot.name}</td>
+                  <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 600 }}>{bot.hits}</td>
                 </tr>
               ))}
             </tbody>

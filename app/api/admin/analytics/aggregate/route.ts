@@ -34,30 +34,33 @@ export async function POST(request: NextRequest) {
       throw Object.assign(new Error(msg), { status: 500 })
     }
 
-    // DAU - unique ip_hash for yesterday (full day)
+    // DAU - unique ip_hash for yesterday (full day, exclude known bots)
     const { data: dauData, error: dauError } = await supabase
       .from('page_views')
       .select('ip_hash')
       .gte('created_at', yesterday)
       .lt('created_at', today)
+      .is('bot_name', null)
       .or(excludedUsersOrFilter())
     fail('DAU', dauError)
     const dau = new Set(dauData?.map(r => r.ip_hash) ?? []).size
 
-    // WAU - unique ip_hash last 7 days
+    // WAU - unique ip_hash last 7 days (exclude known bots)
     const { data: wauData, error: wauError } = await supabase
       .from('page_views')
       .select('ip_hash')
       .gte('created_at', sevenDaysAgo)
+      .is('bot_name', null)
       .or(excludedUsersOrFilter())
     fail('WAU', wauError)
     const wau = new Set(wauData?.map(r => r.ip_hash) ?? []).size
 
-    // MAU - unique ip_hash last 30 days
+    // MAU - unique ip_hash last 30 days (exclude known bots)
     const { data: mauData, error: mauError } = await supabase
       .from('page_views')
       .select('ip_hash')
       .gte('created_at', thirtyDaysAgo)
+      .is('bot_name', null)
       .or(excludedUsersOrFilter())
     const mau = new Set(mauData?.map(r => r.ip_hash) ?? []).size
 
@@ -76,11 +79,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Registered MAU — distinct authenticated users (non-admin, non-null user_id) in last 30 days
-    // This is the real user count; mau above counts all visitors including anonymous/bots
+    // This is the real user count; mau above counts all human visitors including anonymous
+    // (known bots are excluded from both via bot_name, see DAU/WAU/MAU above)
     const { data: registeredMauData, error: regMauError } = await supabase
       .from('page_views')
       .select('user_id')
       .not('user_id', 'is', null)
+      .is('bot_name', null)
       .or(excludedUsersOrFilter())
       .gte('created_at', thirtyDaysAgo)
     fail('registered_mau', regMauError)
@@ -109,12 +114,13 @@ export async function POST(request: NextRequest) {
       .slice(0, 10)
       .map(([query, count]) => ({ query, count }))
 
-    // Synthesis engaged (auto-exposure tracked via IntersectionObserver, exclude admin)
+    // Synthesis engaged (auto-exposure tracked via IntersectionObserver, exclude admin + bots)
     const { count: synthesisEngaged, error: synthEngErr } = await supabase
       .from('page_views')
       .select('*', { count: 'exact', head: true })
       .eq('path', '/synthesis/engaged')
       .gte('created_at', sevenDaysAgo)
+      .is('bot_name', null)
       .or(excludedUsersOrFilter())
     fail('synthesis_engaged', synthEngErr)
 
@@ -124,6 +130,7 @@ export async function POST(request: NextRequest) {
       .select('*', { count: 'exact', head: true })
       .eq('path', '/synthesis/run')
       .gte('created_at', sevenDaysAgo)
+      .is('bot_name', null)
       .or(excludedUsersOrFilter())
     fail('synthesis_runs', synthRunErr)
 
@@ -175,6 +182,7 @@ export async function POST(request: NextRequest) {
       .select('duration_seconds')
       .gte('created_at', sevenDaysAgo)
       .not('duration_seconds', 'is', null)
+      .is('bot_name', null)
       .or(excludedUsersOrFilter())
     fail('session_duration', sessionError)
 
@@ -194,12 +202,15 @@ export async function POST(request: NextRequest) {
       ? sortedDurations[Math.floor(sortedDurations.length / 2)]
       : 0
 
-    // Traffic sources (exclude admin)
+    // Traffic sources (exclude admin + bots — AdsBot-Google in particular fetches
+    // the exact ad-clicked URL including its utm_source to verify the landing page,
+    // so without this filter a bot verification crawl looks like real paid traffic)
     const { data: trafficData, error: trafficError } = await supabase
       .from('page_views')
       .select('utm_source')
       .gte('created_at', sevenDaysAgo)
       .not('utm_source', 'is', null)
+      .is('bot_name', null)
       .or(excludedUsersOrFilter())
     fail('traffic_sources', trafficError)
 
@@ -211,11 +222,12 @@ export async function POST(request: NextRequest) {
       return acc
     }, {} as Record<string, number>)
 
-    // Device breakdown (exclude admin)
+    // Device breakdown (exclude admin + bots)
     const { data: deviceData, error: deviceError } = await supabase
       .from('page_views')
       .select('device_type')
       .gte('created_at', sevenDaysAgo)
+      .is('bot_name', null)
       .or(excludedUsersOrFilter())
     fail('device_breakdown', deviceError)
 

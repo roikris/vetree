@@ -48,6 +48,9 @@ export async function GET(request: NextRequest) {
     .from('page_views')
     .select('utm_source, utm_campaign, utm_id, ip_hash, user_id, created_at')
     .eq('utm_medium', 'paid-social')
+    .is('bot_name', null) // AdsBot-Google re-fetches the exact ad-clicked URL (utm_id
+                            // included) to verify the landing page — without this it
+                            // looks like a real paid click
     .or(excludedUsersOrFilter())
 
   if (from) query = query.gte('created_at', from)

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createHash } from 'crypto'
 import { ratelimitLoose, getClientIP } from '@/lib/ratelimit'
+import { detectBotName } from '@/lib/bot-detection'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -25,11 +26,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Path is required' }, { status: 400 })
     }
 
-    // Skip QA bot traffic — VetreeQABot UA or x-qa-bot header
+    // Skip QA bot traffic — VetreeQABot UA or x-qa-bot header (deliberate internal
+    // smoke-test traffic, not real crawler noise — excluded entirely, not tagged)
     const userAgent = request.headers.get('user-agent') || ''
     if (userAgent.includes('VetreeQABot') || request.headers.get('x-qa-bot') === '1') {
       return NextResponse.json({ success: true, tracked: false })
     }
+
+    // Known crawlers (link-preview bots, search/ads verifiers, AI scrapers) are still
+    // recorded — tagged via bot_name so burst/resource monitoring stays possible —
+    // but analytics reads filter bot_name IS NULL to keep human metrics clean.
+    const botName = detectBotName(userAgent)
 
     // Get user if logged in
     const { data: { user } } = await supabase.auth.getUser()
@@ -107,7 +114,8 @@ export async function POST(request: NextRequest) {
         utm_source: utm_source || undefined,
         utm_medium: utm_medium || undefined,
         utm_campaign: utm_campaign || undefined,
-        utm_id: utm_id || undefined
+        utm_id: utm_id || undefined,
+        bot_name: botName
       })
 
     if (error) {

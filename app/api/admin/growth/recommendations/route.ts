@@ -52,12 +52,16 @@ export async function GET(request: NextRequest) {
     const since30 = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
 
     // SIGNAL 1: Which articles got social clicks (UTM-tracked)?
+    // Excludes bots — a link-preview crawler (meta-externalagent etc.) fetching a
+    // UTM-tagged article URL someone privately shared would otherwise look like a
+    // real social click.
     const { data: socialViews } = await supabase
       .from('page_views')
       .select('path, utm_source')
       .not('utm_source', 'is', null)
       .gte('created_at', since60)
       .like('path', '/article/%')
+      .is('bot_name', null)
       .or(`user_id.is.null,user_id.neq.${adminId}`)
 
     console.log('[recs] socialViews count:', socialViews?.length)
