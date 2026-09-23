@@ -82,8 +82,6 @@ export async function searchArticles(filters: ParsedFilters, pageSize = 20): Pro
         return { data: [], count: 0 }
       }
 
-      const LARGE_ANIMAL = ['Equine','equine','Large Animal','large animal','Livestock','livestock','Poultry','poultry','Food Animal','food animal']
-
       // PRIMARY: Ranked multi-field search via RPC (title A, labels B, CBL B, summary C)
       const { data: rpcData, error: rpcError } = await supabase
         .rpc('search_articles_ranked', {
@@ -98,9 +96,12 @@ export async function searchArticles(filters: ParsedFilters, pageSize = 20): Pro
       }
 
       if (!rpcError && rpcData && rpcData.length > 0) {
-        let filtered: any[] = rpcData.filter((a: any) =>
-          !a.labels?.some((l: string) => LARGE_ANIMAL.includes(l))
-        )
+        // Species scoping comes from quickFilter only — same as the browse path.
+        // This previously applied an unconditional large-animal exclusion here,
+        // which made ~7,800 enriched large-animal articles findable by browsing
+        // but invisible to search, and made quickFilter='large-animal' return
+        // nothing at all (the exclusion ran first and removed every candidate).
+        let filtered: any[] = rpcData
         if (filters.quickFilter !== 'all') {
           const quickLabel = filters.quickFilter === 'small-animal' ? 'Small Animal' : 'Large Animal'
           filtered = filtered.filter((a: any) => a.labels?.includes(quickLabel))
