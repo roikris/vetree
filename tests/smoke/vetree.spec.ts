@@ -80,12 +80,12 @@ test('login page: renders email input', async ({ page }) => {
 })
 
 // ─── 6. API health ────────────────────────────────────────────────────────────
-test('API: /api/articles/search-quick returns 200 with articles array', async ({ request }) => {
+// search-quick is an ADMIN route (service-role reads). It previously had no auth
+// check at all, and this test asserted the resulting anonymous 200 as if it were
+// correct behavior. Anonymous access must now be rejected.
+test('API: /api/articles/search-quick rejects anonymous access', async ({ request }) => {
   const response = await request.get('/api/articles/search-quick?q=canine')
-  expect(response.status()).toBe(200)
-  const body = await response.json()
-  expect(body).toHaveProperty('articles')
-  expect(Array.isArray(body.articles)).toBe(true)
+  expect(response.status()).toBe(401)
 })
 
 // ─── 7. Mobile viewport ───────────────────────────────────────────────────────

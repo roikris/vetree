@@ -2,7 +2,8 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from '@/lib/supabase/server'
+import { createClient as createServiceClient } from '@supabase/supabase-js'
 
 /**
  * Quick search for admin article picker in campaign calendar.
@@ -10,6 +11,14 @@ import { createClient } from '@supabase/supabase-js'
  */
 export async function GET(request: NextRequest) {
   try {
+    const cookieClient = await createClient()
+    const { data: { user } } = await cookieClient.auth.getUser()
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const { data: roleData } = await cookieClient
+      .from('user_roles').select('role').eq('user_id', user.id).maybeSingle()
+    if (roleData?.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
     const { searchParams } = new URL(request.url)
     const q = searchParams.get('q')
     const limit = parseInt(searchParams.get('limit') || '5', 10)
@@ -18,7 +27,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ articles: [] })
     }
 
-    const supabase = createClient(
+    const supabase = createServiceClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
