@@ -45,12 +45,13 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
-     * - robots.txt, sitemap.xml, manifest.json (static/generated SEO + PWA files)
+     * - robots.txt, sitemap.xml, sitemaps/ (sitemap shards), manifest.json
+     *   (static/generated SEO + PWA files)
      * - opengraph-image (per-article OG image routes — fetched by link-preview
      *   crawlers, never by an authenticated browser session)
      * - api (API routes — each does its own auth, see app/api/CLAUDE.md)
      * - raster image files
      */
-    '/((?!_next/static|_next/image|favicon\\.ico|robots\\.txt|sitemap\\.xml|manifest\\.json|.*opengraph-image|api|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon\\.ico|robots\\.txt|sitemap\\.xml|sitemaps/|manifest\\.json|.*opengraph-image|api|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }
