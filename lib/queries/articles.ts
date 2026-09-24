@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { unstable_cache } from 'next/cache'
 import { ParsedFilters } from '@/types/search'
 import { normalizeQuery } from '@/lib/utils/normalizeQuery'
+import { applyQuickFilter, matchesQuickFilter } from '@/lib/utils/species'
 
 // Only fetch fields needed for article list cards — summary fetched lazily
 const SELECT_FIELDS = `
@@ -50,12 +51,9 @@ export async function searchArticles(filters: ParsedFilters, pageSize = 20): Pro
     const from = (filters.page - 1) * pageSize
     const to = from + pageSize - 1
 
-    // Apply label/evidence/journal filters + sort + pagination to any query
-    const applyFiltersAndPagination = (q: any) => {
-      if (filters.quickFilter !== 'all') {
-        const quickLabel = filters.quickFilter === 'small-animal' ? 'Small Animal' : 'Large Animal'
-        q = q.overlaps('labels', [quickLabel])
-      }
+    // Apply label/evidence/journal filters + sort to any query
+    const applyFilters = (q: any) => {
+      q = applyQuickFilter(q, filters.quickFilter)
       if (filters.labels.length > 0) {
         if (filters.labelOperator === 'AND') {
           q = q.contains('labels', filters.labels)
@@ -71,8 +69,18 @@ export async function searchArticles(filters: ParsedFilters, pageSize = 20): Pro
       }
       const ascending = filters.sort === 'oldest'
       q = q.order('publication_date', { ascending })
-      q = q.range(from, to)
       return q
+    }
+
+    // Filters + the requested page. A page past the end (e.g. page 2 of a 2-result match,
+    // reachable by URL) makes PostgREST answer 416 / PGRST103 with count: null, which the
+    // callers would read as "no results" or "search unavailable". In that case, fetch the
+    // count on its own and return an empty page with the recovered total.
+    const runPaged = async (makeBase: () => any) => {
+      const res = await applyFilters(makeBase()).range(from, to)
+      if (res.error?.code !== 'PGRST103') return res
+      const { count, error } = await applyFilters(makeBase()).range(0, 0)
+      return { data: [], count, error }
     }
 
     if (filters.search && correctedSearch) {
@@ -86,7 +94,11 @@ export async function searchArticles(filters: ParsedFilters, pageSize = 20): Pro
       const { data: rpcData, error: rpcError } = await supabase
         .rpc('search_articles_ranked', {
           search_query: sanitizedSearch,
-          result_limit: 50
+          // 200, not 50: species scoping (small animal by default) is applied to these
+          // results in JS, so a 50-row pool left common terms badly short — 'diarrhea'
+          // kept 14 of 50 under the default scope versus 81 of 200. 200 is also the
+          // function's internal candidate ceiling, so the database does the same work.
+          result_limit: 200
         })
 
       // If RPC timed out, don't cascade into slow ILIKE fallbacks — bail immediately
@@ -96,16 +108,12 @@ export async function searchArticles(filters: ParsedFilters, pageSize = 20): Pro
       }
 
       if (!rpcError && rpcData && rpcData.length > 0) {
-        // Species scoping comes from quickFilter only — same as the browse path.
-        // This previously applied an unconditional large-animal exclusion here,
-        // which made ~7,800 enriched large-animal articles findable by browsing
-        // but invisible to search, and made quickFilter='large-animal' return
-        // nothing at all (the exclusion ran first and removed every candidate).
-        let filtered: any[] = rpcData
-        if (filters.quickFilter !== 'all') {
-          const quickLabel = filters.quickFilter === 'small-animal' ? 'Small Animal' : 'Large Animal'
-          filtered = filtered.filter((a: any) => a.labels?.includes(quickLabel))
-        }
+        // Species scoping comes from quickFilter only, with the same semantics as the
+        // SQL browse path (lib/utils/species.ts): the default excludes large-animal-only
+        // articles rather than requiring a 'Small Animal' label.
+        let filtered: any[] = rpcData.filter((a: any) =>
+          matchesQuickFilter(a.labels, filters.quickFilter)
+        )
         if (filters.labels.length > 0) {
           if (filters.labelOperator === 'AND') {
             filtered = filtered.filter((a: any) =>
@@ -133,34 +141,49 @@ export async function searchArticles(filters: ParsedFilters, pageSize = 20): Pro
             new Date(b.publication_date).getTime() - new Date(a.publication_date).getTime()
           )
         }
-        const count = filtered.length
-        const from = (filters.page - 1) * pageSize
-        return { data: filtered.slice(from, from + pageSize), count, searchTier: 'exact' }
+        // If scoping emptied the ranked pool, don't report "no results": the fallback
+        // tiers below apply the same scope inside SQL across the whole table, so they can
+        // still find matches ranked outside this pool.
+        if (filtered.length > 0) {
+          const count = filtered.length
+          const from = (filters.page - 1) * pageSize
+          return { data: filtered.slice(from, from + pageSize), count, searchTier: 'exact' }
+        }
       }
 
       // FALLBACK: Old 3-tier search if RPC returns 0 results
       // (e.g. search_vector not yet populated for newly enriched articles)
 
+      // Each tier below needs >= 3 matches to win outright, but a tier that finds 1–2 real
+      // matches must not be thrown away if the later tiers find nothing — with species
+      // scoping, those 1–2 can be the only in-scope matches that exist. Keep the best
+      // non-empty partial and return it instead of an empty result.
+      let partial: SearchResult | null = null
+
       // TIER 1: Full-text search on title
       try {
-        const ftsBase = buildBaseQuery()
-          .textSearch('title', sanitizedSearch, { type: 'websearch' })
-        const { data, count, error } = await applyFiltersAndPagination(ftsBase)
+        const { data, count, error } = await runPaged(() =>
+          buildBaseQuery().textSearch('title', sanitizedSearch, { type: 'websearch' })
+        )
         if (!error && (count ?? 0) >= 3) {
           return { data, count, searchTier: 'exact' }
         }
+        if (!error && (count ?? 0) > 0) partial = { data, count, searchTier: 'exact' }
       } catch {
         console.log('[Search] FTS failed, trying ILIKE')
       }
 
       // TIER 2: ILIKE fallback — summary excluded (long text, causes statement timeout)
-      const ilikeBase = buildBaseQuery().or(
-        `title.ilike.%${sanitizedSearch}%,clinical_bottom_line.ilike.%${sanitizedSearch}%,authors.ilike.%${sanitizedSearch}%`
+      const { data: ilikeData, count: ilikeCount, error: ilikeError } = await runPaged(() =>
+        buildBaseQuery().or(
+          `title.ilike.%${sanitizedSearch}%,clinical_bottom_line.ilike.%${sanitizedSearch}%,authors.ilike.%${sanitizedSearch}%`
+        )
       )
-      const { data: ilikeData, count: ilikeCount, error: ilikeError } = await applyFiltersAndPagination(ilikeBase)
       if (!ilikeError && (ilikeCount ?? 0) >= 3) {
         return { data: ilikeData, count: ilikeCount, searchTier: 'ilike' }
       }
+      // ILIKE covers title, bottom line and authors, so prefer it over a title-only FTS partial
+      if (!ilikeError && (ilikeCount ?? 0) > 0) partial = { data: ilikeData, count: ilikeCount, searchTier: 'ilike' }
 
       // TIER 3: Trigram fuzzy
       try {
@@ -170,7 +193,7 @@ export async function searchArticles(filters: ParsedFilters, pageSize = 20): Pro
             similarity_threshold: 0.3
           })
         if (fuzzyData && fuzzyData.length > 0) {
-          const fuzzyBase = supabase
+          const fuzzyBase = () => supabase
             .from('articles')
             .select(SELECT_FIELDS, { count: 'exact' })
             .in('id', fuzzyData.map((a: any) => a.id))
@@ -178,18 +201,19 @@ export async function searchArticles(filters: ParsedFilters, pageSize = 20): Pro
             .not('summary', 'is', null)
             .not('clinical_bottom_line', 'is', null)
             .or('quarantined.is.null,quarantined.eq.false')
-          const { data, count } = await applyFiltersAndPagination(fuzzyBase)
-          return { data, count, searchTier: 'fuzzy' }
+          const { data, count } = await runPaged(fuzzyBase)
+          // The fuzzy RPC is not species-scoped; scoping is applied here, and can empty it
+          if ((count ?? 0) > 0) return { data, count, searchTier: 'fuzzy' }
         }
       } catch (e) {
         console.log('[Search] Fuzzy search not available:', e)
       }
 
-      return { data: [], count: 0, searchTier: 'exact' }
+      return partial ?? { data: [], count: 0, searchTier: 'exact' }
     }
 
     // No search query — apply filters + pagination directly
-    const result = await applyFiltersAndPagination(buildBaseQuery())
+    const result = await runPaged(buildBaseQuery)
 
     if (result.error) {
       console.error('Search error:', result.error)

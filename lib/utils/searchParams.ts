@@ -1,4 +1,5 @@
 import { ParsedFilters, SortOption, LabelOperator, QuickFilter, FeedView } from '@/types/search'
+import { DEFAULT_QUICK_FILTER } from '@/lib/utils/species'
 
 export function parseSearchParams(
   searchParams: { [key: string]: string | string[] | undefined }
@@ -16,10 +17,10 @@ export function parseSearchParams(
     ? (labelOperatorParam as LabelOperator)
     : 'OR'
 
-  const quickFilterParam = typeof searchParams.quickFilter === 'string' ? searchParams.quickFilter : 'all'
+  const quickFilterParam = typeof searchParams.quickFilter === 'string' ? searchParams.quickFilter : DEFAULT_QUICK_FILTER
   const quickFilter: QuickFilter = ['all', 'small-animal', 'large-animal'].includes(quickFilterParam)
     ? (quickFilterParam as QuickFilter)
-    : 'all'
+    : DEFAULT_QUICK_FILTER
 
   const evidence = Array.isArray(searchParams.evidence)
     ? searchParams.evidence
@@ -72,7 +73,9 @@ export function buildSearchParams(filters: ParsedFilters): string {
     params.set('labelOperator', filters.labelOperator)
   }
 
-  if (filters.quickFilter !== 'all') {
+  // Omit the DEFAULT, not 'all'. Omitting 'all' would make an explicit "All"
+  // choice serialise to no param, which parses straight back to the default.
+  if (filters.quickFilter !== DEFAULT_QUICK_FILTER) {
     params.set('quickFilter', filters.quickFilter)
   }
 
@@ -95,6 +98,13 @@ export function buildSearchParams(filters: ParsedFilters): string {
   if (filters.view && filters.view !== 'stream') {
     params.set('view', filters.view)
   }
+
+  // Every URL built here is a feed URL (filter bar, pagination, feed wrapper). Without
+  // `browse`, an all-default feed URL serialises to a bare `/?`, which app/page.tsx treats
+  // as a fresh logged-out visit and replaces the feed with the landing page — e.g. a guest
+  // switching species back to the default, clearing a search, or opening grove view.
+  // `browse` only affects logged-out visitors, so it is inert for everyone else.
+  params.set('browse', '1')
 
   return params.toString()
 }

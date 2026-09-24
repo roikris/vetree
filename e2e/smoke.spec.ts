@@ -52,18 +52,41 @@ test('search: "pyometra" returns at least 1 result', async ({ page }) => {
   await expect(page.locator('[data-testid="article-card"]').first()).toBeVisible({ timeout: 15_000 })
 })
 
-// Large-animal research is in the corpus (~7,800 enriched articles) but search used to
-// apply an unconditional large-animal exclusion, so livestock terms returned nothing while
-// the same articles were reachable by browsing. "bovine mastitis" returned 0 cards before
-// this guard; it is the canonical case for that regression.
-test('search: large-animal term "bovine mastitis" returns at least 1 result', async ({ page }) => {
+// Search is species-scoped with small animal as the default, but large-animal research
+// (~7,800 enriched articles) must stay reachable. "bovine mastitis" is the canonical case:
+// it has no small-animal matches, so the default search is empty — and that empty state
+// must offer the widened search rather than read as "no coverage".
+test('search: large-animal term is reachable from the default scope via "search all species"', async ({ page }) => {
   await page.goto('/')
   await page.locator('[data-testid="landing-cta-browse"]').click()
   await page.locator('[data-testid="article-card"]').first().waitFor({ timeout: 15_000 })
   await page.locator('[data-testid="search-toggle"]').click()
   await page.locator('[data-testid="search-input"]').fill('bovine mastitis')
   await page.keyboard.press('Enter')
+  const widen = page.locator('[data-testid="zero-results-all-species"]')
+  await expect(widen).toBeVisible({ timeout: 15_000 })
+  await widen.click()
+  await expect(page).toHaveURL(/quickFilter=all/)
   await expect(page.locator('[data-testid="article-card"]').first()).toBeVisible({ timeout: 15_000 })
+})
+
+// The species control must be reachable and drive the URL. A previous version of this
+// feature relied on a component that was never mounted, so no user could change scope.
+test('species control: default is small animal, and switching scope updates the URL', async ({ page }) => {
+  await page.goto('/?browse=1')
+  await page.locator('[data-testid="article-card"]').first().waitFor({ timeout: 15_000 })
+  await expect(page.locator('[data-testid="species-small-animal"]')).toHaveAttribute('aria-pressed', 'true')
+  await page.locator('[data-testid="species-large-animal"]').click()
+  await expect(page).toHaveURL(/quickFilter=large-animal/)
+  await expect(page.locator('[data-testid="species-large-animal"]')).toHaveAttribute('aria-pressed', 'true')
+  await page.locator('[data-testid="species-small-animal"]').click()
+  // the default is omitted from the URL...
+  await expect(page).not.toHaveURL(/quickFilter=/)
+  // ...but the visitor must stay in the feed. An earlier version produced a bare `/?`,
+  // which a logged-out visitor sees as the landing page — the control and feed vanished.
+  await expect(page.locator('[data-testid="species-small-animal"]')).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.locator('[data-testid="article-card"]').first()).toBeVisible({ timeout: 15_000 })
+  await expect(page.locator('[data-testid="landing-cta-browse"]')).toHaveCount(0)
 })
 
 // ─── 4. Save-intent, logged out ──────────────────────────────────────────────

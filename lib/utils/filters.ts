@@ -1,10 +1,11 @@
 import { ParsedFilters } from '@/types/search'
+import { DEFAULT_QUICK_FILTER } from '@/lib/utils/species'
 
 export function hasActiveFilters(filters: ParsedFilters): boolean {
   return (
     !!filters.search ||
     filters.labels.length > 0 ||
-    filters.quickFilter !== 'all' ||
+    filters.quickFilter !== DEFAULT_QUICK_FILTER ||
     filters.evidence.length > 0 ||
     filters.journals.length > 0 ||
     filters.sort !== 'newest'
@@ -18,8 +19,8 @@ export function getFilterSummary(filters: ParsedFilters): string {
     parts.push(`Search: "${filters.search}"`)
   }
 
-  if (filters.quickFilter !== 'all') {
-    const label = filters.quickFilter === 'small-animal' ? 'Small Animal' : 'Large Animal'
+  if (filters.quickFilter !== DEFAULT_QUICK_FILTER) {
+    const label = filters.quickFilter === 'large-animal' ? 'Large Animal' : 'All species'
     parts.push(label)
   }
 
@@ -44,7 +45,7 @@ export function getDefaultFilters(): ParsedFilters {
     search: '',
     labels: [],
     labelOperator: 'OR',
-    quickFilter: 'all',
+    quickFilter: DEFAULT_QUICK_FILTER,
     evidence: [],
     journals: [],
     sort: 'newest',
