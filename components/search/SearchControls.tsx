@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useCallback, useRef, useEffect, useState, ReactNode } from 'react'
 import Link from 'next/link'
-import { ParsedFilters, FeedView } from '@/types/search'
+import { ParsedFilters, FeedView, QuickFilter } from '@/types/search'
 import { buildSearchParams } from '@/lib/utils/searchParams'
 import { useAuth } from '@/lib/hooks/useAuth'
 import { useAdmin } from '@/lib/hooks/useAdmin'
@@ -16,9 +16,18 @@ import { DarkModeToggle } from '@/components/ui/DarkModeToggle'
 // ─── Quick filter pills ───────────────────────────────────────────────────────
 const QUICK_PILLS = [
   { label: 'Latest',       labels: [] as string[] },
-  { label: 'Small Animal', labels: ['Small Animal'] },
   { label: 'Cardiology',   labels: ['Cardiology'] },
   { label: 'Emergency',    labels: ['Emergency'] },
+]
+
+// ─── Species scope ────────────────────────────────────────────────────────────
+// Replaces the old 'Small Animal' quick pill, which filtered on the strict label and
+// would have hidden the ~2,800 enriched articles with no species label at all. Scope
+// semantics live in lib/utils/species.ts; 'small-animal' is the default.
+const SPECIES_OPTIONS: { value: QuickFilter; label: string }[] = [
+  { value: 'small-animal', label: 'Small animal' },
+  { value: 'all',          label: 'All species' },
+  { value: 'large-animal', label: 'Large animal' },
 ]
 
 function isPillActive(pill: (typeof QUICK_PILLS)[number], filters: ParsedFilters) {
@@ -354,6 +363,24 @@ export function SearchControls({
             <div style={{ maxWidth: 1020, margin: '0 auto', padding: '0 18px 13px', display: 'flex', alignItems: 'center', gap: 8 }}>
               {/* Quick-filter pills — scrollable */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'nowrap', overflowX: 'auto', flex: 1 }} className="scrollbar-hide">
+                {/* Species scope — inside the scrollable row so it never overflows on mobile */}
+                <div role="group" aria-label="Species" style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                  {SPECIES_OPTIONS.map(opt => {
+                    const active = initialFilters.quickFilter === opt.value
+                    return (
+                      <button
+                        key={opt.value}
+                        data-testid={`species-${opt.value}`}
+                        aria-pressed={active}
+                        onClick={() => updateFilters({ quickFilter: opt.value })}
+                        style={{ ...pillStyle(active), flexShrink: 0 }}
+                      >
+                        {opt.label}
+                      </button>
+                    )
+                  })}
+                </div>
+                <span aria-hidden style={{ width: 1, height: 18, flexShrink: 0, background: 'rgba(var(--al-line, 232,224,204), .18)' }} />
                 {QUICK_PILLS.map(pill => {
                   const active = isPillActive(pill, initialFilters)
                   return (

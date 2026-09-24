@@ -1,4 +1,5 @@
 import { parseSearchParams } from '@/lib/utils/searchParams'
+import { DEFAULT_QUICK_FILTER, matchesQuickFilter } from '@/lib/utils/species'
 import { searchArticles, getUniqueJournals, getDistinctEvidenceLevels } from '@/lib/queries/articles'
 import { SearchControls } from '@/components/search/SearchControls'
 import { ResultsCount } from '@/components/ui/ResultsCount'
@@ -49,19 +50,22 @@ export default async function Home({ searchParams }: HomeProps) {
   // Show full marketing landing page for logged-out guests on first page with no filters
   const isLanding = !isLoggedIn && filters.page === 1 && !filters.search &&
     filters.labels.length === 0 && filters.evidence.length === 0 &&
-    filters.journals.length === 0 && filters.quickFilter === 'all' &&
+    filters.journals.length === 0 && filters.quickFilter === DEFAULT_QUICK_FILTER &&
     !params.browse
 
   if (isLanding) {
     // Fetch most recent article for the hero card mock
-    const { data: exampleArticle } = await supabase
+    // Newest article that fits the species default (the landing page only renders under
+    // the default scope). Filtered in JS per the project's large-animal rule.
+    const { data: recentForLanding } = await supabase
       .from('articles')
       .select('title, clinical_bottom_line, source_journal, labels, publication_date')
       .eq('needs_enrichment', false)
       .not('clinical_bottom_line', 'is', null)
       .order('publication_date', { ascending: false })
-      .limit(1)
-      .single()
+      .limit(20)
+    const exampleArticle =
+      (recentForLanding ?? []).find(a => matchesQuickFilter(a.labels, DEFAULT_QUICK_FILTER)) ?? null
     return (
       <>
         <script
@@ -76,15 +80,16 @@ export default async function Home({ searchParams }: HomeProps) {
   // Fetch most recent article for legacy hero (shown on first page when no search/labels but browse=1 or other filters)
   let exampleArticle = null
   if (!isLoggedIn && filters.page === 1 && !filters.search && filters.labels.length === 0) {
+    // Newest article matching the active species scope, so a large-animal-only card can't
+    // headline the small-animal feed (or vice versa). Card fields only — no summary.
     const { data } = await supabase
       .from('articles')
-      .select('*')
+      .select('id, title, clinical_bottom_line, labels, source_journal, publication_date, strength_of_evidence, authors, article_url, doi, pubmed_id')
       .eq('needs_enrichment', false)
       .not('clinical_bottom_line', 'is', null)
       .order('publication_date', { ascending: false })
-      .limit(1)
-      .single()
-    exampleArticle = data
+      .limit(20)
+    exampleArticle = (data ?? []).find(a => matchesQuickFilter(a.labels, filters.quickFilter)) ?? null
   }
 
   // Stats (legacy hero)
@@ -113,7 +118,7 @@ export default async function Home({ searchParams }: HomeProps) {
   // Fetch trending articles (only show on first page with no filters)
   const showTrending = filters.page === 1 && !filters.search &&
     filters.labels.length === 0 && filters.evidence.length === 0 &&
-    filters.journals.length === 0 && filters.quickFilter === 'all'
+    filters.journals.length === 0 && filters.quickFilter === DEFAULT_QUICK_FILTER
 
   const { articles: trendingArticles } = showTrending
     ? await getTrendingArticles()
@@ -132,7 +137,7 @@ export default async function Home({ searchParams }: HomeProps) {
 
   const hasActiveFilters = filters.search || filters.labels.length > 0 ||
     filters.evidence.length > 0 || filters.journals.length > 0 ||
-    filters.quickFilter !== 'all'
+    filters.quickFilter !== DEFAULT_QUICK_FILTER
 
   return (
     <>

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { isLargeAnimalOnly } from '@/lib/utils/species'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -31,7 +32,10 @@ export async function GET() {
     articles: { id: string; clinical_bottom_line: string; strength_of_evidence: string | null; source_journal: string | null }[]
   }> = {}
 
-  for (const article of recent || []) {
+  // Grove always shows the species default (large-animal-only excluded). The species
+  // control lives in the filter bar, which is hidden in grove view, so there is no way
+  // to select a different scope here — showing the default is the consistent behaviour.
+  for (const article of (recent || []).filter(a => !isLargeAnimalOnly(a.labels as string[]))) {
     const labels = ((article.labels as string[]) || []).filter(l => !EXCLUDE_LABELS.has(l))
     for (const label of labels) {
       if (!specMap[label]) specMap[label] = { count: 0, coLabels: {}, articles: [] }

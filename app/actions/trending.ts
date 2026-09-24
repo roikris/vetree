@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { isLargeAnimalOnly } from '@/lib/utils/species'
 
 export async function getTrendingArticles() {
   const supabase = await createClient()
@@ -25,10 +26,12 @@ export async function getTrendingArticles() {
     saveCounts[item.article_id] = (saveCounts[item.article_id] || 0) + 1
   })
 
-  // Get top 5 article IDs
+  // Candidate pool is wider than the 5 shown: trending renders under the small-animal
+  // default, so large-animal-only articles are removed after their labels are known
+  // (in JS, per the project rule) and the top 5 are taken from what remains.
   const topArticleIds = Object.entries(saveCounts)
     .sort(([, a], [, b]) => b - a)
-    .slice(0, 5)
+    .slice(0, 20)
     .map(([id]) => id)
 
   // Return empty if fewer than 3 trending articles
@@ -52,11 +55,19 @@ export async function getTrendingArticles() {
   }
 
   // Sort articles by save count and add save count to each
-  const articlesWithSaveCount = articles?.map((article) => ({
-    ...article,
-    save_count: saveCounts[article.id] || 0,
-  }))
-  .sort((a, b) => b.save_count - a.save_count) || []
+  const articlesWithSaveCount = (articles ?? [])
+    .filter((article) => !isLargeAnimalOnly(article.labels))
+    .map((article) => ({
+      ...article,
+      save_count: saveCounts[article.id] || 0,
+    }))
+    .sort((a, b) => b.save_count - a.save_count)
+    .slice(0, 5)
+
+  // Same threshold as above, re-applied after filtering
+  if (articlesWithSaveCount.length < 3) {
+    return { articles: [], error: null }
+  }
 
   return { articles: articlesWithSaveCount, error: null }
 }
