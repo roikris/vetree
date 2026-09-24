@@ -89,14 +89,25 @@ test('species control: default is small animal, and switching scope updates the 
   await expect(page.locator('[data-testid="landing-cta-browse"]')).toHaveCount(0)
 })
 
+// /sitemap.xml is a sitemap index (app/sitemap.xml/route.ts); articles are in shards.
+// Follow the index to shard 0 by PATH — its <loc> is absolute https://vetree.app, which
+// would test production instead of the preview under test.
+async function firstSitemapShard(page: import('@playwright/test').Page): Promise<string> {
+  await page.goto('/sitemap.xml')
+  const index = await page.content()
+  const shard = index.match(/<loc>https?:\/\/[^/]+(\/sitemaps\/sitemap\/\d+\.xml)<\/loc>/)
+  expect(shard, 'Sitemap index must list at least one article shard').not.toBeNull()
+  await page.goto(shard![1])
+  return page.content()
+}
+
 // ─── 4. Save-intent, logged out ──────────────────────────────────────────────
-// Source article URL from sitemap.xml — avoids depending on the feed rendering.
+// Source article URL from the sitemap — avoids depending on the feed rendering.
 test('save-intent (logged out): auth sheet appears, intent stripped, links are valid', async ({ page, context }) => {
   await context.clearCookies()
 
-  // Parse an article path from the sitemap
-  await page.goto('/sitemap.xml')
-  const xml = await page.content()
+  // Parse an article path from the sitemap: /sitemap.xml is an index, articles live in shards
+  const xml = await firstSitemapShard(page)
   const matches = [...xml.matchAll(/<loc>(https?:\/\/[^/]+\/article\/([^<]+))<\/loc>/g)]
   expect(matches.length, 'Sitemap must contain at least one /article/ URL').toBeGreaterThan(0)
   const articlePath = '/article/' + matches[0][2]
@@ -255,7 +266,10 @@ test('sitemap and robots.txt: 200 and valid content', async ({ page }) => {
   const sitemapRes = await page.goto('/sitemap.xml')
   expect(sitemapRes?.status()).toBe(200)
   const sitemapBody = await page.content()
-  expect(sitemapBody).toContain('vetree.app')
+  expect(sitemapBody).toContain('<sitemapindex')
+  expect(sitemapBody).toContain('/sitemaps/static.xml')
+  const shardBody = await firstSitemapShard(page)
+  expect(shardBody, 'First sitemap shard must list article URLs').toMatch(/<loc>https?:\/\/[^/]+\/article\//)
 
   const robotsRes = await page.goto('/robots.txt')
   expect(robotsRes?.status()).toBe(200)
