@@ -52,6 +52,20 @@ test('search: "pyometra" returns at least 1 result', async ({ page }) => {
   await expect(page.locator('[data-testid="article-card"]').first()).toBeVisible({ timeout: 15_000 })
 })
 
+// Large-animal research is in the corpus (~7,800 enriched articles) but search used to
+// apply an unconditional large-animal exclusion, so livestock terms returned nothing while
+// the same articles were reachable by browsing. "bovine mastitis" returned 0 cards before
+// this guard; it is the canonical case for that regression.
+test('search: large-animal term "bovine mastitis" returns at least 1 result', async ({ page }) => {
+  await page.goto('/')
+  await page.locator('[data-testid="landing-cta-browse"]').click()
+  await page.locator('[data-testid="article-card"]').first().waitFor({ timeout: 15_000 })
+  await page.locator('[data-testid="search-toggle"]').click()
+  await page.locator('[data-testid="search-input"]').fill('bovine mastitis')
+  await page.keyboard.press('Enter')
+  await expect(page.locator('[data-testid="article-card"]').first()).toBeVisible({ timeout: 15_000 })
+})
+
 // ─── 4. Save-intent, logged out ──────────────────────────────────────────────
 // Source article URL from sitemap.xml — avoids depending on the feed rendering.
 test('save-intent (logged out): auth sheet appears, intent stripped, links are valid', async ({ page, context }) => {
