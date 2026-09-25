@@ -89,6 +89,29 @@ test('species control: default is small animal, and switching scope updates the 
   await expect(page.locator('[data-testid="landing-cta-browse"]')).toHaveCount(0)
 })
 
+// ─── Mobile header: open search fits the screen, pinch-zoom not blocked ───────
+test('mobile header: open search causes no horizontal scroll and zoom is allowed', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile', 'phone-width layout check')
+  await page.goto('/?search=pyometra&browse=1')
+  const input = page.locator('[data-testid="search-input"]')
+  await expect(input).toBeVisible()
+
+  const m = await page.evaluate(() => ({
+    scrollW: document.documentElement.scrollWidth,
+    innerW: window.innerWidth,
+    inputW: document.querySelector('[data-testid="search-input"]')!.getBoundingClientRect().width,
+    fontSize: parseFloat(getComputedStyle(document.querySelector('[data-testid="search-input"]')!).fontSize),
+    viewport: document.querySelector('meta[name="viewport"]')?.getAttribute('content') ?? '',
+  }))
+  expect(m.scrollW, 'page must not scroll sideways with search open').toBeLessThanOrEqual(m.innerW)
+  expect(m.inputW, 'search input must have usable width').toBeGreaterThanOrEqual(100)
+  // < 16px makes iOS zoom on focus; the fix is 16px fields, never re-blocking zoom
+  expect(m.fontSize).toBeGreaterThanOrEqual(16)
+  expect(m.viewport).not.toMatch(/maximum-scale|user-scalable=no/i)
+  // The wordmark is hidden while searching on phones; the home link must keep a name
+  await expect(page.getByRole('link', { name: 'Vetree home' })).toBeVisible()
+})
+
 // /sitemap.xml is a sitemap index (app/sitemap.xml/route.ts); articles are in shards.
 // Follow the index to shard 0 by PATH — its <loc> is absolute https://vetree.app, which
 // would test production instead of the preview under test.
