@@ -1,6 +1,7 @@
 const { createClient } = require('@supabase/supabase-js');
 const ws = require('ws');
 const { parseStringPromise } = require('xml2js');
+const { extractAbstractsFromXml } = require('./pubmed-abstract');
 
 const JOURNAL_MAP = {
   "Veterinary journal (London, England : 1997)": "Veterinary Journal",
@@ -106,6 +107,8 @@ async function fetchArticleDetails(pmids) {
 
   const xml = await response.text();
   const parsed = await parseStringPromise(xml);
+  // Abstracts are read from the raw XML, not xml2js (which drops text inside <i>, <sup>, ...)
+  const abstractsByPmid = extractAbstractsFromXml(xml);
 
   const articles = [];
   const pubmedArticles = parsed.PubmedArticleSet?.PubmedArticle || [];
@@ -124,8 +127,7 @@ async function fetchArticleDetails(pmids) {
       // stored as literal JSON (e.g. {"_":"...","i":["Brucella melitensis"]}).
       const titleRaw = articleData?.ArticleTitle?.[0] || '';
       const title = typeof titleRaw === 'string' ? titleRaw : (titleRaw._ || '');
-      const abstractTexts = articleData?.Abstract?.[0]?.AbstractText || [];
-      const abstract = abstractTexts.map(t => typeof t === 'string' ? t : t._).join(' ');
+      const abstract = abstractsByPmid.get(String(pmid)) || '';
 
       const authorList = articleData?.AuthorList?.[0]?.Author || [];
       const authors = formatAuthors(authorList);
@@ -180,6 +182,10 @@ async function fetchArticleDetails(pmids) {
         id: `pubmed-${pmid}`,
         pubmed_id: pmid,
         title,
+        // Source text lives in `abstract` (migration 057); enrichment never overwrites it.
+        // Still copied to summary so existing no-abstract checks keep working.
+        abstract,
+        abstract_fetched_at: new Date().toISOString(),
         summary: abstract,
         authors,
         source_journal: normalizedJournal,

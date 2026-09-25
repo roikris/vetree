@@ -42,7 +42,9 @@ export async function getTrendingArticles() {
   // Fetch full article data for trending articles (only enriched)
   const { data: articles, error: articlesError } = await supabase
     .from('articles')
-    .select('*')
+    // Explicit columns, not '*': '*' ships search_vector and the source abstract
+    // (articles.abstract, ~2 KB each) with every list item
+    .select('id, title, clinical_bottom_line, summary, labels, source_journal, publication_date, created_at, strength_of_evidence, authors, article_url, doi, pubmed_id')
     .in('id', topArticleIds)
     .eq('needs_enrichment', false)
     .not('summary', 'is', null)
