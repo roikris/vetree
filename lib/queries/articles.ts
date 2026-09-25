@@ -69,6 +69,9 @@ export async function searchArticles(filters: ParsedFilters, pageSize = 20): Pro
       }
       const ascending = filters.sort === 'oldest'
       q = q.order('publication_date', { ascending })
+      // Unique tie-breaker: many articles share a date, and without it offset pages can
+      // repeat or skip rows as Postgres returns ties in any order
+      q = q.order('id', { ascending: true })
       return q
     }
 
