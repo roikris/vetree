@@ -18,6 +18,14 @@ function filterLabels(labels) {
 
 const PROMPT_VERSION = 'v2-context-framing';
 
+// Claude summarizes `abstract` (migration 057) — ONLY that column, never `summary`.
+// Before 057 the abstract lived in `summary` and this script overwrote it, so any retry
+// (force_retry, admin re-queue, label edit, reset-enrichment, or the retry after a partial
+// result) summarized the previous AI summary. `summary` can't be told apart from AI text
+// reliably (a failed attempt stamps last_enrichment_at without writing it; CSV imports
+// write prepared summaries with no timestamp), so there is no fallback: rows without an
+// abstract are not enriched (see the queue query and releaseSourcelessRequeues below).
+
 async function enrichArticle(client, anthropic, article) {
   const system = `You are a veterinary medicine expert supporting Vetree, an evidence-based clinical reference platform for licensed veterinary professionals. Your task is to summarize a single article that is already published and publicly indexed on PubMed — peer-reviewed veterinary and biomedical literature. You are not generating new research, protocols, or technical instructions; you are only extracting and restating what the published abstract already states, for clinical-reference use by practicing veterinarians.`;
 
@@ -26,7 +34,7 @@ async function enrichArticle(client, anthropic, article) {
 Title: ${article.title}
 Authors: ${article.authors}
 Journal: ${article.source_journal}
-Abstract: ${article.summary}
+Abstract: ${article.abstract}
 
 Return a JSON object with exactly these 5 fields:
 1. summary: A comprehensive 150-250 word summary for veterinary professionals
@@ -85,6 +93,7 @@ Return ONLY valid JSON, no markdown formatting.`;
 
     // Update the article
     const updates = {
+      // Safe even on a partial result: the source stays in `abstract`, which is never written here
       summary: enrichment.summary || article.summary,
       clinical_bottom_line: enrichment.clinical_bottom_line || null,
       labels: validLabels,
@@ -212,6 +221,34 @@ async function main() {
 
   console.log(`Safety cap: ${MAX_ARTICLES_PER_RUN} articles per run\n`);
 
+  // Re-queued articles that are already published (have a bottom line) but have no source
+  // abstract (no PubMed ID, or PubMed has none): re-enriching would summarize the existing
+  // AI summary. Take them off the queue with a flag for the admin; content stays as is.
+  const { data: released, error: releaseError } = await supabase
+    .from('articles')
+    .update({ needs_enrichment: false, force_retry: false, last_enrichment_error: 'no_source_abstract' })
+    .eq('needs_enrichment', true)
+    .is('abstract', null)
+    .not('clinical_bottom_line', 'is', null)
+    .select('id');
+  if (releaseError) {
+    console.error('Error releasing source-less re-queues:', releaseError);
+    process.exit(1);
+  }
+  if (released.length > 0) {
+    console.log(`⊗ Released ${released.length} published article(s) with no source abstract (no_source_abstract)`);
+  }
+
+  // Unpublished rows without an abstract stay queued, untouched, until one is backfilled
+  const { count: awaitingSource } = await supabase
+    .from('articles')
+    .select('id', { count: 'exact', head: true })
+    .eq('needs_enrichment', true)
+    .is('abstract', null);
+  if (awaitingSource) {
+    console.log(`⏸ ${awaitingSource} queued article(s) awaiting a source abstract — not enriched`);
+  }
+
   // Keep fetching and processing batches until no more articles or safety cap reached
   while (stats.totalProcessed < MAX_ARTICLES_PER_RUN) {
     // Calculate how many articles we can still process in this batch
@@ -225,6 +262,7 @@ async function main() {
       .from('articles')
       .select('*')
       .eq('needs_enrichment', true)
+      .not('abstract', 'is', null)  // only ever enrich from the source abstract
       .or('enrichment_attempts.lt.3,force_retry.eq.true')
       .limit(articlesToFetch);
 
@@ -245,8 +283,8 @@ async function main() {
       const overallIndex = stats.totalProcessed + i + 1;
       console.log(`[${overallIndex}/${Math.min(stats.totalProcessed + articles.length, MAX_ARTICLES_PER_RUN)}] Processing...`);
 
-      // Check abstract exists and has meaningful content
-      if (!article.summary || article.summary.trim().length < 50) {
+      // Check abstract has meaningful content (the queue query already requires it non-null)
+      if (article.abstract.trim().length < 50) {
         console.log(`  ⊗ Skipping: No abstract (${article.title.substring(0, 60)}...)`);
 
         await supabase
@@ -264,7 +302,7 @@ async function main() {
 
       // FIX 2: Auto-quarantine articles with no abstract after 3 failed attempts
       const enrichmentAttempts = article.enrichment_attempts || 0;
-      const hasAbstract = article.summary && article.summary.trim().length > 0;
+      const hasAbstract = article.abstract.trim().length > 0;
       const hasLabels = article.labels && article.labels.length > 0;
 
       if (enrichmentAttempts >= 3 && !hasAbstract && !hasLabels) {

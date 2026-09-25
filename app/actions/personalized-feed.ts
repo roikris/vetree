@@ -28,7 +28,9 @@ export async function getPersonalizedArticles() {
   // display-only; preprints can carry a publication_date months in the future.
   const { data: articles, error } = await supabase
     .from('articles')
-    .select('*')
+    // Explicit columns, not '*': '*' ships search_vector and the source abstract
+    // (articles.abstract, ~2 KB each) with every list item
+    .select('id, title, clinical_bottom_line, summary, labels, source_journal, publication_date, created_at, strength_of_evidence, authors, article_url, doi, pubmed_id')
     .eq('needs_enrichment', false)
     .not('clinical_bottom_line', 'is', null)
     .not('summary', 'is', null)
