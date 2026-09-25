@@ -1,0 +1,34 @@
+-- Scheduled cleanup (run on/after 2026-10-02): delete + blacklist the articles hidden on
+-- 2026-09-25 for having no source abstract, EXCEPT any that something references.
+--
+-- Context (verified 2026-09-25): 4,565 published articles had no abstract on PubMed
+-- (Vet Record / JAVMA news items, letters, editorials, errata; some PMIDs since deleted by
+-- NLM), imported Feb–Mar 2026 by backfill-articles-2025-2026.js, which had no abstract
+-- check. Their summaries were generated from the title alone; 736 were refusal text.
+-- All were quarantined with last_enrichment_error = 'hidden_no_source_abstract_2026-09-25'
+-- (ID backup: ~/Desktop/vetree-hidden-no-abstract-2026-09-25.json). 33 referenced ones
+-- were un-hidden and re-marked 'no_source_abstract_kept_referenced': referenced articles
+-- are kept, not deleted (owner decision). 4,532 remained targeted (4,524 after 8 more restored — see below).
+--
+-- Why SQL in one transaction (Codex review, 2026-09-25): a client-side script checks
+-- references and deletes in separate requests, so a reference created in between would be
+-- lost — saved_articles and digest_sent_articles are ON DELETE CASCADE, analytics_events and
+-- reports SET NULL — or a NO ACTION reference would fail the run half-way, after
+-- blacklisting. Here the referencing tables are locked against writes for the duration
+-- (reads continue), references are excluded in the same statement that deletes, and the
+-- blacklist + delete commit or roll back together. References are listed from the live
+-- schema (pg_constraint), plus topic_syntheses.article_ids, which has no FK.
+--
+-- Before deleting, apply.sql restores (un-hides, re-marks 'no_source_abstract_kept_referenced')
+-- any marked article that gained a reference during the hold, under the same locks — the
+-- owner's rule is that a referenced article is kept visible, never left hidden.
+--
+-- State after the 2026-09-25 restorations: 4,524 marked + unreferenced; 41 kept-referenced
+-- visible (33 via saved/LinkedIn/Growth memory/syntheses, 8 via growth_tasks).
+--
+-- Usage:
+--   dry run (counts only, writes nothing):
+--     npx supabase db query -f scripts/purge-hidden-no-abstract/dry-run.sql --linked
+--   apply (on/after 2026-10-02; refuses earlier):
+--     npx supabase db query -f scripts/purge-hidden-no-abstract/apply.sql --linked
+--   then re-run the dry run: expect marked_hidden = 0.

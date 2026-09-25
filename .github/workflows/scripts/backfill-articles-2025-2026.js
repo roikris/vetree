@@ -237,6 +237,7 @@ async function processMonth(supabase, yearMonth, blacklistedIds) {
     inserted: 0,
     skipped: 0,
     blacklisted: 0,
+    noAbstract: 0,
     failed: 0
   };
 
@@ -274,7 +275,14 @@ async function processMonth(supabase, yearMonth, blacklistedIds) {
       for (let i = 0; i < newPmids.length; i += 20) {
         const batch = newPmids.slice(i, i + 20);
 
-        const articles = await fetchArticleDetails(batch);
+        const fetched = await fetchArticleDetails(batch);
+
+        // Discard records without an abstract (news items, letters, editorials, errata):
+        // nothing to summarize, and enriching them produced "Unable to provide summary"
+        // cards. This script had no such check; ~4,500 were imported through it in
+        // Feb–Mar 2026. Same 50-char threshold as the other ingestion scripts.
+        const articles = fetched.filter(a => a.abstract && a.abstract.trim().length >= 50);
+        monthStats.noAbstract += fetched.length - articles.length;
 
         if (articles.length > 0) {
           // Upsert to handle conflicts gracefully
@@ -300,7 +308,7 @@ async function processMonth(supabase, yearMonth, blacklistedIds) {
     }
   }
 
-  console.log(`${yearMonthStr}: fetched ${monthStats.fetched}, inserted ${monthStats.inserted}, skipped ${monthStats.skipped} (already exists)${monthStats.blacklisted > 0 ? `, blacklisted ${monthStats.blacklisted}` : ''}${monthStats.failed > 0 ? `, failed ${monthStats.failed}` : ''}`);
+  console.log(`${yearMonthStr}: fetched ${monthStats.fetched}, inserted ${monthStats.inserted}, skipped ${monthStats.skipped} (already exists)${monthStats.noAbstract > 0 ? `, no abstract ${monthStats.noAbstract}` : ''}${monthStats.blacklisted > 0 ? `, blacklisted ${monthStats.blacklisted}` : ''}${monthStats.failed > 0 ? `, failed ${monthStats.failed}` : ''}`);
 
   return monthStats;
 }
