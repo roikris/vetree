@@ -70,7 +70,8 @@ export const viewport: Viewport = {
   themeColor: '#8FCB5E',
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
+  // No maximumScale: it blocked pinch-zoom. iOS focus-zoom is prevented by 16px form fields
+  // on phone widths instead (app/globals.css).
 };
 
 export default function RootLayout({

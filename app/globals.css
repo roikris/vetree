@@ -303,3 +303,17 @@ body {
 .al-card:hover {
   border-color: rgba(var(--al-line, 232,224,204), .22);
 }
+
+/* iOS Safari zooms the page when a form field under 16px gains focus. The viewport used to
+   block that with maximumScale: 1, which also disabled pinch-zoom (an accessibility failure,
+   WCAG 1.4.4). Instead, form fields are 16px on phone widths. !important because most fields
+   set their size inline. Applies below Tailwind's md (48rem — same unit, so it tracks md even
+   when the user changes the browser's base font size) and on any touch-primary device, which
+   covers landscape phones and tablets wider than md. Mouse-driven desktops keep designed sizes. */
+@media (max-width: 47.99rem), (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}

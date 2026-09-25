@@ -218,11 +218,14 @@ export function SearchControls({
           <div style={barInner}>
 
             {/* Logo */}
-            <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none', flexShrink: 0 }}>
-              <svg width="26" height="26" viewBox="0 0 24 24" fill="var(--al-accent)">
+            {/* aria-label: the visible wordmark is hidden on phones while search is open */}
+            <Link href="/" aria-label="Vetree home" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none', flexShrink: 0 }}>
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="var(--al-accent)" aria-hidden="true">
                 <path d="M17,8C8,10 5.9,16.17 3.82,21.34L5.71,22L6.66,19.7C7.14,19.87 7.64,20 8,20C19,20 22,3 22,3C21,5 14,5.25 9,6.25C4,7.25 2,11.5 2,13.5C2,15.5 3.75,17.25 3.75,17.25C7,8 17,8 17,8Z" />
               </svg>
-              <span style={{
+              {/* Wordmark and account link step aside on phones while search is open, so the
+                  input gets usable width; the bottom nav's Profile tab still reaches sign-in */}
+              <span className={searchOpen ? 'hidden md:inline' : undefined} style={{
                 fontFamily: 'var(--font-spectral, serif)',
                 fontSize: 21, fontWeight: 600, lineHeight: 1,
                 color: 'var(--al-ink2)', letterSpacing: '.01em',
@@ -256,8 +259,8 @@ export function SearchControls({
               ))}
             </div>
 
-            {/* Right side */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            {/* Right side — may shrink (minWidth 0) so the open search box fits phone widths */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 14, flex: '1 1 auto', minWidth: 0 }}>
 
               {/* Search */}
               {searchOpen ? (
@@ -265,7 +268,9 @@ export function SearchControls({
                   display: 'flex', alignItems: 'center', gap: 9,
                   background: 'var(--al-card)',
                   border: '1px solid var(--al-accent)',
-                  borderRadius: 10, padding: '0 6px 0 12px', width: 306,
+                  borderRadius: 10, padding: '0 6px 0 12px',
+                  // 306px on desktop; shrinks on phones instead of pushing the page wider
+                  flex: '0 1 306px', minWidth: 0,
                 }}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--al-mut4)" strokeWidth="1.8" style={{ flexShrink: 0 }}>
                     <circle cx="11" cy="11" r="7" /><path strokeLinecap="round" d="M21 21l-4.3-4.3" />
@@ -335,6 +340,7 @@ export function SearchControls({
 
               <span className="hidden md:block"><DarkModeToggle /></span>
 
+              <span className={searchOpen ? 'hidden md:contents' : 'contents'}>
               {user ? (
                 <Link href="/profile" style={{
                   width: 34, height: 34, borderRadius: '50%',
@@ -355,6 +361,7 @@ export function SearchControls({
                   Sign in
                 </Link>
               )}
+              </span>
             </div>
           </div>
 
