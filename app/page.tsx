@@ -156,6 +156,7 @@ export default async function Home({ searchParams }: HomeProps) {
         availableJournals={journals}
         availableEvidenceLevels={evidenceLevels}
         resultsCount={count || 0}
+        searchFailed={!!error}
       >
       {error && (
         <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-8">

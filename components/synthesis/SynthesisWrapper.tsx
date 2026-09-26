@@ -41,11 +41,13 @@ export function SynthesisWrapper({ searchQuery, children, isLoggedIn, view }: Sy
       autoTriggeredRef.current = true
       setTimeout(() => {
         setShowSynthesis(true)
-        window.history.replaceState(
-          null,
-          '',
-          searchQuery ? `/?search=${encodeURIComponent(searchQuery)}` : '/'
-        )
+        // Drop only the trigger. Keep every other param: a search with no quickFilter now
+        // means ALL species (lib/utils/species.ts), so rebuilding the URL from the query alone
+        // would silently widen an explicit small-animal search.
+        const params = new URLSearchParams(window.location.search)
+        params.delete('synthesize')
+        const qs = params.toString()
+        window.history.replaceState(null, '', qs ? `/?${qs}` : '/')
         setTimeout(() => {
           synthesisPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
         }, 100)

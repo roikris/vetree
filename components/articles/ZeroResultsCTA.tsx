@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter, useSearchParams } from 'next/navigation'
-import { DEFAULT_QUICK_FILTER } from '@/lib/utils/species'
+import { defaultQuickFilterFor } from '@/lib/utils/species'
 
 type ZeroResultsCTAProps = {
   searchQuery: string
@@ -24,24 +24,24 @@ export function ZeroResultsCTA({ searchQuery }: ZeroResultsCTAProps) {
     router.push(`/?${params.toString()}`)
   }
 
+  // A related term is a new search, so it starts unfiltered like any other (keeps the view)
   const handleSearch = (term: string) => {
-    const params = new URLSearchParams(searchParams.toString())
-    params.set('search', term)
+    const params = new URLSearchParams({ search: term, browse: '1' })
+    const view = searchParams.get('view')
+    if (view) params.set('view', view)
     router.push(`/?${params.toString()}`)
   }
 
   const relatedTerms = generateRelatedTerms(searchQuery)
 
-  // Search is species-scoped (small animal by default). A zero result under a scope must
-  // never read as "Vetree has no coverage" when the other species has matches — e.g.
-  // "bovine mastitis" returns nothing under the small-animal default but 20+ under all
-  // species. So offer the widened search first, whenever a scope is narrowing results.
+  // Searches start across all species; a reader who narrowed to one species and got nothing
+  // must not read that as "Vetree has no coverage" — offer the widened search first.
   // Same validation as the server parser (lib/utils/searchParams.ts): a missing,
-  // repeated or unrecognised value means the default scope.
+  // repeated or unrecognised value means the context default (all species for a search).
   const rawScope = searchParams.getAll('quickFilter')
   const scope = rawScope.length === 1 && ['all', 'small-animal', 'large-animal'].includes(rawScope[0])
     ? rawScope[0]
-    : DEFAULT_QUICK_FILTER
+    : defaultQuickFilterFor(searchQuery)
   const scopeLabel = scope === 'large-animal' ? 'large-animal' : scope === 'small-animal' ? 'small-animal' : null
 
   const handleAllSpecies = () => {
