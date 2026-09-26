@@ -34,13 +34,16 @@ export function ArticleAppBar({ articleId, articleUrl, articleTitle }: ArticleAp
       backdropFilter: 'blur(14px)',
       borderBottom: '1px solid rgba(var(--al-line),0.1)',
     }}>
-      <div style={{
-        maxWidth: 1040, margin: '0 auto', padding: '14px 32px',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 20,
+      {/* Phones: 16px side padding, icon-only "Stream" and Save — the full bar needed ~444px,
+          so signed-out visitors could scroll the article page sideways at 390px */}
+      <div className="px-4 md:px-8 gap-3 md:gap-5" style={{
+        maxWidth: 1040, margin: '0 auto', paddingTop: 14, paddingBottom: 14,
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
+        <div className="gap-3 md:gap-[18px]" style={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
           <Link
             href="/"
+            aria-label="Back to Stream"
             style={{
               display: 'flex', alignItems: 'center', gap: 8,
               color: 'var(--al-mut3)', font: "500 13.5px/1 var(--font-instrument, sans-serif)",
@@ -50,7 +53,7 @@ export function ArticleAppBar({ articleId, articleUrl, articleTitle }: ArticleAp
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9">
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 18l-6-6 6-6"/>
             </svg>
-            Stream
+            <span className="hidden md:inline">Stream</span>
           </Link>
           <span style={{ width: 1, height: 20, background: 'rgba(var(--al-line),0.15)' }} />
           <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 9, textDecoration: 'none' }}>
@@ -61,14 +64,15 @@ export function ArticleAppBar({ articleId, articleUrl, articleTitle }: ArticleAp
           </Link>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div className="gap-2 md:gap-2.5" style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
           {/* Save button */}
           <button
             onClick={() => user && toggleSave(articleId)}
             aria-label={saved ? 'Remove from library' : 'Save to library'}
+            className="px-[11px] md:px-[15px]"
             style={{
               display: 'flex', alignItems: 'center', gap: 8,
-              height: 38, padding: '0 15px', borderRadius: 10, cursor: 'pointer',
+              height: 38, borderRadius: 10, cursor: 'pointer',
               font: "600 13px/1 var(--font-instrument, sans-serif)",
               transition: 'all .15s',
               background: saved ? 'rgba(var(--al-acct),0.12)' : 'var(--al-card)',
@@ -83,13 +87,14 @@ export function ArticleAppBar({ articleId, articleUrl, articleTitle }: ArticleAp
             >
               <path strokeLinecap="round" strokeLinejoin="round" d="M5 3h14v18l-7-5-7 5V3z"/>
             </svg>
-            {saved ? 'Saved' : 'Save'}
+            <span className="hidden md:inline">{saved ? 'Saved' : 'Save'}</span>
           </button>
 
           {/* Share button */}
           <button
             onClick={handleShare}
             title="Share"
+            aria-label="Share"
             style={{
               width: 38, height: 38, borderRadius: 10,
               background: 'var(--al-card)', border: '1px solid rgba(var(--al-line),0.12)',

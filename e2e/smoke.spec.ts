@@ -112,6 +112,27 @@ test('mobile header: open search causes no horizontal scroll and zoom is allowed
   await expect(page.getByRole('link', { name: 'Vetree home' })).toBeVisible()
 })
 
+// ─── Mobile article page: app bar fits the screen for signed-out visitors ────
+test('mobile article page: no horizontal scroll for guests', async ({ page, context }, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile', 'phone-width layout check')
+  await context.clearCookies()
+  const xml = await firstSitemapShard(page)
+  const id = xml.match(/<loc>https?:\/\/[^/]+\/article\/([^<]+)<\/loc>/)?.[1]
+  expect(id).toBeTruthy()
+  await page.goto(`/article/${id}`)
+  await expect(page.getByRole('link', { name: 'Sign in' }).first()).toBeVisible()
+  // The device's own width, then the narrowest common phone
+  for (const width of [page.viewportSize()!.width, 320]) {
+    await page.setViewportSize({ width, height: 800 })
+    const m = await page.evaluate(() => ({ scrollW: document.documentElement.scrollWidth, innerW: window.innerWidth }))
+    expect(m.scrollW, `article page must not scroll sideways at ${width}px`).toBeLessThanOrEqual(m.innerW)
+  }
+  // Icon-only controls on phones keep their accessible names
+  await expect(page.getByRole('link', { name: 'Back to Stream' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Save to library' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Share' })).toBeVisible()
+})
+
 // /sitemap.xml is a sitemap index (app/sitemap.xml/route.ts); articles are in shards.
 // Follow the index to shard 0 by PATH — its <loc> is absolute https://vetree.app, which
 // would test production instead of the preview under test.
