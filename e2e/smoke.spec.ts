@@ -141,11 +141,10 @@ test('article page: original abstract loads on open with PubMed attribution', as
   let requestedEarly = false
   page.on('request', (r) => { if (r.url().includes('/abstract')) requestedEarly = true })
   await page.goto(`/article/${id}`)
-  await page.waitForLoadState('networkidle')
-  expect(requestedEarly, 'abstract must not load until opened').toBe(false)
-
+  // Not networkidle: Vercel previews keep connections open (toolbar, analytics), so it never settles
   const toggle = page.locator('[data-testid="original-abstract-toggle"]')
   await expect(toggle).toHaveAttribute('aria-expanded', 'false')
+  expect(requestedEarly, 'abstract must not load until opened').toBe(false)
   await toggle.click()
   await expect(toggle).toHaveAttribute('aria-expanded', 'true')
   const attribution = page.locator('[data-testid="original-abstract-attribution"]')
