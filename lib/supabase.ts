@@ -16,4 +16,6 @@ export type Article = {
   authors: string
   pubmed_id: string
   publication_date: string
+  // Source abstract (migration 057); present only where selected, e.g. the article page
+  abstract?: string | null
 }

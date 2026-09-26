@@ -7,6 +7,7 @@ import { RegistrationWall } from '@/components/ui/RegistrationWall'
 import { SoftRegistrationPrompt } from '@/components/articles/SoftRegistrationPrompt'
 import { ArticleAppBar } from '@/components/articles/ArticleAppBar'
 import { SaveIntentHandler } from '@/components/articles/SaveIntentHandler'
+import { OriginalAbstract } from '@/components/articles/OriginalAbstract'
 import Link from 'next/link'
 import type { Metadata } from 'next'
 import { getEvidenceLevel, getEvidenceBadgeProps } from '@/lib/utils/evidenceBadge'
@@ -335,6 +336,17 @@ export default async function ArticlePage({ params }: PageProps) {
                 This summary was distilled by AI and may occasionally misinterpret data. Confirm critical details with the primary literature before clinical application.
               </p>
             </div>
+
+            {/* Source abstract, loaded on open — only rendered when one is stored */}
+            {article.abstract && (
+              <OriginalAbstract
+                articleId={article.id}
+                pubmedId={article.pubmed_id || null}
+                doi={article.doi || null}
+                journal={article.source_journal || null}
+                year={article.publication_date ? article.publication_date.slice(0, 4) : null}
+              />
+            )}
           </article>
 
           {/* ===== STICKY RAIL ===== */}

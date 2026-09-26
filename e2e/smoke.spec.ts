@@ -124,6 +124,35 @@ async function firstSitemapShard(page: import('@playwright/test').Page): Promise
   return page.content()
 }
 
+// ─── Original abstract: collapsed, loaded on open, attributed ────────────────
+test('article page: original abstract loads on open with PubMed attribution', async ({ page, request }) => {
+  const xml = await firstSitemapShard(page)
+  const ids = [...xml.matchAll(/<loc>https?:\/\/[^/]+\/article\/([^<]+)<\/loc>/g)].slice(0, 15).map(m => m[1])
+  // Most articles have an abstract; a few kept-for-reference ones don't — pick one that does
+  const probes = await Promise.all(ids.map(async (candidate) => {
+    const res = await request.get(`/api/articles/${candidate}/abstract`)
+    return res.ok() && (await res.json()).abstract ? candidate : null
+  }))
+  const id = probes.find(Boolean) ?? null
+  expect(id, 'one of the first sitemap articles must have a stored abstract').not.toBeNull()
+  const { abstract } = await (await request.get(`/api/articles/${id}/abstract`)).json()
+
+  // Loaded on open only: no abstract request may happen before the toggle is clicked
+  let requestedEarly = false
+  page.on('request', (r) => { if (r.url().includes('/abstract')) requestedEarly = true })
+  await page.goto(`/article/${id}`)
+  // Not networkidle: Vercel previews keep connections open (toolbar, analytics), so it never settles
+  const toggle = page.locator('[data-testid="original-abstract-toggle"]')
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false')
+  expect(requestedEarly, 'abstract must not load until opened').toBe(false)
+  await toggle.click()
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true')
+  const attribution = page.locator('[data-testid="original-abstract-attribution"]')
+  await expect(attribution).toContainText('© the publisher')
+  await expect(attribution).toContainText('PubMed')
+  await expect(page.locator('[data-testid="original-abstract-panel"]')).toContainText(abstract.split('\n\n')[0].slice(-40).trim())
+})
+
 // ─── 4. Save-intent, logged out ──────────────────────────────────────────────
 // Source article URL from the sitemap — avoids depending on the feed rendering.
 test('save-intent (logged out): auth sheet appears, intent stripped, links are valid', async ({ page, context }) => {
