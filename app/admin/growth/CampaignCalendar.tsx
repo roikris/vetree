@@ -6,6 +6,16 @@ import { getCurrentCampaignDay, getWeekSchedule, getTodaysPlatform, CAMPAIGN_TOT
 import { getTodaysTask, createTodaysTask, markTaskComplete, getCampaignStats } from '@/app/actions/admin'
 import { createClient } from '@/lib/supabase/client'
 
+// AI Photos prompt (owner's wording, 2026-09-26). Copied into ChatGPT with the logo attached
+// by hand; "@Create image" is ChatGPT's image command. The content is the article's source
+// abstract word for word (articles.abstract, migration 057), not the AI summary.
+const PHOTO_PROMPT_PREFIX =
+  'craft an image that will pair well with the following professional oriented content on social media networks. make one in normal ratio and one in a 4:5 ratio, embed the attached vetree logo in the image in a non conspicuous way :'
+
+function buildPhotoPrompt(content: string) {
+  return `${PHOTO_PROMPT_PREFIX}\n\n${content}\n\n@Create image`
+}
+
 const STYLE_PROMPTS: Record<string, string> = {
   factual: 'Rewrite this post to be more factual and precise. Stay extremely close to what the study actually found. Remove any interpretive language.',
   engaging: 'Rewrite this post to be more engaging and compelling for a veterinary professional audience. Keep all facts accurate.',
@@ -74,7 +84,9 @@ export function CampaignCalendar() {
   const [showArticleDropdown, setShowArticleDropdown] = useState(false)
   const [rewritingPlatform, setRewritingPlatform] = useState<string | null>(null)
   const [generatedImages, setGeneratedImages] = useState<Record<string, string>>({})
-  const [photoArticle, setPhotoArticle] = useState<{summary?: string, clinical_bottom_line?: string} | null>(null)
+  const [photoArticle, setPhotoArticle] = useState<{abstract?: string | null, summary?: string, clinical_bottom_line?: string} | null>(null)
+  const [photoPromptCopied, setPhotoPromptCopied] = useState(false)
+  const [photoPromptError, setPhotoPromptError] = useState<string | null>(null)
   const [recommendations, setRecommendations] = useState<any[]>([])
   const [showRecommendations, setShowRecommendations] = useState(false)
   const [loadingRecs, setLoadingRecs] = useState(false)
@@ -1320,16 +1332,20 @@ export function CampaignCalendar() {
     const firstPost = Object.values(allPlatformPosts)[0] as any
     if (!firstPost?.article_id) return
     setPhotoArticle(null)
+    setPhotoPromptError(null)
     const supabase = createClient()
     ;(async () => {
       try {
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from('articles')
-          .select('summary, clinical_bottom_line')
+          .select('abstract, summary, clinical_bottom_line')
           .eq('id', firstPost.article_id)
           .single()
-        if (data) setPhotoArticle(data)
-      } catch { /* ignore */ }
+        if (error || !data) throw new Error(error?.message ?? 'no data')
+        setPhotoArticle(data)
+      } catch {
+        setPhotoPromptError("Couldn't load the article's abstract — switch tabs and back to retry.")
+      }
     })()
   }, [activePlatformTab, allPlatformPosts])
 
@@ -1345,7 +1361,7 @@ export function CampaignCalendar() {
       const supabase = createClient()
       const { data: article } = await supabase
         .from('articles')
-        .select('summary, clinical_bottom_line')
+        .select('abstract, summary, clinical_bottom_line')
         .eq('id', currentPost.article_id)
         .single()
 
@@ -1355,7 +1371,8 @@ export function CampaignCalendar() {
         body: JSON.stringify({
           post_text: currentPost.post_content,
           article_id: currentPost.article_id,
-          abstract_text: article?.summary || article?.clinical_bottom_line || null
+          // Source abstract first; the AI summary only for the few articles without one
+          abstract_text: article?.abstract || article?.summary || article?.clinical_bottom_line || null
         })
       })
       const data = await res.json()
@@ -1709,12 +1726,41 @@ export function CampaignCalendar() {
             {/* AI Photos tab panel */}
             {activePlatformTab === 'ai_photos' && (
               <div className="bg-zinc-900 dark:bg-zinc-950 rounded-lg p-4 border border-zinc-700 dark:border-zinc-800">
-                <p className="text-xs text-zinc-300 font-mono leading-relaxed whitespace-pre-wrap mb-4">
-                  {`craft 3-4 images that will pair well with the following professional oriented content on social media networks. make one in normal ratio and one in a 4:5 ratio:\n\n`}
+                {photoArticle && !photoArticle.abstract && (
+                  <p className="text-xs text-amber-400 mb-2">
+                    ⚠️ This article has no source abstract — the prompt uses the AI summary instead.
+                  </p>
+                )}
+                <p className="text-xs text-zinc-300 font-mono leading-relaxed whitespace-pre-wrap mb-3" data-testid="ai-photos-prompt">
                   {photoArticle
-                    ? (photoArticle.summary || photoArticle.clinical_bottom_line || 'No summary available.')
-                    : 'Loading article summary...'}
+                    ? buildPhotoPrompt(photoArticle.abstract || photoArticle.summary || photoArticle.clinical_bottom_line || '')
+                    : (photoPromptError ?? 'Loading article abstract...')}
                 </p>
+                <div className="flex gap-2 mb-4">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!photoArticle) return
+                      try {
+                        await navigator.clipboard.writeText(
+                          buildPhotoPrompt(photoArticle.abstract || photoArticle.summary || photoArticle.clinical_bottom_line || '')
+                        )
+                        setPhotoPromptError(null)
+                        setPhotoPromptCopied(true)
+                        setTimeout(() => setPhotoPromptCopied(false), 2000)
+                      } catch {
+                        setPhotoPromptError('Copy failed — select the prompt text above and copy it manually.')
+                      }
+                    }}
+                    disabled={!photoArticle}
+                    className="flex items-center gap-1.5 text-sm text-zinc-900 bg-emerald-400 hover:bg-emerald-300 px-3 py-1.5 rounded-md transition disabled:opacity-50"
+                  >
+                    {photoPromptCopied ? <><Check size={14} /> Copied</> : <><Copy size={14} /> Copy prompt for ChatGPT</>}
+                  </button>
+                </div>
+                {photoArticle && photoPromptError && (
+                  <p className="text-xs text-red-400 -mt-2 mb-4">{photoPromptError}</p>
+                )}
                 <button
                   type="button"
                   onClick={() => {
