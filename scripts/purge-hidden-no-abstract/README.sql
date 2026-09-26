@@ -1,4 +1,5 @@
--- Scheduled cleanup (run on/after 2026-10-02): delete + blacklist the articles hidden on
+-- Cleanup (hold originally until 2026-10-02; owner moved it to 2026-09-26 after reviewing
+-- every hidden article — full content export: ~/Desktop/vetree-deleted-no-abstract-articles-2026-09-26.json): delete + blacklist the articles hidden on
 -- 2026-09-25 for having no source abstract, EXCEPT any that something references.
 --
 -- Context (verified 2026-09-25): 4,565 published articles had no abstract on PubMed
@@ -29,6 +30,6 @@
 -- Usage:
 --   dry run (counts only, writes nothing):
 --     npx supabase db query -f scripts/purge-hidden-no-abstract/dry-run.sql --linked
---   apply (on/after 2026-10-02; refuses earlier):
+--   apply (on/after 2026-09-26; refuses earlier):
 --     npx supabase db query -f scripts/purge-hidden-no-abstract/apply.sql --linked
 --   then re-run the dry run: expect marked_hidden = 0.
