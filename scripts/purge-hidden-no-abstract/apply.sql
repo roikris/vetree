@@ -1,9 +1,11 @@
--- See README.sql. Refuses to run before 2026-10-02.
+-- See README.sql. Refuses to run before 2026-09-26 (hold moved forward by the owner).
 BEGIN;
 
 DO $$ BEGIN
-  IF now() < timestamptz '2026-10-02 00:00:00+00' THEN
-    RAISE EXCEPTION 'purge held until 2026-10-02 (one-week hold agreed 2026-09-25)';
+  -- Hold was 2026-10-02; the owner reviewed all hidden articles (browsable export with live
+  -- PubMed status + publication types) and moved it forward to 2026-09-26.
+  IF now() < timestamptz '2026-09-26 00:00:00+00' THEN
+    RAISE EXCEPTION 'purge held until 2026-09-26';
   END IF;
 END $$;
 
