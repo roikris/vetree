@@ -26,7 +26,21 @@ export const LARGE_ANIMAL_LABELS = [
 
 export const SMALL_ANIMAL_LABELS = ['Small Animal', 'small animal'] as const
 
+/** Default scope of the browsing feed (no search). */
 export const DEFAULT_QUICK_FILTER: QuickFilter = 'small-animal'
+
+/**
+ * The default scope depends on context. A search starts UNFILTERED — all species — and
+ * the reader narrows the results with the filter bar; the browsing feed keeps the
+ * small-animal default (owner decision, 2026-09-26). This makes every search entry point
+ * (search box, landing/example chips, sitelinks search box, synthesis and admin links,
+ * all of which build plain `/?search=` URLs) behave the same, and means a search's logged
+ * result count is its unfiltered count — so a zero-result log is a genuine content gap
+ * rather than "nothing in the small-animal scope".
+ */
+export function defaultQuickFilterFor(search: string | null | undefined): QuickFilter {
+  return search && search.trim() ? 'all' : DEFAULT_QUICK_FILTER
+}
 
 function hasAny(labels: string[] | null | undefined, set: readonly string[]): boolean {
   return !!labels?.some(l => set.includes(l))

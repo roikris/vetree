@@ -1,5 +1,5 @@
 import { ParsedFilters, SortOption, LabelOperator, QuickFilter, FeedView } from '@/types/search'
-import { DEFAULT_QUICK_FILTER } from '@/lib/utils/species'
+import { defaultQuickFilterFor } from '@/lib/utils/species'
 
 export function parseSearchParams(
   searchParams: { [key: string]: string | string[] | undefined }
@@ -17,10 +17,12 @@ export function parseSearchParams(
     ? (labelOperatorParam as LabelOperator)
     : 'OR'
 
-  const quickFilterParam = typeof searchParams.quickFilter === 'string' ? searchParams.quickFilter : DEFAULT_QUICK_FILTER
+  // Missing or invalid -> the context default: all species for a search, small animal for the feed
+  const defaultScope = defaultQuickFilterFor(search)
+  const quickFilterParam = typeof searchParams.quickFilter === 'string' ? searchParams.quickFilter : defaultScope
   const quickFilter: QuickFilter = ['all', 'small-animal', 'large-animal'].includes(quickFilterParam)
     ? (quickFilterParam as QuickFilter)
-    : DEFAULT_QUICK_FILTER
+    : defaultScope
 
   const evidence = Array.isArray(searchParams.evidence)
     ? searchParams.evidence
@@ -73,9 +75,9 @@ export function buildSearchParams(filters: ParsedFilters): string {
     params.set('labelOperator', filters.labelOperator)
   }
 
-  // Omit the DEFAULT, not 'all'. Omitting 'all' would make an explicit "All"
-  // choice serialise to no param, which parses straight back to the default.
-  if (filters.quickFilter !== DEFAULT_QUICK_FILTER) {
+  // Omit the CONTEXT default (all species with a search, small animal without), so an
+  // explicit choice that differs from it round-trips through the URL.
+  if (filters.quickFilter !== defaultQuickFilterFor(filters.search)) {
     params.set('quickFilter', filters.quickFilter)
   }
 

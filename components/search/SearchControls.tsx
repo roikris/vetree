@@ -5,6 +5,7 @@ import { useCallback, useRef, useEffect, useState, ReactNode } from 'react'
 import Link from 'next/link'
 import { ParsedFilters, FeedView, QuickFilter } from '@/types/search'
 import { buildSearchParams } from '@/lib/utils/searchParams'
+import { defaultQuickFilterFor } from '@/lib/utils/species'
 import { useAuth } from '@/lib/hooks/useAuth'
 import { useAdmin } from '@/lib/hooks/useAdmin'
 import { VETERINARY_LABELS } from '@/lib/constants/labels'
@@ -46,6 +47,8 @@ type SearchControlsProps = {
   availableJournals: string[]
   availableEvidenceLevels: string[]
   resultsCount?: number
+  /** True when the search errored or timed out — its 0 count must not be logged */
+  searchFailed?: boolean
   children?: ReactNode
 }
 
@@ -85,6 +88,7 @@ export function SearchControls({
   availableJournals,
   availableEvidenceLevels,
   resultsCount,
+  searchFailed = false,
   children,
 }: SearchControlsProps) {
   const router = useRouter()
@@ -105,11 +109,21 @@ export function SearchControls({
 
   // ─── Search logging ───────────────────────────────────────────────────────
   // Fire after navigation completes so resultsCount reflects actual results.
-  // Dedup ref prevents double-logging the same query on unrelated re-renders.
+  // Dedup ref prevents double-logging the same query on unrelated re-renders, and on the
+  // reader narrowing the results afterwards. Only the UNFILTERED search is logged (a new
+  // search always starts unfiltered; a shared link that arrives pre-filtered is skipped),
+  // so results_count = 0 means Vetree has nothing on the topic, not "nothing in this scope".
   const lastLoggedQuery = useRef('')
   useEffect(() => {
     const query = initialFilters.search?.trim() ?? ''
-    if (query.length >= 2 && query !== lastLoggedQuery.current) {
+    const unfiltered =
+      initialFilters.quickFilter === defaultQuickFilterFor(query) &&
+      initialFilters.labels.length === 0 &&
+      initialFilters.evidence.length === 0 &&
+      initialFilters.journals.length === 0
+    // A failed search is not logged (its 0 isn't a result) and not marked as logged, so a
+    // successful retry of the same query still is
+    if (query.length >= 2 && unfiltered && !searchFailed && query !== lastLoggedQuery.current) {
       lastLoggedQuery.current = query
       fetch('/api/analytics/search', {
         method: 'POST',
@@ -118,7 +132,7 @@ export function SearchControls({
       }).catch(() => { /* best-effort */ })
     }
     if (!query) lastLoggedQuery.current = ''
-  }, [initialFilters.search, resultsCount])
+  }, [initialFilters.search, initialFilters.quickFilter, initialFilters.labels.length, initialFilters.evidence.length, initialFilters.journals.length, resultsCount, searchFailed])
 
   useEffect(() => { filtersRef.current = initialFilters }, [initialFilters])
 
@@ -147,8 +161,20 @@ export function SearchControls({
 
   const setView = (view: FeedView) => updateFilters({ view })
 
+  // A new search starts unfiltered (all species, no specialty/evidence/journal filters);
+  // the reader narrows the results with the filter bar. Clearing it returns to the feed's
+  // defaults. See defaultQuickFilterFor in lib/utils/species.ts.
+  const cleared = (search: string): Partial<ParsedFilters> => ({
+    search,
+    quickFilter: defaultQuickFilterFor(search),
+    labels: [],
+    labelOperator: 'OR',
+    evidence: [],
+    journals: [],
+  })
+
   const handleSearchSubmit = () => {
-    updateFilters({ search: searchQuery })
+    updateFilters(cleared(searchQuery))
   }
 
   const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -156,14 +182,14 @@ export function SearchControls({
     if (e.key === 'Escape') {
       setSearchOpen(false)
       setSearchQuery('')
-      updateFilters({ search: '' })
+      updateFilters(cleared(''))
     }
   }
 
   const clearSearch = () => {
     setSearchOpen(false)
     setSearchQuery('')
-    updateFilters({ search: '' })
+    updateFilters(cleared(''))
   }
 
   // Avatar initials

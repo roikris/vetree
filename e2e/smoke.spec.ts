@@ -52,21 +52,31 @@ test('search: "pyometra" returns at least 1 result', async ({ page }) => {
   await expect(page.locator('[data-testid="article-card"]').first()).toBeVisible({ timeout: 15_000 })
 })
 
-// Search is species-scoped with small animal as the default, but large-animal research
-// (~7,800 enriched articles) must stay reachable. "bovine mastitis" is the canonical case:
-// it has no small-animal matches, so the default search is empty — and that empty state
+// A search starts unfiltered (all species) and the reader narrows it with the filter bar.
+// "bovine mastitis" is the canonical case: large-animal research, so the default search
+// finds it directly; narrowing to small animal empties the results, and that empty state
 // must offer the widened search rather than read as "no coverage".
-test('search: large-animal term is reachable from the default scope via "search all species"', async ({ page }) => {
-  await page.goto('/')
-  await page.locator('[data-testid="landing-cta-browse"]').click()
+test('search: starts across all species, and narrowing can be undone from the empty state', async ({ page }) => {
+  await page.goto('/?browse=1')
   await page.locator('[data-testid="article-card"]').first().waitFor({ timeout: 15_000 })
+  // A filter chosen before searching must not carry into the search
+  await page.locator('[data-testid="species-large-animal"]').click()
+  await expect(page).toHaveURL(/quickFilter=large-animal/)
   await page.locator('[data-testid="search-toggle"]').click()
   await page.locator('[data-testid="search-input"]').fill('bovine mastitis')
   await page.keyboard.press('Enter')
+  await expect(page).toHaveURL(/search=bovine/)
+  await expect(page).not.toHaveURL(/quickFilter=/)
+  await expect(page.locator('[data-testid="species-all"]')).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.locator('[data-testid="article-card"]').first()).toBeVisible({ timeout: 15_000 })
+
+  // Narrow to small animal: nothing, and the empty state offers all species again
+  await page.locator('[data-testid="species-small-animal"]').click()
+  await expect(page).toHaveURL(/quickFilter=small-animal/)
   const widen = page.locator('[data-testid="zero-results-all-species"]')
   await expect(widen).toBeVisible({ timeout: 15_000 })
   await widen.click()
-  await expect(page).toHaveURL(/quickFilter=all/)
+  await expect(page.locator('[data-testid="species-all"]')).toHaveAttribute('aria-pressed', 'true')
   await expect(page.locator('[data-testid="article-card"]').first()).toBeVisible({ timeout: 15_000 })
 })
 
