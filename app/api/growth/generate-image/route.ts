@@ -35,11 +35,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Image generation not configured' }, { status: 503 })
     }
 
-    const content = abstract_text
-      ? abstract_text.slice(0, 1500)
-      : post_text.slice(0, 400)
+    // Source abstract in full (the caller sends articles.abstract when present)
+    const content = abstract_text || post_text.slice(0, 400)
 
-    const imagePrompt = `craft 3-4 images that will pair well with the following professional oriented content on social media networks. make one in normal ratio and one in a 4:5 ratio: ${content}`
+    // Same wording as the tab's ChatGPT prompt, minus the logo clause (no logo is attached
+    // on this path) and ChatGPT's "@Create image" command
+    const imagePrompt = `craft an image that will pair well with the following professional oriented content on social media networks. make one in normal ratio and one in a 4:5 ratio:\n\n${content}`
     console.log('[generate-image] prompt length:', imagePrompt.length)
 
     // Initialize SDK inside function per CLAUDE.md
