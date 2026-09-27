@@ -353,7 +353,7 @@ export async function getRecentSearches(days: number = 7, limit: number = 20) {
 
   const { data: searches } = await db
     .from('search_logs')
-    .select('query, results_count, created_at')
+    .select('query, results_count, results_count_is_lower_bound, created_at')
     .gte('created_at', startDate.toISOString())
     .or(excludedUsersOrFilter())
 
@@ -366,6 +366,8 @@ export async function getRecentSearches(days: number = 7, limit: number = 20) {
     count: number
     avgResults: number
     lastSearched: string
+    /** any log for this query was a lower bound (progressive search's first batch) */
+    lowerBound: boolean
   }> = {}
 
   searches.forEach(search => {
@@ -374,11 +376,13 @@ export async function getRecentSearches(days: number = 7, limit: number = 20) {
       searchStats[query] = {
         count: 0,
         avgResults: 0,
-        lastSearched: search.created_at
+        lastSearched: search.created_at,
+        lowerBound: false,
       }
     }
     searchStats[query].count++
     searchStats[query].avgResults += search.results_count || 0
+    if (search.results_count_is_lower_bound) searchStats[query].lowerBound = true
     if (search.created_at > searchStats[query].lastSearched) {
       searchStats[query].lastSearched = search.created_at
     }
@@ -390,6 +394,7 @@ export async function getRecentSearches(days: number = 7, limit: number = 20) {
       query,
       count: stats.count,
       avgResults: Math.round(stats.avgResults / stats.count),
+      avgResultsIsLowerBound: stats.lowerBound,
       lastSearched: stats.lastSearched
     }))
     .sort((a, b) => b.count - a.count)

@@ -636,7 +636,7 @@ export function AnalyticsClient({
                 <tr key={idx}>
                   <td style={{ ...tdStyle, fontFamily: 'monospace', fontSize: 12 }}>{search.query}</td>
                   <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 600 }}>{search.count}</td>
-                  <td style={{ ...tdStyle, textAlign: 'right' }}>{search.avgResults}</td>
+                  <td style={{ ...tdStyle, textAlign: 'right' }} title={search.avgResultsIsLowerBound ? 'At least — progressive search logs its first batch' : undefined}>{search.avgResults}{search.avgResultsIsLowerBound ? '+' : ''}</td>
                   <td style={{ ...tdStyle, textAlign: 'right', color: 'var(--al-mut3)' }}>{new Date(search.lastSearched).toLocaleDateString()}</td>
                 </tr>
               ))}

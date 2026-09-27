@@ -80,6 +80,38 @@ test('search: starts across all species, and narrowing can be undone from the em
   await expect(page.locator('[data-testid="article-card"]').first()).toBeVisible({ timeout: 15_000 })
 })
 
+// ─── Progressive search: Best match default, toggle, reveal, finish ───────────────
+test('search: opens in Best match and ends with "Search finished!"', async ({ page }) => {
+  await page.goto('/?search=pyometra')
+  await expect(page.locator('[data-testid="sort-relevance"]')).toHaveAttribute('aria-pressed', 'true', { timeout: 20_000 })
+  await expect(page.locator('#main-feed')).toContainText(/\d+ results for/)
+  const progress = page.locator('[data-testid="search-progress"]')
+  await progress.scrollIntoViewIfNeeded()
+  await expect(progress).toContainText('Search finished!', { timeout: 15_000 })
+})
+
+test('search: Newest toggle updates the URL and reveals more on scroll', async ({ page }) => {
+  await page.goto('/?search=dog')
+  await expect(page.locator('[data-testid="sort-relevance"]')).toHaveAttribute('aria-pressed', 'true', { timeout: 20_000 })
+  await page.locator('[data-testid="sort-newest"]').click()
+  await expect(page).toHaveURL(/sort=newest/)
+  await expect(page.locator('[data-testid="sort-newest"]')).toHaveAttribute('aria-pressed', 'true', { timeout: 20_000 })
+  const rows = page.locator('#main-feed a[href^="/article/"]')
+  const before = await rows.count()
+  // Keyboard/a11y path and scroll path both advance the list
+  await page.locator('[data-testid="search-load-more"]').click()
+  await expect.poll(() => rows.count(), { timeout: 10_000 }).toBeGreaterThan(before)
+})
+
+test('search batch API: rejects malformed input with 400', async ({ request }) => {
+  const bad = await request.get('/api/search/batch?search=dog&sort=newest&cursor=not-a-cursor')
+  expect(bad.status()).toBe(400)
+  const relevanceWithCursor = await request.get('/api/search/batch?search=dog&cursor=eyJ2IjoxLCJzIjoibmV3ZXN0IiwiZCI6IjIwMjQtMDEtMDEiLCJpIjoiYSJ9')
+  expect(relevanceWithCursor.status()).toBe(400)
+  const noSearch = await request.get('/api/search/batch?sort=newest')
+  expect(noSearch.status()).toBe(400)
+})
+
 // The species control must be reachable and drive the URL. A previous version of this
 // feature relied on a component that was never mounted, so no user could change scope.
 test('species control: default is small animal, and switching scope updates the URL', async ({ page }) => {

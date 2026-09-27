@@ -1,5 +1,6 @@
 import { ParsedFilters } from '@/types/search'
 import { DEFAULT_QUICK_FILTER, defaultQuickFilterFor } from '@/lib/utils/species'
+import { defaultSortFor } from '@/lib/utils/sort'
 
 export function hasActiveFilters(filters: ParsedFilters): boolean {
   return (
@@ -8,7 +9,7 @@ export function hasActiveFilters(filters: ParsedFilters): boolean {
     filters.quickFilter !== defaultQuickFilterFor(filters.search) ||
     filters.evidence.length > 0 ||
     filters.journals.length > 0 ||
-    filters.sort !== 'newest'
+    filters.sort !== defaultSortFor(filters.search)
   )
 }
 
