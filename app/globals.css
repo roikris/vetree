@@ -317,3 +317,19 @@ body {
     font-size: 16px !important;
   }
 }
+
+/* Search loader (components/search/SproutLoader.tsx): seed → sprout → leaf, 2.4 s loop.
+   Each stage fades in on its third of the cycle. 'resting' holds the sprout; 'done' the leaf. */
+.sprout-loader .sprout-stage { opacity: 0; transform-box: fill-box; transform-origin: 50% 100%; }
+.sprout-growing .sprout-seed   { animation: sprout-seed 2.4s ease-in-out infinite; }
+.sprout-growing .sprout-sprout { animation: sprout-sprout 2.4s ease-in-out infinite; }
+.sprout-growing .sprout-leaf   { animation: sprout-leaf 2.4s ease-in-out infinite; }
+.sprout-resting .sprout-sprout { opacity: 1; }
+.sprout-done .sprout-leaf      { opacity: 1; }
+@keyframes sprout-seed   { 0%, 28% { opacity: 1; transform: scale(1); } 36%, 100% { opacity: 0; transform: scale(.6); } }
+@keyframes sprout-sprout { 0%, 28% { opacity: 0; transform: scaleY(.3); } 36%, 62% { opacity: 1; transform: scaleY(1); } 70%, 100% { opacity: 0; transform: scaleY(1); } }
+@keyframes sprout-leaf   { 0%, 62% { opacity: 0; transform: scale(.7); } 72%, 92% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) {
+  .sprout-growing .sprout-seed, .sprout-growing .sprout-leaf { animation: none; opacity: 0; }
+  .sprout-growing .sprout-sprout { animation: none; opacity: 1; }
+}

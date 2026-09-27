@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient()
     const body = await request.json()
-    const { query, results_count } = body
+    const { query, results_count, results_count_is_lower_bound } = body
 
     if (!query || query.trim().length === 0) {
       return NextResponse.json({ error: 'Query is required' }, { status: 400 })
@@ -48,6 +48,8 @@ export async function POST(request: NextRequest) {
       .insert({
         query: query.trim(),
         results_count: results_count || 0,
+        // Progressive search logs its first batch: true means "at least results_count"
+        results_count_is_lower_bound: results_count_is_lower_bound === true,
         user_id: user?.id || null,
         ip_hash: ipHash
       })

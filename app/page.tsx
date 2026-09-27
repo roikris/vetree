@@ -13,6 +13,10 @@ import { getTrendingArticles } from '@/app/actions/trending'
 import { getPersonalizedArticles } from '@/app/actions/personalized-feed'
 import { createClient } from '@/lib/supabase/server'
 import { SynthesisWrapper } from '@/components/synthesis/SynthesisWrapper'
+import { Suspense } from 'react'
+import { SearchResults } from '@/components/search/SearchResults'
+import { SproutLoader } from '@/components/search/SproutLoader'
+import { searchKeyFor } from '@/lib/search/progressive'
 
 // Force dynamic rendering to ensure searchParams are always fresh
 export const dynamic = 'force-dynamic'
@@ -108,8 +112,12 @@ export default async function Home({ searchParams }: HomeProps) {
     .not('clinical_bottom_line', 'is', null)
     .gte('publication_date', sevenDaysAgo)
 
-  // Fetch filtered articles
-  const { data: articles, count, error, searchTier } = await searchArticles(filters, 20)
+  // A search renders progressively in its own streamed subtree (components/search/SearchResults);
+  // only the feed (no search) is fetched here.
+  const isSearch = !!filters.search.trim()
+  const { data: articles, count, error, searchTier } = isSearch
+    ? { data: [] as any[], count: 0, error: null as { message: string } | null, searchTier: undefined }
+    : await searchArticles(filters, 20)
 
   // Fetch unique journals and evidence levels for filters
   const journals = await getUniqueJournals()
@@ -156,8 +164,21 @@ export default async function Home({ searchParams }: HomeProps) {
         availableJournals={journals}
         availableEvidenceLevels={evidenceLevels}
         resultsCount={count || 0}
-        searchFailed={!!error}
       >
+      {isSearch ? (
+        // Keyed by the whole search: every new search / filter / order change re-suspends, so
+        // the sprout shows however the search started (box, link, filter click, reload).
+        <Suspense
+          key={searchKeyFor(filters)}
+          fallback={
+            <div role="status" style={{ padding: '48px 16px 80px' }}>
+              <SproutLoader state="growing" label="Searching…" />
+            </div>
+          }
+        >
+          <SearchResults filters={filters} isLoggedIn={isLoggedIn} newThisWeek={newThisWeek ?? undefined} />
+        </Suspense>
+      ) : (<>
       {error && (
         <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-8">
           <p className="text-red-800 dark:text-red-200">
@@ -218,6 +239,7 @@ export default async function Home({ searchParams }: HomeProps) {
           </SynthesisWrapper>
         </div>
       )}
+      </>)}
       </SearchControls>
     </>
   )

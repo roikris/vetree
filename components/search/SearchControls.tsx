@@ -6,6 +6,8 @@ import Link from 'next/link'
 import { ParsedFilters, FeedView, QuickFilter } from '@/types/search'
 import { buildSearchParams } from '@/lib/utils/searchParams'
 import { defaultQuickFilterFor } from '@/lib/utils/species'
+import { defaultSortFor } from '@/lib/utils/sort'
+import { resetSearchLogDedup } from '@/components/search/ProgressiveResults'
 import { useAuth } from '@/lib/hooks/useAuth'
 import { useAdmin } from '@/lib/hooks/useAdmin'
 import { VETERINARY_LABELS } from '@/lib/constants/labels'
@@ -47,8 +49,6 @@ type SearchControlsProps = {
   availableJournals: string[]
   availableEvidenceLevels: string[]
   resultsCount?: number
-  /** True when the search errored or timed out — its 0 count must not be logged */
-  searchFailed?: boolean
   children?: ReactNode
 }
 
@@ -87,8 +87,6 @@ export function SearchControls({
   initialFilters,
   availableJournals,
   availableEvidenceLevels,
-  resultsCount,
-  searchFailed = false,
   children,
 }: SearchControlsProps) {
   const router = useRouter()
@@ -107,32 +105,12 @@ export function SearchControls({
   const { user } = useAuth()
   const { isAdmin } = useAdmin()
 
-  // ─── Search logging ───────────────────────────────────────────────────────
-  // Fire after navigation completes so resultsCount reflects actual results.
-  // Dedup ref prevents double-logging the same query on unrelated re-renders, and on the
-  // reader narrowing the results afterwards. Only the UNFILTERED search is logged (a new
-  // search always starts unfiltered; a shared link that arrives pre-filtered is skipped),
-  // so results_count = 0 means Vetree has nothing on the topic, not "nothing in this scope".
-  const lastLoggedQuery = useRef('')
+  // Search logging lives in the resolved search results (components/search/ProgressiveResults),
+  // so it only runs once a search has actually returned — never with a missing count. Its
+  // query dedup resets here when the search is cleared, as the old in-place logger did.
   useEffect(() => {
-    const query = initialFilters.search?.trim() ?? ''
-    const unfiltered =
-      initialFilters.quickFilter === defaultQuickFilterFor(query) &&
-      initialFilters.labels.length === 0 &&
-      initialFilters.evidence.length === 0 &&
-      initialFilters.journals.length === 0
-    // A failed search is not logged (its 0 isn't a result) and not marked as logged, so a
-    // successful retry of the same query still is
-    if (query.length >= 2 && unfiltered && !searchFailed && query !== lastLoggedQuery.current) {
-      lastLoggedQuery.current = query
-      fetch('/api/analytics/search', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query, results_count: resultsCount ?? 0 }),
-      }).catch(() => { /* best-effort */ })
-    }
-    if (!query) lastLoggedQuery.current = ''
-  }, [initialFilters.search, initialFilters.quickFilter, initialFilters.labels.length, initialFilters.evidence.length, initialFilters.journals.length, resultsCount, searchFailed])
+    if (!initialFilters.search?.trim()) resetSearchLogDedup()
+  }, [initialFilters.search])
 
   useEffect(() => { filtersRef.current = initialFilters }, [initialFilters])
 
@@ -167,6 +145,8 @@ export function SearchControls({
   const cleared = (search: string): Partial<ParsedFilters> => ({
     search,
     quickFilter: defaultQuickFilterFor(search),
+    // A new search opens in Best match; clearing returns the feed to newest (lib/utils/sort.ts)
+    sort: defaultSortFor(search),
     labels: [],
     labelOperator: 'OR',
     evidence: [],
@@ -422,7 +402,9 @@ export function SearchControls({
                       onClick={() => updateFilters({ labels: pill.labels, evidence: [], journals: [] })}
                       style={pillStyle(active)}
                     >
-                      {pill.label}
+                      {/* On search results the no-specialty pill must not read as an order ("Latest"
+                          next to the Best match toggle); it only clears specialty filters */}
+                      {pill.labels.length === 0 && initialFilters.search ? 'All topics' : pill.label}
                     </button>
                   )
                 })}

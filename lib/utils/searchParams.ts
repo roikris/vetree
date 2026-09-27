@@ -1,5 +1,6 @@
 import { ParsedFilters, SortOption, LabelOperator, QuickFilter, FeedView } from '@/types/search'
 import { defaultQuickFilterFor } from '@/lib/utils/species'
+import { defaultSortFor } from '@/lib/utils/sort'
 
 export function parseSearchParams(
   searchParams: { [key: string]: string | string[] | undefined }
@@ -36,10 +37,12 @@ export function parseSearchParams(
     ? [searchParams.journals]
     : []
 
-  const sortParam = typeof searchParams.sort === 'string' ? searchParams.sort : 'newest'
+  // Missing or invalid -> the context default: Best match for a search, newest for the feed
+  const defaultSort = defaultSortFor(search)
+  const sortParam = typeof searchParams.sort === 'string' ? searchParams.sort : defaultSort
   const sort: SortOption = ['newest', 'oldest', 'relevance'].includes(sortParam)
     ? (sortParam as SortOption)
-    : 'newest'
+    : defaultSort
 
   const pageParam = typeof searchParams.page === 'string' ? parseInt(searchParams.page, 10) : 1
   const page = isNaN(pageParam) || pageParam < 1 ? 1 : pageParam
@@ -89,7 +92,7 @@ export function buildSearchParams(filters: ParsedFilters): string {
     params.append('journals', journal)
   })
 
-  if (filters.sort !== 'newest') {
+  if (filters.sort !== defaultSortFor(filters.search)) {
     params.set('sort', filters.sort)
   }
 

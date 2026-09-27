@@ -1,3 +1,4 @@
+import { ReactNode } from 'react'
 import { Article } from '@/lib/supabase'
 import { FeedView } from '@/types/search'
 import { ArticleCard } from './ArticleCard'
@@ -11,9 +12,15 @@ type ArticleListProps = {
   view?: FeedView
   totalCount?: number
   newThisWeek?: number
+  /** Search results (progressive): replaces the count line, e.g. "120+ results for …" */
+  countLine?: ReactNode
+  /** Search results: replaces "Newest first", e.g. "Best match" */
+  orderLabel?: string
+  /** Search results: rendered under the heading, e.g. the Best match | Newest toggle */
+  headerExtra?: ReactNode
 }
 
-export function ArticleList({ articles, searchQuery, view = 'stream', totalCount, newThisWeek }: ArticleListProps) {
+export function ArticleList({ articles, searchQuery, view = 'stream', totalCount, newThisWeek, countLine, orderLabel, headerExtra }: ArticleListProps) {
   if (view === 'grove') {
     return <GroveView />
   }
@@ -52,11 +59,22 @@ export function ArticleList({ articles, searchQuery, view = 'stream', totalCount
             fontSize: 12.5, fontWeight: 400, lineHeight: 1,
             color: 'var(--al-mut6)',
           }}>
-            {newThisWeek != null ? `${newThisWeek} new this week · ` : ''}Newest first
+            {orderLabel ?? `${newThisWeek != null ? `${newThisWeek} new this week · ` : ''}Newest first`}
           </span>
         </div>
 
-        {searchQuery ? (
+        {headerExtra}
+
+        {countLine ? (
+          <p style={{
+            margin: '0 0 30px',
+            fontFamily: 'var(--font-instrument, sans-serif)',
+            fontSize: 14.5, fontWeight: 400, lineHeight: 1.5,
+            color: 'var(--al-mut3)',
+          }}>
+            {countLine}
+          </p>
+        ) : searchQuery ? (
           <p style={{
             margin: '0 0 30px',
             fontFamily: 'var(--font-instrument, sans-serif)',
@@ -89,7 +107,11 @@ export function ArticleList({ articles, searchQuery, view = 'stream', totalCount
   // List view
   return (
     <div style={{ maxWidth: 844, margin: '0 auto', padding: '30px 32px 90px' }}>
+      {headerExtra}
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 22 }}>
+        {countLine ? (
+          <div style={{ fontFamily: 'var(--font-instrument, sans-serif)', fontSize: 14.5, color: 'var(--al-mut3)' }}>{countLine}</div>
+        ) : (
         <div>
           <span style={{
             fontFamily: 'var(--font-spectral, serif)',
@@ -106,12 +128,13 @@ export function ArticleList({ articles, searchQuery, view = 'stream', totalCount
             articles
           </span>
         </div>
+        )}
         <span style={{
           fontFamily: 'var(--font-instrument, sans-serif)',
           fontSize: 12.5, fontWeight: 400, lineHeight: 1,
           color: 'var(--al-mut6)',
         }}>
-          Detailed view · full metadata
+          {orderLabel ? `${orderLabel} · full metadata` : 'Detailed view · full metadata'}
         </span>
       </div>
 

@@ -21,7 +21,7 @@ const SELECT_FIELDS = `
 `
 
 // Sanitize search terms to prevent PostgREST query parsing errors
-function sanitizeSearchTerm(term: string): string {
+export function sanitizeSearchTerm(term: string): string {
   // Remove special characters that break PostgREST parsing: ( ) , . % _ [ ] * ? \
   return term.replace(/[(),.%_[\]*?\\]/g, ' ').trim()
 }
@@ -236,6 +236,69 @@ export async function searchArticles(filters: ParsedFilters, pageSize = 20): Pro
       error: { message: 'Search is temporarily unavailable. Please try again.' }
     }
   }
+}
+
+export type FallbackResult = {
+  data: any[]
+  tier: 'exact' | 'ilike' | 'fuzzy' | null
+  /** true when the tier hit FALLBACK_CAP, i.e. more closest matches exist */
+  capped: boolean
+}
+
+export const FALLBACK_CAP = 200
+const FUZZY_RPC_CAP = 100
+
+/**
+ * Closest-match fallback for a search whose full-text batch found NOTHING (typos, author
+ * names — lib/search/progressive.ts calls it only after a successful empty first batch).
+ * Same tiers as searchArticles (title FTS, then ILIKE on title / bottom line / authors, then
+ * trigram fuzzy), filters applied in SQL, but one capped list instead of pages: up to
+ * FALLBACK_CAP rows, newest first. Errors THROW — a failed fallback must surface as an error,
+ * never as an empty "no coverage" result.
+ */
+export async function fallbackSearch(filters: ParsedFilters, sanitizedSearch: string): Promise<FallbackResult> {
+  const base = () => supabase
+    .from('articles')
+    .select(SELECT_FIELDS)
+    .eq('needs_enrichment', false)
+    .not('summary', 'is', null)
+    .not('clinical_bottom_line', 'is', null)
+    .or('quarantined.is.null,quarantined.eq.false')
+
+  const scoped = (q: any) => {
+    q = applyQuickFilter(q, filters.quickFilter)
+    if (filters.labels.length > 0) {
+      q = filters.labelOperator === 'AND' ? q.contains('labels', filters.labels) : q.overlaps('labels', filters.labels)
+    }
+    if (filters.evidence.length > 0) q = q.in('strength_of_evidence', filters.evidence)
+    if (filters.journals.length > 0) q = q.in('source_journal', filters.journals)
+    return q.order('publication_date', { ascending: false }).order('id', { ascending: true }).range(0, FALLBACK_CAP - 1)
+  }
+
+  const done = (data: any[] | null, tier: FallbackResult['tier']): FallbackResult =>
+    ({ data: data ?? [], tier, capped: (data?.length ?? 0) >= FALLBACK_CAP })
+
+  const fts = await scoped(base().textSearch('title', sanitizedSearch, { type: 'websearch' }))
+  if (fts.error) throw new Error(`fallback FTS failed: ${fts.error.message}`)
+  if (fts.data && fts.data.length > 0) return done(fts.data, 'exact')
+
+  const ilike = await scoped(base().or(
+    `title.ilike.%${sanitizedSearch}%,clinical_bottom_line.ilike.%${sanitizedSearch}%,authors.ilike.%${sanitizedSearch}%`
+  ))
+  if (ilike.error) throw new Error(`fallback ILIKE failed: ${ilike.error.message}`)
+  if (ilike.data && ilike.data.length > 0) return done(ilike.data, 'ilike')
+
+  const { data: fuzzyIds, error: fuzzyError } = await supabase
+    .rpc('search_articles_fuzzy', { search_query: sanitizedSearch, similarity_threshold: 0.3 })
+  if (fuzzyError) throw new Error(`fallback fuzzy failed: ${fuzzyError.message}`)
+  if (!fuzzyIds || fuzzyIds.length === 0) return done([], null)
+  const fuzzy = await scoped(base().in('id', fuzzyIds.map((a: any) => a.id)))
+  if (fuzzy.error) throw new Error(`fallback fuzzy fetch failed: ${fuzzy.error.message}`)
+  const result = done(fuzzy.data, fuzzy.data && fuzzy.data.length > 0 ? 'fuzzy' : null)
+  // search_articles_fuzzy returns at most FUZZY_RPC_CAP candidates (LIMIT 100, migration 056):
+  // a full candidate list means more close matches may exist, even after filters trim it
+  if (fuzzyIds.length >= FUZZY_RPC_CAP && result.data.length > 0) result.capped = true
+  return result
 }
 
 // FIX 2: Cache for 1 hour — these never change between page navigations
