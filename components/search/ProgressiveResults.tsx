@@ -59,6 +59,9 @@ export function ProgressiveResults({ filters, initialArticles, initialCursor, in
     const unfiltered =
       filters.quickFilter === defaultQuickFilterFor(query) &&
       filters.labels.length === 0 && filters.evidence.length === 0 && filters.journals.length === 0
+    // Automated browsers (Playwright/CI smoke tests) are never real searches — same rule as
+    // page-view tracking (lib/hooks/usePageTracking.ts)
+    if (typeof navigator !== 'undefined' && navigator.webdriver) return
     if (query.length < 2 || !unfiltered || query === lastLoggedQuery) return
     lastLoggedQuery = query
     const lowerBound =
