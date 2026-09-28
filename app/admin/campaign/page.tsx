@@ -1,12 +1,13 @@
 import { createClient } from '@supabase/supabase-js'
 import { CampaignClient } from './CampaignClient'
 import { excludedUsersOrFilter } from '@/lib/analytics-excluded-ids'
+import { EXPERIMENT_KICKOFF_DATE, EXPERIMENT_END_DATE } from '@/lib/synthesis/experiment'
 
 // Run 2 of the auto-run experiment. Run 1 (2026-06-20 → 2026-09-18) is not comparable: its
 // /synthesis/run and engaged counts included CI smoke traffic, and the synthesis cache never
 // stored (missing search_version column, migration 063), so every run was a fresh generation.
-const KICKOFF_DATE = '2026-09-29'
-const END_DATE = '2026-12-27'  // day 90, inclusive
+const KICKOFF_DATE = EXPERIMENT_KICKOFF_DATE
+const END_DATE = EXPERIMENT_END_DATE  // day 90, inclusive
 // Snapshot metrics are rolling windows (7-day counts; 30-day MAU), so until kickoff + 30 days
 // they still contain run-1 days: the verdict waits for that, and the synthesis KPIs come from
 // raw events scoped exactly to [KICKOFF_DATE, END_DATE] instead of snapshots.

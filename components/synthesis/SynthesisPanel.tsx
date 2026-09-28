@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import ReactMarkdown from 'react-markdown'
 import { normalizeQuery } from '@/lib/utils/normalizeQuery'
+import { inExperimentWindow } from '@/lib/synthesis/experiment'
 
 type SynthesisPanelProps = {
   query: string
@@ -73,9 +74,10 @@ export function SynthesisPanel({ query, onClose, isLoggedIn, onDisplayed }: Synt
   }, [FEEDBACK_KEY])
 
   const SYNTHESIS_KEY = `vetree_synthesis_${normalizeQuery(query)}`
-  // Set when the server recorded this topic's run in this session, so a replay (reopen, back
-  // navigation) can still deliver an engagement whose first send failed. The engagement itself
-  // stays once per topic per session (SynthesisWrapper).
+  // The server's timestamp of this topic's recorded run in this session, so a replay (reopen,
+  // back navigation) can still deliver an engagement whose first send failed — only if that run
+  // falls inside the experiment window (a pre-kickoff run must never yield a run-2 engagement).
+  // The engagement itself stays once per topic per session (SynthesisWrapper).
   const RUN_KEY = `vetree_synthesis_run_recorded_${normalizeQuery(query)}`
 
   useEffect(() => {
@@ -85,7 +87,7 @@ export function SynthesisPanel({ query, onClose, isLoggedIn, onDisplayed }: Synt
       try {
         const savedData = JSON.parse(saved)
         setData(savedData)
-        setRunRecorded(sessionStorage.getItem(RUN_KEY) === '1')
+        setRunRecorded(inExperimentWindow(sessionStorage.getItem(RUN_KEY)))
         setLoading(false)
         return
       } catch (e) {
@@ -124,10 +126,10 @@ export function SynthesisPanel({ query, onClose, isLoggedIn, onDisplayed }: Synt
           const result = await response.json()
           if (cancelled) return
           setData(result)
-          setRunRecorded(result.run_recorded === true)
+          setRunRecorded(result.run_recorded === true && inExperimentWindow(result.run_at))
           try {
             sessionStorage.setItem(SYNTHESIS_KEY, JSON.stringify(result))
-            if (result.run_recorded === true) sessionStorage.setItem(RUN_KEY, '1')
+            if (result.run_recorded === true && result.run_at) sessionStorage.setItem(RUN_KEY, result.run_at)
           } catch { /* storage full/unavailable */ }
           return
         }

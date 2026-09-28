@@ -151,6 +151,7 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({
           run_recorded: runRecorded,
+          run_at: new Date().toISOString(),
           synthesis_html: cached.synthesis_html,
           article_ids: cached.article_ids,
           articles: cached.articles || [],
@@ -378,6 +379,7 @@ Synthesize the evidence for this veterinary clinical topic.`
 
     return NextResponse.json({
       run_recorded: runRecorded,
+      run_at: new Date().toISOString(),
       synthesis_html: synthesisHtml,
       article_ids: articlesForSynthesis.map((a: any) => a.id),
       articles: packets, // BUG 2 FIX: Include article data for frontend display

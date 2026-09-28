@@ -6,6 +6,7 @@ import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { normalizeQuery } from '@/lib/utils/normalizeQuery'
 import { detectBotName } from '@/lib/bot-detection'
 import { Redis } from '@upstash/redis'
+import * as Sentry from '@sentry/nextjs'
 
 export async function POST(request: NextRequest) {
   try {
@@ -54,6 +55,10 @@ export async function POST(request: NextRequest) {
     if (voteKey && redis) {
       const claimed = await redis.set(voteKey, feedback, { nx: true, ex: 7 * 24 * 3600 })
       if (!claimed) return NextResponse.json({ success: true, duplicate: true })
+    } else if (voteKey && process.env.VERCEL_ENV === 'production') {
+      // Fail closed: without Redis there is no atomic dedupe for an experiment KPI (rule 13)
+      Sentry.captureMessage('[synthesis-feedback] Upstash missing in production — vote refused', 'error')
+      return NextResponse.json({ error: 'Feedback is temporarily unavailable' }, { status: 503 })
     }
 
     const { error } = await supabase
