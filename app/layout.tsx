@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { getVisibleArticleCount, formatArticleCount } from "@/lib/queries/publicStats";
 import Script from "next/script";
 import { Spectral, Instrument_Sans } from "next/font/google";
 import { Analytics } from '@vercel/analytics/react';
@@ -33,16 +34,21 @@ const instrumentSans = Instrument_Sans({
   display: "swap",
 });
 
-export const metadata: Metadata = {
+// Article count from the same cached source as the landing page (lib/queries/publicStats),
+// so the description never overstates it (it had drifted to "15,000+" while the landing page
+// said "23,000+"; 20,805 were visible on 2026-09-28).
+export async function generateMetadata(): Promise<Metadata> {
+  const n = formatArticleCount(await getVisibleArticleCount()) ?? 'thousands of'
+  return {
   title: 'Vetree — Evidence-Based Veterinary Research',
-  description: 'AI-powered summaries of peer-reviewed veterinary research. Search 15,000+ articles from top journals and get the clinical bottom line instantly. Free for veterinary professionals.',
+  description: `AI-powered summaries of peer-reviewed veterinary research. Search ${n} articles from top journals and get the clinical bottom line instantly. Free for veterinary professionals.`,
   metadataBase: new URL('https://vetree.app'),
   alternates: {
     canonical: '/',
   },
   openGraph: {
     title: 'Vetree — Evidence-Based Veterinary Research',
-    description: 'AI-powered summaries of peer-reviewed veterinary research. Get the clinical bottom line from 15,000+ articles instantly.',
+    description: `AI-powered summaries of peer-reviewed veterinary research. Get the clinical bottom line from ${n} articles instantly.`,
     url: 'https://vetree.app',
     siteName: 'Vetree',
     type: 'website',
@@ -56,7 +62,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary',
     title: 'Vetree — Evidence-Based Veterinary Research',
-    description: 'AI-powered clinical summaries from 15,000+ peer-reviewed veterinary articles.',
+    description: `AI-powered clinical summaries from ${n} peer-reviewed veterinary articles.`,
   },
   manifest: '/manifest.json',
   appleWebApp: {
@@ -64,7 +70,9 @@ export const metadata: Metadata = {
     statusBarStyle: 'default',
     title: 'Vetree',
   },
-};
+}
+}
+
 
 export const viewport: Viewport = {
   themeColor: '#8FCB5E',

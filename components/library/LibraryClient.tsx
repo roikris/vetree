@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/hooks/useAuth'
 import { useSavedArticles } from '@/lib/hooks/useSavedArticles'
 import { Article } from '@/lib/supabase'
-import { getEvidenceLevel, getEvidenceBadgeProps } from '@/lib/utils/evidenceBadge'
+import { getEvidenceBadge } from '@/lib/utils/evidenceBadge'
 import { getLabelHue } from '@/lib/constants/labelColors'
 
 type SavedEntry = {
@@ -320,8 +320,8 @@ export function LibraryClient({ entries, userEmail }: Props) {
             {filtered.length > 0 && (
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                 {filtered.map(({ article, savedAt }) => {
-                  const evLevel = getEvidenceLevel(article.strength_of_evidence, article.labels)
-                  const ev = getEvidenceBadgeProps(evLevel)
+                  const ev = getEvidenceBadge(article.strength_of_evidence, article.labels)
+                  const evLevel = ev.level
                   const primaryLabel = article.labels?.[0]
                   const labelHue = primaryLabel ? getLabelHue(primaryLabel) : '#B4AD9A'
                   const saved = isSaved(article.id)

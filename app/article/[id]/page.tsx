@@ -10,7 +10,7 @@ import { SaveIntentHandler } from '@/components/articles/SaveIntentHandler'
 import { OriginalAbstract } from '@/components/articles/OriginalAbstract'
 import Link from 'next/link'
 import type { Metadata } from 'next'
-import { getEvidenceLevel, getEvidenceBadgeProps } from '@/lib/utils/evidenceBadge'
+import { getEvidenceBadge } from '@/lib/utils/evidenceBadge'
 import { getLabelHue } from '@/lib/constants/labelColors'
 
 type PageProps = {
@@ -164,8 +164,8 @@ export default async function ArticlePage({ params }: PageProps) {
     "inLanguage": "en",
   }
 
-  const evidenceLevel = getEvidenceLevel(article.strength_of_evidence, article.labels)
-  const evidenceBadge = getEvidenceBadgeProps(evidenceLevel)
+  const evidenceBadge = getEvidenceBadge(article.strength_of_evidence, article.labels)
+  const evidenceLevel = evidenceBadge.level
 
   // Estimate read time from summary word count
   const wordCount = article.summary ? article.summary.split(/\s+/).length : 0
@@ -219,9 +219,10 @@ export default async function ArticlePage({ params }: PageProps) {
                   {primaryLabel}
                 </span>
               )}
-              <span className="al-ev-chip" style={{ '--ev-h': evidenceBadge.hue, '--ev-dot': evidenceBadge.dot } as React.CSSProperties}>
+              <span className="al-ev-chip" data-testid="article-evidence-badge" title={evidenceBadge.tooltip} style={{ '--ev-h': evidenceBadge.hue, '--ev-dot': evidenceBadge.dot } as React.CSSProperties}>
                 <span className="al-ev-dot" />
                 {evidenceBadge.label}
+                <span className="sr-only"> — {evidenceBadge.tooltip}</span>
               </span>
               <span style={{ font: "400 12.5px/1 var(--font-instrument, sans-serif)", color: 'var(--al-mut6)' }}>
                 {readMins} min read · distilled by Vetree AI
@@ -487,7 +488,7 @@ export default async function ArticlePage({ params }: PageProps) {
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                   {relatedArticles.map(rel => {
-                    const relEv = getEvidenceBadgeProps(getEvidenceLevel(rel.strength_of_evidence, rel.labels))
+                    const relEv = getEvidenceBadge(rel.strength_of_evidence, rel.labels)
                     return (
                       <Link key={rel.id} href={`/article/${rel.id}`} style={{ textDecoration: 'none' }}>
                         <p style={{

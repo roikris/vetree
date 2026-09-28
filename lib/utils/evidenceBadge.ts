@@ -7,14 +7,22 @@ export function getEvidenceLevel(strengthOfEvidence?: string | null, labels?: st
     ...(labels || [])
   ].join(' ').toLowerCase()
 
-  // Gold: Highest quality evidence
+  // A non-randomised design is NEVER gold, whatever else the text says ("non-randomized
+  // placebo-controlled trial"); "non-randomized" also contains "randomi", so it is removed
+  // before any other check.
+  const isNonRandomised = /non[- ]?randomi[sz]ed/.test(text)
+  const t = isNonRandomised ? text.replace(/non[- ]?randomi[sz]ed/g, '') : text
+
+  // Gold: Highest quality evidence (both spellings: randomized / randomised)
   if (
-    text.includes('randomized') ||
-    text.includes('rct') ||
-    text.includes('systematic review') ||
-    text.includes('meta-analysis') ||
-    text.includes('double-blind') ||
-    text.includes('placebo-controlled')
+    !isNonRandomised && (
+      /randomi[sz]ed/.test(t) ||
+      /\brct\b/.test(t) ||
+      t.includes('systematic review') ||
+      t.includes('meta-analysis') ||
+      t.includes('double-blind') ||
+      t.includes('placebo-controlled')
+    )
   ) {
     return 'gold'
   }
@@ -72,4 +80,58 @@ export function getEvidenceBadgeProps(level: EvidenceLevel) {
     },
   }
   return map[level]
+}
+
+/**
+ * The badge TEXT is the study design itself, normalised from strength_of_evidence (which the
+ * enrichment model writes as free text — ~35 variants in production). Before 2026-09-28 the
+ * text was the tier's generic label, so every "Observational" study (37% of articles, many
+ * prospective) was shown as "Case series / Retrospective", and "Expert Opinion" as "Study".
+ * The tier (colour) is unchanged: getEvidenceLevel.
+ */
+export function studyDesignLabel(strengthOfEvidence?: string | null): string | null {
+  const raw = (strengthOfEvidence || '').trim()
+  const s = raw.toLowerCase()
+  if (!s || s === 'none' || s === 'corrigendum') return null
+  // Negations first — "non-randomized" contains "randomi"
+  if (/non[- ]?randomi[sz]ed/.test(s)) return s.includes('trial') ? 'Non-randomised controlled trial' : 'Non-randomised study'
+  if (s.includes('meta-analysis') || s.includes('meta analysis')) return 'Systematic review / meta-analysis'
+  if (s.includes('systematic review')) return 'Systematic review'
+  // Only explicit randomisation or "RCT" ("Gold Standard/RCT" matches via RCT; a bare "gold standard" may be a diagnostic reference)
+  if (s.includes('randomi') || /\brct\b/.test(s)) return 'Randomised controlled trial'
+  if (s.includes('case-control') || s.includes('case control')) return 'Case-control study'
+  if (s.includes('cohort')) {
+    if (s.includes('prospective')) return 'Prospective cohort study'
+    if (s.includes('retrospective')) return 'Retrospective cohort study'
+    return 'Cohort study'
+  }
+  if (s.includes('case series')) return 'Case series'
+  if (s.includes('case report')) return 'Case report'
+  if (s.includes('narrative review')) return 'Narrative review'
+  if (s.includes('expert opinion')) return 'Expert opinion'
+  if (s.includes('qualitative')) return 'Qualitative study'
+  if (s.includes('observational')) return s.includes('prospective') ? 'Prospective observational study' : 'Observational study'
+  if (s.includes('cadaver')) return 'Cadaveric study'
+  if (s.includes('pilot') || s.includes('feasibility') || s.includes('proof of concept')) return 'Pilot study'
+  if (s.includes('experimental') || s.includes('interventional')) return 'Experimental study'
+  // Anything else: the model's own wording, sentence-cased
+  return raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase()
+}
+
+const TIER_NOTE = 'Colour = evidence tier typical of this study design (not an appraisal of this paper).'
+
+/** Badge for an article: tier colour + accurate study-design text. */
+export function getEvidenceBadge(strengthOfEvidence?: string | null, labels?: string[] | null) {
+  const level = getEvidenceLevel(strengthOfEvidence, labels)
+  const tier = getEvidenceBadgeProps(level)
+  const design = studyDesignLabel(strengthOfEvidence)
+  const tierName = level === 'gold' ? 'Gold tier' : level === 'silver' ? 'Silver tier' : level === 'bronze' ? 'Bronze tier' : 'Not tiered'
+  return {
+    level,
+    // No recorded design: say so, rather than a tier's generic wording that may not fit
+    label: design ?? 'Study design not recorded',
+    hue: tier.hue,
+    dot: tier.dot,
+    tooltip: `${design ?? 'Study design not recorded'} · ${tierName}. ${TIER_NOTE}`,
+  }
 }
