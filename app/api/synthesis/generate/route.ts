@@ -88,20 +88,24 @@ export async function POST(request: NextRequest) {
     //   /synthesis/failed        — the generation errored (Claude, database, Redis)
     // (A reader who gave up after the busy-topic retries is recorded by the panel:
     //  /synthesis/busy_timeout via /api/analytics/track.)
-    // Returns whether the event was recorded; the client counts engagement only for a recorded run.
-    const trackOutcome = async (
+    // Returns the stored event's created_at (null when not recorded); the client counts engagement
+    // only for a recorded run, and only when that timestamp is inside the experiment window.
+    const recordEvent = async (
       path: '/synthesis/attempt' | '/synthesis/run' | '/synthesis/blocked' | '/synthesis/insufficient' | '/synthesis/failed'
-    ): Promise<boolean> => {
-      if (isQA) return false
-      const { error } = await supabase.from('page_views')
+    ): Promise<string | null> => {
+      if (isQA) return null
+      const { data, error } = await supabase.from('page_views')
         .insert({ path, user_id: userId, bot_name: detectBotName(userAgent) })
+        .select('created_at')
+        .single()
       if (error) {
         console.error(`[synthesis] ${path} tracking failed:`, error.message)
         Sentry.captureMessage(`[synthesis] ${path} tracking failed: ${error.code} ${error.message}`, 'error')
-        return false
+        return null
       }
-      return true
+      return data?.created_at ?? null
     }
+    const trackOutcome = async (path: Parameters<typeof recordEvent>[0]) => (await recordEvent(path)) !== null
     recordFailure = () => trackOutcome('/synthesis/failed')
     // One attempt per reader request; the panel's busy-topic retries are marked and not counted
     if (request.headers.get('x-synthesis-retry') !== '1') await trackOutcome('/synthesis/attempt')
@@ -147,11 +151,11 @@ export async function POST(request: NextRequest) {
           .eq('id', cached.id)
 
         // Track synthesis serve for analytics (cache hit)
-        const runRecorded = await trackOutcome('/synthesis/run')
+        const runAt = await recordEvent('/synthesis/run')
 
         return NextResponse.json({
-          run_recorded: runRecorded,
-          run_at: new Date().toISOString(),
+          run_recorded: runAt !== null,
+          run_at: runAt,
           synthesis_html: cached.synthesis_html,
           article_ids: cached.article_ids,
           articles: cached.articles || [],
@@ -375,11 +379,11 @@ Synthesize the evidence for this veterinary clinical topic.`
     }
 
     // Track synthesis serve for analytics (cache miss / new generation)
-    const runRecorded = await trackOutcome('/synthesis/run')
+    const runAt = await recordEvent('/synthesis/run')
 
     return NextResponse.json({
-      run_recorded: runRecorded,
-      run_at: new Date().toISOString(),
+      run_recorded: runAt !== null,
+      run_at: runAt,
       synthesis_html: synthesisHtml,
       article_ids: articlesForSynthesis.map((a: any) => a.id),
       articles: packets, // BUG 2 FIX: Include article data for frontend display
