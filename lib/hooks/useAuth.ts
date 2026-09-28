@@ -23,6 +23,17 @@ function getSharedUser() {
   return _userPromise
 }
 
+function clearServiceWorkerCaches() {
+  try {
+    if (typeof caches !== 'undefined') {
+      caches.keys()
+        .then(names => Promise.all(names.map(n => caches.delete(n))))
+        .catch(() => { /* best-effort */ })
+    }
+    navigator.serviceWorker?.controller?.postMessage({ type: 'CLEAR_CACHES' })
+  } catch { /* best-effort */ }
+}
+
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
@@ -64,6 +75,13 @@ export function useAuth() {
       // here picks up the cookie that was just written, no manual reload.
       if (event === 'SIGNED_IN') {
         router.refresh()
+      }
+      // Account transition: drop the service worker's caches. Since public/sw.js v2 they only
+      // hold public static assets, but the old worker stored private responses, and a sign-out
+      // on a shared device must not leave anything behind. Every client sign-out path emits
+      // SIGNED_OUT, so this is the one place to do it.
+      if (event === 'SIGNED_OUT') {
+        clearServiceWorkerCaches()
       }
     })
 
