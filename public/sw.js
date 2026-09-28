@@ -1,70 +1,82 @@
-const CACHE_NAME = 'vetree-v1'
-const OFFLINE_URL = '/offline'
+// Vetree service worker.
+//
+// PUBLIC STATIC FILES ONLY (since 2026-09-28, Codex re-evaluation #5b). v1 cached every
+// successful GET — pages, /api responses (incl. /api/saved-articles), /library, /profile — and
+// precached '/' with the visitor's cookies, so a signed-in user's private responses could be
+// served offline to the next person on a shared device. Now:
+//   - only allow-listed public, immutable/static assets are cached (Next build assets, icons,
+//     manifest); pages, RSC payloads and /api are NEVER cached;
+//   - bumping CACHE_NAME makes every browser delete the old cache (and its private copies) on
+//     activate;
+//   - the app also clears these caches on sign-out (lib/hooks/useAuth) and can ask this worker
+//     to via postMessage({ type: 'CLEAR_CACHES' }).
+const CACHE_NAME = 'vetree-static-v2'
 
-// Files to cache for offline use
-const STATIC_CACHE = [
-  '/',
+const PRECACHE = [
   '/manifest.json',
   '/icons/icon-192x192.png',
   '/icons/icon-512x512.png',
 ]
 
-// Install event - cache static assets
+function isCacheablePublicAsset(url) {
+  if (url.origin !== self.location.origin) return false
+  if (url.search.includes('_rsc')) return false
+  return (
+    url.pathname.startsWith('/_next/static/') ||
+    url.pathname.startsWith('/icons/') ||
+    url.pathname === '/manifest.json'
+  )
+}
+
 self.addEventListener('install', (event) => {
+  // Optional precache: a failed icon must not block installing the worker that purges v1
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(STATIC_CACHE)
-    })
+    caches.open(CACHE_NAME).then((cache) => Promise.allSettled(PRECACHE.map((u) => cache.add(u))))
   )
   self.skipWaiting()
 })
 
-// Activate event - clean up old caches
+// Delete every other cache, including the old 'vetree-v1' that held private responses
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME) {
-            return caches.delete(cacheName)
-          }
-        })
-      )
-    })
+    caches.keys()
+      .then((names) => Promise.all(names.filter((n) => n !== CACHE_NAME).map((n) => caches.delete(n))))
+      .then(() => self.clients.claim())
   )
-  self.clients.claim()
 })
 
-// Fetch event - serve from cache when offline
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'CLEAR_CACHES') {
+    event.waitUntil(caches.keys().then((names) => Promise.all(names.map((n) => caches.delete(n)))))
+  }
+})
+
 self.addEventListener('fetch', (event) => {
-  // Only handle GET requests
   if (event.request.method !== 'GET') return
+  const url = new URL(event.request.url)
 
-  event.respondWith(
-    fetch(event.request)
-      .then((response) => {
-        // Clone the response
-        const responseToCache = response.clone()
-
-        // Cache successful responses
-        if (response.status === 200) {
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseToCache)
-          })
-        }
-
-        return response
-      })
-      .catch(() => {
-        // Try to get from cache
-        return caches.match(event.request).then((response) => {
-          if (response) {
-            return response
+  // Public static assets: cache-first (they are content-hashed or versioned)
+  if (isCacheablePublicAsset(url)) {
+    event.respondWith(
+      caches.match(event.request).then((cached) => {
+        if (cached) return cached
+        return fetch(event.request).then((response) => {
+          if (response.status === 200 && response.type === 'basic') {
+            const copy = response.clone()
+            event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy)))
           }
+          return response
+        })
+      })
+    )
+    return
+  }
 
-          // If it's a navigation request and we're offline, show offline page
-          if (event.request.mode === 'navigate') {
-            return new Response(
+  // Page navigations: network only; offline → a static notice (never a cached page)
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request).catch(() =>
+        new Response(
               `<!DOCTYPE html>
               <html lang="en">
               <head>
@@ -115,11 +127,9 @@ self.addEventListener('fetch', (event) => {
                 headers: { 'Content-Type': 'text/html' },
               }
             )
-          }
-
-          // For other requests, return a simple offline response
-          return new Response('Offline', { status: 503 })
-        })
-      })
-  )
+      )
+    )
+  }
+  // Everything else (/api, RSC, cross-origin): not handled — the browser fetches normally,
+  // and nothing is stored.
 })
