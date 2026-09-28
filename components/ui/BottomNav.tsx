@@ -1,15 +1,20 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
+
+/** Event the search bar (components/search/SearchControls) listens for to open and focus itself */
+export const OPEN_SEARCH_EVENT = 'vetree:open-search'
 
 export function BottomNav() {
   const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const searching = pathname === '/' && !!searchParams.get('search')
 
-  const isActive = (path: string) => {
-    if (path === '/') {
-      return pathname === '/'
-    }
+  const isActive = (name: string, path: string) => {
+    // Search and Home both live on '/': Search is active while a search is shown
+    if (name === 'Search') return searching
+    if (path === '/') return pathname === '/' && !searching
     return pathname.startsWith(path)
   }
 
@@ -30,7 +35,9 @@ export function BottomNav() {
     },
     {
       name: 'Search',
-      path: '/',
+      // From another page: open the feed with the search box open (browse=1 keeps guests
+      // off the landing page). On '/', the click handler opens the box in place instead.
+      path: '/?browse=1&focus=search',
       icon: (active: boolean) => (
         <svg
           className={`w-6 h-6 ${active ? 'fill-current' : 'fill-none'}`}
@@ -82,11 +89,18 @@ export function BottomNav() {
     }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-around', height: 60 }}>
         {navItems.map((item) => {
-          const active = isActive(item.path)
+          const active = isActive(item.name, item.path)
           return (
             <Link
               key={item.path + item.name}
               href={item.path}
+              onClick={item.name === 'Search' && pathname === '/' ? (e) => {
+                // Already on the feed / search results: open the search box here and keep
+                // the current results, rather than navigating away
+                e.preventDefault()
+                window.scrollTo({ top: 0, behavior: 'smooth' })
+                window.dispatchEvent(new Event(OPEN_SEARCH_EVENT))
+              } : undefined}
               style={{
                 display: 'flex', flexDirection: 'column', alignItems: 'center',
                 justifyContent: 'center', gap: 4, flex: 1, height: '100%',

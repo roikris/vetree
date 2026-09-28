@@ -112,6 +112,32 @@ test('search batch API: rejects malformed input with 400', async ({ request }) =
   expect(noSearch.status()).toBe(400)
 })
 
+// ─── Mobile bottom-nav Search opens the search box (it used to just go home) ────
+test('mobile bottom nav: Search opens and focuses the search box', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile', 'bottom nav is mobile-only')
+  // On the results page: opens in place, results and URL kept
+  await page.goto('/?search=pyometra')
+  await expect(page.locator('[data-testid="sort-relevance"]')).toBeVisible({ timeout: 20_000 })
+  const url = page.url()
+  await page.getByRole('link', { name: 'Search' }).last().click()
+  const input = page.locator('[data-testid="search-input"]')
+  await expect(input).toBeFocused()
+  expect(page.url()).toBe(url)
+  // From the feed with the box closed: opens it
+  await page.goto('/?browse=1')
+  await expect(page.locator('[data-testid="search-toggle"]')).toBeVisible()
+  await page.getByRole('link', { name: 'Search' }).last().click()
+  await expect(input).toBeFocused()
+  await input.fill('otitis')
+  await page.keyboard.press('Enter')
+  await expect(page).toHaveURL(/search=otitis/)
+  // Arriving from another page (the link the nav uses off '/'): box open + focused, and the
+  // one-shot focus param removed from the URL
+  await page.goto('/?browse=1&focus=search')
+  await expect(input).toBeFocused()
+  await expect(page).not.toHaveURL(/focus=search/)
+})
+
 // The species control must be reachable and drive the URL. A previous version of this
 // feature relied on a component that was never mounted, so no user could change scope.
 test('species control: default is small animal, and switching scope updates the URL', async ({ page }) => {
