@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { normalizeQuery } from '@/lib/utils/normalizeQuery'
 import { detectBotName } from '@/lib/bot-detection'
+import { Redis } from '@upstash/redis'
 
 export async function POST(request: NextRequest) {
   try {
@@ -45,19 +46,14 @@ export async function POST(request: NextRequest) {
     const { data: { user } } = await userSupabase.auth.getUser()
     const userId = user?.id || null
 
-    // One vote per signed-in reader per topic per 7 days (the synthesis cache lifetime). Guests
-    // are limited client-side (one vote per topic per session, no double submission).
-    if (userId) {
-      const since = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString()
-      const { count, error: dupError } = await supabase
-        .from('synthesis_feedback')
-        .select('id', { count: 'exact', head: true })
-        .eq('user_id', userId).eq('query_normalized', queryNormalized).gte('created_at', since)
-      if (dupError) {
-        console.error('[synthesis-feedback] Duplicate check failed:', dupError)
-        return NextResponse.json({ error: 'Failed to save feedback' }, { status: 500 })
-      }
-      if ((count ?? 0) > 0) return NextResponse.json({ success: true, duplicate: true })
+    // One vote per signed-in reader per topic per 7 days (the synthesis cache lifetime), claimed
+    // atomically in Redis (SET NX) so concurrent requests cannot both insert. Released if the
+    // insert fails. Guests are limited client-side (one vote per topic per session).
+    const redis = process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN ? Redis.fromEnv() : null
+    const voteKey = userId ? `synthesis:vote:${userId}:${queryNormalized}` : null
+    if (voteKey && redis) {
+      const claimed = await redis.set(voteKey, feedback, { nx: true, ex: 7 * 24 * 3600 })
+      if (!claimed) return NextResponse.json({ success: true, duplicate: true })
     }
 
     const { error } = await supabase
@@ -70,6 +66,7 @@ export async function POST(request: NextRequest) {
       })
 
     if (error) {
+      if (voteKey && redis) await redis.del(voteKey).catch(() => {})
       console.error('[synthesis-feedback] Error:', error)
       return NextResponse.json(
         { error: 'Failed to save feedback' },

@@ -81,6 +81,7 @@ export async function POST(request: NextRequest) {
     const isQA = userAgent.includes('VetreeQABot') || request.headers.get('x-qa-bot') === '1'
     // Awaited before responding (a serverless function may be frozen once the response is sent),
     // and a failure reaches Sentry — a lost run is a lost experiment data point.
+    //   /synthesis/attempt       — a reader asked for a synthesis (busy-topic retries excluded)
     //   /synthesis/run           — a synthesis was served (cache hit or new generation)
     //   /synthesis/blocked       — a new generation was refused by a cost control (429 / daily cap)
     //   /synthesis/insufficient  — fewer than 3 relevant studies; nothing to synthesize
@@ -89,7 +90,7 @@ export async function POST(request: NextRequest) {
     //  /synthesis/busy_timeout via /api/analytics/track.)
     // Returns whether the event was recorded; the client counts engagement only for a recorded run.
     const trackOutcome = async (
-      path: '/synthesis/run' | '/synthesis/blocked' | '/synthesis/insufficient' | '/synthesis/failed'
+      path: '/synthesis/attempt' | '/synthesis/run' | '/synthesis/blocked' | '/synthesis/insufficient' | '/synthesis/failed'
     ): Promise<boolean> => {
       if (isQA) return false
       const { error } = await supabase.from('page_views')
@@ -102,6 +103,8 @@ export async function POST(request: NextRequest) {
       return true
     }
     recordFailure = () => trackOutcome('/synthesis/failed')
+    // One attempt per reader request; the panel's busy-topic retries are marked and not counted
+    if (request.headers.get('x-synthesis-retry') !== '1') await trackOutcome('/synthesis/attempt')
 
     // Check if feature is enabled
     const { data: flag } = await supabase
@@ -208,7 +211,8 @@ export async function POST(request: NextRequest) {
       })
 
     if (rpcError) {
-      console.error('[synthesis] RPC error:', rpcError)
+      // A database failure is a failed attempt, not "too few studies" (which the panel caches)
+      throw new Error(`search_articles_synthesis failed: ${rpcError.code} ${rpcError.message}`)
     }
 
     // Large animal filter in JS (per CLAUDE.md)

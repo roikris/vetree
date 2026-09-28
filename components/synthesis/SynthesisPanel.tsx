@@ -73,6 +73,10 @@ export function SynthesisPanel({ query, onClose, isLoggedIn, onDisplayed }: Synt
   }, [FEEDBACK_KEY])
 
   const SYNTHESIS_KEY = `vetree_synthesis_${normalizeQuery(query)}`
+  // Set when the server recorded this topic's run in this session, so a replay (reopen, back
+  // navigation) can still deliver an engagement whose first send failed. The engagement itself
+  // stays once per topic per session (SynthesisWrapper).
+  const RUN_KEY = `vetree_synthesis_run_recorded_${normalizeQuery(query)}`
 
   useEffect(() => {
     let cancelled = false
@@ -81,6 +85,7 @@ export function SynthesisPanel({ query, onClose, isLoggedIn, onDisplayed }: Synt
       try {
         const savedData = JSON.parse(saved)
         setData(savedData)
+        setRunRecorded(sessionStorage.getItem(RUN_KEY) === '1')
         setLoading(false)
         return
       } catch (e) {
@@ -95,7 +100,7 @@ export function SynthesisPanel({ query, onClose, isLoggedIn, onDisplayed }: Synt
         for (let tries = 0; ; tries++) {
           const response = await fetch('/api/synthesis/generate', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', ...(tries > 0 ? { 'x-synthesis-retry': '1' } : {}) },
             body: JSON.stringify({ query })
           })
           if (cancelled) return
@@ -120,10 +125,23 @@ export function SynthesisPanel({ query, onClose, isLoggedIn, onDisplayed }: Synt
           if (cancelled) return
           setData(result)
           setRunRecorded(result.run_recorded === true)
-          try { sessionStorage.setItem(SYNTHESIS_KEY, JSON.stringify(result)) } catch { /* storage full/unavailable */ }
+          try {
+            sessionStorage.setItem(SYNTHESIS_KEY, JSON.stringify(result))
+            if (result.run_recorded === true) sessionStorage.setItem(RUN_KEY, '1')
+          } catch { /* storage full/unavailable */ }
           return
         }
       } catch (err) {
+        // The request never got an answer (network): the server could not record it. Best
+        // effort — if the network is down this report is lost too.
+        if (err instanceof TypeError) {
+          fetch('/api/analytics/track', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ path: '/synthesis/client_error' }),
+            keepalive: true,
+          }).catch(() => {})
+        }
         if (!cancelled) setError(err instanceof Error ? err.message : 'Unknown error')
       } finally {
         if (!cancelled) setLoading(false)
@@ -134,7 +152,7 @@ export function SynthesisPanel({ query, onClose, isLoggedIn, onDisplayed }: Synt
       fetchSynthesis()
     }
     return () => { cancelled = true }
-  }, [query, SYNTHESIS_KEY, attempt])
+  }, [query, SYNTHESIS_KEY, RUN_KEY, attempt])
 
   const displayed = !loading && !error && !!data?.synthesis_html && !data?.insufficient
   useEffect(() => {

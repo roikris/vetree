@@ -84,8 +84,10 @@ export function SynthesisWrapper({ searchQuery, children, isLoggedIn, view }: Sy
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ event: 'synthesis_engaged', query: searchQuery })
         })
-          .then(res => {
-            if (!res.ok) throw new Error(`engaged ${res.status}`)
+          .then(async res => {
+            // /api/analytics/track answers 200 {success:false} when the insert fails
+            const body = await res.json().catch(() => null)
+            if (!res.ok || body?.success !== true) throw new Error(`engaged ${res.status}`)
             try { sessionStorage.setItem(engagedKey, '1') } catch { /* unavailable: once per mount */ }
           })
           .catch(() => { engagedFiredRef.current = false })

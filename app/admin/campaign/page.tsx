@@ -117,12 +117,13 @@ export default async function CampaignPage() {
     if (error) throw new Error(`campaign feedback count failed: ${error.message}`)
     return count ?? 0
   }
-  const [runs, engaged, blocked, insufficient, failed, busyTimeout, helpful, notRelevant] = await Promise.all([
+  const [attempts, clientErrors, runs, engaged, blocked, insufficient, failed, busyTimeout, helpful, notRelevant] = await Promise.all([
+    countEvents('/synthesis/attempt'), countEvents('/synthesis/client_error'),
     countEvents('/synthesis/run'), countEvents('/synthesis/engaged'), countEvents('/synthesis/blocked'),
     countEvents('/synthesis/insufficient'), countEvents('/synthesis/failed'), countEvents('/synthesis/busy_timeout'),
     countFeedback('helpful'), countFeedback('not_relevant'),
   ])
-  const run2 = { runs, engaged, blocked, insufficient, failed: failed + busyTimeout, helpful, notRelevant }
+  const run2 = { attempts, runs, engaged, blocked, insufficient, failed: failed + busyTimeout + clientErrors, helpful, notRelevant }
 
   return (
     <div className="min-h-screen bg-white dark:bg-[#0F0F0F] p-8">

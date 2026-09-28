@@ -45,7 +45,7 @@ type CampaignClientProps = {
   kickoffDate: string
   endDate: string
   /** Run-2 synthesis totals from raw events within [kickoff, end] */
-  run2: { runs: number; engaged: number; blocked: number; insufficient: number; failed: number; helpful: number; notRelevant: number }
+  run2: { attempts: number; runs: number; engaged: number; blocked: number; insufficient: number; failed: number; helpful: number; notRelevant: number }
   /** Rolling snapshot windows still include pre-kickoff days until warmupUntil */
   warmingUp: boolean
   warmupUntil: string
@@ -230,6 +230,7 @@ export function CampaignClient({
         <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 mb-3">Run 2 synthesis totals (since {kickoffDate})</h3>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
           {[
+            ['Reader attempts', run2.attempts],
             ['Runs (served)', run2.runs],
             ['Engaged (read)', run2.engaged],
             ['Engaged rate', run2.runs > 0 ? `${((run2.engaged / run2.runs) * 100).toFixed(0)}%` : '—'],
