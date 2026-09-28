@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { getLabelHue } from '@/lib/constants/labelColors'
 import { DigestConsentQuestion } from '@/components/DigestConsentQuestion'
-import { PENDING_DIGEST_CONSENT_KEY } from '@/lib/constants/consent'
+import { PENDING_DIGEST_CONSENT_KEY, PENDING_SIGNUP_CONSENT_KEY, type PendingSignupConsent } from '@/lib/constants/consent'
 
 // Fire-and-forget, mirrors SaveIntentHandler's trackEvent — the server merges
 // device type from the user-agent header, so step-by-device breakdowns don't
@@ -164,7 +164,9 @@ export default function SignUpPage() {
       const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
-        options: { emailRedirectTo: `${window.location.origin}${safeReturn}` },
+        options: {
+          emailRedirectTo: `${window.location.origin}${safeReturn}`,
+        },
       })
       if (signUpError) {
         // supabase-js deliberately does NOT parse the response body for 5xx
@@ -188,17 +190,17 @@ export default function SignUpPage() {
       }
       if (data.user) {
         setCreatedUserId(data.user.id)
-        // Save consent (non-blocking)
-        fetch('/api/auth/save-consent', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userId: data.user.id,
-            termsAccepted,
-            marketingOptIn: marketingChoice === true,
-            consentSource: 'signup',
-          }),
-        }).catch(() => trackError(1, 'save-consent request failed', false))
+        // Kept in this browser; ConsentGate records it once the verified owner is signed in
+        // (lib/constants/consent PENDING_SIGNUP_CONSENT_KEY)
+        if (termsAccepted) {
+          try {
+            const pending: PendingSignupConsent = {
+              terms: true, marketing: marketingChoice === true, version: '1.0',
+              email: email.trim().toLowerCase(), at: Date.now(),
+            }
+            localStorage.setItem(PENDING_SIGNUP_CONSENT_KEY, JSON.stringify(pending))
+          } catch { /* storage unavailable: ConsentGate will ask after verification */ }
+        }
       }
       // Advance to step 2
       trackEvent('signup_step_completed', { step: 1, method: 'email' })

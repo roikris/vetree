@@ -1,59 +1,67 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient as createSupabaseClient } from '@supabase/supabase-js'
-import { getClientIP } from '@/lib/ratelimit'
+import { createClient } from '@/lib/supabase/server'
+import { getClientIP, ratelimitModerate } from '@/lib/ratelimit'
+import { recordConsent, CONSENT_SOURCES, type ConsentSource } from '@/lib/consent/record'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-// Rows where consentSource is one of these were a genuine, dedicated marketing ask —
-// used by the digest route to tell "declined" apart from "never_asked". Omitting
-// consentSource (or passing null) records a row without claiming marketing was the
-// subject of it — e.g. the mandatory terms-acceptance gate, which still needs a
-// marketing_opted_in value because the column is NOT NULL, but isn't asking.
-const CONSENT_SOURCES = ['signup', 'in_app_prompt', 'settings'] as const
-type ConsentSource = typeof CONSENT_SOURCES[number]
-
+// Records the SIGNED-IN user's own consent (ConsentGate, DigestConsentPrompt).
+//
+// Session-only since 2026-09-28: this route used to accept any body userId and only check the
+// account existed, so anyone could opt any user into the digest (Codex re-evaluation #5a).
+// Email signup (no session until verified) keeps its choices in the signing-up browser;
+// ConsentGate records them HERE once the verified owner is signed in, sending userId so a
+// session that changed in the meantime is rejected (lib/constants/consent).
+//
+// consentSource: rows with a source were a dedicated marketing ask (digest route tells
+// "declined" from "never_asked" with it); omitted/null = the mandatory terms gate, whose
+// marketing value is a placeholder for the NOT NULL column.
 export async function POST(request: NextRequest) {
   try {
-    const { userId, termsAccepted, marketingOptIn, consentSource } = await request.json()
+    // Cookie-authenticated POST: refuse cross-site requests (CSRF)
+    const origin = request.headers.get('origin')
+    if (origin && new URL(origin).host !== request.headers.get('host')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
 
-    if (!userId || typeof termsAccepted !== 'boolean') {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (!user.email_confirmed_at) {
+      return NextResponse.json({ error: 'Email verification required' }, { status: 403 })
+    }
+
+    const { success } = await ratelimitModerate.limit(`consent:${user.id}`)
+    if (!success) return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
+
+    const { userId, termsAccepted, marketingOptIn, consentSource } = await request.json()
+    // A body userId is tolerated for older clients but must be the caller
+    if (userId != null && userId !== user.id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+    if (typeof termsAccepted !== 'boolean') {
+      return NextResponse.json({ error: 'termsAccepted must be a boolean' }, { status: 400 })
+    }
+    if (marketingOptIn != null && typeof marketingOptIn !== 'boolean') {
+      return NextResponse.json({ error: 'marketingOptIn must be a boolean' }, { status: 400 })
     }
     if (consentSource != null && !CONSENT_SOURCES.includes(consentSource)) {
       return NextResponse.json({ error: `consentSource must be one of ${CONSENT_SOURCES.join(', ')} or omitted` }, { status: 400 })
     }
 
-    const supabase = createSupabaseClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
-
-    // Verify user exists
-    const { data: authUser, error: userError } = await supabase.auth.admin.getUserById(userId)
-    if (userError || !authUser.user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 })
-    }
-
-    const ip = getClientIP(request)
-    const userAgent = request.headers.get('user-agent') || null
-
-    const { error } = await supabase.from('user_consents').insert({
-      user_id: userId,
-      terms_accepted: termsAccepted,
-      marketing_opted_in: marketingOptIn ?? false,
-      consent_version: '1.0',
-      consent_source: (consentSource ?? null) as ConsentSource | null,
-      consented_at: new Date().toISOString(),
-      ip_address: ip,
-      user_agent: userAgent,
+    const result = await recordConsent({
+      userId: user.id,
+      termsAccepted,
+      marketingOptIn: marketingOptIn ?? false,
+      consentSource: (consentSource ?? null) as ConsentSource | null,
+      ip: getClientIP(request),
+      userAgent: request.headers.get('user-agent') || null,
     })
-
-    if (error) {
-      console.error('[save-consent] insert error:', error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
+    if (!result.ok) {
+      console.error('[save-consent] insert error:', result.error)
+      return NextResponse.json({ error: 'Could not record consent' }, { status: 500 })
     }
-
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error('[save-consent] error:', error)
