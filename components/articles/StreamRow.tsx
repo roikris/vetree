@@ -1,12 +1,14 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Article } from '@/lib/supabase'
 import { getLabelHue } from '@/lib/constants/labelColors'
 import { getEvidenceBadge } from '@/lib/utils/evidenceBadge'
 import { useAuth } from '@/lib/hooks/useAuth'
 import { useSavedArticles } from '@/lib/hooks/useSavedArticles'
+import { requestGuestSave } from '@/lib/saveIntent'
 
 function parseLabels(labels: string[] | null | undefined): string[] {
   if (!labels || !Array.isArray(labels)) return []
@@ -34,6 +36,7 @@ export function StreamRow({ article }: { article: Article }) {
 
   const { user } = useAuth()
   const { isSaved, toggleSave } = useSavedArticles()
+  const router = useRouter()
   const saved = user ? isSaved(article.id) : false
 
   const cleanLabels = parseLabels(article.labels)
@@ -66,7 +69,10 @@ export function StreamRow({ article }: { article: Article }) {
   }
 
   const handleSave = async () => {
-    if (!user) return
+    if (!user) {
+      requestGuestSave(article.id, { onArticlePage: false, push: router.push })
+      return
+    }
     setIsSaving(true)
     await toggleSave(article.id)
     setIsSaving(false)
@@ -177,9 +183,10 @@ export function StreamRow({ article }: { article: Article }) {
             </svg>
           </span>
 
-          {/* Bookmark */}
-          {user && (
+          {/* Bookmark — shown to guests too: it opens the article's save / sign-in flow */}
+          {(
             <button
+              data-testid="row-save"
               onClick={handleSave}
               disabled={isSaving}
               aria-label={saved ? 'Remove from library' : 'Save to library'}

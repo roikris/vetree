@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { SAVE_INTENT_EVENT } from '@/lib/saveIntent'
 import { useAuth } from '@/lib/hooks/useAuth'
 import { useSavedArticles } from '@/lib/hooks/useSavedArticles'
 import Link from 'next/link'
@@ -246,6 +247,52 @@ export function SaveIntentHandler({ articleId, relatedArticles }: Props) {
   const handled = useRef(false)
   const arrivedAtRef = useRef<number | null>(null)
 
+  // A Save button on this article page was pressed with no known user (lib/saveIntent).
+  // While auth is still resolving that may be a signed-in user, so the click is HELD, not
+  // treated as anonymous: once auth resolves it saves (signed in) or opens the sign-in prompt
+  // (guest). Guest path = same funnel as a shared ?intent=save link, tagged source=save_button.
+  const pendingButtonSave = useRef(false)
+  const promptOpenRef = useRef(false)
+  // One save per arrival: the button path and the ?intent=save path can both become ready in the
+  // same commit (a click held during auth loading on a ?intent=save page). Whichever acts first
+  // records it here and the other stands down — otherwise the second toggle, reading stale
+  // "not saved" state, would UNSAVE the article.
+  const saveActedRef = useRef(false)
+  const urlIntentPending = () =>
+    !handled.current && new URLSearchParams(window.location.search).get('intent') === 'save'
+  const openGuestPrompt = () => {
+    if (promptOpenRef.current) return // prompt already open: don't re-count the funnel
+    promptOpenRef.current = true
+    trackEvent('save_intent_arrived', articleId, { source: 'save_button' })
+    trackEvent('save_intent_auth_shown', articleId, { source: 'save_button' })
+    trackEvent('save_intent_resolved', articleId, { branch: 'auth_shown', auth_state: 'anonymous', ms_from_arrival: 0, source: 'save_button' })
+    setShowAuthPrompt(true)
+  }
+  const resolveButtonSave = () => {
+    pendingButtonSave.current = false
+    // A pending ?intent=save for this arrival will do the save (or show the prompt) itself
+    if (urlIntentPending()) return
+    if (user) {
+      if (saveActedRef.current) return
+      if (!isSaved(articleId)) { saveActedRef.current = true; void toggleSave(articleId) }
+    } else {
+      openGuestPrompt()
+    }
+  }
+  useEffect(() => {
+    const onRequest = (e: Event) => {
+      const detail = (e as CustomEvent<{ articleId: string }>).detail
+      if (!detail || detail.articleId !== articleId) return
+      if (authLoading || (user && saveLoading)) { pendingButtonSave.current = true; return }
+      resolveButtonSave()
+    }
+    window.addEventListener(SAVE_INTENT_EVENT, onRequest)
+    return () => window.removeEventListener(SAVE_INTENT_EVENT, onRequest)
+  })
+  useEffect(() => {
+    if (pendingButtonSave.current && !authLoading && !(user && saveLoading)) resolveButtonSave()
+  })
+
   useEffect(() => {
     if (authLoading || saveLoading) return
     if (handled.current) return
@@ -297,6 +344,13 @@ export function SaveIntentHandler({ articleId, relatedArticles }: Props) {
       setTimeout(() => setToast(null), 4500)
       return
     }
+
+    // The held Save-button click already saved this article in this commit (see saveActedRef)
+    if (saveActedRef.current) {
+      resolve('already_saved', 'authenticated')
+      return
+    }
+    saveActedRef.current = true
 
     // Capture before save so we can detect first save
     const isFirstSave = savedArticleIds.size === 0
@@ -373,7 +427,7 @@ export function SaveIntentHandler({ articleId, relatedArticles }: Props) {
       )}
 
       {showAuthPrompt && (
-        <SaveAuthPrompt articleId={articleId} onDismiss={() => setShowAuthPrompt(false)} />
+        <SaveAuthPrompt articleId={articleId} onDismiss={() => (promptOpenRef.current = false, setShowAuthPrompt(false))} />
       )}
 
       {showFirstSave && (

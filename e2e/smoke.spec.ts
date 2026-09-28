@@ -152,6 +152,50 @@ test('landing: sample card badge matches the article it links to', async ({ page
   await expect(page.locator('[data-testid="article-evidence-badge"]')).toContainText(badge!)
 })
 
+// ─── Guest Save buttons all enter the save / sign-in flow ─────────────────────
+// Each Save entry point used to do nothing (article header), hide itself (feed rows, cards)
+// or link to signup without completing the save. The prompt must return to the article
+// with the save still pending (?intent=save).
+async function expectSavePrompt(page: import('@playwright/test').Page, articlePath: RegExp) {
+  const prompt = page.locator('[data-testid="save-auth-prompt"]')
+  await expect(prompt).toBeVisible({ timeout: 15_000 })
+  await expect(page).toHaveURL(articlePath)
+  const links = await prompt.locator('a[href]').evaluateAll(as => as.map(a => decodeURIComponent((a as HTMLAnchorElement).href)))
+  const auth = links.filter(h => /\/(login|signup)/.test(h))
+  expect(auth.some(h => h.includes('/login')), 'prompt offers sign in').toBe(true)
+  expect(auth.some(h => h.includes('/signup')), 'prompt offers sign up').toBe(true)
+  for (const h of auth) expect(h, 'every auth link returns with the save pending').toContain('intent=save')
+}
+
+test('guest save: article-page Save opens the sign-in prompt', async ({ page, context }) => {
+  await context.clearCookies()
+  const xml = await firstSitemapShard(page)
+  const id = xml.match(/<loc>https?:\/\/[^/]+\/article\/([^<]+)<\/loc>/)?.[1]
+  await page.goto(`/article/${id}`)
+  await expect(page.locator('[data-testid="article-title"]')).toBeVisible()
+  // Same header button on every width (icon-only on phones)
+  await page.locator('[data-testid="appbar-save"]').click()
+  await expectSavePrompt(page, new RegExp(`/article/${id}`))
+})
+
+test('guest save: list-view card bookmark opens the article with the sign-in prompt', async ({ page, context }) => {
+  await context.clearCookies()
+  await page.goto('/?browse=1&view=list')
+  const card = page.locator('[data-testid="card-save"]').first()
+  await expect(card).toBeVisible({ timeout: 15_000 })
+  await card.click()
+  await expectSavePrompt(page, /\/article\//)
+})
+
+test('guest save: feed row bookmark opens the article with the sign-in prompt', async ({ page, context }) => {
+  await context.clearCookies()
+  await page.goto('/?browse=1')
+  const row = page.locator('[data-testid="row-save"]').first()
+  await expect(row).toBeVisible({ timeout: 15_000 })
+  await row.click()
+  await expectSavePrompt(page, /\/article\//)
+})
+
 // The species control must be reachable and drive the URL. A previous version of this
 // feature relied on a component that was never mounted, so no user could change scope.
 test('species control: default is small animal, and switching scope updates the URL', async ({ page }) => {
@@ -259,6 +303,9 @@ test('article page: original abstract loads on open with PubMed attribution', as
 // ─── 4. Save-intent, logged out ──────────────────────────────────────────────
 // Source article URL from the sitemap — avoids depending on the feed rendering.
 test('save-intent (logged out): auth sheet appears, intent stripped, links are valid', async ({ page, context }) => {
+  // Heavy by design: sitemap index + a ~0.9 MB shard, the article, then every auth link in its
+  // own page. 15–17 s alone; under a full parallel run it crossed the 30 s default.
+  test.setTimeout(60_000)
   await context.clearCookies()
 
   // Parse an article path from the sitemap: /sitemap.xml is an index, articles live in shards

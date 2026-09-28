@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import { useAuth } from '@/lib/hooks/useAuth'
 import { useSavedArticles } from '@/lib/hooks/useSavedArticles'
+import { requestGuestSave } from '@/lib/saveIntent'
+import { useRouter } from 'next/navigation'
 
 type BookmarkButtonProps = {
   articleId: string
@@ -13,13 +15,15 @@ export function BookmarkButton({ articleId }: BookmarkButtonProps) {
   const { isSaved, toggleSave } = useSavedArticles()
   const [isToggling, setIsToggling] = useState(false)
 
-  if (!user) {
-    return null // Don't show bookmark if not logged in
-  }
-
-  const saved = isSaved(articleId)
+  const router = useRouter()
+  const saved = user ? isSaved(articleId) : false
 
   const handleClick = async () => {
+    if (!user) {
+      // Guest: open the article's save / sign-in flow (lib/saveIntent)
+      requestGuestSave(articleId, { onArticlePage: false, push: router.push })
+      return
+    }
     setIsToggling(true)
     await toggleSave(articleId)
     setIsToggling(false)
@@ -27,6 +31,7 @@ export function BookmarkButton({ articleId }: BookmarkButtonProps) {
 
   return (
     <button
+      data-testid="card-save"
       onClick={handleClick}
       disabled={isToggling}
       className="group relative p-2 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors disabled:opacity-50"
