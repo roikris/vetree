@@ -13,7 +13,7 @@ const END_DATE = '2026-12-27'  // day 90, inclusive
 const WARMUP_DAYS = 30
 // Baseline stays the pre-experiment month (no auto-run; synthesis was a manual button), not the
 // 30 days before run 2, which were run 1 itself. The cache was already failing then (since
-// 2026-05-18), which affects synthesis latency, not the engagement metrics compared here.
+// 2026-05-18): synthesis latency was higher, which may slightly affect session duration.
 const BASELINE_START = '2026-05-21'
 const BASELINE_END = '2026-06-19'
 
@@ -117,11 +117,12 @@ export default async function CampaignPage() {
     if (error) throw new Error(`campaign feedback count failed: ${error.message}`)
     return count ?? 0
   }
-  const [runs, engaged, blocked, helpful, notRelevant] = await Promise.all([
+  const [runs, engaged, blocked, insufficient, failed, busyTimeout, helpful, notRelevant] = await Promise.all([
     countEvents('/synthesis/run'), countEvents('/synthesis/engaged'), countEvents('/synthesis/blocked'),
+    countEvents('/synthesis/insufficient'), countEvents('/synthesis/failed'), countEvents('/synthesis/busy_timeout'),
     countFeedback('helpful'), countFeedback('not_relevant'),
   ])
-  const run2 = { runs, engaged, blocked, helpful, notRelevant }
+  const run2 = { runs, engaged, blocked, insufficient, failed: failed + busyTimeout, helpful, notRelevant }
 
   return (
     <div className="min-h-screen bg-white dark:bg-[#0F0F0F] p-8">

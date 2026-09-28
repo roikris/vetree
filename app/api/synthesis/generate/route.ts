@@ -44,6 +44,8 @@ async function reserveGeneration(redis: Redis | null, supabase: any): Promise<bo
 
 export async function POST(request: NextRequest) {
   const startTime = Date.now()
+  // Assigned once the request is identified; used by the catch to record a failed attempt
+  let recordFailure: (() => Promise<boolean>) | null = null
 
   try {
     const body = await request.json()
@@ -79,17 +81,27 @@ export async function POST(request: NextRequest) {
     const isQA = userAgent.includes('VetreeQABot') || request.headers.get('x-qa-bot') === '1'
     // Awaited before responding (a serverless function may be frozen once the response is sent),
     // and a failure reaches Sentry — a lost run is a lost experiment data point.
-    //   /synthesis/run      — a synthesis was served (cache hit or new generation)
-    //   /synthesis/blocked  — a new generation was refused by a cost control (429 / daily cap)
-    const trackOutcome = async (path: '/synthesis/run' | '/synthesis/blocked') => {
-      if (isQA) return
+    //   /synthesis/run           — a synthesis was served (cache hit or new generation)
+    //   /synthesis/blocked       — a new generation was refused by a cost control (429 / daily cap)
+    //   /synthesis/insufficient  — fewer than 3 relevant studies; nothing to synthesize
+    //   /synthesis/failed        — the generation errored (Claude, database, Redis)
+    // (A reader who gave up after the busy-topic retries is recorded by the panel:
+    //  /synthesis/busy_timeout via /api/analytics/track.)
+    // Returns whether the event was recorded; the client counts engagement only for a recorded run.
+    const trackOutcome = async (
+      path: '/synthesis/run' | '/synthesis/blocked' | '/synthesis/insufficient' | '/synthesis/failed'
+    ): Promise<boolean> => {
+      if (isQA) return false
       const { error } = await supabase.from('page_views')
         .insert({ path, user_id: userId, bot_name: detectBotName(userAgent) })
       if (error) {
         console.error(`[synthesis] ${path} tracking failed:`, error.message)
         Sentry.captureMessage(`[synthesis] ${path} tracking failed: ${error.code} ${error.message}`, 'error')
+        return false
       }
+      return true
     }
+    recordFailure = () => trackOutcome('/synthesis/failed')
 
     // Check if feature is enabled
     const { data: flag } = await supabase
@@ -132,9 +144,10 @@ export async function POST(request: NextRequest) {
           .eq('id', cached.id)
 
         // Track synthesis serve for analytics (cache hit)
-        await trackOutcome('/synthesis/run')
+        const runRecorded = await trackOutcome('/synthesis/run')
 
         return NextResponse.json({
+          run_recorded: runRecorded,
           synthesis_html: cached.synthesis_html,
           article_ids: cached.article_ids,
           articles: cached.articles || [],
@@ -151,6 +164,12 @@ export async function POST(request: NextRequest) {
     // topic gets 409 and the panel retries until the first generation lands in the cache.
     // Without Upstash (non-production), no lock and no Redis budget.
     const redis = process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN ? Redis.fromEnv() : null
+    if (!redis && process.env.VERCEL_ENV === 'production') {
+      // Fail closed: without Redis there is no lock and only an approximate budget (rule 13)
+      Sentry.captureMessage('[synthesis] Upstash missing in production — generation refused', 'error')
+      await trackOutcome('/synthesis/failed')
+      return NextResponse.json({ error: 'Topic synthesis is temporarily unavailable.' }, { status: 503 })
+    }
     const lockKey = `synthesis:generating:${queryNormalized}`
     const lockToken = crypto.randomUUID()
     if (redis) {
@@ -200,6 +219,7 @@ export async function POST(request: NextRequest) {
     console.log('[synthesis] articlesForSynthesis:', articlesForSynthesis.length)
 
     if (articlesForSynthesis.length < 3) {
+      await trackOutcome('/synthesis/insufficient')
       return NextResponse.json({
         synthesis_html: null,
         articles: articlesForSynthesis,
@@ -350,9 +370,10 @@ Synthesize the evidence for this veterinary clinical topic.`
     }
 
     // Track synthesis serve for analytics (cache miss / new generation)
-    await trackOutcome('/synthesis/run')
+    const runRecorded = await trackOutcome('/synthesis/run')
 
     return NextResponse.json({
+      run_recorded: runRecorded,
       synthesis_html: synthesisHtml,
       article_ids: articlesForSynthesis.map((a: any) => a.id),
       articles: packets, // BUG 2 FIX: Include article data for frontend display
@@ -368,6 +389,8 @@ Synthesize the evidence for this veterinary clinical topic.`
     }
   } catch (error) {
     console.error('[synthesis] Error:', error)
+    Sentry.captureException(error)
+    await recordFailure?.().catch(() => false)
     return NextResponse.json(
       {
         error: 'Failed to generate synthesis',

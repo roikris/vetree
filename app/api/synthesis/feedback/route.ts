@@ -45,6 +45,21 @@ export async function POST(request: NextRequest) {
     const { data: { user } } = await userSupabase.auth.getUser()
     const userId = user?.id || null
 
+    // One vote per signed-in reader per topic per 7 days (the synthesis cache lifetime). Guests
+    // are limited client-side (one vote per topic per session, no double submission).
+    if (userId) {
+      const since = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString()
+      const { count, error: dupError } = await supabase
+        .from('synthesis_feedback')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', userId).eq('query_normalized', queryNormalized).gte('created_at', since)
+      if (dupError) {
+        console.error('[synthesis-feedback] Duplicate check failed:', dupError)
+        return NextResponse.json({ error: 'Failed to save feedback' }, { status: 500 })
+      }
+      if ((count ?? 0) > 0) return NextResponse.json({ success: true, duplicate: true })
+    }
+
     const { error } = await supabase
       .from('synthesis_feedback')
       .insert({

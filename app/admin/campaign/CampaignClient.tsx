@@ -45,7 +45,7 @@ type CampaignClientProps = {
   kickoffDate: string
   endDate: string
   /** Run-2 synthesis totals from raw events within [kickoff, end] */
-  run2: { runs: number; engaged: number; blocked: number; helpful: number; notRelevant: number }
+  run2: { runs: number; engaged: number; blocked: number; insufficient: number; failed: number; helpful: number; notRelevant: number }
   /** Rolling snapshot windows still include pre-kickoff days until warmupUntil */
   warmingUp: boolean
   warmupUntil: string
@@ -228,13 +228,15 @@ export function CampaignClient({
       {/* Run-2 synthesis totals — raw events, exactly within the experiment window */}
       <div className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6">
         <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 mb-3">Run 2 synthesis totals (since {kickoffDate})</h3>
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 text-sm">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
           {[
             ['Runs (served)', run2.runs],
             ['Engaged (read)', run2.engaged],
             ['Engaged rate', run2.runs > 0 ? `${((run2.engaged / run2.runs) * 100).toFixed(0)}%` : '—'],
             ['Helpful / not relevant', `${run2.helpful} / ${run2.notRelevant}`],
             ['Blocked by limits', run2.blocked],
+            ['Too few studies', run2.insufficient],
+            ['Failed / gave up waiting', run2.failed],
           ].map(([label, val]) => (
             <div key={String(label)}>
               <p className="text-xs text-zinc-500 dark:text-zinc-400">{label}</p>
@@ -242,6 +244,9 @@ export function CampaignClient({
             </div>
           ))}
         </div>
+        <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-3">
+          Charts include run 1 (2026-06-20 → 2026-09-28), which is not comparable: CI smoke traffic was counted as runs and the synthesis cache never stored.
+        </p>
         {warmingUp && (
           <p className="text-xs mt-3" style={{ color: AMBER }}>
             Rolling snapshot metrics below (sessions, MAU, DAU/MAU, charts) still include pre-kickoff days until {warmupUntil}; the verdict waits until then.

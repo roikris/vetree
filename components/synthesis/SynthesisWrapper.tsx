@@ -62,9 +62,11 @@ export function SynthesisWrapper({ searchQuery, children, isLoggedIn, view }: Sy
     }
   }, [searchParams, searchQuery, synthesisEnabled, loading, isAutomated])
 
-  // synthesis_engaged: a successfully displayed synthesis scrolled into view (not the loading
-  // skeleton, an error, or "insufficient studies"). Once per query per browser session, so a
-  // remount (back navigation, reopening) re-shows the session copy without counting it again.
+  // synthesis_engaged: a displayed synthesis whose run the server recorded in this mount (see
+  // SynthesisPanel onDisplayed) scrolled into view — never the loading skeleton, an error,
+  // "insufficient studies", or a sessionStorage replay. Once per query per browser session; the
+  // session marker is written only after the event is confirmed stored, and a failed send is
+  // retried on the next time the panel scrolls into view.
   const [displayed, setDisplayed] = useState(false)
   const onDisplayed = useCallback(() => setDisplayed(true), [])
   useEffect(() => {
@@ -75,16 +77,18 @@ export function SynthesisWrapper({ searchQuery, children, isLoggedIn, view }: Sy
     const observer = new IntersectionObserver(
       (entries) => {
         if (!entries[0].isIntersecting || engagedFiredRef.current) return
-        engagedFiredRef.current = true
-        try {
-          if (sessionStorage.getItem(engagedKey)) return
-          sessionStorage.setItem(engagedKey, '1')
-        } catch { /* storage unavailable: still count once for this mount */ }
+        try { if (sessionStorage.getItem(engagedKey)) { engagedFiredRef.current = true; return } } catch { /* unavailable */ }
+        engagedFiredRef.current = true   // also the in-flight guard
         fetch('/api/analytics/track', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ event: 'synthesis_engaged', query: searchQuery })
-        }).catch(() => {})
+        })
+          .then(res => {
+            if (!res.ok) throw new Error(`engaged ${res.status}`)
+            try { sessionStorage.setItem(engagedKey, '1') } catch { /* unavailable: once per mount */ }
+          })
+          .catch(() => { engagedFiredRef.current = false })
       },
       { threshold: 0.3 }
     )

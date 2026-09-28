@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import ReactMarkdown from 'react-markdown'
 import { normalizeQuery } from '@/lib/utils/normalizeQuery'
 
@@ -8,7 +8,11 @@ type SynthesisPanelProps = {
   query: string
   onClose?: () => void
   isLoggedIn?: boolean
-  /** Called once a real synthesis (not loading, an error, or "insufficient studies") is on screen */
+  /**
+   * Called once a real synthesis (not loading, an error, or "insufficient studies") is on screen
+   * AND the server recorded its /synthesis/run in this mount — so every engagement has a run.
+   * A sessionStorage replay (back navigation) is neither a run nor a new engagement.
+   */
   onDisplayed?: () => void
 }
 
@@ -59,6 +63,8 @@ export function SynthesisPanel({ query, onClose, isLoggedIn, onDisplayed }: Synt
   const [feedbackNote, setFeedbackNote] = useState('')
   const [showSources, setShowSources] = useState(false)
   const [attempt, setAttempt] = useState(0)
+  const [runRecorded, setRunRecorded] = useState(false)
+  const feedbackPendingRef = useRef(false)
   // One vote per topic per browser session (experiment KPI: helpful / not relevant)
   const FEEDBACK_KEY = `vetree_synthesis_feedback_${normalizeQuery(query)}`
   const [voted, setVoted] = useState(false)
@@ -98,6 +104,14 @@ export function SynthesisPanel({ query, onClose, isLoggedIn, onDisplayed }: Synt
             if (cancelled) return
             continue
           }
+          if (response.status === 409) {
+            // Terminal outcome for the experiment: the reader waited out every retry
+            fetch('/api/analytics/track', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ path: '/synthesis/busy_timeout' })
+            }).catch(() => {})
+          }
           if (!response.ok) {
             const errorData = await response.json().catch(() => ({}))
             throw new Error(errorData.error || 'Failed to generate synthesis')
@@ -105,7 +119,8 @@ export function SynthesisPanel({ query, onClose, isLoggedIn, onDisplayed }: Synt
           const result = await response.json()
           if (cancelled) return
           setData(result)
-          sessionStorage.setItem(SYNTHESIS_KEY, JSON.stringify(result))
+          setRunRecorded(result.run_recorded === true)
+          try { sessionStorage.setItem(SYNTHESIS_KEY, JSON.stringify(result)) } catch { /* storage full/unavailable */ }
           return
         }
       } catch (err) {
@@ -123,10 +138,12 @@ export function SynthesisPanel({ query, onClose, isLoggedIn, onDisplayed }: Synt
 
   const displayed = !loading && !error && !!data?.synthesis_html && !data?.insufficient
   useEffect(() => {
-    if (displayed) onDisplayed?.()
-  }, [displayed, onDisplayed])
+    if (displayed && runRecorded) onDisplayed?.()
+  }, [displayed, runRecorded, onDisplayed])
 
   const submitFeedback = async (feedback: 'helpful' | 'not_relevant') => {
+    if (feedbackPendingRef.current || voted) return   // no double votes from double clicks
+    feedbackPendingRef.current = true
     try {
       const res = await fetch('/api/synthesis/feedback', {
         method: 'POST',
@@ -142,6 +159,8 @@ export function SynthesisPanel({ query, onClose, isLoggedIn, onDisplayed }: Synt
       setTimeout(() => setFeedbackSubmitted(false), 3000)
     } catch (err) {
       console.error('Failed to submit feedback:', err)
+    } finally {
+      feedbackPendingRef.current = false
     }
   }
 
