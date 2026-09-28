@@ -318,18 +318,51 @@ body {
   }
 }
 
-/* Search loader (components/search/SproutLoader.tsx): seed → sprout → leaf, 2.4 s loop.
-   Each stage fades in on its third of the cycle. 'resting' holds the sprout; 'done' the leaf. */
-.sprout-loader .sprout-stage { opacity: 0; transform-box: fill-box; transform-origin: 50% 100%; }
-.sprout-growing .sprout-seed   { animation: sprout-seed 2.4s ease-in-out infinite; }
-.sprout-growing .sprout-sprout { animation: sprout-sprout 2.4s ease-in-out infinite; }
-.sprout-growing .sprout-leaf   { animation: sprout-leaf 2.4s ease-in-out infinite; }
-.sprout-resting .sprout-sprout { opacity: 1; }
-.sprout-done .sprout-leaf      { opacity: 1; }
-@keyframes sprout-seed   { 0%, 28% { opacity: 1; transform: scale(1); } 36%, 100% { opacity: 0; transform: scale(.6); } }
-@keyframes sprout-sprout { 0%, 28% { opacity: 0; transform: scaleY(.3); } 36%, 62% { opacity: 1; transform: scaleY(1); } 70%, 100% { opacity: 0; transform: scaleY(1); } }
-@keyframes sprout-leaf   { 0%, 62% { opacity: 0; transform: scale(.7); } 72%, 92% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1); } }
+/* Search loader (components/search/SproutLoader.tsx): one plant that grows from a buried seed.
+   Transforms use SVG user space (transform-box: view-box) so each part pivots on its real
+   attachment point: seed in the soil, root and stem from the seed, seed leaves and leaf on the stem.
+   3.4 s: swell · root reaches down · shoot breaks the surface · seed leaves unfold · leaf unfurls ·
+   hold · plant fades back to the buried seed. */
+.sprout-loader svg * { transform-box: view-box; }
+.sprout-loader .sprout-seed  { transform-origin: 32px 53px; }
+.sprout-loader .sprout-root  { stroke-dasharray: 6; stroke-dashoffset: 0; }
+.sprout-loader .sprout-stem  { stroke-dasharray: 29; stroke-dashoffset: 0; }
+.sprout-loader .sprout-cot-l { transform-origin: 31.5px 38px; }
+.sprout-loader .sprout-cot-r { transform-origin: 31.8px 35.6px; }
+.sprout-loader .sprout-leaf  { transform-origin: 33px 24px; }
+
+.sprout-growing .sprout-seed  { animation: sprout-seed  3.4s cubic-bezier(.45,0,.2,1) infinite; }
+.sprout-growing .sprout-root  { animation: sprout-root  3.4s cubic-bezier(.45,0,.2,1) infinite; }
+.sprout-growing .sprout-stem  { animation: sprout-stem  3.4s cubic-bezier(.45,0,.25,1) infinite; }
+.sprout-growing .sprout-cot-l { animation: sprout-cotl  3.4s cubic-bezier(.34,1.3,.5,1) infinite; }
+.sprout-growing .sprout-cot-r { animation: sprout-cotr  3.4s cubic-bezier(.34,1.3,.5,1) infinite; }
+.sprout-growing .sprout-leaf  { animation: sprout-leaf  3.4s cubic-bezier(.34,1.35,.5,1) infinite; }
+.sprout-growing .sprout-plant { animation: sprout-plant 3.4s ease-in-out infinite; }
+
+/* done: grows once, then stays as the full plant */
+.sprout-done .sprout-seed  { animation: sprout-seed 3.4s cubic-bezier(.45,0,.2,1) 1 both; }
+.sprout-done .sprout-root  { animation: sprout-root 3.4s cubic-bezier(.45,0,.2,1) 1 both; }
+.sprout-done .sprout-stem  { animation: sprout-stem 3.4s cubic-bezier(.45,0,.25,1) 1 both; }
+.sprout-done .sprout-cot-l { animation: sprout-cotl 3.4s cubic-bezier(.34,1.3,.5,1) 1 both; }
+.sprout-done .sprout-cot-r { animation: sprout-cotr 3.4s cubic-bezier(.34,1.3,.5,1) 1 both; }
+.sprout-done .sprout-leaf  { animation: sprout-leaf 3.4s cubic-bezier(.34,1.35,.5,1) 1 both; }
+
+/* resting: a still seedling just above the soil */
+.sprout-resting .sprout-leaf { transform: scale(0); }
+.sprout-resting .sprout-stem { stroke-dashoffset: 12; }
+
+@keyframes sprout-seed  { 0% { transform: scale(1); } 9% { transform: scale(1.13); } 17%, 100% { transform: scale(1); } }
+@keyframes sprout-root  { 0%, 6% { stroke-dashoffset: 6; } 20%, 100% { stroke-dashoffset: 0; } }
+@keyframes sprout-stem  { 0%, 14% { stroke-dashoffset: 29; } 44%, 100% { stroke-dashoffset: 0; } }
+@keyframes sprout-cotl  { 0%, 33% { transform: scale(0) rotate(30deg); } 50%, 100% { transform: scale(1) rotate(0); } }
+@keyframes sprout-cotr  { 0%, 36% { transform: scale(0) rotate(-30deg); } 53%, 100% { transform: scale(1) rotate(0); } }
+@keyframes sprout-leaf  { 0%, 47% { transform: scale(0) rotate(-35deg); } 68%, 100% { transform: scale(1) rotate(0); } }
+@keyframes sprout-plant { 0%, 84% { opacity: 1; } 96%, 100% { opacity: 0; } }
+
 @media (prefers-reduced-motion: reduce) {
-  .sprout-growing .sprout-seed, .sprout-growing .sprout-leaf { animation: none; opacity: 0; }
-  .sprout-growing .sprout-sprout { animation: none; opacity: 1; }
+  .sprout-growing *, .sprout-done * { animation: none !important; }
+  /* growing shows the still seedling; done shows the full plant */
+  .sprout-growing .sprout-leaf { transform: scale(0); }
+  .sprout-growing .sprout-stem { stroke-dashoffset: 12; }
 }
+
