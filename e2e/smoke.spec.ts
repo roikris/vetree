@@ -206,6 +206,19 @@ test('consent endpoint refuses requests without a session', async ({ request }) 
   expect(res.status()).toBe(401)
 })
 
+// ─── Synthesis auto-runs for readers, but never for automated browsers ───────────
+// Smoke traffic must neither spend a Claude call nor count as an experiment run (it did until
+// 2026-09-28). Deliberately never clicks the button.
+test('search: synthesis does not auto-run in an automated browser; the button is offered', async ({ page }) => {
+  let synthesisRequests = 0
+  page.on('request', r => { if (r.url().includes('/api/synthesis/generate')) synthesisRequests++ })
+  await page.goto('/?search=pyometra')
+  await expect(page.locator('[data-testid="sort-relevance"]')).toBeVisible({ timeout: 20_000 })
+  await expect(page.locator('[data-testid="synthesis-open"]')).toBeVisible()
+  await page.waitForTimeout(2000)
+  expect(synthesisRequests, 'automated traffic must never start a synthesis').toBe(0)
+})
+
 // The species control must be reachable and drive the URL. A previous version of this
 // feature relied on a component that was never mounted, so no user could change scope.
 test('species control: default is small animal, and switching scope updates the URL', async ({ page }) => {

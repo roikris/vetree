@@ -89,3 +89,10 @@ export const ratelimitLoose = makeRatelimit(
   '@upstash/ratelimit/loose',
   Ratelimit.slidingWindow(60, '1 m'),
 )
+
+// Topic synthesis: each cache miss is a Claude call. 5 new generations per 10 minutes per visitor
+// (cache hits are not limited). See app/api/synthesis/generate/route.ts.
+export const synthesisLimiter = makeRatelimit(
+  '@upstash/ratelimit/synthesis',
+  Ratelimit.slidingWindow(5, '10 m'),
+)

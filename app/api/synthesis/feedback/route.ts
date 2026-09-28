@@ -4,6 +4,9 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { normalizeQuery } from '@/lib/utils/normalizeQuery'
+import { detectBotName } from '@/lib/bot-detection'
+import { Redis } from '@upstash/redis'
+import * as Sentry from '@sentry/nextjs'
 
 export async function POST(request: NextRequest) {
   try {
@@ -24,6 +27,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Same exclusions as /api/analytics/track: QA smoke traffic is never recorded, and crawlers
+    // have no business voting (experiment KPI).
+    const userAgent = request.headers.get('user-agent') || ''
+    if (userAgent.includes('VetreeQABot') || request.headers.get('x-qa-bot') === '1' || detectBotName(userAgent)) {
+      return NextResponse.json({ success: true, tracked: false })
+    }
+
     const queryNormalized = normalizeQuery(query)
 
     const supabase = createSupabaseClient(
@@ -37,6 +47,20 @@ export async function POST(request: NextRequest) {
     const { data: { user } } = await userSupabase.auth.getUser()
     const userId = user?.id || null
 
+    // One vote per signed-in reader per topic per 7 days (the synthesis cache lifetime), claimed
+    // atomically in Redis (SET NX) so concurrent requests cannot both insert. Released if the
+    // insert fails. Guests are limited client-side (one vote per topic per session).
+    const redis = process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN ? Redis.fromEnv() : null
+    const voteKey = userId ? `synthesis:vote:${userId}:${queryNormalized}` : null
+    if (voteKey && redis) {
+      const claimed = await redis.set(voteKey, feedback, { nx: true, ex: 7 * 24 * 3600 })
+      if (!claimed) return NextResponse.json({ success: true, duplicate: true })
+    } else if (voteKey && process.env.VERCEL_ENV === 'production') {
+      // Fail closed: without Redis there is no atomic dedupe for an experiment KPI (rule 13)
+      Sentry.captureMessage('[synthesis-feedback] Upstash missing in production — vote refused', 'error')
+      return NextResponse.json({ error: 'Feedback is temporarily unavailable' }, { status: 503 })
+    }
+
     const { error } = await supabase
       .from('synthesis_feedback')
       .insert({
@@ -47,6 +71,7 @@ export async function POST(request: NextRequest) {
       })
 
     if (error) {
+      if (voteKey && redis) await redis.del(voteKey).catch(() => {})
       console.error('[synthesis-feedback] Error:', error)
       return NextResponse.json(
         { error: 'Failed to save feedback' },
