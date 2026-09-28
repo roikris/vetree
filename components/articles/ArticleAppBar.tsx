@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useAuth } from '@/lib/hooks/useAuth'
 import { useSavedArticles } from '@/lib/hooks/useSavedArticles'
+import { requestGuestSave } from '@/lib/saveIntent'
 
 type ArticleAppBarProps = {
   articleId: string
@@ -67,7 +68,8 @@ export function ArticleAppBar({ articleId, articleUrl, articleTitle }: ArticleAp
         <div className="gap-2 md:gap-2.5" style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
           {/* Save button */}
           <button
-            onClick={() => user && toggleSave(articleId)}
+            onClick={() => user ? toggleSave(articleId) : requestGuestSave(articleId, { onArticlePage: true })}
+            data-testid="appbar-save"
             aria-label={saved ? 'Remove from library' : 'Save to library'}
             className="px-[11px] md:px-[15px]"
             style={{
