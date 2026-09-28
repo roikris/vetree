@@ -5,6 +5,19 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import Anthropic from '@anthropic-ai/sdk'
 import { normalizeQuery } from '@/lib/utils/normalizeQuery'
+import * as Sentry from '@sentry/nextjs'
+import { Redis } from '@upstash/redis'
+import { synthesisLimiter, getClientIP } from '@/lib/ratelimit'
+import { detectBotName } from '@/lib/bot-detection'
+
+// Cost controls (Codex re-evaluation #5c). Synthesis auto-runs on every search (experiment
+// restarted 2026-09-28), and each cache miss is a Claude call on a public route:
+//   - query length 3–200;
+//   - per-visitor limit on NEW generations (synthesisLimiter; cache hits are free);
+//   - one generation per topic at a time (Redis lock) — concurrent requests get 409 and retry;
+//   - a daily ceiling on new generations (SYNTHESIS_DAILY_CAP, default 100 ≈ a few dollars/day).
+const DAILY_CAP = Number(process.env.SYNTHESIS_DAILY_CAP) > 0 ? Number(process.env.SYNTHESIS_DAILY_CAP) : 100
+const LOCK_SECONDS = 90
 
 export async function POST(request: NextRequest) {
   const startTime = Date.now()
@@ -13,9 +26,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { query } = body
 
-    if (!query || query.trim().length < 3) {
+    if (typeof query !== 'string' || query.trim().length < 3 || query.trim().length > 200) {
       return NextResponse.json(
-        { error: 'Query must be at least 3 characters' },
+        { error: 'Query must be 3–200 characters' },
         { status: 400 }
       )
     }
@@ -34,6 +47,20 @@ export async function POST(request: NextRequest) {
     const userSupabase = await createClient()
     const { data: { user } } = await userSupabase.auth.getUser()
     const userId = user?.id || null
+
+    // Experiment KPI: one /synthesis/run per serve (cache hit or miss). Same exclusions as
+    // /api/analytics/track — QA smoke traffic is dropped, known crawlers are tagged (bot_name) so
+    // the snapshot's bot_name IS NULL filter removes them. Before 2026-09-28 this route did
+    // neither, so CI smoke runs were counted as human runs.
+    const userAgent = request.headers.get('user-agent') || ''
+    const isQA = userAgent.includes('VetreeQABot') || request.headers.get('x-qa-bot') === '1'
+    // .then() is required — Supabase builders are lazy and won't fire without it
+    const trackRun = () => {
+      if (isQA) return
+      supabase.from('page_views')
+        .insert({ path: '/synthesis/run', user_id: userId, bot_name: detectBotName(userAgent) })
+        .then(({ error }) => { if (error) console.error('[synthesis] run tracking failed:', error.message) })
+    }
 
     // Check if feature is enabled
     const { data: flag } = await supabase
@@ -75,8 +102,7 @@ export async function POST(request: NextRequest) {
           .eq('id', cached.id)
 
         // Track synthesis serve for analytics (cache hit)
-        // .then() is required — Supabase builders are lazy and won't fire without it
-        supabase.from('page_views').insert({ path: '/synthesis/run', user_id: userId }).then(() => {})
+        trackRun()
 
         return NextResponse.json({
           synthesis_html: cached.synthesis_html,
@@ -91,7 +117,41 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // STEP 2: Cache miss — fetch articles with ranked synthesis RPC
+    // STEP 2: Cache miss — a new generation is a Claude call: apply the cost controls first
+    const { success: withinLimit } = await synthesisLimiter.limit(`synthesis:${userId ?? getClientIP(request)}`)
+    if (!withinLimit) {
+      return NextResponse.json({ error: 'Too many syntheses — please wait a few minutes and try again.' }, { status: 429 })
+    }
+
+    const startOfDayUtc = new Date(new Date().toISOString().slice(0, 10) + 'T00:00:00Z').toISOString()
+    const { count: generatedToday, error: capError } = await supabase
+      .from('topic_syntheses')
+      .select('id', { count: 'exact', head: true })
+      .gte('created_at', startOfDayUtc)
+    if (capError) {
+      Sentry.captureMessage(`[synthesis] daily-cap count failed: ${capError.message}`, 'error')
+      return NextResponse.json({ error: 'Topic synthesis is temporarily unavailable.' }, { status: 503 })
+    }
+    if ((generatedToday ?? 0) >= DAILY_CAP) {
+      Sentry.captureMessage(`[synthesis] daily cap of ${DAILY_CAP} reached`, 'warning')
+      return NextResponse.json({ error: 'Topic synthesis has reached its daily limit — please try again tomorrow.' }, { status: 503 })
+    }
+
+    // One generation per topic at a time. Without Upstash (non-production), no lock.
+    const redis = process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN ? Redis.fromEnv() : null
+    const lockKey = `synthesis:generating:${queryNormalized}`
+    if (redis) {
+      const acquired = await redis.set(lockKey, '1', { nx: true, ex: LOCK_SECONDS })
+      if (!acquired) {
+        return NextResponse.json(
+          { error: 'This synthesis is already being prepared — try again in a few seconds.', generating: true },
+          { status: 409 }
+        )
+      }
+    }
+    const releaseLock = () => { if (redis) redis.del(lockKey).catch(() => {}) }
+
+    try {
     console.log('[synthesis] Cache miss, generating new synthesis for:', queryOriginal)
 
     const LARGE_ANIMAL_LABELS = [
@@ -249,11 +309,14 @@ Synthesize the evidence for this veterinary clinical topic.`
       })
 
     if (insertError) {
+      // This failed silently from 2026-05-18 to 2026-09-28 (missing search_version column,
+      // migration 063): every synthesis was regenerated. Never again unnoticed.
       console.error('[synthesis] Failed to cache synthesis:', insertError)
+      Sentry.captureMessage(`[synthesis] cache insert failed: ${insertError.code} ${insertError.message}`, 'error')
     }
 
     // Track synthesis serve for analytics (cache miss / new generation)
-    supabase.from('page_views').insert({ path: '/synthesis/run', user_id: userId }).then(() => {})
+    trackRun()
 
     return NextResponse.json({
       synthesis_html: synthesisHtml,
@@ -266,6 +329,9 @@ Synthesize the evidence for this veterinary clinical topic.`
       cache_hits: 0
     })
 
+    } finally {
+      releaseLock()
+    }
   } catch (error) {
     console.error('[synthesis] Error:', error)
     return NextResponse.json(

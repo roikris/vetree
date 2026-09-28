@@ -1,9 +1,15 @@
 import { createClient } from '@supabase/supabase-js'
 import { CampaignClient } from './CampaignClient'
 
-const KICKOFF_DATE = '2026-06-20'
-const END_DATE = '2026-09-18'
+// Run 2 of the auto-run experiment. Run 1 (2026-06-20 → 2026-09-18) is not comparable: its
+// /synthesis/run and engaged counts included CI smoke traffic, and the synthesis cache never
+// stored (missing search_version column, migration 063), so every run was a fresh generation.
+const KICKOFF_DATE = '2026-09-29'
+const END_DATE = '2026-12-28'
+// Baseline stays the clean pre-experiment month (no auto-run), not the 30 days before run 2,
+// which were run 1 itself.
 const BASELINE_START = '2026-05-21'
+const BASELINE_END = '2026-06-19'
 
 type SnapshotRow = {
   date: string
@@ -47,7 +53,7 @@ export default async function CampaignPage() {
     traffic_sources: r.traffic_sources ?? {},
   }))
 
-  const baselineRows = rows.filter(r => r.date < KICKOFF_DATE)
+  const baselineRows = rows.filter(r => r.date <= BASELINE_END)
   const experimentRows = rows.filter(r => r.date >= KICKOFF_DATE)
   const today = experimentRows[experimentRows.length - 1] ?? null
 
@@ -88,7 +94,7 @@ export default async function CampaignPage() {
           Synthesis Experiment
         </h1>
         <p className="text-zinc-600 dark:text-zinc-400">
-          90-day auto-run experiment — {KICKOFF_DATE} to {END_DATE}
+          90-day auto-run experiment, run 2 — {KICKOFF_DATE} to {END_DATE}
         </p>
       </div>
 

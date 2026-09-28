@@ -97,11 +97,13 @@ export function SynthesisPanel({ query, onClose, isLoggedIn }: SynthesisPanelPro
 
   const submitFeedback = async (feedback: 'helpful' | 'not_relevant') => {
     try {
-      await fetch('/api/synthesis/feedback', {
+      const res = await fetch('/api/synthesis/feedback', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query, feedback, feedback_note: feedbackNote || null })
       })
+      // An experiment KPI: never thank the reader for feedback that was not stored
+      if (!res.ok) throw new Error(`feedback ${res.status}`)
       setFeedbackSubmitted(true)
       setShowFeedbackNote(false)
       setTimeout(() => setFeedbackSubmitted(false), 3000)

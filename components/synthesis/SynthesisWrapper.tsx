@@ -21,17 +21,23 @@ export function SynthesisWrapper({ searchQuery, children, isLoggedIn, view }: Sy
   const engagedFiredRef = useRef(false)
 
   const synthesisEnabled = isFeatureEnabled(flags, 'topic_synthesis')
-  const shouldAutoRun = searchQuery.trim().length >= 2 && synthesisEnabled
+  const canSynthesize = synthesisEnabled && searchQuery.trim().length >= 3
+  // Automated browsers (Playwright smoke, CI) never auto-run: they would spend a Claude call and
+  // count as experiment runs. From 2026-06-20 to 2026-09-28 they did — 139 of September's 304
+  // /synthesis/run events fell inside CI smoke windows.
+  const isAutomated = typeof navigator !== 'undefined' && navigator.webdriver === true
+  const [dismissed, setDismissed] = useState(false)
 
-  // Auto-run synthesis on mount for any meaningful query (90-day experiment)
+  // Auto-run synthesis on mount for any meaningful query (auto-run experiment, restarted
+  // 2026-09-28 — see KICKOFF_DATE in app/admin/campaign/page.tsx)
   useEffect(() => {
     if (loading) return
     if (autoTriggeredRef.current) return
-    if (!shouldAutoRun) return
+    if (!canSynthesize || isAutomated) return
 
     autoTriggeredRef.current = true
     setShowSynthesis(true)
-  }, [loading, shouldAutoRun])
+  }, [loading, canSynthesize, isAutomated])
 
   // Auto-trigger from URL params (e.g. from Content Roadmap "Create Synthesis" button)
   useEffect(() => {
@@ -80,12 +86,41 @@ export function SynthesisWrapper({ searchQuery, children, isLoggedIn, view }: Sy
 
   return (
     <>
+      {/* Reopen after the reader closes the auto-run panel (and the only way in for automated
+          browsers, which never auto-run). Hidden until then so it never flashes before auto-run. */}
+      {canSynthesize && !showSynthesis && !loading && (dismissed || isAutomated) && (
+        <div style={{ maxWidth: view === 'list' ? 844 : 704, margin: '0 auto', padding: '4px 32px 0' }}>
+          <button
+            type="button"
+            data-testid="synthesis-open"
+            onClick={() => setShowSynthesis(true)}
+            title="An AI summary of what the top studies on this topic agree and disagree on, with citations"
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 9,
+              padding: '9px 16px', borderRadius: 999, cursor: 'pointer',
+              background: 'rgba(var(--al-acct, 95,140,51), .08)',
+              border: '1px solid rgba(var(--al-acct, 95,140,51), .35)',
+              color: 'var(--al-accent)',
+              font: '600 13.5px/1 var(--font-instrument, sans-serif)',
+            }}
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h10M4 18h7M17 15l2 2 4-4" />
+            </svg>
+            Synthesize the evidence
+            <span className="hidden md:inline" style={{ font: '400 12.5px/1 var(--font-instrument, sans-serif)', color: 'var(--al-mut4)' }}>
+              · AI summary of the top studies
+            </span>
+          </button>
+        </div>
+      )}
+
       {/* Synthesis panel — constrained to same width as ArticleList */}
       {showSynthesis && (
         <div ref={synthesisPanelRef} style={{ maxWidth: view === 'list' ? 844 : 704, margin: '0 auto', padding: '0 32px' }}>
           <SynthesisPanel
             query={searchQuery}
-            onClose={() => setShowSynthesis(false)}
+            onClose={() => { setShowSynthesis(false); setDismissed(true) }}
             isLoggedIn={isLoggedIn}
           />
         </div>

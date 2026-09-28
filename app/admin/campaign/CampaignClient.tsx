@@ -207,7 +207,7 @@ export function CampaignClient({
             <span style={{ color: AMBER }}>▲</span> Day 60 — Aug 19
           </span>
           <span className="flex items-center gap-1">
-            <span style={{ color: GREEN }}>▲</span> Day 90 — Sep 18
+            <span style={{ color: GREEN }}>▲</span> Day 90 — {new Date(`${endDate}T00:00:00Z`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })}
           </span>
         </div>
       </div>
