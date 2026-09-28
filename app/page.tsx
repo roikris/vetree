@@ -96,8 +96,12 @@ export default async function Home({ searchParams }: HomeProps) {
     exampleArticle = (data ?? []).find(a => matchesQuickFilter(a.labels, filters.quickFilter)) ?? null
   }
 
-  // Stats (legacy hero)
-  const stats = !isLoggedIn
+  // Searches skip the hero-only and feed-header-only queries below, so the search's own
+  // streamed results (and its "Searching…" loader) start sooner
+  const isSearchRequest = !!filters.search.trim()
+
+  // Stats (legacy hero — never shown with a search)
+  const stats = !isLoggedIn && !isSearchRequest
     ? await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://vetree.app'}/api/stats/public`, {
         next: { revalidate: 3600 }
       }).then(r => r.json()).catch(() => ({ confirmed_users: 0, articles_count: 8000 }))
@@ -105,7 +109,7 @@ export default async function Home({ searchParams }: HomeProps) {
 
   // Count articles published in the last 7 days (for stream header)
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-  const { count: newThisWeek } = await supabase
+  const { count: newThisWeek } = isSearchRequest ? { count: null } : await supabase
     .from('articles')
     .select('id', { count: 'exact', head: true })
     .eq('needs_enrichment', false)

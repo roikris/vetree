@@ -1,6 +1,6 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useCallback, useRef, useEffect, useState, ReactNode } from 'react'
 import Link from 'next/link'
 import { ParsedFilters, FeedView, QuickFilter } from '@/types/search'
@@ -13,7 +13,7 @@ import { useAdmin } from '@/lib/hooks/useAdmin'
 import { VETERINARY_LABELS } from '@/lib/constants/labels'
 import { Onboarding } from '@/components/onboarding/Onboarding'
 import { Footer } from '@/components/ui/Footer'
-import { BottomNav } from '@/components/ui/BottomNav'
+import { BottomNav, OPEN_SEARCH_EVENT } from '@/components/ui/BottomNav'
 import { DarkModeToggle } from '@/components/ui/DarkModeToggle'
 
 // ─── Quick filter pills ───────────────────────────────────────────────────────
@@ -93,6 +93,30 @@ export function SearchControls({
   const filtersRef = useRef(initialFilters)
 
   const [searchOpen, setSearchOpen] = useState(!!initialFilters.search)
+  const searchInputRef = useRef<HTMLInputElement>(null)
+  const urlParams = useSearchParams()
+
+  // Mobile bottom-nav Search: open the box and put the cursor in it — in place when already
+  // on this page (event), or on arrival from another page (?focus=search, then dropped from
+  // the URL so a reload or share doesn't reopen it)
+  useEffect(() => {
+    const open = () => {
+      setSearchOpen(true)
+      requestAnimationFrame(() => {
+        const el = searchInputRef.current
+        if (el) { el.focus(); el.select() }
+      })
+    }
+    window.addEventListener(OPEN_SEARCH_EVENT, open)
+    return () => window.removeEventListener(OPEN_SEARCH_EVENT, open)
+  }, [])
+  useEffect(() => {
+    if (urlParams.get('focus') !== 'search') return
+    window.dispatchEvent(new Event(OPEN_SEARCH_EVENT))
+    const params = new URLSearchParams(window.location.search)
+    params.delete('focus')
+    window.history.replaceState(null, '', `/?${params.toString()}`)
+  }, [urlParams])
   const [searchQuery, setSearchQuery] = useState(initialFilters.search)
   const [evidenceOpen, setEvidenceOpen] = useState(false)
   const [journalOpen, setJournalOpen] = useState(false)
@@ -282,6 +306,7 @@ export function SearchControls({
                     <circle cx="11" cy="11" r="7" /><path strokeLinecap="round" d="M21 21l-4.3-4.3" />
                   </svg>
                   <input
+                    ref={searchInputRef}
                     autoFocus
                     data-testid="search-input"
                     value={searchQuery}
