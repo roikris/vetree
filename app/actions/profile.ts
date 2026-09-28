@@ -1,6 +1,9 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { recordConsent } from '@/lib/consent/record'
+import { ratelimitModerate } from '@/lib/ratelimit'
+import { headers } from 'next/headers'
 import { revalidatePath } from 'next/cache'
 
 export async function sendPasswordResetEmail() {
@@ -111,23 +114,27 @@ export async function setDigestConsent(optIn: boolean) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not authenticated' }
 
-  // user_consents has no INSERT policy for authenticated users (append-only audit
-  // log, service-role-write-only by design) — go through the same route every
-  // other consent write in the app uses, so this genuinely is "the same recorded path".
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://vetree.app'
-  const consentRes = await fetch(`${siteUrl}/api/auth/save-consent`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      userId: user.id,
-      termsAccepted: true, // already true — settings is only reachable by an active, terms-accepted user
-      marketingOptIn: optIn,
-      consentSource: 'settings',
-    }),
+  // user_consents is an append-only, service-role-written audit log. Record through the shared
+  // writer with the SESSION user (the old server-to-server fetch to /api/auth/save-consent sent no
+  // cookies, and that route is session-only now).
+  // Server actions receive untrusted input at runtime (TypeScript doesn't validate it)
+  if (typeof optIn !== 'boolean') return { error: 'Invalid value' }
+  const { success } = await ratelimitModerate.limit(`consent:${user.id}`)
+  if (!success) return { error: 'Too many requests' }
+
+  const h = await headers()
+  const consent = await recordConsent({
+    userId: user.id,
+    termsAccepted: true, // already true — settings is only reachable by an active, terms-accepted user
+    marketingOptIn: optIn,
+    consentSource: 'settings',
+    // Audit metadata only (ownership is the session). Trustworthy only as far as the ingress
+    // (Vercel) sets these headers.
+    ip: h.get('x-forwarded-for')?.split(',')[0]?.trim() || h.get('x-real-ip') || null,
+    userAgent: h.get('user-agent'),
   })
-  if (!consentRes.ok) {
-    const data = await consentRes.json().catch(() => ({}))
-    return { error: data.error || 'Failed to record consent' }
+  if (!consent.ok) {
+    return { error: 'Failed to record consent' }
   }
 
   const { error: prefError } = await supabase.from('user_preferences').upsert(

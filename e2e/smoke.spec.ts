@@ -196,6 +196,16 @@ test('guest save: feed row bookmark opens the article with the sign-in prompt', 
   await expectSavePrompt(page, /\/article\//)
 })
 
+// ─── Consent can only be recorded for yourself ─────────────────────────────────
+// The endpoint used to accept any body userId, so anyone could opt any user into the digest.
+// Without a session it must refuse — and a refusal writes nothing, so this is safe on production.
+test('consent endpoint refuses requests without a session', async ({ request }) => {
+  const res = await request.post('/api/auth/save-consent', {
+    data: { userId: '00000000-0000-4000-8000-000000000000', termsAccepted: true, marketingOptIn: true, consentSource: 'signup' },
+  })
+  expect(res.status()).toBe(401)
+})
+
 // The species control must be reachable and drive the URL. A previous version of this
 // feature relied on a component that was never mounted, so no user could change scope.
 test('species control: default is small animal, and switching scope updates the URL', async ({ page }) => {

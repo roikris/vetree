@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { PENDING_DIGEST_CONSENT_KEY } from '@/lib/constants/consent'
+import { PENDING_DIGEST_CONSENT_KEY, PENDING_SIGNUP_CONSENT_KEY, PENDING_SIGNUP_CONSENT_MAX_AGE_MS, type PendingSignupConsent } from '@/lib/constants/consent'
 
 // Terms-acceptance gate only — mandatory, blocking. Marketing/digest consent is
 // NOT asked here; it's asked properly by the dedicated signup step (Part 2) and
@@ -13,6 +13,23 @@ import { PENDING_DIGEST_CONSENT_KEY } from '@/lib/constants/consent'
 // signup that already answered the digest question on the signup page before the
 // OAuth redirect (which React state can't survive) — that choice is picked up
 // from localStorage here, on this same first-consent-row write, correctly sourced.
+function readPendingSignupConsent(userEmail: string | undefined): PendingSignupConsent | null {
+  try {
+    const raw = localStorage.getItem(PENDING_SIGNUP_CONSENT_KEY)
+    if (!raw || !userEmail) return null
+    let p: PendingSignupConsent | null = null
+    try { p = JSON.parse(raw) } catch { p = null }
+    const age = p && typeof p.at === 'number' && Number.isFinite(p.at) ? Date.now() - p.at : NaN
+    const valid = !!p && p.terms === true && typeof p.marketing === 'boolean' && p.version === '1.0'
+      && typeof p.email === 'string' && p.email === userEmail.trim().toLowerCase()
+      && age >= 0 && age < PENDING_SIGNUP_CONSENT_MAX_AGE_MS
+    if (!valid) { localStorage.removeItem(PENDING_SIGNUP_CONSENT_KEY); return null }
+    return p
+  } catch {
+    return null // storage unavailable
+  }
+}
+
 export function ConsentGate() {
   const [show, setShow] = useState(false)
   const [userId, setUserId] = useState<string | null>(null)
@@ -35,6 +52,33 @@ export function ConsentGate() {
         .maybeSingle()
 
       if (!consent) {
+        // Email signup made its choices in this browser before verification. Record them now, as
+        // the verified owner, if they were made for THIS email and aren't stale — otherwise ask.
+        const pending = readPendingSignupConsent(user.email)
+        if (pending) {
+          try {
+            const res = await fetch('/api/auth/save-consent', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              // userId pins the write to the user the pending choice was validated against: if the
+              // session changed meanwhile (another tab signed in as someone else), the route's
+              // session/userId check rejects it and the gate asks instead
+              body: JSON.stringify({ userId: user.id, termsAccepted: true, marketingOptIn: pending.marketing, consentSource: 'signup' }),
+            })
+            if (res.ok) {
+              localStorage.removeItem(PENDING_SIGNUP_CONSENT_KEY)
+              return
+            }
+            if (res.status === 403) {
+              // The session changed under us: open the gate for whoever is signed in NOW
+              const { data: { user: current } } = await supabase.auth.getUser()
+              if (!current) return
+              setUserId(current.id)
+              setShow(true)
+              return
+            }
+          } catch { /* fall through to the gate */ }
+        }
         setUserId(user.id)
         setShow(true)
       }
