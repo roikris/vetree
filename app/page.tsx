@@ -17,6 +17,7 @@ import { Suspense } from 'react'
 import { SearchResults } from '@/components/search/SearchResults'
 import { SproutLoader } from '@/components/search/SproutLoader'
 import { searchKeyFor } from '@/lib/search/progressive'
+import { getVisibleArticleCount, formatArticleCount } from '@/lib/queries/publicStats'
 
 // Force dynamic rendering to ensure searchParams are always fresh
 export const dynamic = 'force-dynamic'
@@ -63,7 +64,7 @@ export default async function Home({ searchParams }: HomeProps) {
     // the default scope). Filtered in JS per the project's large-animal rule.
     const { data: recentForLanding } = await supabase
       .from('articles')
-      .select('title, clinical_bottom_line, source_journal, labels, publication_date')
+      .select('id, title, clinical_bottom_line, source_journal, labels, publication_date, strength_of_evidence')
       .eq('needs_enrichment', false)
       .not('clinical_bottom_line', 'is', null)
       .order('publication_date', { ascending: false })
@@ -76,7 +77,7 @@ export default async function Home({ searchParams }: HomeProps) {
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
         />
-        <LandingPage exampleArticle={exampleArticle} />
+        <LandingPage exampleArticle={exampleArticle} articleCountLabel={formatArticleCount(await getVisibleArticleCount())} />
       </>
     )
   }

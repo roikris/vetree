@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { Article } from '@/lib/supabase'
 import { getLabelHue } from '@/lib/constants/labelColors'
-import { getEvidenceLevel, getEvidenceBadgeProps } from '@/lib/utils/evidenceBadge'
+import { getEvidenceBadge } from '@/lib/utils/evidenceBadge'
 import { BookmarkButton } from './BookmarkButton'
 import { ShareButton } from './ShareButton'
 import { LazySummary } from './LazySummary'
@@ -25,8 +25,7 @@ type ArticleCardProps = {
 export function ArticleCard({ article }: ArticleCardProps) {
   const cleanLabels = parseLabels(article.labels)
 
-  const level = getEvidenceLevel(article.strength_of_evidence, cleanLabels)
-  const { label: evLabel, hue: evHue, dot: evDot } = getEvidenceBadgeProps(level)
+  const { level, label: evLabel, hue: evHue, dot: evDot } = getEvidenceBadge(article.strength_of_evidence, cleanLabels)
 
   const date = article.publication_date
     ? new Date(article.publication_date).toLocaleDateString('en-US', {

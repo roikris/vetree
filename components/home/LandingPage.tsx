@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { getEvidenceBadge } from '@/lib/utils/evidenceBadge'
 
 const SPECIALTIES: [string, string][] = [
   ['Anesthesia', '#B49AE8'], ['Behavior', '#A6B0C0'], ['Cardiology', '#E88A92'],
@@ -14,7 +15,7 @@ const STEPS = [
   {
     step: 'STEP 01',
     title: 'We read the literature',
-    body: 'New peer-reviewed veterinary papers are ingested and parsed the moment they publish — across every major journal.',
+    body: 'New peer-reviewed veterinary papers are collected from PubMed every day and read in full abstract — across every major journal.',
     iconPath: 'M4 19.5A2.5 2.5 0 0 1 6.5 17H20M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z',
   },
   {
@@ -32,25 +33,36 @@ const STEPS = [
 ]
 
 const TIERS = [
-  { name: 'Gold',   kind: 'Randomised controlled trials',  desc: 'The strongest evidence — trust it under pressure.',     c: '#A9E07C', dot: '#8FD65E', fill: 96 },
-  { name: 'Silver', kind: 'Cohort & comparative studies',  desc: 'Solid, directional evidence to weigh in context.',       c: '#8FBEEC', dot: '#6FA8E8', fill: 64 },
-  { name: 'Bronze', kind: 'Retrospective & case series',   desc: 'Useful signal — interpret with clinical judgement.',     c: '#E8B060', dot: '#E0A040', fill: 36 },
+  // The tier reflects the study DESIGN (from each paper's classification), not an appraisal of
+  // the individual paper — the copy says so, and each badge names the design itself.
+  { name: 'Gold',   kind: 'Randomised trials & systematic reviews', desc: 'The strongest study designs — still worth checking the methods.', c: '#A9E07C', dot: '#8FD65E', fill: 96 },
+  { name: 'Silver', kind: 'Cohort & case-control studies',          desc: 'Solid, directional evidence to weigh in context.',               c: '#8FBEEC', dot: '#6FA8E8', fill: 64 },
+  { name: 'Bronze', kind: 'Observational studies, case series & reports', desc: 'Useful signal — interpret with clinical judgement.',       c: '#E8B060', dot: '#E0A040', fill: 36 },
 ]
 
-const STATS = [
-  { num: '23,000+', label: 'Peer-reviewed articles distilled' },
+const staticStats = [
   { num: '19',      label: 'Clinical specialties covered' },
   { num: '~40s',    label: 'To read one clinical bottom line' },
-  { num: '3-tier',  label: 'Evidence grading on every paper' },
+  { num: '3-tier',  label: 'Evidence tiers by study design' },
 ]
 
 const CHIPS = ['canine diabetes management', 'feline hypertension', 'TPLO outcomes', 'lymphoma chemotherapy']
 
 type LandingPageProps = {
   exampleArticle?: any
+  /** e.g. "20,000+" from lib/queries/publicStats — null hides the figure rather than guessing */
+  articleCountLabel?: string | null
 }
 
-export function LandingPage({ exampleArticle }: LandingPageProps) {
+export function LandingPage({ exampleArticle, articleCountLabel }: LandingPageProps) {
+  const STATS = [
+    ...(articleCountLabel ? [{ num: articleCountLabel, label: 'Peer-reviewed articles distilled' }] : []),
+    ...staticStats,
+  ]
+  // The sample card is a real article with its own badge; the fallback (no article loaded)
+  // is the published EPIC trial of pimobendan — an RCT, so its badge is true too.
+  const cardBadge = getEvidenceBadge(exampleArticle ? exampleArticle.strength_of_evidence : 'Randomized Controlled Trial', exampleArticle?.labels)
+  const cardHref = exampleArticle?.id ? `/article/${exampleArticle.id}` : null
   const cardTitle   = exampleArticle?.title               || 'Pimobendan in Preclinical Myxomatous Mitral Valve Disease'
   const cardBLine   = exampleArticle?.clinical_bottom_line || 'Pimobendan delayed the onset of congestive heart failure in preclinical MMVD dogs by roughly 15 months.'
   const cardJournal = exampleArticle?.source_journal      || 'J Vet Intern Med'
@@ -119,7 +131,7 @@ export function LandingPage({ exampleArticle }: LandingPageProps) {
               className="text-[16.5px] md:text-[19px]"
               style={{ margin: '0 0 34px', fontWeight: 400, lineHeight: 1.6, fontFamily: 'var(--font-instrument, sans-serif)', color: 'var(--al-sub)', maxWidth: 500 }}
             >
-              Clinical bottom lines from <strong style={{ color: 'var(--al-ink3)', fontWeight: 600 }}>23,000+</strong> peer-reviewed articles — so you spend less time searching and more time treating.
+              Clinical bottom lines from {articleCountLabel ? <strong style={{ color: 'var(--al-ink3)', fontWeight: 600 }}>{articleCountLabel}</strong> : 'thousands of'} peer-reviewed articles — so you spend less time searching and more time treating.
             </p>
             <div className="flex flex-wrap items-center gap-[14px] mb-[22px]">
               <Link
@@ -159,15 +171,17 @@ export function LandingPage({ exampleArticle }: LandingPageProps) {
             >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(var(--al-line), .14)', paddingBottom: 14, marginBottom: 18 }}>
                 <span style={{ font: "600 11px/1 var(--font-instrument, sans-serif)", letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--al-sub)' }}>{cardLabel}</span>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 999, background: 'rgba(var(--al-acct), .1)', border: '1px solid rgba(var(--al-acct), .25)', font: "500 11px/1 var(--font-instrument, sans-serif)", color: 'var(--al-accent)' }}>
-                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--al-accent)', display: 'inline-block', flexShrink: 0 }} />
-                  RCT / Meta-analysis
+                <span data-testid="landing-sample-badge" title={cardBadge.tooltip} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 999, background: 'rgba(var(--al-acct), .1)', border: '1px solid rgba(var(--al-acct), .25)', font: "500 11px/1 var(--font-instrument, sans-serif)", color: 'var(--al-accent)' }}>
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: cardBadge.dot, display: 'inline-block', flexShrink: 0 }} />
+                  {cardBadge.label}
                 </span>
               </div>
               <h3
                 className="text-[20px] md:text-[24px]"
                 style={{ margin: '0 0 20px', fontWeight: 500, lineHeight: 1.28, fontFamily: 'var(--font-spectral, serif)', color: 'var(--al-ink2)', letterSpacing: '-.008em' }}
-              >{cardTitle}</h3>
+              >{cardHref
+                ? <Link href={cardHref} data-testid="landing-sample-link" style={{ color: 'inherit', textDecoration: 'none' }}>{cardTitle}</Link>
+                : cardTitle}</h3>
               <div style={{ borderLeft: '2px solid var(--al-accent)', paddingLeft: 16, marginBottom: 22 }}>
                 <div style={{ font: "600 10px/1 var(--font-instrument, sans-serif)", letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--al-accent)', marginBottom: 8 }}>Clinical bottom line</div>
                 <p style={{ margin: 0, font: "italic 400 16.5px/1.55 var(--font-spectral, serif)", color: 'var(--al-ink5)' }}>{cardBLine}</p>

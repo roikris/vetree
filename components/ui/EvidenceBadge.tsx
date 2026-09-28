@@ -1,4 +1,4 @@
-import { getEvidenceLevel, getEvidenceBadgeProps } from '@/lib/utils/evidenceBadge'
+import { getEvidenceBadge } from '@/lib/utils/evidenceBadge'
 
 type EvidenceBadgeProps = {
   strengthOfEvidence?: string | null
@@ -7,8 +7,7 @@ type EvidenceBadgeProps = {
 }
 
 export function EvidenceBadge({ strengthOfEvidence, labels }: EvidenceBadgeProps) {
-  const level = getEvidenceLevel(strengthOfEvidence, labels)
-  const { label, hue, dot, tooltip } = getEvidenceBadgeProps(level)
+  const { label, hue, dot, tooltip } = getEvidenceBadge(strengthOfEvidence, labels)
 
   return (
     <span
@@ -18,6 +17,8 @@ export function EvidenceBadge({ strengthOfEvidence, labels }: EvidenceBadgeProps
     >
       <span className="al-ev-dot" />
       {label}
+      {/* The tier explanation for screen readers (the title tooltip is mouse-only) */}
+      <span className="sr-only"> — {tooltip}</span>
     </span>
   )
 }

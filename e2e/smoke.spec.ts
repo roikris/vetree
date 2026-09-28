@@ -138,6 +138,20 @@ test('mobile bottom nav: Search opens and focuses the search box', async ({ page
   await expect(page).not.toHaveURL(/focus=search/)
 })
 
+// ─── Landing sample card is a real article with its real evidence badge ────────
+// It used to show a hardcoded "RCT / Meta-analysis" badge on whatever article was newest.
+test('landing: sample card badge matches the article it links to', async ({ page, context }) => {
+  await context.clearCookies()
+  await page.goto('/')
+  const badge = (await page.locator('[data-testid="landing-sample-badge"]').textContent())?.trim()
+  expect(badge).toBeTruthy()
+  const link = page.locator('[data-testid="landing-sample-link"]')
+  await expect(link).toHaveAttribute('href', /\/article\//)
+  await link.click()
+  await expect(page.locator('[data-testid="article-title"]')).toBeVisible({ timeout: 15_000 })
+  await expect(page.locator('[data-testid="article-evidence-badge"]')).toContainText(badge!)
+})
+
 // The species control must be reachable and drive the URL. A previous version of this
 // feature relied on a component that was never mounted, so no user could change scope.
 test('species control: default is small animal, and switching scope updates the URL', async ({ page }) => {

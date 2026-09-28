@@ -4,7 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { Article } from '@/lib/supabase'
 import { getLabelHue } from '@/lib/constants/labelColors'
-import { getEvidenceLevel, getEvidenceBadgeProps } from '@/lib/utils/evidenceBadge'
+import { getEvidenceBadge } from '@/lib/utils/evidenceBadge'
 import { useAuth } from '@/lib/hooks/useAuth'
 import { useSavedArticles } from '@/lib/hooks/useSavedArticles'
 
@@ -40,8 +40,7 @@ export function StreamRow({ article }: { article: Article }) {
   const specialty = cleanLabels[0] || ''
   const specialtyHue = getLabelHue(specialty)
 
-  const level = getEvidenceLevel(article.strength_of_evidence, cleanLabels)
-  const { label: evLabel, hue: evHue, dot: evDot, tooltip: evTooltip } = getEvidenceBadgeProps(level)
+  const { level, label: evLabel, hue: evHue, dot: evDot, tooltip: evTooltip } = getEvidenceBadge(article.strength_of_evidence, cleanLabels)
 
   const firstAuthor = (article.authors || '').split(',')[0]?.trim() || ''
   const bylineAuthor = firstAuthor ? `${firstAuthor}, et al.` : ''
