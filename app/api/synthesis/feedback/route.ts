@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { normalizeQuery } from '@/lib/utils/normalizeQuery'
+import { detectBotName } from '@/lib/bot-detection'
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,6 +23,13 @@ export async function POST(request: NextRequest) {
         { error: 'Invalid feedback value' },
         { status: 400 }
       )
+    }
+
+    // Same exclusions as /api/analytics/track: QA smoke traffic is never recorded, and crawlers
+    // have no business voting (experiment KPI).
+    const userAgent = request.headers.get('user-agent') || ''
+    if (userAgent.includes('VetreeQABot') || request.headers.get('x-qa-bot') === '1' || detectBotName(userAgent)) {
+      return NextResponse.json({ success: true, tracked: false })
     }
 
     const queryNormalized = normalizeQuery(query)

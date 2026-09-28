@@ -44,7 +44,16 @@ type CampaignClientProps = {
   dayNumber: number
   kickoffDate: string
   endDate: string
+  /** Run-2 synthesis totals from raw events within [kickoff, end] */
+  run2: { runs: number; engaged: number; blocked: number; helpful: number; notRelevant: number }
+  /** Rolling snapshot windows still include pre-kickoff days until warmupUntil */
+  warmingUp: boolean
+  warmupUntil: string
 }
+
+const fmtDay = (iso: string, plusDays = 0) =>
+  new Date(new Date(`${iso}T00:00:00Z`).getTime() + plusDays * 86400000)
+    .toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })
 
 function pctChange(current: number, baseline: number): number | null {
   if (baseline === 0) return null
@@ -146,13 +155,17 @@ export function CampaignClient({
   dayNumber,
   kickoffDate,
   endDate,
+  run2,
+  warmingUp,
+  warmupUntil,
 }: CampaignClientProps) {
   const totalDays = 90
   const progressPct = Math.min(100, (dayNumber / totalDays) * 100)
 
   // KPI values from today's snapshot
   const todayMedianSession = today?.median_session_duration_seconds ?? null
-  const todaySynthesisEngaged = today?.synthesis_engaged ?? null
+  // Run-2 total from raw events (snapshot values are rolling 7-day windows)
+  const todaySynthesisEngaged = run2.engaged
   const todayRegisteredMau = today?.registered_mau ?? null
   const todayDau = today?.dau ?? null
   const todayMau = today?.mau ?? null
@@ -201,15 +214,39 @@ export function CampaignClient({
         </div>
         <div className="flex gap-6 text-xs text-zinc-500 dark:text-zinc-400">
           <span className="flex items-center gap-1">
-            <span style={{ color: AMBER }}>▲</span> Day 30 — Jul 20
+            <span style={{ color: AMBER }}>▲</span> Day 30 — {fmtDay(kickoffDate, 29)}
           </span>
           <span className="flex items-center gap-1">
-            <span style={{ color: AMBER }}>▲</span> Day 60 — Aug 19
+            <span style={{ color: AMBER }}>▲</span> Day 60 — {fmtDay(kickoffDate, 59)}
           </span>
           <span className="flex items-center gap-1">
-            <span style={{ color: GREEN }}>▲</span> Day 90 — {new Date(`${endDate}T00:00:00Z`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })}
+            <span style={{ color: GREEN }}>▲</span> Day 90 — {fmtDay(endDate)}
           </span>
         </div>
+      </div>
+
+      {/* Run-2 synthesis totals — raw events, exactly within the experiment window */}
+      <div className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6">
+        <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 mb-3">Run 2 synthesis totals (since {kickoffDate})</h3>
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 text-sm">
+          {[
+            ['Runs (served)', run2.runs],
+            ['Engaged (read)', run2.engaged],
+            ['Engaged rate', run2.runs > 0 ? `${((run2.engaged / run2.runs) * 100).toFixed(0)}%` : '—'],
+            ['Helpful / not relevant', `${run2.helpful} / ${run2.notRelevant}`],
+            ['Blocked by limits', run2.blocked],
+          ].map(([label, val]) => (
+            <div key={String(label)}>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">{label}</p>
+              <p className="text-xl font-semibold text-[#1A1A1A] dark:text-[#E8E8E8]">{val}</p>
+            </div>
+          ))}
+        </div>
+        {warmingUp && (
+          <p className="text-xs mt-3" style={{ color: AMBER }}>
+            Rolling snapshot metrics below (sessions, MAU, DAU/MAU, charts) still include pre-kickoff days until {warmupUntil}; the verdict waits until then.
+          </p>
+        )}
       </div>
 
       {/* KPI cards */}
@@ -319,14 +356,14 @@ export function CampaignClient({
         </ChartCard>
 
         {/* Traffic Sources */}
-        <ChartCard title="Traffic Source Quality (30d snapshot)">
+        <ChartCard title="Traffic Sources (7-day window: latest vs baseline average)">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-xs text-zinc-500 dark:text-zinc-400 border-b border-zinc-200 dark:border-zinc-700">
                   <th className="pb-2 font-medium">Source</th>
                   <th className="pb-2 font-medium text-right">Recent</th>
-                  <th className="pb-2 font-medium text-right">Baseline total</th>
+                  <th className="pb-2 font-medium text-right">Baseline avg</th>
                   <th className="pb-2 font-medium text-right">Trend</th>
                 </tr>
               </thead>
@@ -341,12 +378,12 @@ export function CampaignClient({
                 {allSourceKeys.map(src => {
                   const recent = recentSources[src] ?? 0
                   const base = baselineSources[src] ?? 0
-                  const trend = base > 0 ? pctChange(recent, base / Math.max(1, Object.keys(baselineSources).length)) : null
+                  const trend = base > 0 ? pctChange(recent, base) : null
                   return (
                     <tr key={src} className="border-b border-zinc-100 dark:border-zinc-800 last:border-0">
                       <td className="py-2 font-medium text-zinc-700 dark:text-zinc-300 capitalize">{src}</td>
                       <td className="py-2 text-right text-zinc-600 dark:text-zinc-400">{recent}</td>
-                      <td className="py-2 text-right text-zinc-500 dark:text-zinc-500">{base}</td>
+                      <td className="py-2 text-right text-zinc-500 dark:text-zinc-500">{base.toFixed(1)}</td>
                       <td className="py-2 text-right font-medium" style={{ color: trend == null ? GRAY : trend >= 0 ? GREEN : RED }}>
                         {trend == null ? '—' : trend >= 0 ? `+${trend.toFixed(0)}%` : `${trend.toFixed(0)}%`}
                       </td>
@@ -367,6 +404,8 @@ export function CampaignClient({
         <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 mb-4">Experiment Verdict</h3>
         {!today ? (
           <p className="text-zinc-400 dark:text-zinc-500 text-sm">No experiment data yet — check back after Day 1 aggregate runs.</p>
+        ) : warmingUp ? (
+          <p className="text-zinc-400 dark:text-zinc-500 text-sm">Warming up — rolling metrics include pre-kickoff days until {warmupUntil}.</p>
         ) : (
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {[
@@ -379,7 +418,7 @@ export function CampaignClient({
                 label: 'Synthesis Engaged',
                 pct: null,
                 isNew: true,
-                note: todaySynthesisEngaged != null ? `${todaySynthesisEngaged}/day today` : 'No data',
+                note: `${run2.engaged} engaged of ${run2.runs} runs since kickoff`,
               },
               {
                 label: 'Registered MAU',

@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { SynthesisPanel } from './SynthesisPanel'
 import { useFeatureFlags, isFeatureEnabled } from '@/lib/hooks/useFeatureFlags'
+import { normalizeQuery } from '@/lib/utils/normalizeQuery'
 
 type SynthesisWrapperProps = {
   searchQuery: string
@@ -43,7 +44,7 @@ export function SynthesisWrapper({ searchQuery, children, isLoggedIn, view }: Sy
   useEffect(() => {
     if (loading) return
     const synthesize = searchParams.get('synthesize')
-    if (synthesize === 'true' && searchQuery && synthesisEnabled) {
+    if (synthesize === 'true' && searchQuery && synthesisEnabled && !isAutomated) {
       autoTriggeredRef.current = true
       setTimeout(() => {
         setShowSynthesis(true)
@@ -59,30 +60,38 @@ export function SynthesisWrapper({ searchQuery, children, isLoggedIn, view }: Sy
         }, 100)
       }, 500)
     }
-  }, [searchParams, searchQuery, synthesisEnabled, loading])
+  }, [searchParams, searchQuery, synthesisEnabled, loading, isAutomated])
 
-  // Fire synthesis_engaged event when panel scrolls into view (distinguishes exposure from reading)
+  // synthesis_engaged: a successfully displayed synthesis scrolled into view (not the loading
+  // skeleton, an error, or "insufficient studies"). Once per query per browser session, so a
+  // remount (back navigation, reopening) re-shows the session copy without counting it again.
+  const [displayed, setDisplayed] = useState(false)
+  const onDisplayed = useCallback(() => setDisplayed(true), [])
   useEffect(() => {
-    if (!showSynthesis || !synthesisPanelRef.current || engagedFiredRef.current) return
+    if (!showSynthesis || !displayed || !synthesisPanelRef.current || engagedFiredRef.current) return
+    if (isAutomated) return
+    const engagedKey = `vetree_synthesis_engaged_${normalizeQuery(searchQuery)}`
 
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && !engagedFiredRef.current) {
-          if (typeof navigator !== 'undefined' && navigator.webdriver) return
-          engagedFiredRef.current = true
-          fetch('/api/analytics/track', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ event: 'synthesis_engaged', query: searchQuery })
-          }).catch(() => {})
-        }
+        if (!entries[0].isIntersecting || engagedFiredRef.current) return
+        engagedFiredRef.current = true
+        try {
+          if (sessionStorage.getItem(engagedKey)) return
+          sessionStorage.setItem(engagedKey, '1')
+        } catch { /* storage unavailable: still count once for this mount */ }
+        fetch('/api/analytics/track', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ event: 'synthesis_engaged', query: searchQuery })
+        }).catch(() => {})
       },
       { threshold: 0.3 }
     )
 
     observer.observe(synthesisPanelRef.current)
     return () => observer.disconnect()
-  }, [showSynthesis, searchQuery])
+  }, [showSynthesis, displayed, searchQuery, isAutomated])
 
   return (
     <>
@@ -120,7 +129,8 @@ export function SynthesisWrapper({ searchQuery, children, isLoggedIn, view }: Sy
         <div ref={synthesisPanelRef} style={{ maxWidth: view === 'list' ? 844 : 704, margin: '0 auto', padding: '0 32px' }}>
           <SynthesisPanel
             query={searchQuery}
-            onClose={() => { setShowSynthesis(false); setDismissed(true) }}
+            onClose={() => { setShowSynthesis(false); setDismissed(true); setDisplayed(false) }}
+            onDisplayed={onDisplayed}
             isLoggedIn={isLoggedIn}
           />
         </div>

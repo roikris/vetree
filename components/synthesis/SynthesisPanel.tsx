@@ -8,7 +8,14 @@ type SynthesisPanelProps = {
   query: string
   onClose?: () => void
   isLoggedIn?: boolean
+  /** Called once a real synthesis (not loading, an error, or "insufficient studies") is on screen */
+  onDisplayed?: () => void
 }
+
+// Another reader is generating the same topic (409): retry until it lands in the cache.
+// 25 × 4 s = 100 s, just beyond the route's 90 s lock.
+const BUSY_RETRY_MS = 4000
+const BUSY_MAX_RETRIES = 25
 
 type StudyBreakdown = {
   systematic_reviews: number
@@ -42,7 +49,7 @@ type SynthesisData = {
   message?: string
 }
 
-export function SynthesisPanel({ query, onClose, isLoggedIn }: SynthesisPanelProps) {
+export function SynthesisPanel({ query, onClose, isLoggedIn, onDisplayed }: SynthesisPanelProps) {
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState<SynthesisData | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -51,10 +58,18 @@ export function SynthesisPanel({ query, onClose, isLoggedIn }: SynthesisPanelPro
   const [showFeedbackNote, setShowFeedbackNote] = useState(false)
   const [feedbackNote, setFeedbackNote] = useState('')
   const [showSources, setShowSources] = useState(false)
+  const [attempt, setAttempt] = useState(0)
+  // One vote per topic per browser session (experiment KPI: helpful / not relevant)
+  const FEEDBACK_KEY = `vetree_synthesis_feedback_${normalizeQuery(query)}`
+  const [voted, setVoted] = useState(false)
+  useEffect(() => {
+    try { setVoted(!!sessionStorage.getItem(FEEDBACK_KEY)) } catch { /* storage unavailable */ }
+  }, [FEEDBACK_KEY])
 
   const SYNTHESIS_KEY = `vetree_synthesis_${normalizeQuery(query)}`
 
   useEffect(() => {
+    let cancelled = false
     const saved = sessionStorage.getItem(SYNTHESIS_KEY)
     if (saved) {
       try {
@@ -71,29 +86,45 @@ export function SynthesisPanel({ query, onClose, isLoggedIn }: SynthesisPanelPro
       setLoading(true)
       setError(null)
       try {
-        const response = await fetch('/api/synthesis/generate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ query })
-        })
-        if (!response.ok) {
-          const errorData = await response.json()
-          throw new Error(errorData.error || 'Failed to generate synthesis')
+        for (let tries = 0; ; tries++) {
+          const response = await fetch('/api/synthesis/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query })
+          })
+          if (cancelled) return
+          if (response.status === 409 && tries < BUSY_MAX_RETRIES) {
+            await new Promise(r => setTimeout(r, BUSY_RETRY_MS))
+            if (cancelled) return
+            continue
+          }
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}))
+            throw new Error(errorData.error || 'Failed to generate synthesis')
+          }
+          const result = await response.json()
+          if (cancelled) return
+          setData(result)
+          sessionStorage.setItem(SYNTHESIS_KEY, JSON.stringify(result))
+          return
         }
-        const result = await response.json()
-        setData(result)
-        sessionStorage.setItem(SYNTHESIS_KEY, JSON.stringify(result))
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Unknown error')
+        if (!cancelled) setError(err instanceof Error ? err.message : 'Unknown error')
       } finally {
-        setLoading(false)
+        if (!cancelled) setLoading(false)
       }
     }
 
     if (query && query.trim().length >= 3) {
       fetchSynthesis()
     }
-  }, [query, SYNTHESIS_KEY])
+    return () => { cancelled = true }
+  }, [query, SYNTHESIS_KEY, attempt])
+
+  const displayed = !loading && !error && !!data?.synthesis_html && !data?.insufficient
+  useEffect(() => {
+    if (displayed) onDisplayed?.()
+  }, [displayed, onDisplayed])
 
   const submitFeedback = async (feedback: 'helpful' | 'not_relevant') => {
     try {
@@ -104,6 +135,8 @@ export function SynthesisPanel({ query, onClose, isLoggedIn }: SynthesisPanelPro
       })
       // An experiment KPI: never thank the reader for feedback that was not stored
       if (!res.ok) throw new Error(`feedback ${res.status}`)
+      try { sessionStorage.setItem(FEEDBACK_KEY, '1') } catch { /* storage unavailable */ }
+      setVoted(true)
       setFeedbackSubmitted(true)
       setShowFeedbackNote(false)
       setTimeout(() => setFeedbackSubmitted(false), 3000)
@@ -175,6 +208,24 @@ export function SynthesisPanel({ query, onClose, isLoggedIn }: SynthesisPanelPro
           <p style={{ margin: 0, font: "400 13px/1.5 var(--font-instrument, sans-serif)", color: 'var(--al-sub)' }}>
             {error}
           </p>
+          <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+            <button
+              type="button"
+              onClick={() => setAttempt(a => a + 1)}
+              style={{ padding: '6px 14px', borderRadius: 999, cursor: 'pointer', background: 'transparent', border: '1px solid rgba(176,80,40,.35)', color: 'rgb(176,80,40)', font: '600 12.5px/1 var(--font-instrument, sans-serif)' }}
+            >
+              Try again
+            </button>
+            {onClose && (
+              <button
+                type="button"
+                onClick={onClose}
+                style={{ padding: '6px 14px', borderRadius: 999, cursor: 'pointer', background: 'transparent', border: '1px solid rgba(var(--al-line), .2)', color: 'var(--al-sub)', font: '500 12.5px/1 var(--font-instrument, sans-serif)' }}
+              >
+                Close
+              </button>
+            )}
+          </div>
         </div>
       </div>
     )
@@ -615,7 +666,7 @@ export function SynthesisPanel({ query, onClose, isLoggedIn }: SynthesisPanelPro
           )}
 
           {/* Feedback row */}
-          {!feedbackSubmitted && !showFeedbackNote && (
+          {!voted && !feedbackSubmitted && !showFeedbackNote && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
               <span style={{ font: "400 13px/1 var(--font-instrument, sans-serif)", color: 'var(--al-mut4)' }}>
                 Was this synthesis helpful?

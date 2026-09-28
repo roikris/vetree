@@ -14,10 +14,33 @@ import { detectBotName } from '@/lib/bot-detection'
 // restarted 2026-09-28), and each cache miss is a Claude call on a public route:
 //   - query length 3–200;
 //   - per-visitor limit on NEW generations (synthesisLimiter; cache hits are free);
-//   - one generation per topic at a time (Redis lock) — concurrent requests get 409 and retry;
-//   - a daily ceiling on new generations (SYNTHESIS_DAILY_CAP, default 100 ≈ a few dollars/day).
+//   - one generation per topic at a time (Redis lock, owner token) — concurrent requests get 409
+//     and the panel retries;
+//   - a daily ceiling on paid Claude calls (SYNTHESIS_DAILY_CAP, default 100 ≈ a few dollars/day),
+//     reserved atomically in Redis before each call.
 const DAILY_CAP = Number(process.env.SYNTHESIS_DAILY_CAP) > 0 ? Number(process.env.SYNTHESIS_DAILY_CAP) : 100
 const LOCK_SECONDS = 90
+
+/**
+ * Atomically reserves one paid generation against today's (UTC) budget. Counts attempted Claude
+ * calls, not cached results, so failed or uncached generations still consume budget. Without
+ * Redis (non-production) it falls back to counting today's cached syntheses.
+ */
+async function reserveGeneration(redis: Redis | null, supabase: any): Promise<boolean> {
+  const day = new Date().toISOString().slice(0, 10)
+  if (redis) {
+    const key = `synthesis:budget:${day}`
+    const n = await redis.incr(key)
+    if (n === 1) await redis.expire(key, 2 * 24 * 3600)
+    return n <= DAILY_CAP
+  }
+  const { count, error } = await supabase
+    .from('topic_syntheses')
+    .select('id', { count: 'exact', head: true })
+    .gte('created_at', `${day}T00:00:00Z`)
+  if (error) throw new Error(`daily-cap count failed: ${error.message}`)
+  return (count ?? 0) < DAILY_CAP
+}
 
 export async function POST(request: NextRequest) {
   const startTime = Date.now()
@@ -54,12 +77,18 @@ export async function POST(request: NextRequest) {
     // neither, so CI smoke runs were counted as human runs.
     const userAgent = request.headers.get('user-agent') || ''
     const isQA = userAgent.includes('VetreeQABot') || request.headers.get('x-qa-bot') === '1'
-    // .then() is required — Supabase builders are lazy and won't fire without it
-    const trackRun = () => {
+    // Awaited before responding (a serverless function may be frozen once the response is sent),
+    // and a failure reaches Sentry — a lost run is a lost experiment data point.
+    //   /synthesis/run      — a synthesis was served (cache hit or new generation)
+    //   /synthesis/blocked  — a new generation was refused by a cost control (429 / daily cap)
+    const trackOutcome = async (path: '/synthesis/run' | '/synthesis/blocked') => {
       if (isQA) return
-      supabase.from('page_views')
-        .insert({ path: '/synthesis/run', user_id: userId, bot_name: detectBotName(userAgent) })
-        .then(({ error }) => { if (error) console.error('[synthesis] run tracking failed:', error.message) })
+      const { error } = await supabase.from('page_views')
+        .insert({ path, user_id: userId, bot_name: detectBotName(userAgent) })
+      if (error) {
+        console.error(`[synthesis] ${path} tracking failed:`, error.message)
+        Sentry.captureMessage(`[synthesis] ${path} tracking failed: ${error.code} ${error.message}`, 'error')
+      }
     }
 
     // Check if feature is enabled
@@ -89,7 +118,8 @@ export async function POST(request: NextRequest) {
 
     if (cached) {
       const articlesInCache = cached.articles as any[]
-      if (!articlesInCache || articlesInCache.length < 5) {
+      // Same threshold as generation (>= 3 studies), so every generated synthesis is reusable
+      if (!articlesInCache || articlesInCache.length < 3) {
         // Cache entry from broken search period — ignore and regenerate
         console.log('[synthesis] Cache invalid (too few articles), regenerating')
       } else {
@@ -102,7 +132,7 @@ export async function POST(request: NextRequest) {
           .eq('id', cached.id)
 
         // Track synthesis serve for analytics (cache hit)
-        trackRun()
+        await trackOutcome('/synthesis/run')
 
         return NextResponse.json({
           synthesis_html: cached.synthesis_html,
@@ -117,31 +147,14 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // STEP 2: Cache miss — a new generation is a Claude call: apply the cost controls first
-    const { success: withinLimit } = await synthesisLimiter.limit(`synthesis:${userId ?? getClientIP(request)}`)
-    if (!withinLimit) {
-      return NextResponse.json({ error: 'Too many syntheses — please wait a few minutes and try again.' }, { status: 429 })
-    }
-
-    const startOfDayUtc = new Date(new Date().toISOString().slice(0, 10) + 'T00:00:00Z').toISOString()
-    const { count: generatedToday, error: capError } = await supabase
-      .from('topic_syntheses')
-      .select('id', { count: 'exact', head: true })
-      .gte('created_at', startOfDayUtc)
-    if (capError) {
-      Sentry.captureMessage(`[synthesis] daily-cap count failed: ${capError.message}`, 'error')
-      return NextResponse.json({ error: 'Topic synthesis is temporarily unavailable.' }, { status: 503 })
-    }
-    if ((generatedToday ?? 0) >= DAILY_CAP) {
-      Sentry.captureMessage(`[synthesis] daily cap of ${DAILY_CAP} reached`, 'warning')
-      return NextResponse.json({ error: 'Topic synthesis has reached its daily limit — please try again tomorrow.' }, { status: 503 })
-    }
-
-    // One generation per topic at a time. Without Upstash (non-production), no lock.
+    // STEP 2: Cache miss. One generation per topic at a time: a concurrent reader of the same
+    // topic gets 409 and the panel retries until the first generation lands in the cache.
+    // Without Upstash (non-production), no lock and no Redis budget.
     const redis = process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN ? Redis.fromEnv() : null
     const lockKey = `synthesis:generating:${queryNormalized}`
+    const lockToken = crypto.randomUUID()
     if (redis) {
-      const acquired = await redis.set(lockKey, '1', { nx: true, ex: LOCK_SECONDS })
+      const acquired = await redis.set(lockKey, lockToken, { nx: true, ex: LOCK_SECONDS })
       if (!acquired) {
         return NextResponse.json(
           { error: 'This synthesis is already being prepared — try again in a few seconds.', generating: true },
@@ -149,7 +162,15 @@ export async function POST(request: NextRequest) {
         )
       }
     }
-    const releaseLock = () => { if (redis) redis.del(lockKey).catch(() => {}) }
+    // Release only our own lock: a generation that outlived LOCK_SECONDS must not delete a
+    // successor's lock.
+    const releaseLock = async () => {
+      if (!redis) return
+      await redis.eval(
+        "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end",
+        [lockKey], [lockToken]
+      ).catch(() => {})
+    }
 
     try {
     console.log('[synthesis] Cache miss, generating new synthesis for:', queryOriginal)
@@ -200,6 +221,19 @@ export async function POST(request: NextRequest) {
 
     // STEP 4: Call Claude to generate synthesis
     const modelToUse = 'claude-sonnet-4-6'
+
+    // Cost controls, applied only now — immediately before the paid Claude call — so a lock
+    // conflict or an insufficient-evidence answer never spends a reader's allowance or budget.
+    const { success: withinLimit } = await synthesisLimiter.limit(`synthesis:${userId ?? getClientIP(request)}`)
+    if (!withinLimit) {
+      await trackOutcome('/synthesis/blocked')
+      return NextResponse.json({ error: 'Too many syntheses — please wait a few minutes and try again.', retryable: false }, { status: 429 })
+    }
+    if (!(await reserveGeneration(redis, supabase))) {
+      await trackOutcome('/synthesis/blocked')
+      Sentry.captureMessage(`[synthesis] daily cap of ${DAILY_CAP} reached`, 'warning')
+      return NextResponse.json({ error: 'Topic synthesis has reached its daily limit — please try again tomorrow.', retryable: false }, { status: 503 })
+    }
 
     const anthropic = new Anthropic({
       apiKey: process.env.ANTHROPIC_API_KEY!
@@ -316,7 +350,7 @@ Synthesize the evidence for this veterinary clinical topic.`
     }
 
     // Track synthesis serve for analytics (cache miss / new generation)
-    trackRun()
+    await trackOutcome('/synthesis/run')
 
     return NextResponse.json({
       synthesis_html: synthesisHtml,
@@ -330,7 +364,7 @@ Synthesize the evidence for this veterinary clinical topic.`
     })
 
     } finally {
-      releaseLock()
+      await releaseLock()
     }
   } catch (error) {
     console.error('[synthesis] Error:', error)
