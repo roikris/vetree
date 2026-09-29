@@ -173,7 +173,10 @@ await fetch('/api/save-article', {
 
 // Funnel events go to /api/analytics/event (analytics_events table), NOT as
 // synthetic page_views paths. Event names: save_intent_arrived,
-// save_intent_auth_shown, save_intent_completed.
+// save_intent_auth_shown, save_intent_completed. Synthesis experiment events
+// (synthesis_*) too — they once lived in page_views and skewed every traffic
+// chart (moved out by migration 065). Analytics writers record only in
+// production (lib/analytics/recording.ts): previews + local dev share the DB.
 ```
 
 ### 13. Rate limiting — noop outside production only

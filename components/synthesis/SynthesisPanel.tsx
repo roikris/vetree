@@ -113,10 +113,10 @@ export function SynthesisPanel({ query, onClose, isLoggedIn, onDisplayed }: Synt
           }
           if (response.status === 409) {
             // Terminal outcome for the experiment: the reader waited out every retry
-            fetch('/api/analytics/track', {
+            fetch('/api/analytics/event', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ path: '/synthesis/busy_timeout' })
+              body: JSON.stringify({ event_name: 'synthesis_busy_timeout' })
             }).catch(() => {})
           }
           if (!response.ok) {
@@ -137,10 +137,10 @@ export function SynthesisPanel({ query, onClose, isLoggedIn, onDisplayed }: Synt
         // The request never got an answer (network): the server could not record it. Best
         // effort — if the network is down this report is lost too.
         if (err instanceof TypeError) {
-          fetch('/api/analytics/track', {
+          fetch('/api/analytics/event', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ path: '/synthesis/client_error' }),
+            body: JSON.stringify({ event_name: 'synthesis_client_error' }),
             keepalive: true,
           }).catch(() => {})
         }

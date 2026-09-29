@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createHash } from 'crypto'
+import { detectBotName } from '@/lib/bot-detection'
+import { analyticsRecordingEnabled, isQATraffic } from '@/lib/analytics/recording'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -17,6 +19,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false })
     }
 
+    // Only the production deployment records (previews and local dev share the production DB);
+    // QA smoke traffic never. success:true, tracked:false = deliberately not recorded.
+    const userAgent = request.headers.get('user-agent') || ''
+    if (!analyticsRecordingEnabled() || isQATraffic(userAgent, request.headers)) {
+      return NextResponse.json({ success: true, tracked: false })
+    }
+
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
@@ -30,7 +39,6 @@ export async function POST(request: NextRequest) {
     }
 
     // Coarse device + in-app-browser detection from UA (same regex family as /api/analytics/track)
-    const userAgent = request.headers.get('user-agent') || ''
     const device = {
       type: MOBILE_UA_REGEX.test(userAgent) ? 'mobile' : 'desktop',
       in_app_browser: IN_APP_UA_REGEX.test(userAgent),
@@ -47,12 +55,18 @@ export async function POST(request: NextRequest) {
       ip_hash: ipHash,
     }
 
-    await supabase.from('analytics_events').insert({
+    const { error } = await supabase.from('analytics_events').insert({
       event_name,
       article_id: article_id || null,
       user_id: user?.id || null,
+      // Crawlers are recorded but tagged; every reader filters bot_name IS NULL
+      bot_name: detectBotName(userAgent),
       detail: mergedDetail,
     })
+    if (error) {
+      console.error('[analytics/event] insert failed:', event_name, error.message)
+      return NextResponse.json({ success: false })
+    }
 
     return NextResponse.json({ success: true })
   } catch {

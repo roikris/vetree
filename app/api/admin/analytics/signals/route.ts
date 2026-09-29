@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { excludedUsersOrFilter } from '@/lib/analytics-excluded-ids'
+import { getAnalyticsCleanupBoundary } from '@/lib/analytics/synthesisEvents'
 
 export async function POST(request: NextRequest) {
   try {
@@ -136,7 +137,11 @@ export async function POST(request: NextRequest) {
       }
 
       // Signal 4: WoW DAU change
-      if (previous && previous.dau && latest.dau) {
+      // Never compare across the analytics cleanup (migration 065): snapshots before it include
+      // synthetic page views and test traffic, so a drop there is the cleanup, not user behaviour.
+      const cleanup = await getAnalyticsCleanupBoundary(supabase)
+      const crossesCleanup = !!(cleanup && previous && previous.date < cleanup && latest.date >= cleanup)
+      if (previous && previous.dau && latest.dau && !crossesCleanup) {
         const change = (latest.dau - previous.dau) / previous.dau
         if (Math.abs(change) > 0.2) {
           signals.push({

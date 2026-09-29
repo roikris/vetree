@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createHash } from 'crypto'
 import { EXCLUDED_USER_IDS } from '@/lib/analytics-excluded-ids'
+import { analyticsRecordingEnabled, isQATraffic } from '@/lib/analytics/recording'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -21,9 +22,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true })
     }
 
-    // Skip QA bot traffic — VetreeQABot UA or x-qa-bot header
+    // Only the production deployment records (previews and local dev share the production DB);
+    // skip QA bot traffic — VetreeQABot UA or x-qa-bot header
     const userAgent = request.headers.get('user-agent') || ''
-    if (userAgent.includes('VetreeQABot') || request.headers.get('x-qa-bot') === '1') {
+    if (!analyticsRecordingEnabled() || isQATraffic(userAgent, request.headers)) {
       return NextResponse.json({ success: true })
     }
 

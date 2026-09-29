@@ -9,6 +9,7 @@ import * as Sentry from '@sentry/nextjs'
 import { Redis } from '@upstash/redis'
 import { synthesisLimiter, getClientIP } from '@/lib/ratelimit'
 import { detectBotName } from '@/lib/bot-detection'
+import { analyticsRecordingEnabled, isQATraffic } from '@/lib/analytics/recording'
 
 // Cost controls (Codex re-evaluation #5c). Synthesis auto-runs on every search (experiment
 // restarted 2026-09-28), and each cache miss is a Claude call on a public route:
@@ -73,42 +74,43 @@ export async function POST(request: NextRequest) {
     const { data: { user } } = await userSupabase.auth.getUser()
     const userId = user?.id || null
 
-    // Experiment KPI: one /synthesis/run per serve (cache hit or miss). Same exclusions as
-    // /api/analytics/track — QA smoke traffic is dropped, known crawlers are tagged (bot_name) so
-    // the snapshot's bot_name IS NULL filter removes them. Before 2026-09-28 this route did
-    // neither, so CI smoke runs were counted as human runs.
-    const userAgent = request.headers.get('user-agent') || ''
-    const isQA = userAgent.includes('VetreeQABot') || request.headers.get('x-qa-bot') === '1'
+    // Experiment events go to analytics_events (CLAUDE.md rule 12) — never page_views, where they
+    // inflated page views, top pages, countries and devices (moved out by migration 065).
+    // Recorded only by the production deployment (previews and local dev share the production DB),
+    // never for QA smoke traffic; crawlers are recorded with bot_name set and filtered by readers.
     // Awaited before responding (a serverless function may be frozen once the response is sent),
     // and a failure reaches Sentry — a lost run is a lost experiment data point.
-    //   /synthesis/attempt       — a reader asked for a synthesis (busy-topic retries excluded)
-    //   /synthesis/run           — a synthesis was served (cache hit or new generation)
-    //   /synthesis/blocked       — a new generation was refused by a cost control (429 / daily cap)
-    //   /synthesis/insufficient  — fewer than 3 relevant studies; nothing to synthesize
-    //   /synthesis/failed        — the generation errored (Claude, database, Redis)
-    // (A reader who gave up after the busy-topic retries is recorded by the panel:
-    //  /synthesis/busy_timeout via /api/analytics/track.)
+    //   synthesis_attempt       — a reader asked for a synthesis (busy-topic retries excluded)
+    //   synthesis_run           — a synthesis was served (cache hit or new generation)
+    //   synthesis_blocked       — a new generation was refused by a cost control (429 / daily cap)
+    //   synthesis_insufficient  — fewer than 3 relevant studies; nothing to synthesize
+    //   synthesis_failed        — the generation errored (Claude, database, Redis)
+    // (The panel records synthesis_engaged, synthesis_busy_timeout and synthesis_client_error via
+    //  /api/analytics/event.)
     // Returns the stored event's created_at (null when not recorded); the client counts engagement
     // only for a recorded run, and only when that timestamp is inside the experiment window.
+    const userAgent = request.headers.get('user-agent') || ''
+    const recording = analyticsRecordingEnabled() && !isQATraffic(userAgent, request.headers)
+    const botName = detectBotName(userAgent)
     const recordEvent = async (
-      path: '/synthesis/attempt' | '/synthesis/run' | '/synthesis/blocked' | '/synthesis/insufficient' | '/synthesis/failed'
+      event: 'synthesis_attempt' | 'synthesis_run' | 'synthesis_blocked' | 'synthesis_insufficient' | 'synthesis_failed'
     ): Promise<string | null> => {
-      if (isQA) return null
-      const { data, error } = await supabase.from('page_views')
-        .insert({ path, user_id: userId, bot_name: detectBotName(userAgent) })
+      if (!recording) return null
+      const { data, error } = await supabase.from('analytics_events')
+        .insert({ event_name: event, user_id: userId, bot_name: botName })
         .select('created_at')
         .single()
       if (error) {
-        console.error(`[synthesis] ${path} tracking failed:`, error.message)
-        Sentry.captureMessage(`[synthesis] ${path} tracking failed: ${error.code} ${error.message}`, 'error')
+        console.error(`[synthesis] ${event} tracking failed:`, error.message)
+        Sentry.captureMessage(`[synthesis] ${event} tracking failed: ${error.code} ${error.message}`, 'error')
         return null
       }
       return data?.created_at ?? null
     }
-    const trackOutcome = async (path: Parameters<typeof recordEvent>[0]) => (await recordEvent(path)) !== null
-    recordFailure = () => trackOutcome('/synthesis/failed')
+    const trackOutcome = async (event: Parameters<typeof recordEvent>[0]) => (await recordEvent(event)) !== null
+    recordFailure = () => trackOutcome('synthesis_failed')
     // One attempt per reader request; the panel's busy-topic retries are marked and not counted
-    if (request.headers.get('x-synthesis-retry') !== '1') await trackOutcome('/synthesis/attempt')
+    if (request.headers.get('x-synthesis-retry') !== '1') await trackOutcome('synthesis_attempt')
 
     // Check if feature is enabled
     const { data: flag } = await supabase
@@ -151,7 +153,7 @@ export async function POST(request: NextRequest) {
           .eq('id', cached.id)
 
         // Track synthesis serve for analytics (cache hit)
-        const runAt = await recordEvent('/synthesis/run')
+        const runAt = await recordEvent('synthesis_run')
 
         return NextResponse.json({
           run_recorded: runAt !== null,
@@ -175,7 +177,7 @@ export async function POST(request: NextRequest) {
     if (!redis && process.env.VERCEL_ENV === 'production') {
       // Fail closed: without Redis there is no lock and only an approximate budget (rule 13)
       Sentry.captureMessage('[synthesis] Upstash missing in production — generation refused', 'error')
-      await trackOutcome('/synthesis/failed')
+      await trackOutcome('synthesis_failed')
       return NextResponse.json({ error: 'Topic synthesis is temporarily unavailable.' }, { status: 503 })
     }
     const lockKey = `synthesis:generating:${queryNormalized}`
@@ -228,7 +230,7 @@ export async function POST(request: NextRequest) {
     console.log('[synthesis] articlesForSynthesis:', articlesForSynthesis.length)
 
     if (articlesForSynthesis.length < 3) {
-      await trackOutcome('/synthesis/insufficient')
+      await trackOutcome('synthesis_insufficient')
       return NextResponse.json({
         synthesis_html: null,
         articles: articlesForSynthesis,
@@ -255,11 +257,11 @@ export async function POST(request: NextRequest) {
     // conflict or an insufficient-evidence answer never spends a reader's allowance or budget.
     const { success: withinLimit } = await synthesisLimiter.limit(`synthesis:${userId ?? getClientIP(request)}`)
     if (!withinLimit) {
-      await trackOutcome('/synthesis/blocked')
+      await trackOutcome('synthesis_blocked')
       return NextResponse.json({ error: 'Too many syntheses — please wait a few minutes and try again.', retryable: false }, { status: 429 })
     }
     if (!(await reserveGeneration(redis, supabase))) {
-      await trackOutcome('/synthesis/blocked')
+      await trackOutcome('synthesis_blocked')
       Sentry.captureMessage(`[synthesis] daily cap of ${DAILY_CAP} reached`, 'warning')
       return NextResponse.json({ error: 'Topic synthesis has reached its daily limit — please try again tomorrow.', retryable: false }, { status: 503 })
     }
@@ -379,7 +381,7 @@ Synthesize the evidence for this veterinary clinical topic.`
     }
 
     // Track synthesis serve for analytics (cache miss / new generation)
-    const runAt = await recordEvent('/synthesis/run')
+    const runAt = await recordEvent('synthesis_run')
 
     return NextResponse.json({
       run_recorded: runAt !== null,

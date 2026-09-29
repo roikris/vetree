@@ -1,4 +1,4 @@
-import { getAnalyticsOverview, getTopPages, getVisitorsOverTime, getTopArticles, getSessionDuration, getRecentSearches, getDeviceBreakdown, getTopCountries, getSavedArticlesStats, getTrafficSources, getSynthesisStats, getSaveIntentFunnel, getBotTraffic } from '@/app/actions/analytics'
+import { getAnalyticsOverview, getTopPages, getVisitorsOverTime, getTopArticles, getSessionDuration, getRecentSearches, getDeviceBreakdown, getTopCountries, getSavedArticlesStats, getTrafficSources, getSynthesisStats, getSaveIntentFunnel, getBotTraffic, getAnalyticsCleanupDate } from '@/app/actions/analytics'
 import { AnalyticsClient } from './AnalyticsClient'
 import { UserRetention } from './UserRetention'
 import { AnalysisAgent } from './AnalysisAgent'
@@ -8,7 +8,7 @@ import { PaidCampaigns } from './PaidCampaigns'
 export default async function AdminAnalyticsPage() {
   const days = 7 // Default to 7 days
 
-  const [overview, topPages, visitorsOverTime, topArticles, sessionDuration, recentSearches, deviceBreakdown, topCountries, savedArticlesStats, trafficSources, synthesisStats, saveIntentFunnel, botTraffic] = await Promise.all([
+  const [overview, topPages, visitorsOverTime, topArticles, sessionDuration, recentSearches, deviceBreakdown, topCountries, savedArticlesStats, trafficSources, synthesisStats, saveIntentFunnel, botTraffic, cleanup] = await Promise.all([
     getAnalyticsOverview(days),
     getTopPages(days),
     getVisitorsOverTime(days),
@@ -22,6 +22,7 @@ export default async function AdminAnalyticsPage() {
     getSynthesisStats(days),
     getSaveIntentFunnel(days),
     getBotTraffic(days),
+    getAnalyticsCleanupDate(),
   ])
 
   return (
@@ -43,6 +44,21 @@ export default async function AdminAnalyticsPage() {
           How the practice is reading — traffic, sessions and search.
         </p>
       </div>
+
+      {cleanup.data && (
+        <p style={{
+          margin: '0 0 20px', padding: '10px 14px', borderRadius: 10,
+          background: 'rgba(var(--al-warnc, 176,120,40), .08)', color: 'var(--al-sub)',
+          fontFamily: 'var(--font-instrument, sans-serif)', fontSize: 12.5, lineHeight: 1.5,
+        }}>
+          Analytics cleanup on {cleanup.data}: synthesis events were moved out of page views, so the
+          live page-view charts here no longer include them for any date, and synthesis runs with
+          evidence of test traffic (CI run windows, a local test burst) are excluded; other runs
+          from those days are still counted. Daily snapshots taken before {cleanup.data} (DAU/WAU/MAU,
+          devices, traffic sources, synthesis counts) and insights or signals generated from them
+          were not rewritten and still include the synthetic rows.
+        </p>
+      )}
 
       <AnalyticsClient
         initialOverview={overview.data}

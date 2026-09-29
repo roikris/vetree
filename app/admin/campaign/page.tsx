@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { CampaignClient } from './CampaignClient'
 import { excludedUsersOrFilter } from '@/lib/analytics-excluded-ids'
+import { countSynthesisEvents } from '@/lib/analytics/synthesisEvents'
 import { EXPERIMENT_KICKOFF_DATE, EXPERIMENT_END_DATE } from '@/lib/synthesis/experiment'
 
 // Run 2 of the auto-run experiment. Run 1 (2026-06-20 → 2026-09-18) is not comparable: its
@@ -98,18 +99,13 @@ export default async function CampaignPage() {
   const warmupUntil = new Date(kickoff.getTime() + WARMUP_DAYS * DAY).toISOString().slice(0, 10)
   const warmingUp = !today || today.date < warmupUntil
 
-  // Synthesis KPIs from raw events, exactly within the run-2 window (humans only: crawlers are
-  // tagged bot_name; QA traffic is never recorded; admin + TEST_USER_ID excluded)
+  // Synthesis KPIs from raw analytics_events, exactly within the run-2 window (humans only:
+  // crawlers and suspected test traffic filtered; QA traffic is never recorded; admin +
+  // TEST_USER_ID excluded) — see lib/analytics/synthesisEvents.ts
   const from = `${KICKOFF_DATE}T00:00:00Z`
   const to = new Date(new Date(`${END_DATE}T00:00:00Z`).getTime() + DAY).toISOString()
-  const countEvents = async (path: string) => {
-    const { count, error } = await supabase.from('page_views')
-      .select('id', { count: 'exact', head: true })
-      .eq('path', path).is('bot_name', null).or(excludedUsersOrFilter())
-      .gte('created_at', from).lt('created_at', to)
-    if (error) throw new Error(`campaign ${path} count failed: ${error.message}`)
-    return count ?? 0
-  }
+  const countEvents = (event: Parameters<typeof countSynthesisEvents>[1]) =>
+    countSynthesisEvents(supabase, event, from, to)
   const countFeedback = async (feedback: string) => {
     const { count, error } = await supabase.from('synthesis_feedback')
       .select('id', { count: 'exact', head: true })
@@ -119,9 +115,9 @@ export default async function CampaignPage() {
     return count ?? 0
   }
   const [attempts, clientErrors, runs, engaged, blocked, insufficient, failed, busyTimeout, helpful, notRelevant] = await Promise.all([
-    countEvents('/synthesis/attempt'), countEvents('/synthesis/client_error'),
-    countEvents('/synthesis/run'), countEvents('/synthesis/engaged'), countEvents('/synthesis/blocked'),
-    countEvents('/synthesis/insufficient'), countEvents('/synthesis/failed'), countEvents('/synthesis/busy_timeout'),
+    countEvents('synthesis_attempt'), countEvents('synthesis_client_error'),
+    countEvents('synthesis_run'), countEvents('synthesis_engaged'), countEvents('synthesis_blocked'),
+    countEvents('synthesis_insufficient'), countEvents('synthesis_failed'), countEvents('synthesis_busy_timeout'),
     countFeedback('helpful'), countFeedback('not_relevant'),
   ])
   const run2 = { attempts, runs, engaged, blocked, insufficient, failed: failed + busyTimeout + clientErrors, helpful, notRelevant }

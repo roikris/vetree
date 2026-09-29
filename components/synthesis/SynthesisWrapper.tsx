@@ -79,13 +79,13 @@ export function SynthesisWrapper({ searchQuery, children, isLoggedIn, view }: Sy
         if (!entries[0].isIntersecting || engagedFiredRef.current) return
         try { if (sessionStorage.getItem(engagedKey)) { engagedFiredRef.current = true; return } } catch { /* unavailable */ }
         engagedFiredRef.current = true   // also the in-flight guard
-        fetch('/api/analytics/track', {
+        fetch('/api/analytics/event', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ event: 'synthesis_engaged', query: searchQuery })
+          body: JSON.stringify({ event_name: 'synthesis_engaged', detail: { query: searchQuery } })
         })
           .then(async res => {
-            // /api/analytics/track answers 200 {success:false} when the insert fails
+            // /api/analytics/event answers 200 {success:false} when the insert fails
             const body = await res.json().catch(() => null)
             if (!res.ok || body?.success !== true) throw new Error(`engaged ${res.status}`)
             try { sessionStorage.setItem(engagedKey, '1') } catch { /* unavailable: once per mount */ }

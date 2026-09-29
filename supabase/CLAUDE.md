@@ -205,8 +205,12 @@ UNIQUE(user_id, tag)
 | bot_name | text nullable | set by `/api/analytics/track` via `lib/bot-detection.ts` (`meta-externalagent`, `adsbot-google`, `googlebot`, `gptbot`, `other-bot`, etc.) — migration 051 |
 | created_at | timestamptz | |
 
-Note: `page_views` is also used for `/synthesis/run` tracking (path = '/synthesis/run').
-Funnel events (save_intent_*) go to `analytics_events`, NOT page_views.
+`page_views` holds real page views ONLY. Funnel events (save_intent_*) and synthesis experiment
+events (synthesis_*) go to `analytics_events`. Until migration 065 (2026-09-29) synthesis events
+were fake `/synthesis/*` page_views rows that inflated views, top pages, countries and devices;
+`/api/analytics/track` now redirects any legacy `/synthesis/*` payload to `analytics_events`.
+Every analytics writer records only when `VERCEL_ENV === 'production'` (previews and local dev
+share this database) — `lib/analytics/recording.ts`.
 
 **Bot traffic is tagged, not dropped.** Known crawlers (Meta's link-preview bot firing
 whenever someone privately shares an article link, `AdsBot-Google` re-fetching an
@@ -233,10 +237,13 @@ new page_views-reading query without deciding which side of that filter it belon
 | Column | Type | Notes |
 |--------|------|-------|
 | id | uuid PK | |
-| event_name | text | save_intent_arrived / save_intent_auth_shown / save_intent_completed / save_intent_resolved |
+| event_name | text | save_intent_arrived / save_intent_auth_shown / save_intent_completed / save_intent_resolved; synthesis_attempt / run / blocked / insufficient / failed / engaged / busy_timeout / client_error |
 | article_id | text nullable FK → articles | ON DELETE SET NULL |
 | user_id | uuid nullable | |
 | detail | jsonb nullable | added migration 046; free-form event context |
+| bot_name | text nullable | migration 065 — crawler tag (lib/bot-detection.ts); readers filter IS NULL |
+| traffic_class | text nullable | migration 065 — 'suspected_test' (evidence in detail.classification); readers filter IS NULL |
+| source_page_view_id | uuid nullable UNIQUE | migration 065 — original page_views id for rows moved out of page_views |
 | created_at | timestamptz | |
 
 Admin-only read policy. Public insert policy. Never write funnel events to page_views.

@@ -305,7 +305,7 @@ export async function POST(request: NextRequest) {
   // Missing a table = residual data after user requests erasure = GDPR violation.
   try {
     const userDataTables = [
-      'page_views', 'search_logs', 'saved_articles', 'followed_tags',
+      'page_views', 'search_logs', 'analytics_events', 'saved_articles', 'followed_tags',
       'user_preferences', 'user_consents', 'reports', 'synthesis_feedback',
     ]
     const deleteRouteContent = fs.readFileSync(

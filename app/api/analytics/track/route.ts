@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createHash } from 'crypto'
 import { ratelimitLoose, getClientIP } from '@/lib/ratelimit'
 import { detectBotName } from '@/lib/bot-detection'
+import { analyticsRecordingEnabled, isQATraffic, isSynthesisEvent } from '@/lib/analytics/recording'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -26,10 +27,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Path is required' }, { status: 400 })
     }
 
+    // Only the production deployment records (previews and local dev share the production DB).
     // Skip QA bot traffic — VetreeQABot UA or x-qa-bot header (deliberate internal
     // smoke-test traffic, not real crawler noise — excluded entirely, not tagged)
     const userAgent = request.headers.get('user-agent') || ''
-    if (userAgent.includes('VetreeQABot') || request.headers.get('x-qa-bot') === '1') {
+    if (!analyticsRecordingEnabled() || isQATraffic(userAgent, request.headers)) {
       return NextResponse.json({ success: true, tracked: false })
     }
 
@@ -52,6 +54,25 @@ export async function POST(request: NextRequest) {
       if (role?.role === 'admin') {
         return NextResponse.json({ success: true, tracked: false })
       }
+    }
+
+    // Synthesis experiment events are NOT page views (CLAUDE.md rule 12). Browser tabs still running
+    // an older build send {event:'synthesis_engaged'} or a '/synthesis/*' path here: record them in
+    // analytics_events (as /api/analytics/event does) and never in page_views.
+    if (path.startsWith('/synthesis/')) {
+      const eventName = `synthesis_${path.slice('/synthesis/'.length)}`
+      if (!isSynthesisEvent(eventName)) return NextResponse.json({ success: true, tracked: false })
+      const { error: eventError } = await supabase.from('analytics_events').insert({
+        event_name: eventName,
+        user_id: user?.id || null,
+        bot_name: botName,
+        detail: { via: 'legacy_track_payload' },
+      })
+      if (eventError) {
+        console.error('[analytics/track] legacy synthesis event insert failed:', eventError.message)
+        return NextResponse.json({ success: false }, { status: 200 })
+      }
+      return NextResponse.json({ success: true })
     }
 
     // Get IP from headers (privacy-conscious: we'll hash it)

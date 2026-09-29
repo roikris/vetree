@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { excludedUsersOrFilter } from '@/lib/analytics-excluded-ids'
+import { countSynthesisEvents } from '@/lib/analytics/synthesisEvents'
 
 export async function POST(request: NextRequest) {
   try {
@@ -43,7 +44,10 @@ export async function POST(request: NextRequest) {
       .is('bot_name', null)
       .or(excludedUsersOrFilter())
     fail('DAU', dauError)
-    const dau = new Set(dauData?.map(r => r.ip_hash) ?? []).size
+    // A row without ip_hash is not a distinct visitor (a JS Set would count null as one)
+    const distinctIps = (rows: { ip_hash: string | null }[] | null) =>
+      new Set((rows ?? []).map(r => r.ip_hash).filter(Boolean)).size
+    const dau = distinctIps(dauData)
 
     // WAU - unique ip_hash last 7 days (exclude known bots)
     const { data: wauData, error: wauError } = await supabase
@@ -53,7 +57,7 @@ export async function POST(request: NextRequest) {
       .is('bot_name', null)
       .or(excludedUsersOrFilter())
     fail('WAU', wauError)
-    const wau = new Set(wauData?.map(r => r.ip_hash) ?? []).size
+    const wau = distinctIps(wauData)
 
     // MAU - unique ip_hash last 30 days (exclude known bots)
     const { data: mauData, error: mauError } = await supabase
@@ -62,7 +66,7 @@ export async function POST(request: NextRequest) {
       .gte('created_at', thirtyDaysAgo)
       .is('bot_name', null)
       .or(excludedUsersOrFilter())
-    const mau = new Set(mauData?.map(r => r.ip_hash) ?? []).size
+    const mau = distinctIps(mauData)
 
     // Sanity guard: a live production site cannot have zero 30-day pageviews.
     // Zero means the reads are broken (wrong key, RLS, network), not quiet traffic.
@@ -114,25 +118,12 @@ export async function POST(request: NextRequest) {
       .slice(0, 10)
       .map(([query, count]) => ({ query, count }))
 
-    // Synthesis engaged (auto-exposure tracked via IntersectionObserver, exclude admin + bots)
-    const { count: synthesisEngaged, error: synthEngErr } = await supabase
-      .from('page_views')
-      .select('*', { count: 'exact', head: true })
-      .eq('path', '/synthesis/engaged')
-      .gte('created_at', sevenDaysAgo)
-      .is('bot_name', null)
-      .or(excludedUsersOrFilter())
-    fail('synthesis_engaged', synthEngErr)
-
-    // Synthesis runs — count all synthesis serves (cache hits + misses) from page_views tracking
-    const { count: synthesisRuns, error: synthRunErr } = await supabase
-      .from('page_views')
-      .select('*', { count: 'exact', head: true })
-      .eq('path', '/synthesis/run')
-      .gte('created_at', sevenDaysAgo)
-      .is('bot_name', null)
-      .or(excludedUsersOrFilter())
-    fail('synthesis_runs', synthRunErr)
+    // Synthesis runs (served, cache hit or miss) and engaged (a displayed synthesis scrolled into
+    // view) — analytics_events, humans only (lib/analytics/synthesisEvents.ts). Throws on error.
+    const [synthesisRuns, synthesisEngaged] = await Promise.all([
+      countSynthesisEvents(supabase, 'synthesis_run', sevenDaysAgo),
+      countSynthesisEvents(supabase, 'synthesis_engaged', sevenDaysAgo),
+    ])
 
     const { count: synthesisHelpful, error: synthHelpErr } = await supabase
       .from('synthesis_feedback')
