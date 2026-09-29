@@ -730,7 +730,8 @@ export async function getSaveIntentFunnel(days: number = 7) {
     .select('event_name, user_id, detail')
     .in('event_name', ['save_intent_arrived', 'save_intent_auth_shown', 'save_intent_completed', 'save_intent_resolved'])
     .gte('created_at', startDate.toISOString())
-    .is('bot_name', null)   // crawlers are recorded tagged (/api/analytics/event), never counted
+    .is('bot_name', null)        // crawlers are recorded tagged (/api/analytics/event), never counted
+    .is('traffic_class', null)   // suspected test traffic (migration 065) is never counted
     .or(excludedUsersOrFilter())
 
   const counts = { arrived: 0, auth_shown: 0, completed: 0 }

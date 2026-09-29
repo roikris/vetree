@@ -52,10 +52,11 @@ export default async function AdminAnalyticsPage() {
           fontFamily: 'var(--font-instrument, sans-serif)', fontSize: 12.5, lineHeight: 1.5,
         }}>
           Analytics cleanup on {cleanup.data}: synthesis events were moved out of page views, so the
-          live page-view charts here no longer include them for any date, and synthesis runs
-          identified as test traffic are excluded. Daily snapshots taken before {cleanup.data}
-          (DAU/WAU/MAU, devices, traffic sources, synthesis counts, stored insights) were not
-          rewritten and still include them.
+          live page-view charts here no longer include them for any date, and synthesis runs with
+          evidence of test traffic (CI run windows, a local test burst) are excluded; other runs
+          from those days are still counted. Daily snapshots taken before {cleanup.data} (DAU/WAU/MAU,
+          devices, traffic sources, synthesis counts) and insights or signals generated from them
+          were not rewritten and still include the synthetic rows.
         </p>
       )}
 
