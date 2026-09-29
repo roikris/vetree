@@ -14,7 +14,8 @@ const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY
 const RUN_URL = process.env.GITHUB_RUN_URL || ''
 const TRIGGER = process.env.TRIGGER || 'unknown'
 // What was tested — the preview URL on PRs, production otherwise
-const TARGET = process.env.SMOKE_BASE_URL || 'https://vetree.app'
+const TARGET = process.env.SMOKE_BASE_URL
+  || (TRIGGER === 'pull_request' ? '(preview URL unavailable)' : 'https://vetree.app')
 
 // Map test title fragments → feature description for triage context
 const TEST_FEATURE_MAP = {
