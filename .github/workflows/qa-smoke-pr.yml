@@ -55,20 +55,28 @@ jobs:
           poll()
           EOF
 
-      - name: Check for Vercel deployment protection interstitial
+      # Previews are behind Vercel Deployment Protection (they share the production database, so
+      # they must not be publicly reachable). Protection must be ON: an anonymous request must be
+      # redirected to Vercel's login. CI enters with the automation bypass secret, which
+      # e2e/global-setup.ts exchanges (once, preview origin only) for a host-scoped cookie and
+      # verifies that the cookie alone opens the preview.
+      - name: Check the preview is protected
         env:
           PREVIEW_URL: ${{ steps.vercel.outputs.preview_url }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
         run: |
-          FINAL_URL=$(curl -sL -o /dev/null -w '%{url_effective}' "$PREVIEW_URL")
-          if echo "$FINAL_URL" | grep -q 'vercel.com'; then
-            echo "ERROR: Vercel deployment protection interstitial detected."
-            echo "Final URL after redirect: $FINAL_URL"
-            echo "To fix: disable deployment protection for this project in Vercel dashboard,"
-            echo "or add VERCEL_AUTOMATION_BYPASS_SECRET to GitHub secrets and pass"
-            echo "x-vercel-protection-bypass header via playwright extraHTTPHeaders."
+          if [ -z "$VERCEL_AUTOMATION_BYPASS_SECRET" ]; then
+            echo "ERROR: VERCEL_AUTOMATION_BYPASS_SECRET is not set in GitHub secrets."
             exit 1
           fi
-          echo "Preview accessible at: $PREVIEW_URL"
+          read -r CODE LOCATION < <(curl -s -o /dev/null -w '%{http_code} %{redirect_url}' "$PREVIEW_URL/")
+          case "$CODE" in 301|302|303|307|308) ;; *) CODE_BAD=1 ;; esac
+          if [ -n "$CODE_BAD" ] || [[ "$LOCATION" != https://vercel.com/sso-api* ]]; then
+            echo "ERROR: preview is not behind Vercel Deployment Protection (HTTP $CODE, redirect '$LOCATION')."
+            echo "Previews share the production database; re-enable Standard Protection."
+            exit 1
+          fi
+          echo "Preview is protected (HTTP $CODE → Vercel login)"
 
       - name: Install dependencies
         run: npm ci
@@ -83,6 +91,7 @@ jobs:
         env:
           SMOKE_BASE_URL: ${{ steps.vercel.outputs.preview_url }}
           SMOKE_USER_AGENT: vetree-smoke-pr
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
           TEST_USER_EMAIL: ${{ secrets.TEST_USER_EMAIL }}
           TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
 
