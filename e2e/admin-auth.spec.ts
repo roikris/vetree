@@ -18,7 +18,7 @@ const ADMIN_ROUTES_GET = [
 ]
 
 for (const path of ADMIN_ROUTES_GET) {
-  test(`admin auth: GET ${path} rejects anonymous access`, async ({ request }) => {
+  test(`admin auth: GET ${path} rejects anonymous access`, { tag: '@desktop-only' }, async ({ request }) => {
     const response = await request.get(path)
     expect(response.status()).toBe(401)
     expect(await response.json()).toEqual(UNAUTHORIZED_BODY)
@@ -35,11 +35,9 @@ for (const path of ADMIN_ROUTES_GET) {
 test.describe('admin auth: write endpoint', () => {
   test.describe.configure({ retries: 0 })
 
-  test('POST /api/admin/fix-incomplete rejects anonymous access', async ({ request }, testInfo) => {
-    test.skip(
-      testInfo.project.name !== 'desktop',
-      'Checked once per run to limit mutation exposure if the guard has regressed',
-    )
+  // Desktop project only (@desktop-only): checked once per run to limit mutation exposure if the
+  // guard has regressed
+  test('POST /api/admin/fix-incomplete rejects anonymous access', { tag: '@desktop-only' }, async ({ request }) => {
     const response = await request.post('/api/admin/fix-incomplete')
     expect(response.status()).toBe(401)
     expect(await response.json()).toEqual(UNAUTHORIZED_BODY)

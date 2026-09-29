@@ -82,7 +82,7 @@ test('search: starts across all species, and narrowing can be undone from the em
 })
 
 // ─── Progressive search: Best match default, toggle, reveal, finish ───────────────
-test('search: opens in Best match and ends with "Search finished!"', async ({ page }) => {
+test('search: opens in Best match and ends with "Search finished!"', { tag: '@desktop-only' }, async ({ page }) => {
   await page.goto('/?search=pyometra')
   await expect(page.locator('[data-testid="sort-relevance"]')).toHaveAttribute('aria-pressed', 'true', { timeout: 20_000 })
   await expect(page.locator('#main-feed')).toContainText(/\d+ results for/)
@@ -104,7 +104,7 @@ test('search: Newest toggle updates the URL and reveals more on scroll', async (
   await expect.poll(() => rows.count(), { timeout: 10_000 }).toBeGreaterThan(before)
 })
 
-test('search batch API: rejects malformed input with 400', async ({ request }) => {
+test('search batch API: rejects malformed input with 400', { tag: '@desktop-only' }, async ({ request }) => {
   const bad = await request.get('/api/search/batch?search=dog&sort=newest&cursor=not-a-cursor')
   expect(bad.status()).toBe(400)
   const relevanceWithCursor = await request.get('/api/search/batch?search=dog&cursor=eyJ2IjoxLCJzIjoibmV3ZXN0IiwiZCI6IjIwMjQtMDEtMDEiLCJpIjoiYSJ9')
@@ -114,8 +114,7 @@ test('search batch API: rejects malformed input with 400', async ({ request }) =
 })
 
 // ─── Mobile bottom-nav Search opens the search box (it used to just go home) ────
-test('mobile bottom nav: Search opens and focuses the search box', async ({ page }, testInfo) => {
-  test.skip(testInfo.project.name !== 'mobile', 'bottom nav is mobile-only')
+test('mobile bottom nav: Search opens and focuses the search box', { tag: '@mobile-only' }, async ({ page }) => {
   // On the results page: opens in place, results and URL kept
   await page.goto('/?search=pyometra')
   await expect(page.locator('[data-testid="sort-relevance"]')).toBeVisible({ timeout: 20_000 })
@@ -141,7 +140,7 @@ test('mobile bottom nav: Search opens and focuses the search box', async ({ page
 
 // ─── Landing sample card is a real article with its real evidence badge ────────
 // It used to show a hardcoded "RCT / Meta-analysis" badge on whatever article was newest.
-test('landing: sample card badge matches the article it links to', async ({ page, context }) => {
+test('landing: sample card badge matches the article it links to', { tag: '@desktop-only' }, async ({ page, context }) => {
   await clearCookiesKeepPreviewAccess(context)
   await page.goto('/')
   const badge = (await page.locator('[data-testid="landing-sample-badge"]').textContent())?.trim()
@@ -168,10 +167,9 @@ async function expectSavePrompt(page: import('@playwright/test').Page, articlePa
   for (const h of auth) expect(h, 'every auth link returns with the save pending').toContain('intent=save')
 }
 
-test('guest save: article-page Save opens the sign-in prompt', async ({ page, context }) => {
+test('guest save: article-page Save opens the sign-in prompt', async ({ page, context, request }) => {
   await clearCookiesKeepPreviewAccess(context)
-  const xml = await firstSitemapShard(page)
-  const id = xml.match(/<loc>https?:\/\/[^/]+\/article\/([^<]+)<\/loc>/)?.[1]
+  const [id] = await sitemapArticleIds(request)
   await page.goto(`/article/${id}`)
   await expect(page.locator('[data-testid="article-title"]')).toBeVisible()
   // Same header button on every width (icon-only on phones)
@@ -200,7 +198,7 @@ test('guest save: feed row bookmark opens the article with the sign-in prompt', 
 // ─── Consent can only be recorded for yourself ─────────────────────────────────
 // The endpoint used to accept any body userId, so anyone could opt any user into the digest.
 // Without a session it must refuse — and a refusal writes nothing, so this is safe on production.
-test('consent endpoint refuses requests without a session', async ({ request }) => {
+test('consent endpoint refuses requests without a session', { tag: '@desktop-only' }, async ({ request }) => {
   const res = await request.post('/api/auth/save-consent', {
     data: { userId: '00000000-0000-4000-8000-000000000000', termsAccepted: true, marketingOptIn: true, consentSource: 'signup' },
   })
@@ -210,7 +208,7 @@ test('consent endpoint refuses requests without a session', async ({ request }) 
 // ─── Synthesis auto-runs for readers, but never for automated browsers ───────────
 // Smoke traffic must neither spend a Claude call nor count as an experiment run (it did until
 // 2026-09-28). Deliberately never clicks the button.
-test('search: synthesis does not auto-run in an automated browser; the button is offered', async ({ page }) => {
+test('search: synthesis does not auto-run in an automated browser; the button is offered', { tag: '@desktop-only' }, async ({ page }) => {
   let synthesisRequests = 0
   page.on('request', r => { if (r.url().includes('/api/synthesis/generate')) synthesisRequests++ })
   await page.goto('/?search=pyometra')
@@ -240,8 +238,7 @@ test('species control: default is small animal, and switching scope updates the 
 })
 
 // ─── Mobile header: open search fits the screen, pinch-zoom not blocked ───────
-test('mobile header: open search causes no horizontal scroll and zoom is allowed', async ({ page }, testInfo) => {
-  test.skip(testInfo.project.name !== 'mobile', 'phone-width layout check')
+test('mobile header: open search causes no horizontal scroll and zoom is allowed', { tag: '@mobile-only' }, async ({ page }) => {
   await page.goto('/?search=pyometra&browse=1')
   const input = page.locator('[data-testid="search-input"]')
   await expect(input).toBeVisible()
@@ -263,12 +260,9 @@ test('mobile header: open search causes no horizontal scroll and zoom is allowed
 })
 
 // ─── Mobile article page: app bar fits the screen for signed-out visitors ────
-test('mobile article page: no horizontal scroll for guests', async ({ page, context }, testInfo) => {
-  test.skip(testInfo.project.name !== 'mobile', 'phone-width layout check')
+test('mobile article page: no horizontal scroll for guests', { tag: '@mobile-only' }, async ({ page, context, request }) => {
   await clearCookiesKeepPreviewAccess(context)
-  const xml = await firstSitemapShard(page)
-  const id = xml.match(/<loc>https?:\/\/[^/]+\/article\/([^<]+)<\/loc>/)?.[1]
-  expect(id).toBeTruthy()
+  const [id] = await sitemapArticleIds(request)
   await page.goto(`/article/${id}`)
   await expect(page.getByRole('link', { name: 'Sign in' }).first()).toBeVisible()
   // The device's own width, then the narrowest common phone
@@ -295,18 +289,34 @@ async function firstSitemapShard(page: import('@playwright/test').Page): Promise
   return page.content()
 }
 
+// Article ids from the first sitemap shard, fetched ONCE per worker and shared by every test that
+// only needs "some published article" (the shard is ~0.9 MB; four tests used to download it each).
+// Uses the request fixture, so on a protected preview it carries the bypass cookie too.
+let sitemapIdsCache: string[] | null = null
+async function sitemapArticleIds(request: import('@playwright/test').APIRequestContext): Promise<string[]> {
+  if (sitemapIdsCache) return sitemapIdsCache
+  const index = await (await request.get('/sitemap.xml')).text()
+  const shard = index.match(/<loc>https?:\/\/[^/]+(\/sitemaps\/sitemap\/\d+\.xml)<\/loc>/)
+  expect(shard, 'Sitemap index must list at least one article shard').not.toBeNull()
+  const xml = await (await request.get(shard![1])).text()
+  const ids = [...xml.matchAll(/<loc>https?:\/\/[^/]+\/article\/([^<]+)<\/loc>/g)].map(m => m[1])
+  expect(ids.length, 'Sitemap must contain at least one /article/ URL').toBeGreaterThan(0)
+  sitemapIdsCache = ids
+  return ids
+}
+
 // ─── Original abstract: collapsed, loaded on open, attributed ────────────────
 test('article page: original abstract loads on open with PubMed attribution', async ({ page, request }) => {
-  const xml = await firstSitemapShard(page)
-  const ids = [...xml.matchAll(/<loc>https?:\/\/[^/]+\/article\/([^<]+)<\/loc>/g)].slice(0, 15).map(m => m[1])
-  // Most articles have an abstract; a few kept-for-reference ones don't — pick one that does
-  const probes = await Promise.all(ids.map(async (candidate) => {
+  // Most articles have an abstract; a few kept-for-reference ones don't — probe one at a time and
+  // stop at the first that does (usually the first), instead of 15 parallel requests + a re-fetch
+  let id: string | null = null
+  let abstract = ''
+  for (const candidate of (await sitemapArticleIds(request)).slice(0, 15)) {
     const res = await request.get(`/api/articles/${candidate}/abstract`)
-    return res.ok() && (await res.json()).abstract ? candidate : null
-  }))
-  const id = probes.find(Boolean) ?? null
+    const body = res.ok() ? await res.json() : null
+    if (body?.abstract) { id = candidate; abstract = body.abstract; break }
+  }
   expect(id, 'one of the first sitemap articles must have a stored abstract').not.toBeNull()
-  const { abstract } = await (await request.get(`/api/articles/${id}/abstract`)).json()
 
   // Loaded on open only: no abstract request may happen before the toggle is clicked
   let requestedEarly = false
@@ -326,17 +336,14 @@ test('article page: original abstract loads on open with PubMed attribution', as
 
 // ─── 4. Save-intent, logged out ──────────────────────────────────────────────
 // Source article URL from the sitemap — avoids depending on the feed rendering.
-test('save-intent (logged out): auth sheet appears, intent stripped, links are valid', async ({ page, context }) => {
-  // Heavy by design: sitemap index + a ~0.9 MB shard, the article, then every auth link in its
-  // own page. 15–17 s alone; under a full parallel run it crossed the 30 s default.
+test('save-intent (logged out): auth sheet appears, intent stripped, links are valid', async ({ page, context, request }) => {
+  // Heavy by design: the article, then every auth link in its own page (the sitemap is shared
+  // per worker). Under a full parallel run it has crossed the 30 s default.
   test.setTimeout(60_000)
   await clearCookiesKeepPreviewAccess(context)
 
-  // Parse an article path from the sitemap: /sitemap.xml is an index, articles live in shards
-  const xml = await firstSitemapShard(page)
-  const matches = [...xml.matchAll(/<loc>(https?:\/\/[^/]+\/article\/([^<]+))<\/loc>/g)]
-  expect(matches.length, 'Sitemap must contain at least one /article/ URL').toBeGreaterThan(0)
-  const articlePath = '/article/' + matches[0][2]
+  const [articleId] = await sitemapArticleIds(request)
+  const articlePath = '/article/' + articleId
 
   const intentUrl = `${articlePath}?intent=save`
   await page.goto(intentUrl)
@@ -372,9 +379,8 @@ test('save-intent (logged out): auth sheet appears, intent stripped, links are v
 })
 
 // ─── 5. Auth round-trip (desktop only) ───────────────────────────────────────
-test('auth round-trip: intent=save saves article, appears in library, unsave removes it', async ({ page, context }, testInfo) => {
+test('auth round-trip: intent=save saves article, appears in library, unsave removes it', { tag: '@desktop-only' }, async ({ page, context }) => {
   test.skip(!process.env.TEST_USER_EMAIL || !process.env.TEST_USER_PASSWORD, 'gated on missing TEST_USER_EMAIL/TEST_USER_PASSWORD')
-  test.skip(testInfo.project.name !== 'desktop', 'mobile-scoped (by design — avoid shared-account interference)')
 
   await page.goto('/login')
   await page.locator('input[type="email"]').fill(process.env.TEST_USER_EMAIL!)
@@ -478,7 +484,7 @@ test('post-login redirect: lands on the protected destination immediately, no re
 // the regression test for both that guard and the middleware matcher/cookie-
 // presence check still letting these requests reach it.
 for (const path of ['/profile', '/library', '/admin']) {
-  test(`protected route ${path}: anonymous visitor is redirected to /login`, async ({ page, context }) => {
+  test(`protected route ${path}: anonymous visitor is redirected to /login`, { tag: '@desktop-only' }, async ({ page, context }) => {
     await clearCookiesKeepPreviewAccess(context)
     const response = await page.goto(path)
     expect(response?.status()).toBe(200)
@@ -488,7 +494,7 @@ for (const path of ['/profile', '/library', '/admin']) {
 }
 
 // ─── 6. Sitemap + robots ─────────────────────────────────────────────────────
-test('sitemap and robots.txt: 200 and valid content', async ({ page }) => {
+test('sitemap and robots.txt: 200 and valid content', { tag: '@desktop-only' }, async ({ page }) => {
   const sitemapRes = await page.goto('/sitemap.xml')
   expect(sitemapRes?.status()).toBe(200)
   const sitemapBody = await page.content()

@@ -160,6 +160,19 @@ async function main() {
 
   const triggerLabel = TRIGGER === 'schedule' ? 'daily' : TRIGGER === 'push' ? 'push' : TRIGGER
 
+  // A run that failed outside individual tests (global setup, config, a crash) has no failed
+  // test entries — it must still alarm, never read as green. Signals: the workflow's own smoke
+  // outcome, report-level errors, or a report in which nothing ran at all.
+  const reportErrors = (report.errors || []).map(e => (e?.message || String(e)).slice(0, 300))
+  const nothingRan = passed.length + flaky.length + failed.length === 0
+  if ((process.env.SMOKE_OUTCOME === 'failure' && failed.length === 0) || reportErrors.length > 0 || nothingRan) {
+    const why = reportErrors.length > 0 ? reportErrors.join('\n')
+      : nothingRan ? 'No test ran (setup or configuration failure)'
+      : 'Playwright reported failure but no individual test failed'
+    await postToSlack(`🔴 *Smoke: run failed outside the tests (${triggerLabel})*\n\`\`\`\n${why}\n\`\`\`\n<${RUN_URL}|View run →>`)
+    if (failed.length === 0) return
+  }
+
   // SANITY RULE: Slack verdict must agree with Playwright exit code.
   // failed.length === 0 ↔ GitHub check is green ↔ Slack must say 🟢.
   // If GitHub is green but Slack says 🔴, they disagree — this block prevents that.
@@ -167,7 +180,13 @@ async function main() {
     const parts = [`${passed.length} passed`]
     if (flaky.length > 0) parts.push(`${flaky.length} flaky`)
     if (skipped.length > 0) parts.push(...summarizeSkips(skipped))
-    await postToSlack(`🟢 *Smoke*: ${parts.join(', ')} (${triggerLabel}) <${RUN_URL}|→ run>`)
+    // Slack only when something needs attention: an all-green run is logged, not posted (every
+    // PR update, push and daily run used to post a green message). Flaky runs still post, briefly.
+    if (flaky.length === 0) {
+      console.log(`[triage] 🟢 ${parts.join(', ')} (${triggerLabel}) — not posted to Slack`)
+      return
+    }
+    await postToSlack(`🟡 *Smoke*: ${parts.join(', ')} (${triggerLabel}) — flaky: ${flaky.join('; ')} <${RUN_URL}|→ run>`)
     return
   }
 
