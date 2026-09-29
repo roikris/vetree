@@ -22,6 +22,9 @@
 --   anonymous rows only (user_id IS NULL), and one of
 --     'ua'                  user agent HeadlessChrome / VetreeQABot
 --     'local_burst'         2026-09-28 05:15–05:55 UTC local Playwright runs against the prod DB
+--     'owner_decision_2026_09_27_28'  2026-09-27 00:00 UTC until PR #83 (the fix) merged on
+--                           2026-09-28 19:08 UTC — anonymous rows at ~15–40x the real daily baseline
+--                           during heavy CI/local testing; classified by the owner's decision
 --     'ci_window:<run id>'  inside a GitHub Actions smoke run (QA Smoke Suite / PR Smoke Suite),
 --                           [created_at − 1 min, updated_at + 2 min]; 274 runs listed below
 --   Everything else stays unclassified (NULL) and is counted. Rows remain in analytics_events, so
@@ -348,8 +351,12 @@ BEGIN
         WHEN p.user_agent ILIKE '%HeadlessChrome%' OR p.user_agent ILIKE '%VetreeQABot%' THEN 'ua'
         WHEN p.created_at >= timestamptz '2026-09-28 05:15:00+00'
          AND p.created_at <  timestamptz '2026-09-28 05:55:00+00' THEN 'local_burst'
-        ELSE (SELECT 'ci_window:' || ci.run_id FROM ci
-              WHERE p.created_at BETWEEN ci.s AND ci.e ORDER BY ci.s LIMIT 1)
+        ELSE COALESCE(
+          (SELECT 'ci_window:' || ci.run_id FROM ci
+            WHERE p.created_at BETWEEN ci.s AND ci.e ORDER BY ci.s LIMIT 1),
+          CASE WHEN p.created_at >= timestamptz '2026-09-27 00:00:00+00'
+                AND p.created_at <  timestamptz '2026-09-28 19:10:00+00'
+               THEN 'owner_decision_2026_09_27_28' END)
       END AS test_reason
     FROM public.page_views p
     WHERE p.path LIKE '/synthesis/%'
