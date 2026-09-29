@@ -167,7 +167,13 @@ async function main() {
     const parts = [`${passed.length} passed`]
     if (flaky.length > 0) parts.push(`${flaky.length} flaky`)
     if (skipped.length > 0) parts.push(...summarizeSkips(skipped))
-    await postToSlack(`🟢 *Smoke*: ${parts.join(', ')} (${triggerLabel}) <${RUN_URL}|→ run>`)
+    // Slack only when something needs attention: an all-green run is logged, not posted (every
+    // PR update, push and daily run used to post a green message). Flaky runs still post, briefly.
+    if (flaky.length === 0) {
+      console.log(`[triage] 🟢 ${parts.join(', ')} (${triggerLabel}) — not posted to Slack`)
+      return
+    }
+    await postToSlack(`🟡 *Smoke*: ${parts.join(', ')} (${triggerLabel}) — flaky: ${flaky.join('; ')} <${RUN_URL}|→ run>`)
     return
   }
 

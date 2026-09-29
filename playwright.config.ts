@@ -24,13 +24,17 @@ export default defineConfig({
     ...(useBypass ? { storageState: 'playwright/.auth/vercel-bypass.json' } : {}),
   },
   projects: [
+    // Device-independent tests (API contracts, auth guards, redirects, sitemap) are tagged
+    // @desktop-only and phone-layout tests @mobile-only, so each runs once, not twice.
     {
       name: 'desktop',
       use: tagged(devices['Desktop Chrome']),
+      grepInvert: /@mobile-only/,
     },
     {
       name: 'mobile',
       use: tagged(devices['Pixel 7']),
+      grepInvert: /@desktop-only/,
     },
   ],
 })
