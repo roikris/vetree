@@ -390,8 +390,13 @@ test('auth round-trip: intent=save saves article, appears in library, unsave rem
 
   // Logged-in users see the full feed at /
   await page.goto('/')
-  const firstLink = page.locator('[data-testid="article-card"] a').first()
-  const href = await firstLink.getAttribute('href')
+  // PR, post-deploy and scheduled runs share this test account and can overlap. Each run saves
+  // and unsaves its own article (chosen by the GitHub run id) so two runs never touch the same
+  // one. Not a GitHub concurrency group: that cancels queued runs, blocking PRs' required check.
+  const cards = page.locator('[data-testid="article-card"] a')
+  await cards.first().waitFor({ timeout: 15_000 })
+  const pick = Number(process.env.GITHUB_RUN_ID ?? 0) % Math.min(await cards.count(), 10)
+  const href = await cards.nth(pick).getAttribute('href')
   expect(href).toBeTruthy()
   const articleId = href!.match(/\/article\/([^/?]+)/)?.[1]
   expect(articleId).toBeTruthy()
