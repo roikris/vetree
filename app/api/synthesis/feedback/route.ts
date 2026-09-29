@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { normalizeQuery } from '@/lib/utils/normalizeQuery'
 import { detectBotName } from '@/lib/bot-detection'
+import { analyticsRecordingEnabled, isQATraffic } from '@/lib/analytics/recording'
 import { Redis } from '@upstash/redis'
 import * as Sentry from '@sentry/nextjs'
 
@@ -29,8 +30,9 @@ export async function POST(request: NextRequest) {
 
     // Same exclusions as /api/analytics/track: QA smoke traffic is never recorded, and crawlers
     // have no business voting (experiment KPI).
+    // Only the production deployment records (previews and local dev share the production DB).
     const userAgent = request.headers.get('user-agent') || ''
-    if (userAgent.includes('VetreeQABot') || request.headers.get('x-qa-bot') === '1' || detectBotName(userAgent)) {
+    if (!analyticsRecordingEnabled() || isQATraffic(userAgent, request.headers) || detectBotName(userAgent)) {
       return NextResponse.json({ success: true, tracked: false })
     }
 

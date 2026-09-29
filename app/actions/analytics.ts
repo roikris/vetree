@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
 import { excludedUsersOrFilter } from '@/lib/analytics-excluded-ids'
+import { countSynthesisEvents, getAnalyticsCleanupBoundary } from '@/lib/analytics/synthesisEvents'
 
 /** Service-role client for admin data reads — bypasses RLS on page_views etc. */
 function adminDb() {
@@ -49,7 +50,8 @@ export async function getAnalyticsOverview(days: number = 7) {
     .is('bot_name', null)
     .or(excludedUsersOrFilter())
 
-  const uniqueCount = uniqueVisitors ? [...new Set(uniqueVisitors.map(v => v.ip_hash))].length : 0
+  // A row without ip_hash is not a distinct visitor (a Set would count null as one)
+  const uniqueCount = uniqueVisitors ? new Set(uniqueVisitors.map(v => v.ip_hash).filter(Boolean)).size : 0
 
   // Logged-in vs anonymous (exclude admin + known bots)
   const { count: loggedInViews } = await db
@@ -153,7 +155,7 @@ export async function getVisitorsOverTime(days: number = 7) {
       dailyStats[date] = { total: 0, unique: new Set() }
     }
     dailyStats[date].total++
-    dailyStats[date].unique.add(view.ip_hash)
+    if (view.ip_hash) dailyStats[date].unique.add(view.ip_hash)
   })
 
   const data = Object.entries(dailyStats)
@@ -209,7 +211,7 @@ export async function getTopArticles(days: number = 7, limit: number = 10) {
         articleStats[articleId] = { views: 0, uniqueVisitors: new Set() }
       }
       articleStats[articleId].views++
-      articleStats[articleId].uniqueVisitors.add(view.ip_hash)
+      if (view.ip_hash) articleStats[articleId].uniqueVisitors.add(view.ip_hash)
     }
   })
 
@@ -491,7 +493,7 @@ export async function getTopCountries(days: number = 7, limit: number = 10) {
       countryStats[country] = { views: 0, uniqueVisitors: new Set() }
     }
     countryStats[country].views++
-    countryStats[country].uniqueVisitors.add(view.ip_hash)
+    if (view.ip_hash) countryStats[country].uniqueVisitors.add(view.ip_hash)
   })
 
   // Convert to array and sort by views
@@ -627,7 +629,7 @@ export async function getTrafficSources(days: number = 7) {
     }
 
     sourceStats[source].visits++
-    sourceStats[source].uniqueVisitors.add(view.ip_hash)
+    if (view.ip_hash) sourceStats[source].uniqueVisitors.add(view.ip_hash)
 
     // Track signups (visitors who have user_id)
     if (view.user_id) {
@@ -728,6 +730,7 @@ export async function getSaveIntentFunnel(days: number = 7) {
     .select('event_name, user_id, detail')
     .in('event_name', ['save_intent_arrived', 'save_intent_auth_shown', 'save_intent_completed', 'save_intent_resolved'])
     .gte('created_at', startDate.toISOString())
+    .is('bot_name', null)   // crawlers are recorded tagged (/api/analytics/event), never counted
     .or(excludedUsersOrFilter())
 
   const counts = { arrived: 0, auth_shown: 0, completed: 0 }
@@ -789,17 +792,33 @@ export async function getSynthesisStats(days: number = 7) {
   if (roleData?.role !== 'admin') return { error: 'Unauthorized' }
 
   const db = adminDb()
-  const sevenDaysAgo = new Date()
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - days)
-  const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0]
+  // Raw events over exactly the last `days` days. (This used to SUM snapshot values, each of which
+  // is already a rolling 7-day count — every run was counted up to 7 times.)
+  const from = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
+  try {
+    const [totalRuns, helpful] = await Promise.all([
+      countSynthesisEvents(db, 'synthesis_run', from),
+      db.from('synthesis_feedback')
+        .select('id', { count: 'exact', head: true })
+        .eq('feedback', 'helpful')
+        .gte('created_at', from)
+        .or(excludedUsersOrFilter()),
+    ])
+    if (helpful.error) throw new Error(helpful.error.message)
+    return { data: { totalRuns, totalHelpful: helpful.count ?? 0 }, error: null }
+  } catch (e) {
+    console.error('[analytics] getSynthesisStats failed:', e)
+    return { error: 'Failed to load synthesis stats' }
+  }
+}
 
-  const { data } = await db
-    .from('analytics_daily_snapshot')
-    .select('synthesis_runs, synthesis_helpful')
-    .gte('date', sevenDaysAgoStr)
-
-  const totalRuns = data?.reduce((sum, d) => sum + (d.synthesis_runs || 0), 0) || 0
-  const totalHelpful = data?.reduce((sum, d) => sum + (d.synthesis_helpful || 0), 0) || 0
-
-  return { data: { totalRuns, totalHelpful }, error: null }
+/** Date of the analytics cleanup (migration 065), or null before it ran — for the page annotation */
+export async function getAnalyticsCleanupDate() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated', data: null }
+  const { data: roleData } = await supabase
+    .from('user_roles').select('role').eq('user_id', user.id).maybeSingle()
+  if (roleData?.role !== 'admin') return { error: 'Unauthorized', data: null }
+  return { data: await getAnalyticsCleanupBoundary(adminDb()), error: null }
 }

@@ -45,6 +45,7 @@ export async function POST(request: NextRequest) {
     const tables = [
       'page_views',
       'search_logs',
+      'analytics_events',   // funnel + synthesis events (user_id FK is ON DELETE SET NULL — delete explicitly)
       'user_preferences',
       'user_consents',
       'synthesis_feedback',

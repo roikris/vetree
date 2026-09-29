@@ -288,7 +288,7 @@ This is NOT the 3-tier FTS/ILIKE/trigram used by the main article feed. The RPC 
 7. Call Claude Sonnet — numbered citation instructions, no outside knowledge allowed
 8. Validate citations (no hallucinated IDs), convert [N] → clickable /article/[id] links
 9. Cache for 7 days with search_version=2
-10. Track via `page_views.insert({ path: '/synthesis/run' })` on both cache hit and miss
+10. Track via `analytics_events` (`synthesis_run` on both cache hit and miss, plus `synthesis_attempt|blocked|insufficient|failed`) — never `page_views` (migration 065). Production deployment only, never QA traffic (`lib/analytics/recording.ts`); read with `countSynthesisEvents()` (`lib/analytics/synthesisEvents.ts`)
 
 ## Analysis Agent Flow
 1. Daily (02:00 UTC): `/api/admin/analytics/aggregate` → SQL aggregation → `analytics_daily_snapshot`
