@@ -107,7 +107,8 @@ async function main() {
   // Read report
   if (!fs.existsSync(REPORT_PATH)) {
     console.log('[triage] No report found, skipping')
-    await postToSlack(`⚠️ *Smoke*: Report file not found — tests may have crashed before running. <${RUN_URL}|View run>`)
+    const label = ({ schedule: 'scheduled · production', push: 'post-deploy · production', pull_request: 'PR · preview', workflow_dispatch: 'manual' })[TRIGGER] || TRIGGER
+    await postToSlack(`🔴 *Smoke (${label})*: no test report — the run failed before the tests (e.g. the production deploy never went live, or setup failed). Target: ${TARGET} <${RUN_URL}|View run>`)
     return
   }
 

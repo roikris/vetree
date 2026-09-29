@@ -390,28 +390,26 @@ test('auth round-trip: intent=save saves article, appears in library, unsave rem
 
   // Logged-in users see the full feed at /
   await page.goto('/')
-  // PR, post-deploy and scheduled runs share this test account and can overlap. Each run saves
-  // and unsaves its own article (chosen by the GitHub run id) so two runs never touch the same
-  // one. Not a GitHub concurrency group: that cancels queued runs, blocking PRs' required check.
-  const cards = page.locator('[data-testid="article-card"] a')
-  await cards.first().waitFor({ timeout: 15_000 })
-  const pick = Number(process.env.GITHUB_RUN_ID ?? 0) % Math.min(await cards.count(), 10)
-  const href = await cards.nth(pick).getAttribute('href')
-  expect(href).toBeTruthy()
-  const articleId = href!.match(/\/article\/([^/?]+)/)?.[1]
-  expect(articleId).toBeTruthy()
+  // PR, post-deploy and scheduled runs share this test account and can overlap, so a run must
+  // never touch another run's save: it picks, in random order, an internal article the account
+  // has NOT saved (per the server, not the button), and only ever unsaves that one. An article
+  // that is already saved — another run's, or a crashed run's — is skipped, never unsaved.
+  // Residual risk: two runs picking the same unsaved article within seconds → a false red that a
+  // rerun clears, never a false green. (Not a GitHub concurrency group: it cancels queued runs,
+  // which would leave PRs' required check cancelled.)
+  const links = page.locator('[data-testid="article-card"] a[href^="/article/"]')
+  await links.first().waitFor({ timeout: 15_000 })
+  const ids = [...new Set((await links.evaluateAll(as => as.map(a => a.getAttribute('href') || '')))
+    .map(h => h.match(/^\/article\/([^/?#]+)/)?.[1])
+    .filter((id): id is string => !!id))]
+  const savedRes = await page.request.get('/api/saved-articles')
+  expect(savedRes.ok(), 'saved-articles lookup must succeed').toBe(true)
+  const saved = new Set<string>((await savedRes.json()).articleIds ?? [])
+  const candidates = ids.filter(id => !saved.has(id)).sort(() => Math.random() - 0.5)
+  expect(candidates.length, 'the feed must offer an article the test account has not saved').toBeGreaterThan(0)
+  const articleId = candidates[0]
 
   try {
-    // Idempotent: unsave if already saved from a previous crashed run.
-    // Wait for the button to reflect "Save to library" (confirms the API call completed)
-    // before navigating away — avoids a race where SaveIntentHandler still sees it as saved.
-    await page.goto(`/article/${articleId}`)
-    const bookmarkBtn = page.locator('[aria-label="Remove from library"], [aria-label="Unsave"]').first()
-    if (await bookmarkBtn.isVisible({ timeout: 5_000 }).catch(() => false)) {
-      await bookmarkBtn.click()
-      await page.locator('[aria-label="Save to library"]').first().waitFor({ timeout: 6_000 })
-    }
-
     // Visit with intent=save
     await page.goto(`/article/${articleId}?intent=save`)
     // SaveIntentHandler shows a toast (save-toast) or first-save shelf (first-save-shelf)

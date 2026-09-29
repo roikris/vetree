@@ -7,6 +7,9 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: read   # the deploy wait compares commits via the GitHub API
+
 jobs:
   smoke:
     runs-on: ubuntu-latest
@@ -28,18 +31,24 @@ jobs:
           EXPECTED_SHA: ${{ github.sha }}
           GH_TOKEN: ${{ github.token }}
         run: |
-          for i in $(seq 1 60); do
-            SERVED=$(curl -s --max-time 10 https://vetree.app/api/version | sed -n 's/.*"sha":"\([0-9a-f]*\)".*/\1/p')
+          DEADLINE=$((SECONDS + 900))   # 15 minutes of wall-clock time, all calls included
+          while [ $SECONDS -lt $DEADLINE ]; do
+            SERVED=$(curl -s --max-time 10 https://vetree.app/api/version | sed -n 's/.*"sha":"\([0-9a-f]*\)".*/\1/p' || true)
             if [ "$SERVED" = "$EXPECTED_SHA" ]; then
               echo "Production serves $EXPECTED_SHA"
               exit 0
             fi
             # A later push already live (it contains this commit): test that instead of waiting forever
-            if [ -n "$SERVED" ] && [ "$(gh api "repos/${{ github.repository }}/compare/$EXPECTED_SHA...$SERVED" --jq .status 2>/dev/null)" = "ahead" ]; then
-              echo "Production serves $SERVED, a later commit that includes $EXPECTED_SHA"
-              exit 0
+            if [ -n "$SERVED" ]; then
+              STATUS=$(timeout 20 gh api "repos/${{ github.repository }}/compare/$EXPECTED_SHA...$SERVED" --jq .status 2>&1 || true)
+              if [ "$STATUS" = "ahead" ]; then
+                echo "Production serves $SERVED, a later commit that includes $EXPECTED_SHA"
+                exit 0
+              fi
+              echo "production serves $SERVED (compare: $STATUS), waiting for $EXPECTED_SHA"
+            else
+              echo "production version unknown, waiting for $EXPECTED_SHA"
             fi
-            echo "[$i/60] production serves '${SERVED:-unknown}', waiting for $EXPECTED_SHA"
             sleep 15
           done
           echo "ERROR: production did not serve $EXPECTED_SHA within 15 minutes"
