@@ -417,8 +417,10 @@ test('auth round-trip: intent=save saves article, appears in library, unsave rem
     return body?.articleId === articleId && body?.action === action
   }, { timeout: 15_000 })
 
-  // Armed only after this run's own insertion is confirmed, disarmed after its own unsave: the
-  // cleanup can never delete a save that belongs to another run.
+  // Armed only after this run's own insertion is confirmed, disarmed after its own unsave is
+  // confirmed, so cleanup only removes this run's save. (Edge: if an unsave commits but its
+  // response is lost, cleanup could remove a later run's save of the same article — that run
+  // then fails conservatively; it can't pass falsely.)
   let ownsSave = false
   try {
     // Visit with intent=save: SaveIntentHandler saves and shows a toast or the first-save shelf
