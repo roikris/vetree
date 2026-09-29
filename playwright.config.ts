@@ -8,8 +8,12 @@ import { defineConfig, devices } from '@playwright/test'
 const qaTag = ['VetreeQABot', process.env.SMOKE_USER_AGENT].filter(Boolean).join(' ')
 const tagged = (device: (typeof devices)[string]) => ({ ...device, userAgent: `${device.userAgent} ${qaTag}` })
 
+// Protected preview: e2e/global-setup.ts exchanges the bypass secret for a host-scoped cookie
+const useBypass = !!(process.env.VERCEL_AUTOMATION_BYPASS_SECRET && process.env.SMOKE_BASE_URL)
+
 export default defineConfig({
   testDir: './e2e',
+  globalSetup: './e2e/global-setup.ts',
   retries: 1,
   timeout: 30_000,
   expect: { timeout: 10_000 },
@@ -17,6 +21,7 @@ export default defineConfig({
   use: {
     baseURL: process.env.SMOKE_BASE_URL || 'https://vetree.app',
     trace: 'on-first-retry',
+    ...(useBypass ? { storageState: 'playwright/.auth/vercel-bypass.json' } : {}),
   },
   projects: [
     {

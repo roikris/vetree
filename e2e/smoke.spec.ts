@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { clearCookiesKeepPreviewAccess } from './preview-access'
 
 // ─── 1a. Landing page ─────────────────────────────────────────────────────────
 // Logged-out visitors hit / and see LandingPage — not the article feed.
@@ -141,7 +142,7 @@ test('mobile bottom nav: Search opens and focuses the search box', async ({ page
 // ─── Landing sample card is a real article with its real evidence badge ────────
 // It used to show a hardcoded "RCT / Meta-analysis" badge on whatever article was newest.
 test('landing: sample card badge matches the article it links to', async ({ page, context }) => {
-  await context.clearCookies()
+  await clearCookiesKeepPreviewAccess(context)
   await page.goto('/')
   const badge = (await page.locator('[data-testid="landing-sample-badge"]').textContent())?.trim()
   expect(badge).toBeTruthy()
@@ -168,7 +169,7 @@ async function expectSavePrompt(page: import('@playwright/test').Page, articlePa
 }
 
 test('guest save: article-page Save opens the sign-in prompt', async ({ page, context }) => {
-  await context.clearCookies()
+  await clearCookiesKeepPreviewAccess(context)
   const xml = await firstSitemapShard(page)
   const id = xml.match(/<loc>https?:\/\/[^/]+\/article\/([^<]+)<\/loc>/)?.[1]
   await page.goto(`/article/${id}`)
@@ -179,7 +180,7 @@ test('guest save: article-page Save opens the sign-in prompt', async ({ page, co
 })
 
 test('guest save: list-view card bookmark opens the article with the sign-in prompt', async ({ page, context }) => {
-  await context.clearCookies()
+  await clearCookiesKeepPreviewAccess(context)
   await page.goto('/?browse=1&view=list')
   const card = page.locator('[data-testid="card-save"]').first()
   await expect(card).toBeVisible({ timeout: 15_000 })
@@ -188,7 +189,7 @@ test('guest save: list-view card bookmark opens the article with the sign-in pro
 })
 
 test('guest save: feed row bookmark opens the article with the sign-in prompt', async ({ page, context }) => {
-  await context.clearCookies()
+  await clearCookiesKeepPreviewAccess(context)
   await page.goto('/?browse=1')
   const row = page.locator('[data-testid="row-save"]').first()
   await expect(row).toBeVisible({ timeout: 15_000 })
@@ -264,7 +265,7 @@ test('mobile header: open search causes no horizontal scroll and zoom is allowed
 // ─── Mobile article page: app bar fits the screen for signed-out visitors ────
 test('mobile article page: no horizontal scroll for guests', async ({ page, context }, testInfo) => {
   test.skip(testInfo.project.name !== 'mobile', 'phone-width layout check')
-  await context.clearCookies()
+  await clearCookiesKeepPreviewAccess(context)
   const xml = await firstSitemapShard(page)
   const id = xml.match(/<loc>https?:\/\/[^/]+\/article\/([^<]+)<\/loc>/)?.[1]
   expect(id).toBeTruthy()
@@ -329,7 +330,7 @@ test('save-intent (logged out): auth sheet appears, intent stripped, links are v
   // Heavy by design: sitemap index + a ~0.9 MB shard, the article, then every auth link in its
   // own page. 15–17 s alone; under a full parallel run it crossed the 30 s default.
   test.setTimeout(60_000)
-  await context.clearCookies()
+  await clearCookiesKeepPreviewAccess(context)
 
   // Parse an article path from the sitemap: /sitemap.xml is an index, articles live in shards
   const xml = await firstSitemapShard(page)
@@ -478,7 +479,7 @@ test('post-login redirect: lands on the protected destination immediately, no re
 // presence check still letting these requests reach it.
 for (const path of ['/profile', '/library', '/admin']) {
   test(`protected route ${path}: anonymous visitor is redirected to /login`, async ({ page, context }) => {
-    await context.clearCookies()
+    await clearCookiesKeepPreviewAccess(context)
     const response = await page.goto(path)
     expect(response?.status()).toBe(200)
     await expect(page).toHaveURL(/\/login/)
