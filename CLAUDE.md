@@ -11,8 +11,18 @@
 ## BRANCH & PR POLICY (non-negotiable)
 - **Never commit directly to `main`** — all work goes on a feature branch
 - Open a PR; the smoke suite must be green before merging
+- **Codex adversarial review before merge** — every change (and every non-trivial plan, before
+  building it) goes through a Codex review loop: run `codex exec --sandbox read-only` in its **own
+  Terminal.app window** so Roi can watch it live (never as a silent background job); fix and
+  re-run until it reports `BLOCKING: none`. Verify Codex's claims before acting on them.
+- **Merge only on Roi's explicit word for that specific PR.** A green smoke run, a finished review,
+  or a request to fix the PR is not permission to merge.
 - Branch naming: `feat/`, `fix/`, `chore/` prefix
-- GitHub branch protection on `main`: require PR + require status check `smoke / smoke` to pass
+- GitHub branch protection on `main` (enabled 2026-09-29, verified via the GraphQL API): PR
+  required (0 approvals — solo repo), status check `smoke` must pass, force pushes and deletion
+  blocked, and **enforced for admins** — neither Roi nor a session using his credentials can push
+  directly to `main` or merge a red PR. (The REST `/branches/main/protection` endpoint may still
+  answer 404 for this rule; check `branchProtectionRules` via GraphQL.)
 
 ## Project Overview
 Vetree (vetree.app) is an evidence-based veterinary research platform.
