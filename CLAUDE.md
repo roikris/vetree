@@ -18,9 +18,11 @@
 - **Merge only on Roi's explicit word for that specific PR.** A green smoke run, a finished review,
   or a request to fix the PR is not permission to merge.
 - Branch naming: `feat/`, `fix/`, `chore/` prefix
-- GitHub branch protection on `main` (intended: require PR + status check `smoke` to pass, block
-  force pushes) is **NOT enabled on GitHub** as of 2026-09-29 — GitHub reports "Branch not
-  protected". Until Roi enables it, these rules are enforced only by following them.
+- GitHub branch protection on `main` (enabled 2026-09-29, verified via the GraphQL API): PR
+  required (0 approvals — solo repo), status check `smoke` must pass, force pushes and deletion
+  blocked, and **enforced for admins** — neither Roi nor a session using his credentials can push
+  directly to `main` or merge a red PR. (The REST `/branches/main/protection` endpoint may still
+  answer 404 for this rule; check `branchProtectionRules` via GraphQL.)
 
 ## Project Overview
 Vetree (vetree.app) is an evidence-based veterinary research platform.
