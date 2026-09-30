@@ -414,9 +414,11 @@ test('save-intent (logged out): auth sheet appears, intent stripped, links are v
 // The test account (like every user) is asked once to accept each new version of the Terms and
 // Privacy Policy (ConsentGate, CURRENT_CONSENT_VERSION). Accept it if shown, so the overlay doesn't
 // block the rest of the test.
-async function acceptUpdatedTermsIfShown(page: import('@playwright/test').Page) {
+async function acceptUpdatedTermsIfShown(page: import('@playwright/test').Page, waitMs = 3_000) {
   const submit = page.getByRole('button', { name: 'Confirm and continue' })
-  if (await submit.isVisible({ timeout: 5_000 }).catch(() => false)) {
+  // isVisible() doesn't wait; the gate appears only after the auth + consent lookups finish
+  const shown = await submit.waitFor({ state: 'visible', timeout: waitMs }).then(() => true, () => false)
+  if (shown) {
     await page.locator('div.fixed.inset-0 input[type="checkbox"]').check()
     await submit.click()
     await expect(submit).toBeHidden({ timeout: 10_000 })
@@ -435,7 +437,7 @@ test('auth round-trip: intent=save saves article, appears in library, unsave rem
 
   // Logged-in users see the full feed at /
   await page.goto('/')
-  await acceptUpdatedTermsIfShown(page)
+  await acceptUpdatedTermsIfShown(page, 15_000)
   // PR, post-deploy and scheduled runs share this test account and can overlap, so a run must
   // never touch another run's save: it picks, in random order, an internal article the account
   // has NOT saved (per the server, not the button), and only ever unsaves that one. An article
@@ -487,6 +489,7 @@ test('auth round-trip: intent=save saves article, appears in library, unsave rem
 
     // Unsave — wait for this run's own delete to be confirmed, not just the optimistic UI
     await page.goto(`/article/${articleId}`)
+    await acceptUpdatedTermsIfShown(page)
     const unsaveBtn = page.locator('[aria-label="Remove from library"], [aria-label="Unsave"]').first()
     await expect(unsaveBtn).toBeVisible({ timeout: 6_000 })
     const unsaved = saveResponse('unsave')
