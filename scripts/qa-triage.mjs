@@ -162,12 +162,12 @@ async function main() {
   }
   for (const suite of suites) walkSuite(suite)
 
-  const triggerLabel = ({
+  const triggerLabel = (({
     schedule: 'scheduled · production',
     push: 'post-deploy · production',
     pull_request: 'PR · preview',
     workflow_dispatch: 'manual',
-  })[TRIGGER] || TRIGGER
+  })[TRIGGER] || TRIGGER) + (process.env.SUITE ? ` · ${process.env.SUITE}` : '')
 
   // A run that failed outside individual tests (global setup, config, a crash) has no failed
   // test entries — it must still alarm, never read as green. Signals: the workflow's own smoke

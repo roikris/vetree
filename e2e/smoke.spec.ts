@@ -57,7 +57,7 @@ test('search: "pyometra" returns at least 1 result', async ({ page }) => {
 // "bovine mastitis" is the canonical case: large-animal research, so the default search
 // finds it directly; narrowing to small animal empties the results, and that empty state
 // must offer the widened search rather than read as "no coverage".
-test('search: starts across all species, and narrowing can be undone from the empty state', async ({ page }) => {
+test('search: starts across all species, and narrowing can be undone from the empty state', { tag: '@weekly' }, async ({ page }) => {
   await page.goto('/?browse=1')
   await page.locator('[data-testid="article-card"]').first().waitFor({ timeout: 15_000 })
   // A filter chosen before searching must not carry into the search
@@ -91,7 +91,7 @@ test('search: opens in Best match and ends with "Search finished!"', { tag: '@de
   await expect(progress).toContainText('Search finished!', { timeout: 15_000 })
 })
 
-test('search: Newest toggle updates the URL and reveals more on scroll', async ({ page }) => {
+test('search: Newest toggle updates the URL and reveals more on scroll', { tag: '@weekly' }, async ({ page }) => {
   await page.goto('/?search=dog')
   await expect(page.locator('[data-testid="sort-relevance"]')).toHaveAttribute('aria-pressed', 'true', { timeout: 20_000 })
   await page.locator('[data-testid="sort-newest"]').click()
@@ -140,7 +140,7 @@ test('mobile bottom nav: Search opens and focuses the search box', { tag: '@mobi
 
 // ─── Landing sample card is a real article with its real evidence badge ────────
 // It used to show a hardcoded "RCT / Meta-analysis" badge on whatever article was newest.
-test('landing: sample card badge matches the article it links to', { tag: '@desktop-only' }, async ({ page, context }) => {
+test('landing: sample card badge matches the article it links to', { tag: ['@desktop-only', '@weekly'] }, async ({ page, context }) => {
   await clearCookiesKeepPreviewAccess(context)
   await page.goto('/')
   const badge = (await page.locator('[data-testid="landing-sample-badge"]').textContent())?.trim()
@@ -177,7 +177,7 @@ test('guest save: article-page Save opens the sign-in prompt', async ({ page, co
   await expectSavePrompt(page, new RegExp(`/article/${id}`))
 })
 
-test('guest save: list-view card bookmark opens the article with the sign-in prompt', async ({ page, context }) => {
+test('guest save: list-view card bookmark opens the article with the sign-in prompt', { tag: '@weekly' }, async ({ page, context }) => {
   await clearCookiesKeepPreviewAccess(context)
   await page.goto('/?browse=1&view=list')
   const card = page.locator('[data-testid="card-save"]').first()
@@ -306,7 +306,7 @@ async function sitemapArticleIds(request: import('@playwright/test').APIRequestC
 }
 
 // ─── Original abstract: collapsed, loaded on open, attributed ────────────────
-test('article page: original abstract loads on open with PubMed attribution', async ({ page, request }) => {
+test('article page: original abstract loads on open with PubMed attribution', { tag: '@weekly' }, async ({ page, request }) => {
   // Most articles have an abstract; a few kept-for-reference ones don't — probe one at a time and
   // stop at the first that does (usually the first), instead of 15 parallel requests + a re-fetch
   let id: string | null = null
