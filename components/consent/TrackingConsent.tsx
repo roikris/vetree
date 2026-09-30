@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useSyncExternalStore } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import Script from 'next/script'
 import Link from 'next/link'
 import * as Sentry from '@sentry/nextjs'
@@ -31,10 +31,10 @@ const COPY = {
 
 let replayStarted = false
 function startSessionReplay() {
-  if (replayStarted) return
-  replayStarted = true
+  if (replayStarted || !Sentry.getClient()) return   // retried on the next render if Sentry isn't up yet
   try {
     Sentry.addIntegration(Sentry.replayIntegration({ maskAllText: true, blockAllMedia: true }))
+    replayStarted = true
   } catch { /* Sentry unavailable */ }
 }
 
@@ -70,15 +70,18 @@ export function TrackingConsent({ linkedinPartnerId, fbPixelId }: { linkedinPart
     return () => window.removeEventListener(TRACKING_SETTINGS_EVENT, onSettings)
   }, [])
 
+  // Leaving "accepted" — here or in another tab — reloads: pixels and replay that already started
+  // can't be unloaded, and a fresh page starts without them
+  const prevChoice = useRef<Snapshot>(choice)
   useEffect(() => {
+    if (prevChoice.current === 'accepted' && choice !== 'accepted') window.location.reload()
+    prevChoice.current = choice
     if (choice === 'accepted') startSessionReplay()
   }, [choice])
 
   const decide = (c: TrackingChoice) => {
-    const wasAccepted = choice === 'accepted'
     writeTrackingChoice(c)
     setSettingsOpen(false)
-    if (wasAccepted && c === 'rejected') window.location.reload()
   }
 
   const copy = COPY[lang]
@@ -128,7 +131,7 @@ export function TrackingConsent({ linkedinPartnerId, fbPixelId }: { linkedinPart
           dir={copy.dir}
           lang={lang}
           style={{
-            position: 'fixed', left: 12, right: 12, zIndex: 60,
+            position: 'fixed', left: 12, right: 12, zIndex: 45,   // below full-screen prompts (ConsentGate, PWA: 50)
             maxWidth: 640, margin: '0 auto',
             background: 'var(--al-card, #fff)', color: 'var(--al-ink3, #1a1a1a)',
             border: '1px solid rgba(var(--al-line, 62,54,36), .16)', borderRadius: 14,
@@ -180,11 +183,12 @@ export function TrackingConsent({ linkedinPartnerId, fbPixelId }: { linkedinPart
 }
 
 /** "Cookie settings" link — re-opens the bar */
-export function CookieSettingsButton({ className, label = 'Cookie settings' }: { className?: string; label?: string }) {
+export function CookieSettingsButton({ className, style, label = 'Cookie settings' }: { className?: string; style?: React.CSSProperties; label?: string }) {
   return (
     <button
       type="button"
       className={className}
+      style={style}
       onClick={() => window.dispatchEvent(new Event(TRACKING_SETTINGS_EVENT))}
     >
       {label}

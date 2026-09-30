@@ -1,3 +1,6 @@
+// Browser-side Sentry. Next.js with Turbopack loads THIS file, not sentry.client.config.ts — until
+// 2026-09-30 the client SDK was never initialised in production (no browser error reports and no
+// session replay ever ran).
 import * as Sentry from '@sentry/nextjs'
 
 Sentry.init({
@@ -19,3 +22,6 @@ Sentry.init({
   // accepts (components/consent/TrackingConsent → Sentry.addIntegration). The sample rates above
   // apply once it is added.
 })
+
+// Performance traces for client-side navigations (Next.js router hook)
+export const onRouterTransitionStart = Sentry.captureRouterTransitionStart

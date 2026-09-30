@@ -200,17 +200,32 @@ test('guest save: feed row bookmark opens the article with the sign-in prompt', 
 test('signup: consent is in English by default and switches to Hebrew and back', { tag: '@desktop-only' }, async ({ page, context }) => {
   await clearCookiesKeepPreviewAccess(context)
   await page.goto('/signup')
-  await expect(page.getByText("I have read and agree to Vetree's")).toBeVisible()
-  await expect(page.getByText('Get the weekly evidence digest')).toBeVisible()
+  await expect(page.getByText("I agree to Vetree's")).toBeVisible()
+  await expect(page.getByText("Email me Vetree's weekly research digest")).toBeVisible()
   // One step: no role / specialty steps
   await expect(page.getByRole('button', { name: 'Create account' })).toBeVisible()
   await expect(page.getByText('Tell us who you are.')).toHaveCount(0)
   const toggle = page.locator('[data-testid="consent-language-toggle"]')
   await toggle.click()
-  await expect(page.getByText('קראתי ואני מסכים/ה ל')).toBeVisible()
-  await expect(page.getByText('לקבל את תקציר הראיות השבועי')).toBeVisible()
+  await expect(page.getByText('אני מסכים/ה ל')).toBeVisible()
+  await expect(page.getByText('לקבל בדוא"ל את תקציר המחקרים השבועי')).toBeVisible()
   await toggle.click()
-  await expect(page.getByText("I have read and agree to Vetree's")).toBeVisible()
+  await expect(page.getByText("I agree to Vetree's")).toBeVisible()
+})
+
+// ─── Privacy Policy and Terms exist in English and Hebrew, with a fixed effective date ─────
+test('legal: privacy and terms in English and Hebrew (RTL), fixed effective date', { tag: '@desktop-only' }, async ({ page }) => {
+  for (const [path, en, he] of [['/privacy', 'Privacy Policy', 'מדיניות פרטיות'], ['/terms', 'Terms of Service', 'תנאי שימוש']] as const) {
+    await page.goto(path)
+    await expect(page.getByRole('heading', { level: 1, name: en })).toBeVisible()
+    // A fixed effective date, not "today" computed at render time
+    await expect(page.getByText(/Effective: September 30, 2026/)).toBeVisible()
+    await expect(page.locator('[data-testid="legal-contact"]').first()).toHaveAttribute('href', 'mailto:vetree.app@gmail.com?subject=privacy')
+    await page.locator('[data-testid="legal-language-toggle"]').click()
+    await expect(page).toHaveURL(new RegExp(`${path}\\?lang=he`))
+    await expect(page.getByRole('heading', { level: 1, name: he })).toBeVisible()
+    await expect(page.locator('div[dir="rtl"][lang="he"]').first()).toBeVisible()
+  }
 })
 
 // ─── Consent can only be recorded for yourself ─────────────────────────────────
