@@ -1,7 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { SupabaseClient } from '@supabase/supabase-js'
 import { normalizeQuery, extractKeyLabels } from '@/lib/utils/normalizeQuery'
-import { CLAUDE_MODEL } from '@/lib/ai/model'
+import { CLAUDE_MODEL, NO_UPFRONT_THINKING, responseText } from '@/lib/ai/model'
 
 const LARGE_ANIMAL_LABELS = [
   'Equine', 'equine', 'Large Animal', 'large animal',
@@ -199,6 +199,7 @@ export async function fetchOrGenerateSynthesis(
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
 
   const response = await anthropic.messages.create({
+      ...NO_UPFRONT_THINKING,
     model: modelToUse,
     max_tokens: 1500,
     system: `You are a veterinary evidence synthesis system.
@@ -236,7 +237,7 @@ OUTPUT FORMAT (use exactly this structure):
     }],
   })
 
-  const synthesisText = response.content[0].type === 'text' ? response.content[0].text : ''
+  const synthesisText = responseText(response)
 
   const synthesisHtml = synthesisText.replace(/\[(\d+)\]/g, (_, id) => {
     const article = packets.find(p => p.citation_id === parseInt(id))

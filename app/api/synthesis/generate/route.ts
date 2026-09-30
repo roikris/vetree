@@ -10,7 +10,7 @@ import { Redis } from '@upstash/redis'
 import { synthesisLimiter, getClientIP } from '@/lib/ratelimit'
 import { detectBotName } from '@/lib/bot-detection'
 import { analyticsRecordingEnabled, isQATraffic } from '@/lib/analytics/recording'
-import { CLAUDE_MODEL } from '@/lib/ai/model'
+import { CLAUDE_MODEL, NO_UPFRONT_THINKING, responseText } from '@/lib/ai/model'
 
 // Cost controls (Codex re-evaluation #5c). Synthesis auto-runs on every search (experiment
 // restarted 2026-09-28), and each cache miss is a Claude call on a public route:
@@ -272,6 +272,7 @@ export async function POST(request: NextRequest) {
     })
 
     const response = await anthropic.messages.create({
+      ...NO_UPFRONT_THINKING,
       model: modelToUse,
       max_tokens: 1500,
       system: `You are a veterinary evidence synthesis system.
@@ -315,7 +316,7 @@ Synthesize the evidence for this veterinary clinical topic.`
       }]
     })
 
-    const synthesisText = response.content[0].type === 'text' ? response.content[0].text : ''
+    const synthesisText = responseText(response)
 
     // STEP 5: Validate citations
     const citedIds = [...synthesisText.matchAll(/\[(\d+)\]/g)].map(m => parseInt(m[1]))

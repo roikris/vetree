@@ -49,6 +49,7 @@ Return ONLY valid JSON, no markdown formatting.`;
     const message = await anthropic.messages.create({
       model: 'claude-sonnet-5-5'  /* keep in step with lib/ai/model.ts */,
       max_tokens: 1024,
+      thinking: { type: 'between_tools' },  // no upfront thinking (Sonnet 5.5 default; counts against max_tokens)
       system: system,
       messages: [{
         role: 'user',
@@ -56,6 +57,10 @@ Return ONLY valid JSON, no markdown formatting.`;
       }]
     });
 
+    // A reply cut off at max_tokens is never parsed or saved
+    if (message.stop_reason === 'max_tokens') {
+      throw new Error('Claude reply was cut off at max_tokens');
+    }
     const textBlock = message.content?.find(block => block.type === 'text');
     if (!textBlock) {
       throw new Error(`No text content in Claude response (stop_reason: ${message.stop_reason})`);

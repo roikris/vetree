@@ -4,7 +4,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@/lib/supabase/server'
 import fs from 'fs'
 import path from 'path'
-import { CLAUDE_MODEL } from '@/lib/ai/model'
+import { CLAUDE_MODEL, NO_UPFRONT_THINKING, responseText } from '@/lib/ai/model'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -788,6 +788,7 @@ export async function POST(request: NextRequest) {
       findings.map(async (finding) => {
         try {
           const response = await anthropic.messages.create({
+      ...NO_UPFRONT_THINKING,
             model: CLAUDE_MODEL,
             max_tokens: 500,
             messages: [{
@@ -842,7 +843,7 @@ Generate a ready-to-paste Claude Code prompt that:
           })
           return {
             finding_id: finding.id,
-            fix_prompt: response.content[0].type === 'text' ? response.content[0].text : '',
+            fix_prompt: responseText(response),
           }
         } catch {
           return { finding_id: finding.id, fix_prompt: '' }

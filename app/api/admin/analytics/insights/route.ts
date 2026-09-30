@@ -7,7 +7,7 @@ import { createClient } from '@supabase/supabase-js'
 import Anthropic from '@anthropic-ai/sdk'
 import { excludedUsersOrFilter } from '@/lib/analytics-excluded-ids'
 import { scrubIdentifiers } from '@/lib/analytics/scrubIdentifiers'
-import { CLAUDE_MODEL } from '@/lib/ai/model'
+import { CLAUDE_MODEL, NO_UPFRONT_THINKING, responseText } from '@/lib/ai/model'
 
 export async function POST(request: NextRequest) {
   try {
@@ -362,6 +362,7 @@ CONTENT ROADMAP RULE: Populate content_roadmap ONLY from signals with type=conte
     console.log('[insights] Prompt length:', userPrompt.length, 'chars')
 
     const response = await anthropic.messages.create({
+      ...NO_UPFRONT_THINKING,
       model: CLAUDE_MODEL,
       max_tokens: 4000,
       messages: [{ role: 'user', content: userPrompt }],
@@ -370,7 +371,7 @@ CONTENT ROADMAP RULE: Populate content_roadmap ONLY from signals with type=conte
 
     console.log('[insights] Claude response received, tokens:', response.usage.input_tokens, 'in /', response.usage.output_tokens, 'out')
 
-    const rawText = response.content[0].type === 'text' ? response.content[0].text : ''
+    const rawText = responseText(response)
     console.log('[insights] Raw response preview:', rawText.slice(0, 200))
 
     // Strip markdown code fences if present
@@ -410,6 +411,7 @@ Output to review:
 ${JSON.stringify(insightsData, null, 2)}`
 
     const critiqueResponse = await anthropic.messages.create({
+      ...NO_UPFRONT_THINKING,
       model: CLAUDE_MODEL,
       max_tokens: 2000,
       messages: [{ role: 'user', content: critiquePrompt }],
@@ -418,9 +420,9 @@ ${JSON.stringify(insightsData, null, 2)}`
 
     console.log('[insights] Critique response received, tokens:', critiqueResponse.usage.input_tokens, 'in /', critiqueResponse.usage.output_tokens, 'out')
 
-    const critiqueRaw = critiqueResponse.content[0].type === 'text'
-      ? critiqueResponse.content[0].text
-      : rawText
+    // A cut-off or empty critique falls back to the first draft
+    let critiqueRaw = rawText
+    try { critiqueRaw = responseText(critiqueResponse) || rawText } catch { /* truncated: keep the draft */ }
 
     // Strip markdown code fences (Sonnet sometimes wraps JSON in ```json ... ```)
     const cleanCritique = critiqueRaw
@@ -444,6 +446,7 @@ ${JSON.stringify(insightsData, null, 2)}`
     const currentDate = new Date().toISOString().split('T')[0]
 
     const reportResponse = await anthropic.messages.create({
+      ...NO_UPFRONT_THINKING,
       model: CLAUDE_MODEL,
       max_tokens: 2000,
       system: `You are generating a status briefing for Vetree, an evidence-based veterinary research platform. Output clean markdown only. No preamble.`,
@@ -502,9 +505,7 @@ Output this exact markdown structure:
       }]
     })
 
-    const reportText = reportResponse.content[0].type === 'text'
-      ? reportResponse.content[0].text
-      : ''
+    const reportText = responseText(reportResponse)
 
     console.log('[insights] Report generated, length:', reportText.length, 'chars')
 

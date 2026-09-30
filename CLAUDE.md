@@ -111,7 +111,7 @@ const filtered = articles.filter(a => !a.labels?.some((l: string) => LARGE_ANIMA
 
 ### 7. Parse Claude JSON responses — always strip markdown fences
 ```ts
-const raw = response.content[0].type === 'text' ? response.content[0].text : ''
+const raw = responseText(response)   // lib/ai/model — text blocks only; throws if cut off at max_tokens
 const clean = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim()
 const parsed = JSON.parse(clean)
 ```

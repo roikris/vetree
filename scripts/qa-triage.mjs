@@ -71,6 +71,7 @@ async function callClaude(prompt) {
   const body = JSON.stringify({
     model: 'claude-sonnet-5-5'  /* keep in step with lib/ai/model.ts */,
     max_tokens: 1024,
+    thinking: { type: 'between_tools' },  // no upfront thinking (Sonnet 5.5 default; counts against max_tokens)
     messages: [{ role: 'user', content: prompt }],
     system: 'You are a QA engineer triaging Playwright smoke test failures for Vetree, a veterinary research platform. Be concise and actionable. Return only valid JSON, no markdown fences.',
   })
@@ -92,7 +93,9 @@ async function callClaude(prompt) {
       res.on('end', () => {
         try {
           const parsed = JSON.parse(data)
-          resolve(parsed.content?.[0]?.text || '')
+          // Text blocks only (a reply may start with a thinking block); a cut-off reply is not used
+          if (parsed.stop_reason === 'max_tokens') return resolve('')
+          resolve((parsed.content || []).filter(b => b.type === 'text').map(b => b.text).join(''))
         } catch (e) {
           reject(new Error('Failed to parse Anthropic response: ' + data.slice(0, 200)))
         }
