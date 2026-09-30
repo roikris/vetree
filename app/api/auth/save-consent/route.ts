@@ -50,7 +50,11 @@ export async function POST(request: NextRequest) {
     }
     // The version of the terms the person was SHOWN. A page left open across a terms update must not
     // record acceptance of wording it never displayed.
-    if (consentVersion != null && consentVersion !== CURRENT_CONSENT_VERSION) {
+    // Rows that record terms acceptance (signup, or the consent gate: source null) must state the
+    // version they showed — a page from before this check sends none and must reload too.
+    // Marketing-only callers (digest prompt) re-record terms as a placeholder and may omit it.
+    const termsBearing = consentSource == null || consentSource === 'signup'
+    if ((termsBearing && consentVersion == null) || (consentVersion != null && consentVersion !== CURRENT_CONSENT_VERSION)) {
       return NextResponse.json({ error: 'The terms have been updated. Please reload to review them.', code: 'stale_version' }, { status: 409 })
     }
     // Language of the wording the person saw (migration 067); optional for older clients
