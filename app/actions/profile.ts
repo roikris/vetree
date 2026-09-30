@@ -109,10 +109,13 @@ export async function getDigestConsentStatus() {
   return { optedIn: everConsented && !optedOut, error: null }
 }
 
-export async function setDigestConsent(optIn: boolean) {
+export async function setDigestConsent(optIn: boolean, expectedUserId?: string) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not authenticated' }
+  // The page states which account it shows. If another account signed in since (another tab),
+  // refuse rather than record this choice for someone who didn't make it.
+  if (typeof expectedUserId !== 'string' || expectedUserId !== user.id) return { error: 'Account changed' }
 
   // user_consents is an append-only, service-role-written audit log. Record through the shared
   // writer with the SESSION user (the old server-to-server fetch to /api/auth/save-consent sent no
