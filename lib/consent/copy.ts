@@ -25,6 +25,7 @@ export const CONSENT_COPY = {
     gateSubmit: 'Confirm and continue',
     gateSaving: 'Saving…',
     gateSaveError: 'Could not save your consent. Please try again.',
+    gateStale: 'The terms have been updated since this page opened. Please reload to review the new version.',
   },
   he: {
     dir: 'rtl' as const,
@@ -45,5 +46,6 @@ export const CONSENT_COPY = {
     gateSubmit: 'אישור והמשך',
     gateSaving: 'שומר...',
     gateSaveError: 'שגיאה בשמירת ההסכמה. נסה/י שוב.',
+    gateStale: 'התנאים עודכנו מאז שהדף נפתח. יש לרענן את הדף כדי לעיין בגרסה החדשה.',
   },
 }

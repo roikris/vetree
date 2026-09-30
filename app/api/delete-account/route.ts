@@ -81,6 +81,22 @@ export async function POST(request: NextRequest) {
     }
 
     // Delete the auth.users record (and any Supabase-managed cascades)
+    // The uploaded profile picture (private avatars bucket, {userId}/…). Must go BEFORE the auth
+    // user: Supabase refuses to delete a user who still owns Storage objects.
+    const { data: avatarFiles, error: avatarListError } = await adminSupabase.storage.from('avatars').list(userId)
+    if (avatarListError) {
+      console.error('[delete-account] avatar list error:', avatarListError)
+      return NextResponse.json({ error: 'Failed to delete account data. Please try again.' }, { status: 500 })
+    }
+    if (avatarFiles && avatarFiles.length > 0) {
+      const { error: avatarRemoveError } = await adminSupabase.storage.from('avatars')
+        .remove(avatarFiles.map(f => `${userId}/${f.name}`))
+      if (avatarRemoveError) {
+        console.error('[delete-account] avatar remove error:', avatarRemoveError)
+        return NextResponse.json({ error: 'Failed to delete account data. Please try again.' }, { status: 500 })
+      }
+    }
+
     const { error: authDeleteError } = await adminSupabase.auth.admin.deleteUser(userId)
 
     if (authDeleteError) {

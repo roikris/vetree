@@ -91,6 +91,7 @@ export function ConsentGate() {
               // session/userId check rejects it and the gate asks instead
               body: JSON.stringify({
                 userId: user.id, termsAccepted: true, marketingOptIn: pending.marketing, consentSource: 'signup',
+                consentVersion: pending.version,
                 // Both questions were shown on the signup page, in this language
                 termsLanguage: pending.lang ?? null, marketingLanguage: pending.lang ?? null,
               }),
@@ -143,12 +144,12 @@ export function ConsentGate() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         // Terms were shown here, in `lang`; the digest question only if it came from signup
-        body: JSON.stringify({ userId, termsAccepted, marketingOptIn, consentSource, termsLanguage: lang, marketingLanguage }),
+        body: JSON.stringify({ userId, termsAccepted, marketingOptIn, consentSource, termsLanguage: lang, marketingLanguage, consentVersion: CURRENT_CONSENT_VERSION }),
       })
 
       if (!res.ok) {
-        const data = await res.json()
-        setError(data.error || CONSENT_COPY[lang].gateSaveError)
+        const data = await res.json().catch(() => ({}))
+        setError(data.code === 'stale_version' ? CONSENT_COPY[lang].gateStale : (data.error || CONSENT_COPY[lang].gateSaveError))
         setSaving(false)
         return
       }

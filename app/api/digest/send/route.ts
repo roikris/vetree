@@ -382,10 +382,11 @@ export async function POST(request: NextRequest) {
       try {
         // Re-check the opt-out right before sending: the list above was read at the start of the
         // run, and someone may unsubscribe while it is in progress
-        const { data: latestPref } = await supabase
+        const { data: latestPref, error: prefCheckError } = await supabase
           .from('user_preferences').select('digest_opt_out').eq('user_id', user.id).maybeSingle()
-        if (latestPref?.digest_opt_out === true) {
-          skippedCount++
+        if (prefCheckError || latestPref?.digest_opt_out === true) {
+          // Fail closed: if we can't confirm they're still subscribed, don't send
+          skip(user.email, 'opted_out')
           continue
         }
 
@@ -587,7 +588,7 @@ function generateEmailHTML(email: string, userId: string, unsubscribeToken: stri
               <a href="${unsubscribeUrl}" style="color: #9ca3af; text-decoration: underline;">Unsubscribe from all digests</a>
               · or reply to this email to stop receiving it
             </p>
-            <p style="margin: 0; font-size: 11px; color: #9ca3af; line-height: 1.5;">
+            <p style="margin: 0; font-size: 13px; color: #4b5563; line-height: 1.6;">
               Advertising email (פרסומת) from Vetree · Roi Krispin, Tel Aviv, Israel · vetree.app@gmail.com<br/>
               You receive this because you agreed to the weekly digest on Vetree.
               <span dir="rtl">דיוור זה נשלח מאת רועי קריספין, תל אביב, בהסכמתך. להסרה: קישור ההסרה או מענה להודעה זו.</span>

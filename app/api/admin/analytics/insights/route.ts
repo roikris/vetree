@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import Anthropic from '@anthropic-ai/sdk'
 import { excludedUsersOrFilter } from '@/lib/analytics-excluded-ids'
+import { scrubIdentifiers } from '@/lib/analytics/scrubIdentifiers'
 
 export async function POST(request: NextRequest) {
   try {
@@ -61,7 +62,7 @@ export async function POST(request: NextRequest) {
     // Load top signals (sorted by severity)
     console.log('[insights] Loading signals...')
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-    const { data: signals, error: signalsError } = await supabase
+    const { data: rawSignals, error: signalsError } = await supabase
       .from('analytics_signals')
       .select('*')
       .gte('date', sevenDaysAgo)
@@ -72,6 +73,9 @@ export async function POST(request: NextRequest) {
       console.error('[insights] Signals fetch failed:', signalsError)
       throw new Error(`Signals fetch failed: ${signalsError.message}`)
     }
+    // Everything below goes into Anthropic prompts and on to Slack: never account identifiers,
+    // whatever older rows contain (lib/analytics/scrubIdentifiers)
+    const signals = scrubIdentifiers(rawSignals)
     console.log('[insights] Signals loaded:', signals?.length || 0)
 
     // Load latest snapshot
@@ -238,9 +242,9 @@ LINKEDIN DAILY ACCOUNT TOTALS (last 30 days):
 ${linkedinDailySummary}
 `
 
-    const pastActionsText = pastInsights?.flatMap(i =>
+    const pastActionsText = scrubIdentifiers(pastInsights?.flatMap(i =>
       (i.top_3_actions as string[]) || []
-    ).slice(0, 10).join('\n- ') || 'None yet'
+    ).slice(0, 10) ?? []).join('\n- ') || 'None yet'
 
     const systemPrompt = `You are the Lead Product Analyst for Vetree, an evidence-based veterinary research platform built for DVMs (veterinarians).
 
