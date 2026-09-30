@@ -13,7 +13,8 @@ import { createClient } from '@supabase/supabase-js'
  */
 export const CONSENT_SOURCES = ['signup', 'in_app_prompt', 'settings'] as const
 export type ConsentSource = (typeof CONSENT_SOURCES)[number]
-export const CURRENT_CONSENT_VERSION = '1.0'
+export { CURRENT_CONSENT_VERSION } from '@/lib/constants/consent'
+import { CURRENT_CONSENT_VERSION } from '@/lib/constants/consent'
 
 export async function recordConsent(input: {
   userId: string

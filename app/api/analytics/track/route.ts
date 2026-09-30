@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
     const ip = forwarded ? forwarded.split(',')[0].trim() : request.headers.get('x-real-ip') || 'unknown'
 
     // Hash IP for privacy (never store raw IP)
-    const ipHash = createHash('sha256').update(ip + process.env.IP_HASH_SALT || 'vetree-salt').digest('hex')
+    const ipHash = createHash('sha256').update(ip + (process.env.IP_HASH_SALT || 'vetree-salt')).digest('hex')
 
     // Check Vercel's built-in headers first (most reliable)
     const secChUaMobile = request.headers.get('sec-ch-ua-mobile')

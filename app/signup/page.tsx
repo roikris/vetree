@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { DigestConsentQuestion } from '@/components/DigestConsentQuestion'
-import { PENDING_DIGEST_CONSENT_KEY, PENDING_SIGNUP_CONSENT_KEY, type PendingSignupConsent } from '@/lib/constants/consent'
+import { PENDING_DIGEST_CONSENT_KEY, PENDING_SIGNUP_CONSENT_KEY, CURRENT_CONSENT_VERSION, type PendingSignupConsent } from '@/lib/constants/consent'
 import { CONSENT_COPY, type ConsentLang } from '@/lib/consent/copy'
 import { ConsentLanguageToggle } from '@/components/consent/ConsentLanguageToggle'
 
@@ -141,7 +141,7 @@ export default function SignUpPage() {
         if (termsAccepted) {
           try {
             const pending: PendingSignupConsent = {
-              terms: true, marketing: marketingChoice === true, version: '1.0',
+              terms: true, marketing: marketingChoice === true, version: CURRENT_CONSENT_VERSION,
               email: email.trim().toLowerCase(), at: Date.now(), lang: consentLang,
             }
             localStorage.setItem(PENDING_SIGNUP_CONSENT_KEY, JSON.stringify(pending))

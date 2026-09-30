@@ -3,9 +3,10 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { createClient as createSessionClient } from '@/lib/supabase/server'
 
-// Returns a 1-hour signed URL for a user's avatar.
-// No auth required — signed URLs are scoped to a single file and expire.
+// Returns a 1-hour signed URL for the signed-in user's OWN avatar. Profile pictures are private
+// (Privacy Policy): until 2026-09-30 this signed any user's file without a session.
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ userId: string }> }
@@ -15,6 +16,11 @@ export async function GET(
   if (!userId) {
     return NextResponse.json({ error: 'userId required' }, { status: 400 })
   }
+
+  const session = await createSessionClient()
+  const { data: { user } } = await session.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (user.id !== userId) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

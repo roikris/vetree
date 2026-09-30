@@ -201,7 +201,9 @@ export async function POST(request: NextRequest) {
         type: 'churn_risk',
         severity: Math.min(churnedUserIds.length / 5, 1.0),
         description: `${churnedUserIds.length} user(s) active last week but not seen in 7+ days`,
-        data_json: { churned_user_ids: churnedUserIds, count: churnedUserIds.length }
+        // Count only: signals are serialized into the Anthropic insights prompt and on to Slack,
+        // so they must never carry account identifiers (migration 068 scrubbed older rows)
+        data_json: { count: churnedUserIds.length }
       })
     }
 

@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { PENDING_DIGEST_CONSENT_KEY, PENDING_SIGNUP_CONSENT_KEY, PENDING_SIGNUP_CONSENT_MAX_AGE_MS, parsePendingDigestConsent, pendingDigestMatchesFlow, parseSignupNonceCookie, SIGNUP_NONCE_COOKIE, type PendingSignupConsent } from '@/lib/constants/consent'
+import { PENDING_DIGEST_CONSENT_KEY, PENDING_SIGNUP_CONSENT_KEY, PENDING_SIGNUP_CONSENT_MAX_AGE_MS, parsePendingDigestConsent, pendingDigestMatchesFlow, parseSignupNonceCookie, SIGNUP_NONCE_COOKIE, CURRENT_CONSENT_VERSION, type PendingSignupConsent } from '@/lib/constants/consent'
 import { CONSENT_COPY, type ConsentLang } from '@/lib/consent/copy'
 import { ConsentLanguageToggle } from '@/components/consent/ConsentLanguageToggle'
 
@@ -22,7 +23,7 @@ function readPendingSignupConsent(userEmail: string | undefined): PendingSignupC
     let p: PendingSignupConsent | null = null
     try { p = JSON.parse(raw) } catch { p = null }
     const age = p && typeof p.at === 'number' && Number.isFinite(p.at) ? Date.now() - p.at : NaN
-    const valid = !!p && p.terms === true && typeof p.marketing === 'boolean' && p.version === '1.0'
+    const valid = !!p && p.terms === true && typeof p.marketing === 'boolean' && p.version === CURRENT_CONSENT_VERSION
       && (p.lang === undefined || p.lang === 'en' || p.lang === 'he')
       && typeof p.email === 'string' && p.email === userEmail.trim().toLowerCase()
       && age >= 0 && age < PENDING_SIGNUP_CONSENT_MAX_AGE_MS
@@ -44,6 +45,7 @@ function clearPendingDigest() {
 }
 
 export function ConsentGate() {
+  const pathname = usePathname()
   const [show, setShow] = useState(false)
   const [userId, setUserId] = useState<string | null>(null)
   const [termsAccepted, setTermsAccepted] = useState(false)
@@ -58,11 +60,16 @@ export function ConsentGate() {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) return
 
-      // Check if consent record exists
+      // Has this user accepted the CURRENT Terms + Privacy Policy? Only rows that showed the
+      // terms count: signup (source 'signup') and this gate (source null). Digest-prompt and
+      // settings rows re-record terms as a placeholder without showing them, so they don't.
       const { data: consent } = await supabase
         .from('user_consents')
         .select('id')
         .eq('user_id', user.id)
+        .eq('terms_accepted', true)
+        .eq('consent_version', CURRENT_CONSENT_VERSION)
+        .or('consent_source.is.null,consent_source.eq.signup')
         .limit(1)
         .maybeSingle()
 
@@ -154,7 +161,8 @@ export function ConsentGate() {
     }
   }
 
-  if (!show) return null
+  // Never cover the documents the reader is asked to accept
+  if (!show || pathname?.startsWith('/privacy') || pathname?.startsWith('/terms')) return null
   const copy = CONSENT_COPY[lang]
 
   return (

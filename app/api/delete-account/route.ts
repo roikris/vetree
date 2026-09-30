@@ -29,7 +29,8 @@ export async function POST(request: NextRequest) {
 
     // Service role client for deletion operations — bypasses RLS so we can
     // delete from all user-owned tables regardless of policy configuration.
-    // GDPR Art. 17 / Israeli Privacy Protection Law § 11: right to erasure.
+    // Account deletion (Privacy Policy §7; GDPR Art. 17 where it applies). Distinct from the
+    // statutory correction/deletion right under §14 of the Israeli Protection of Privacy Law.
     const adminSupabase = createAdminClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -46,6 +47,7 @@ export async function POST(request: NextRequest) {
       'page_views',
       'search_logs',
       'analytics_events',   // funnel + synthesis events (user_id FK is ON DELETE SET NULL — delete explicitly)
+      'digest_logs',        // which digests were sent to this person
       'user_preferences',
       'user_consents',
       'synthesis_feedback',
@@ -54,6 +56,13 @@ export async function POST(request: NextRequest) {
       'reports',
       'user_roles',
     ]
+
+    // The shared synthesis cache keeps its content but is no longer linked to the person (its FK
+    // used to have no delete rule and blocked deleting the auth user — migration 068)
+    {
+      const { error } = await adminSupabase.from('topic_syntheses').update({ user_id: null }).eq('user_id', userId)
+      if (error) deletions.push({ table: 'topic_syntheses', error })
+    }
 
     for (const table of tables) {
       const { error } = await adminSupabase
