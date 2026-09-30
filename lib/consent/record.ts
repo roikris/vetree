@@ -21,6 +21,10 @@ export async function recordConsent(input: {
   marketingOptIn: boolean
   consentSource: ConsentSource | null
   consentVersion?: string
+  /** Language of the terms wording shown for this row (null: not shown) — migration 067 */
+  termsLanguage?: 'en' | 'he' | null
+  /** Language of the digest question asked for this row (null: not asked) */
+  marketingLanguage?: 'en' | 'he' | null
   ip: string | null
   userAgent: string | null
 }): Promise<{ ok: true; alreadyRecorded?: boolean } | { ok: false; error: string }> {
@@ -31,6 +35,8 @@ export async function recordConsent(input: {
     marketing_opted_in: input.marketingOptIn,
     consent_version: input.consentVersion ?? CURRENT_CONSENT_VERSION,
     consent_source: input.consentSource,
+    terms_language: input.termsLanguage ?? null,
+    marketing_language: input.marketingLanguage ?? null,
     consented_at: new Date().toISOString(),
     ip_address: input.ip,
     user_agent: input.userAgent,

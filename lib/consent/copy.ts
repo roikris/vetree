@@ -4,6 +4,7 @@
  * Both versions say the same thing and link to the same /terms and /privacy documents.
  */
 export type ConsentLang = 'en' | 'he'
+export const isConsentLang = (v: unknown): v is ConsentLang => v === 'en' || v === 'he'
 
 export const CONSENT_COPY = {
   en: {

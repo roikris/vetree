@@ -149,7 +149,7 @@ export default async function ProfilePage() {
         </div>
 
         {/* Account Actions - Client Component */}
-        <ProfileClient initialDigestOptIn={digestOptedIn} />
+        <ProfileClient userId={user.id} initialDigestOptIn={digestOptedIn} />
         </div>
       </div>
       <BottomNav />

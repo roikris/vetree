@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { sendPasswordResetEmail, setDigestConsent } from '@/app/actions/profile'
 
-export function ProfileClient({ initialDigestOptIn }: { initialDigestOptIn: boolean }) {
+export function ProfileClient({ userId, initialDigestOptIn }: { userId: string; initialDigestOptIn: boolean }) {
   const router = useRouter()
   const supabase = createClient()
   const [showDeleteModal, setShowDeleteModal] = useState(false)
@@ -18,11 +18,14 @@ export function ProfileClient({ initialDigestOptIn }: { initialDigestOptIn: bool
     const next = !digestOptIn
     setDigestOptIn(next) // optimistic
     setDigestSaving(true)
-    const result = await setDigestConsent(next)
+    // userId: the account this page shows — the server refuses if a different account is signed in
+    const result = await setDigestConsent(next, userId)
     setDigestSaving(false)
     if (result.error) {
       setDigestOptIn(!next) // revert
-      setMessage({ type: 'error', text: 'Could not update digest preference. Please try again.' })
+      setMessage({ type: 'error', text: result.error === 'Account changed'
+        ? 'You signed in to a different account in another tab. Reload this page to continue.'
+        : 'Could not update digest preference. Please try again.' })
     }
   }
 

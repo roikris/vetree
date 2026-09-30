@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { PENDING_DIGEST_CONSENT_KEY, PENDING_SIGNUP_CONSENT_KEY, PENDING_SIGNUP_CONSENT_MAX_AGE_MS, type PendingSignupConsent } from '@/lib/constants/consent'
+import { PENDING_DIGEST_CONSENT_KEY, PENDING_SIGNUP_CONSENT_KEY, PENDING_SIGNUP_CONSENT_MAX_AGE_MS, parsePendingDigestConsent, pendingDigestMatchesFlow, parseSignupNonceCookie, SIGNUP_NONCE_COOKIE, type PendingSignupConsent } from '@/lib/constants/consent'
 import { CONSENT_COPY, type ConsentLang } from '@/lib/consent/copy'
 import { ConsentLanguageToggle } from '@/components/consent/ConsentLanguageToggle'
 
@@ -23,6 +23,7 @@ function readPendingSignupConsent(userEmail: string | undefined): PendingSignupC
     try { p = JSON.parse(raw) } catch { p = null }
     const age = p && typeof p.at === 'number' && Number.isFinite(p.at) ? Date.now() - p.at : NaN
     const valid = !!p && p.terms === true && typeof p.marketing === 'boolean' && p.version === '1.0'
+      && (p.lang === undefined || p.lang === 'en' || p.lang === 'he')
       && typeof p.email === 'string' && p.email === userEmail.trim().toLowerCase()
       && age >= 0 && age < PENDING_SIGNUP_CONSENT_MAX_AGE_MS
     if (!valid) { localStorage.removeItem(PENDING_SIGNUP_CONSENT_KEY); return null }
@@ -30,6 +31,16 @@ function readPendingSignupConsent(userEmail: string | undefined): PendingSignupC
   } catch {
     return null // storage unavailable
   }
+}
+
+// The nonce /auth/callback handed back after a successful Google signup (lib/constants/consent)
+function readSignupNonce(): { nonce: string; userId: string } | null {
+  const m = document.cookie.match(new RegExp(`(?:^|; )${SIGNUP_NONCE_COOKIE}=([^;]+)`))
+  return parseSignupNonceCookie(m ? decodeURIComponent(m[1]) : null)
+}
+function clearPendingDigest() {
+  try { localStorage.removeItem(PENDING_DIGEST_CONSENT_KEY) } catch { /* unavailable */ }
+  document.cookie = `${SIGNUP_NONCE_COOKIE}=; Max-Age=0; path=/`
 }
 
 export function ConsentGate() {
@@ -55,8 +66,12 @@ export function ConsentGate() {
         .limit(1)
         .maybeSingle()
 
-      if (!consent) {
-        // Email signup made its choices in this browser before verification. Record them now, as
+      if (consent) {
+        // Already recorded: a leftover Google-signup digest choice in this browser is not theirs
+        clearPendingDigest()
+        return
+      }
+      // Email signup made its choices in this browser before verification. Record them now, as
         // the verified owner, if they were made for THIS email and aren't stale — otherwise ask.
         const pending = readPendingSignupConsent(user.email)
         if (pending) {
@@ -67,10 +82,15 @@ export function ConsentGate() {
               // userId pins the write to the user the pending choice was validated against: if the
               // session changed meanwhile (another tab signed in as someone else), the route's
               // session/userId check rejects it and the gate asks instead
-              body: JSON.stringify({ userId: user.id, termsAccepted: true, marketingOptIn: pending.marketing, consentSource: 'signup' }),
+              body: JSON.stringify({
+                userId: user.id, termsAccepted: true, marketingOptIn: pending.marketing, consentSource: 'signup',
+                // Both questions were shown on the signup page, in this language
+                termsLanguage: pending.lang ?? null, marketingLanguage: pending.lang ?? null,
+              }),
             })
             if (res.ok) {
               localStorage.removeItem(PENDING_SIGNUP_CONSENT_KEY)
+              clearPendingDigest()   // any Google leftovers in this browser are not this user's
               return
             }
             if (res.status === 403) {
@@ -85,7 +105,6 @@ export function ConsentGate() {
         }
         setUserId(user.id)
         setShow(true)
-      }
     })
   }, [])
 
@@ -104,19 +123,20 @@ export function ConsentGate() {
     // first-ever consent row, correctly sourced — otherwise it's a placeholder.
     let marketingOptIn = false
     let consentSource: 'signup' | null = null
-    const pending = localStorage.getItem(PENDING_DIGEST_CONSENT_KEY)
-    if (pending !== null) {
-      try {
-        marketingOptIn = JSON.parse(pending) === true
-        consentSource = 'signup'
-      } catch { /* malformed value, ignore */ }
+    let marketingLanguage: ConsentLang | null = null
+    const pending = parsePendingDigestConsent(localStorage.getItem(PENDING_DIGEST_CONSENT_KEY))
+    if (pending && pendingDigestMatchesFlow(pending, readSignupNonce(), userId)) {
+      marketingOptIn = pending.marketing
+      consentSource = 'signup'
+      marketingLanguage = pending.lang ?? null   // asked on the signup page, in that language
     }
 
     try {
       const res = await fetch('/api/auth/save-consent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, termsAccepted, marketingOptIn, consentSource }),
+        // Terms were shown here, in `lang`; the digest question only if it came from signup
+        body: JSON.stringify({ userId, termsAccepted, marketingOptIn, consentSource, termsLanguage: lang, marketingLanguage }),
       })
 
       if (!res.ok) {
@@ -126,7 +146,7 @@ export function ConsentGate() {
         return
       }
 
-      localStorage.removeItem(PENDING_DIGEST_CONSENT_KEY)
+      clearPendingDigest()
       setShow(false)
     } catch {
       setError(CONSENT_COPY[lang].gateSaveError)
