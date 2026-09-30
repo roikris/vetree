@@ -154,14 +154,16 @@ export async function fallbackSearch(filters: ParsedFilters, sanitizedSearch: st
   const done = (data: any[] | null, tier: FallbackResult['tier']): FallbackResult =>
     ({ data: data ?? [], tier, capped: (data?.length ?? 0) >= FALLBACK_CAP })
 
-  // Title full-text tier ONLY for queries with a negated term ("asthma -cats"). This runs after
+  // Title full-text tier ONLY for queries that may contain a negation ("asthma -cats"). This runs after
   // search_articles_batch returned zero rows for the same text and scope, and its search_vector
   // contains to_tsvector('english', title) under identical visibility/species filters — so for a
   // positive query a title match is impossible and the tier (a sequential scan, ~3.4 s via anon,
   // most of the 3–10 s every zero-result search used to take) is skipped. A negation can reject a
   // whole article on a word in its summary while its title alone still matches, so it keeps the
-  // tier. (Codex review, 2026-09-30.)
-  if (/(^|\s)-\S/.test(sanitizedSearch)) {
+  // tier. Any '-' counts: PostgreSQL's websearch parser also negates "a - b", a leading "- b"
+  // and a '-' right after a closing quote, so only a query with no '-' is provably safe to skip.
+  // Hyphenated words ("x-ray") keep the slower tier too — rare, and correct. (Codex, 2026-09-30.)
+  if (sanitizedSearch.includes('-')) {
     const fts = await scoped(base().textSearch('title', sanitizedSearch, { type: 'websearch' }))
     if (fts.error) throw new Error(`fallback FTS failed: ${fts.error.message}`)
     if (fts.data && fts.data.length > 0) return done(fts.data, 'exact')
