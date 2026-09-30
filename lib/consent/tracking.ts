@@ -1,8 +1,8 @@
 /**
- * Optional tracking consent: the LinkedIn Insight Tag, the Meta Pixel and Sentry session replay load
- * only after the visitor accepts (components/consent/TrackingConsent). Stored per browser; the
- * choice can be changed from "Cookie settings". Everything else Vetree needs (sign-in, first-party
- * analytics, error reports without replay) doesn't depend on it.
+ * Optional tracking consent: the LinkedIn Insight Tag and the Meta Pixel (ad measurement — the only
+ * optional purpose) load only after the visitor accepts (components/consent/TrackingConsent). Stored
+ * per browser; the choice can be changed from "Cookie settings". Everything else Vetree needs
+ * (sign-in, first-party analytics, error reports) doesn't depend on it.
  */
 export type TrackingChoice = 'accepted' | 'rejected'
 
@@ -10,9 +10,15 @@ const KEY = 'vetree_tracking_consent'
 export const TRACKING_CONSENT_EVENT = 'vetree:tracking-consent'
 export const TRACKING_SETTINGS_EVENT = 'vetree:tracking-settings'
 
-// Kept in three places, so a failed write can never turn a rejection back into acceptance:
-// this page's memory, localStorage and a first-party cookie. A rejection anywhere wins.
+// Kept in several places, so a failed write can never turn a rejection back into acceptance: this
+// page's memory, localStorage, a first-party cookie, and — for a rejection — the tab's window.name,
+// which survives the reload that withdrawal triggers even when storage and cookies are blocked.
+// A rejection anywhere wins.
 let memoryChoice: TrackingChoice | null = null
+const REJECT_MARK = 'vetree-tracking-rejected'
+function fromWindowName(): TrackingChoice | null {
+  try { return window.name.includes(REJECT_MARK) ? 'rejected' : null } catch { return null }
+}
 
 function fromStorage(): TrackingChoice | null {
   try {
@@ -32,7 +38,7 @@ function fromCookie(): TrackingChoice | null {
 }
 
 export function readTrackingChoice(): TrackingChoice | null {
-  const all = [memoryChoice, fromStorage(), fromCookie()]
+  const all = [memoryChoice, fromStorage(), fromCookie(), fromWindowName()]
   if (all.includes('rejected')) return 'rejected'
   if (all.includes('accepted')) return 'accepted'
   return null
@@ -42,6 +48,10 @@ export function writeTrackingChoice(choice: TrackingChoice) {
   memoryChoice = choice
   try { localStorage.setItem(KEY, JSON.stringify({ choice, at: new Date().toISOString(), v: 1 })) } catch { /* unavailable */ }
   try { document.cookie = `${KEY}=${choice}; Max-Age=${60 * 60 * 24 * 365}; Path=/; SameSite=Lax; Secure` } catch { /* unavailable */ }
+  try {
+    const rest = window.name.split(' ').filter(p => p && p !== REJECT_MARK)
+    window.name = (choice === 'rejected' ? [...rest, REJECT_MARK] : rest).join(' ')
+  } catch { /* unavailable */ }
   window.dispatchEvent(new CustomEvent(TRACKING_CONSENT_EVENT, { detail: choice }))
 }
 

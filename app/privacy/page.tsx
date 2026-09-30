@@ -38,7 +38,8 @@ function PrivacyEn() {
           <><strong>Account details.</strong> Your email address and a user identifier. If you sign up with a
             password, our authentication provider stores it only as a cryptographic hash. If you sign in with
             Google, we receive the details Google shares for sign-in (email address, and name and profile picture
-            if available). A profile picture you upload is private: only you can see it.</>,
+            if available). A profile picture you upload is private: only you can see it (and, where needed to run
+            the service, its operator).</>,
           <><strong>Consent records.</strong> Your choices (accepting these terms, and whether you want the
             weekly digest), where you made them (signup, a prompt or settings), the language of the wording you
             were shown where available, and the time, IP address and browser details of the request that records
@@ -51,11 +52,9 @@ function PrivacyEn() {
             identifier, and events such as signing up, saving an article or using a research synthesis. In our
             analytics tables your IP address is stored as a hash; the other fields are not hashed, so these records
             are not necessarily anonymous.</>,
-          <><strong>Diagnostics.</strong> When something breaks, an error report is sent to our error-monitoring
-            provider. <strong>Only if you accept optional cookies</strong>, it also records browser sessions
-            (a random 10% of sessions, and sessions in which an error occurs) to help us fix problems; recording
-            hides page text and blocks images and media, although this does not make every diagnostic detail
-            anonymous.</>,
+          <><strong>Error reports.</strong> When something breaks, a report with technical details of the error,
+            the page address and your browser details is sent to our error-monitoring provider, so we can fix it
+            (our legitimate interest). We do not record your sessions.</>,
           <><strong>Email delivery.</strong> Records of which digest emails were sent to you.</>,
         ]} />
         <p>
@@ -76,8 +75,7 @@ function PrivacyEn() {
           <>To send the weekly research digest — <strong>only if you agreed</strong>. It is personalised using the
             specialties you follow and your recent activity. You can withdraw at any time (section 8).</>,
           <>To keep evidence of the consents you gave, and to comply with the law.</>,
-          <>To measure our advertising and record diagnostic sessions — <strong>only with your consent</strong>{' '}
-            (section 6).</>,
+          <>To measure our advertising — <strong>only with your consent</strong> (section 6).</>,
         ]} />
       </LegalSection>
 
@@ -102,8 +100,8 @@ function PrivacyEn() {
           <><strong>Supabase</strong> — database, authentication and file storage (European Union, Ireland).</>,
           <><strong>Vercel</strong> — website hosting and delivery, and web analytics (global network, including the United States).</>,
           <><strong>Anthropic</strong> — the AI features in section 4 (United States).</>,
-          <><strong>Resend</strong> — sending our emails (United States).</>,
-          <><strong>Sentry</strong> — error monitoring and, with your consent, session recording (United States).</>,
+          <><strong>Resend</strong> — sending our emails, including sign-in and digest emails (United States).</>,
+          <><strong>Sentry</strong> — error reports (United States).</>,
           <><strong>Upstash</strong> — request limiting; it processes IP addresses or account identifiers, and keeps its request statistics for up to 90 days.</>,
           <><strong>Google</strong> — &ldquo;Continue with Google&rdquo; sign-in, if you use it.</>,
           <><strong>LinkedIn and Meta</strong> — advertising measurement, only with your consent (section 6).</>,
@@ -111,7 +109,7 @@ function PrivacyEn() {
         ]} />
         <p>
           Your information is therefore stored and processed outside Israel, including in the European Union and
-          the United States, under these providers&apos; written data-protection commitments. We may also disclose
+          the United States, under these providers&apos; data-processing terms. We may also disclose
           information where the law requires it or to protect our rights and users&apos; safety, and to a successor
           if Vetree is transferred — in which case this policy continues to apply.
         </p>
@@ -128,8 +126,8 @@ function PrivacyEn() {
           <><strong>Analytics.</strong> Our own usage records (section 2) and Vercel Web Analytics, which does not
             use advertising cookies.</>,
           <><strong>Optional — only if you click &ldquo;Accept&rdquo;.</strong> The LinkedIn Insight Tag and the Meta
-            Pixel, which let LinkedIn and Meta measure our ads and may link your visit to your account with them;
-            and Sentry session recording (section 2). They do not load until you accept.</>,
+            Pixel, which let LinkedIn and Meta measure our ads and may link your visit to your account with them.
+            They do not load until you accept.</>,
         ]} />
         <p>You can accept or reject optional cookies, and change your choice at any time: <CookieSettingsButton className={BTN} /></p>
       </LegalSection>
@@ -141,14 +139,17 @@ function PrivacyEn() {
           <><strong>Logs</strong> — usage and search records, events, email-delivery records, AI feedback and
             cached syntheses, and the analyses derived from them — are kept for <strong>12 months</strong> and then
             deleted automatically.</>,
-          <>Request-limiting statistics (Upstash) are kept for up to 90 days; error reports and session recordings
-            follow Sentry&apos;s retention period; our providers&apos; backups expire under their backup schedules.</>,
+          <>Copies kept by our providers are deleted on their schedules: request-limiting statistics (Upstash)
+            within 90 days; error reports (Sentry) within 90 days; AI requests (Anthropic) within 30 days under its
+            standard API terms, unless flagged for a policy violation; email-delivery records (Resend) and database
+            backups (Supabase) within 30 days; and our internal Slack alerts within 12 months.</>,
         ]} />
         <p>
-          When you delete your account in your profile, we immediately delete your account and the information
-          linked to it from our systems — including the usage records, searches and events linked to your account.
-          Cached research syntheses you generated are shared content: they stay until they expire, but are no
-          longer linked to you. If deletion fails, please contact us.
+          When you delete your account in your profile, we immediately delete from our database your account and
+          the information linked to it — including the usage records, searches and events linked to your account
+          and the research syntheses you generated. Copies held by our providers are then deleted on the schedules
+          above. Usage records that were never linked to your account (for example, visits before you signed in)
+          are kept for the 12-month period. If deletion fails, please contact us.
         </p>
       </LegalSection>
 
@@ -225,7 +226,7 @@ function PrivacyHe() {
           <><strong>פרטי חשבון.</strong> כתובת הדוא&quot;ל שלך ומזהה משתמש. אם נרשמת עם סיסמה, ספק האימות שלנו שומר
             אותה רק כערך גיבוב קריפטוגרפי (hash). אם התחברת באמצעות Google, אנו מקבלים את הפרטים ש-Google משתפת
             לצורך ההתחברות (כתובת דוא&quot;ל, ושם ותמונת פרופיל אם קיימים). תמונת פרופיל שהעלית היא פרטית: רק את/ה
-            יכול/ה לראות אותה.</>,
+            יכול/ה לראות אותה (ומפעיל השירות, כשהדבר נדרש לתפעולו).</>,
           <><strong>רישומי הסכמה.</strong> הבחירות שלך (הסכמה לתנאים אלו, והאם ברצונך לקבל את התקציר השבועי), היכן
             נעשו (בהרשמה, בהודעה באתר או בהגדרות), שפת הנוסח שהוצג לך ככל שהיא זמינה, וכן המועד, כתובת ה-IP ופרטי
             הדפדפן של הבקשה שבה הן נרשמות. בהרשמה בדוא&quot;ל, הבחירות נרשמות לאחר אימות כתובת הדוא&quot;ל.</>,
@@ -236,10 +237,9 @@ function PrivacyHe() {
             התחברות גם מזהה החשבון שלך — ואירועים כגון הרשמה, שמירת מאמר או שימוש בסיכום מחקר משולב. בטבלאות
             ניתוח השימוש שלנו כתובת ה-IP נשמרת כערך גיבוב; יתר השדות אינם מגובבים, ולכן רישומים אלה אינם בהכרח
             אנונימיים.</>,
-          <><strong>אבחון תקלות.</strong> כאשר מתרחשת תקלה, נשלח דוח שגיאה לספק ניטור השגיאות שלנו. <strong>רק אם
-            אישרת עוגיות רשות</strong>, מתועדות גם פעולות במהלך השימוש באתר (10% אקראיים מההפעלות, והפעלות שבהן
-            אירעה שגיאה) כדי לעזור לנו לתקן תקלות; התיעוד מסתיר את טקסט הדף וחוסם תמונות ומדיה, אם כי אין בכך כדי
-            להפוך כל פרט אבחון לאנונימי.</>,
+          <><strong>דוחות שגיאה.</strong> כאשר מתרחשת תקלה, נשלח לספק ניטור השגיאות שלנו דוח הכולל פרטים טכניים על
+            השגיאה, כתובת הדף ופרטי הדפדפן שלך, כדי שנוכל לתקן אותה (האינטרס הלגיטימי שלנו). איננו מתעדים את
+            הפעלות הגלישה שלך.</>,
           <><strong>משלוח דוא&quot;ל.</strong> רישום של הודעות התקציר שנשלחו אליך.</>,
         ]} />
         <p>
@@ -258,7 +258,7 @@ function PrivacyHe() {
           <>כדי לשלוח את תקציר המחקרים השבועי — <strong>רק אם הסכמת</strong>. התקציר מותאם לתחומי ההתמחות שאת/ה
             עוקב/ת אחריהם ולפעילותך האחרונה. ניתן לחזור בך בכל עת (סעיף 8).</>,
           <>כדי לשמור ראיה להסכמות שנתת, ולעמוד בדרישות הדין.</>,
-          <>כדי למדוד את הפרסום שלנו ולתעד הפעלות לצורך אבחון — <strong>רק בהסכמתך</strong> (סעיף 6).</>,
+          <>כדי למדוד את הפרסום שלנו — <strong>רק בהסכמתך</strong> (סעיף 6).</>,
         ]} />
       </LegalSection>
 
@@ -282,16 +282,16 @@ function PrivacyHe() {
           <><strong>Supabase</strong> — מסד נתונים, אימות ואחסון קבצים (האיחוד האירופי, אירלנד).</>,
           <><strong>Vercel</strong> — אירוח והגשת האתר, וניתוח שימוש (רשת גלובלית, כולל ארצות הברית).</>,
           <><strong>Anthropic</strong> — תכונות הבינה המלאכותית שבסעיף 4 (ארצות הברית).</>,
-          <><strong>Resend</strong> — שליחת הודעות הדוא&quot;ל שלנו (ארצות הברית).</>,
-          <><strong>Sentry</strong> — ניטור שגיאות, ובהסכמתך גם תיעוד הפעלות (ארצות הברית).</>,
+          <><strong>Resend</strong> — שליחת הודעות הדוא&quot;ל שלנו, לרבות הודעות התחברות ותקציר (ארצות הברית).</>,
+          <><strong>Sentry</strong> — דוחות שגיאה (ארצות הברית).</>,
           <><strong>Upstash</strong> — הגבלת בקשות; מעבדת כתובות IP או מזהי חשבון, ושומרת את נתוני הבקשות עד 90 יום.</>,
           <><strong>Google</strong> — התחברות &quot;Continue with Google&quot;, אם בחרת בה.</>,
           <><strong>LinkedIn ו-Meta</strong> — מדידת פרסום, רק בהסכמתך (סעיף 6).</>,
           <><strong>Slack</strong> — התראות פנימיות שלנו, שעשויות לכלול נתוני שימוש מצטברים ומונחי חיפוש, ללא מזהי חשבון.</>,
         ]} />
         <p>
-          לכן המידע שלך נשמר ומעובד מחוץ לישראל, לרבות באיחוד האירופי ובארצות הברית, בכפוף להתחייבויות הכתובות של
-          ספקים אלו להגנת מידע. כמו כן אנו עשויים למסור מידע כאשר הדין מחייב זאת או כדי להגן על זכויותינו ועל
+          לכן המידע שלך נשמר ומעובד מחוץ לישראל, לרבות באיחוד האירופי ובארצות הברית, בכפוף לתנאי עיבוד המידע של ספקים
+          אלו. כמו כן אנו עשויים למסור מידע כאשר הדין מחייב זאת או כדי להגן על זכויותינו ועל
           בטיחות המשתמשים, וכן לגורם שיבוא במקומנו אם Vetree תועבר — ובמקרה זה מדיניות זו תמשיך לחול.
         </p>
       </LegalSection>
@@ -306,8 +306,8 @@ function PrivacyHe() {
           <><strong>ניתוח שימוש.</strong> רישומי השימוש שלנו (סעיף 2) ו-Vercel Web Analytics, שאינו משתמש בעוגיות
             פרסום.</>,
           <><strong>רשות — רק אם לחצת &quot;אישור&quot;.</strong> ה-LinkedIn Insight Tag וה-Meta Pixel, המאפשרים
-            ל-LinkedIn ול-Meta למדוד את המודעות שלנו ועשויים לקשר את הביקור שלך לחשבון שלך אצלן; ותיעוד הפעלות
-            ב-Sentry (סעיף 2). הם אינם נטענים עד שתאשר/י.</>,
+            ל-LinkedIn ול-Meta למדוד את המודעות שלנו ועשויים לקשר את הביקור שלך לחשבון שלך אצלן. הם אינם נטענים
+            עד שתאשר/י.</>,
         ]} />
         <p>ניתן לאשר או לדחות עוגיות רשות, ולשנות את הבחירה בכל עת: <CookieSettingsButton className={BTN} label="הגדרות עוגיות" /></p>
       </LegalSection>
@@ -318,13 +318,16 @@ function PrivacyHe() {
             ורישומי הסכמה) נשמרים כל עוד החשבון קיים.</>,
           <><strong>רישומים</strong> — רישומי שימוש וחיפוש, אירועים, רישומי משלוח דוא&quot;ל, משוב על בינה מלאכותית
             וסיכומי מחקר שמורים, והניתוחים הנגזרים מהם — נשמרים <strong>12 חודשים</strong> ואז נמחקים אוטומטית.</>,
-          <>נתוני הגבלת הבקשות (Upstash) נשמרים עד 90 יום; דוחות שגיאה ותיעוד הפעלות כפופים לתקופת השמירה של
-            Sentry; גיבויי הספקים שלנו נמחקים לפי לוחות הגיבוי שלהם.</>,
+          <>עותקים המוחזקים אצל הספקים שלנו נמחקים לפי לוחות הזמנים שלהם: נתוני הגבלת בקשות (Upstash) בתוך 90
+            יום; דוחות שגיאה (Sentry) בתוך 90 יום; בקשות לבינה מלאכותית (Anthropic) בתוך 30 יום לפי תנאי ה-API
+            הרגילים שלה, אלא אם סומנו בשל הפרת מדיניות; רישומי משלוח דוא&quot;ל (Resend) וגיבויי מסד הנתונים
+            (Supabase) בתוך 30 יום; והתראות ה-Slack הפנימיות שלנו בתוך 12 חודשים.</>,
         ]} />
         <p>
-          כאשר את/ה מוחק/ת את החשבון בפרופיל, אנו מוחקים מיד מהמערכות שלנו את החשבון ואת המידע המקושר אליו — לרבות
-          רישומי השימוש, החיפושים והאירועים המקושרים לחשבון. סיכומי מחקר שמורים שיצרת הם תוכן משותף: הם נשארים עד
-          שתוקפם פג, אך אינם מקושרים עוד אליך. אם המחיקה נכשלת, אנא פנה/י אלינו.
+          כאשר את/ה מוחק/ת את החשבון בפרופיל, אנו מוחקים מיד ממסד הנתונים שלנו את החשבון ואת המידע המקושר אליו —
+          לרבות רישומי השימוש, החיפושים והאירועים המקושרים לחשבון וסיכומי המחקר שיצרת. עותקים המוחזקים אצל הספקים
+          שלנו נמחקים לאחר מכן לפי לוחות הזמנים שלעיל. רישומי שימוש שמעולם לא קושרו לחשבון שלך (למשל ביקורים לפני
+          התחברות) נשמרים למשך תקופת 12 החודשים. אם המחיקה נכשלת, אנא פנה/י אלינו.
         </p>
       </LegalSection>
 

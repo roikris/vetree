@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import Script from 'next/script'
 import Link from 'next/link'
-import * as Sentry from '@sentry/nextjs'
 import {
   readTrackingChoice, writeTrackingChoice, TRACKING_CONSENT_EVENT, TRACKING_SETTINGS_EVENT, type TrackingChoice,
 } from '@/lib/consent/tracking'
@@ -11,7 +10,7 @@ import {
 const COPY = {
   en: {
     dir: 'ltr' as const,
-    text: 'Vetree uses optional cookies to measure our ads on LinkedIn and Meta, and records sessions (with page text hidden) to fix bugs.',
+    text: 'With your permission, Vetree uses LinkedIn and Meta cookies to measure its ads. Optional — the site works the same either way.',
     policy: 'Privacy Policy',
     policyHref: '/privacy',
     accept: 'Accept',
@@ -20,7 +19,7 @@ const COPY = {
   },
   he: {
     dir: 'rtl' as const,
-    text: 'Vetree משתמשת בעוגיות רשות למדידת המודעות שלנו ב-LinkedIn וב-Meta, ומתעדת הפעלות (עם טקסט הדף מוסתר) לצורך תיקון תקלות.',
+    text: 'בהסכמתך, Vetree משתמשת בעוגיות של LinkedIn ו-Meta למדידת המודעות שלה. רשות — האתר פועל באותו אופן בכל מקרה.',
     policy: 'מדיניות הפרטיות',
     policyHref: '/privacy?lang=he',
     accept: 'אישור',
@@ -29,18 +28,9 @@ const COPY = {
   },
 }
 
-let replayStarted = false
-function startSessionReplay() {
-  if (replayStarted || !Sentry.getClient()) return   // retried on the next render if Sentry isn't up yet
-  try {
-    Sentry.addIntegration(Sentry.replayIntegration({ maskAllText: true, blockAllMedia: true }))
-    replayStarted = true
-  } catch { /* Sentry unavailable */ }
-}
-
 /**
- * Consent bar for optional tracking. Until the visitor accepts, the LinkedIn Insight Tag, the Meta
- * Pixel and Sentry session replay are NOT loaded. Automated browsers (smoke tests) never see the
+ * Consent bar for optional tracking. Until the visitor accepts, the LinkedIn Insight Tag and the Meta
+ * Pixel are NOT loaded. Automated browsers (smoke tests) never see the
  * bar and never load them. Changing an earlier "accept" to "reject" reloads the page, because
  * scripts that already ran can't be unloaded.
  */
@@ -70,13 +60,12 @@ export function TrackingConsent({ linkedinPartnerId, fbPixelId }: { linkedinPart
     return () => window.removeEventListener(TRACKING_SETTINGS_EVENT, onSettings)
   }, [])
 
-  // Leaving "accepted" — here or in another tab — reloads: pixels and replay that already started
-  // can't be unloaded, and a fresh page starts without them
+  // Leaving "accepted" — here or in another tab — reloads: pixels that already ran can't be unloaded,
+  // and a fresh page starts without them (the rejection survives the reload even if storage fails)
   const prevChoice = useRef<Snapshot>(choice)
   useEffect(() => {
     if (prevChoice.current === 'accepted' && choice !== 'accepted') window.location.reload()
     prevChoice.current = choice
-    if (choice === 'accepted') startSessionReplay()
   }, [choice])
 
   const decide = (c: TrackingChoice) => {

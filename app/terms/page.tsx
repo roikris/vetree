@@ -89,8 +89,8 @@ function TermsEn() {
 
       <LegalSection title="8. Ending your use">
         <p>
-          You can delete your account at any time in your profile; it is deleted immediately, as described in the
-          Privacy Policy. We may suspend or close an account that breaches these Terms, is used unlawfully or abuses
+          You can delete your account at any time in your profile; your information is then deleted as described in
+          the Privacy Policy. We may suspend or close an account that breaches these Terms, is used unlawfully or abuses
           the service.
         </p>
       </LegalSection>
@@ -174,7 +174,7 @@ function TermsHe() {
           'להשתמש ב-Vetree למטרה בלתי חוקית;',
           'לנסות להשיג גישה לא מורשית למערכות שלנו או למידע של משתמשים אחרים;',
           'להפריע לשירות או לשבש אותו;',
-          'לגרד (scrape), לסרוק או להוריד באופן שיטתי תוכן מ-Vetree;',
+          'לחלץ תוכן באופן אוטומטי, לסרוק את האתר או להוריד ממנו תוכן באופן שיטתי;',
           'להעלות נוזקות או קוד מזיק;',
           'להתחזות לאחרים או להציג שיוך כוזב;',
           'להשתמש בשירות לשליחת דואר זבל או להטרדת אחרים.',
@@ -200,7 +200,7 @@ function TermsHe() {
 
       <LegalSection title="8. הפסקת השימוש">
         <p>
-          ניתן למחוק את החשבון בכל עת בפרופיל; הוא נמחק מיד, כמתואר במדיניות הפרטיות. אנו רשאים להשעות או לסגור
+          ניתן למחוק את החשבון בכל עת בפרופיל; המידע שלך נמחק אז כמתואר במדיניות הפרטיות. אנו רשאים להשעות או לסגור
           חשבון המפר תנאים אלו, המשמש שלא כדין או המנצל את השירות לרעה.
         </p>
       </LegalSection>
