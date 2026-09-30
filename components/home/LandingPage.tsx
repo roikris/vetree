@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { getEvidenceBadge } from '@/lib/utils/evidenceBadge'
+import { CookieSettingsButton } from '@/components/consent/TrackingConsent'
 
 const SPECIALTIES: [string, string][] = [
   ['Anesthesia', '#B49AE8'], ['Behavior', '#A6B0C0'], ['Cardiology', '#E88A92'],
@@ -353,6 +354,7 @@ export function LandingPage({ exampleArticle, articleCountLabel }: LandingPagePr
           <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
             <Link href="/privacy" style={{ font: "400 13px/1 var(--font-instrument, sans-serif)", color: 'var(--al-mut4)', textDecoration: 'none' }}>Privacy</Link>
             <Link href="/terms" style={{ font: "400 13px/1 var(--font-instrument, sans-serif)", color: 'var(--al-mut4)', textDecoration: 'none' }}>Terms</Link>
+            <CookieSettingsButton style={{ font: "400 13px/1 var(--font-instrument, sans-serif)", color: 'var(--al-mut4)', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }} />
             <a href="mailto:contact@vetree.app" style={{ font: "400 13px/1 var(--font-instrument, sans-serif)", color: 'var(--al-mut4)', textDecoration: 'none' }}>Contact</a>
           </div>
         </div>

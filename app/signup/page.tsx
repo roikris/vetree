@@ -339,7 +339,7 @@ export default function SignUpPage() {
                     style={{ marginTop: 2, flexShrink: 0, accentColor: 'var(--al-accent)' }}
                   />
                   <span style={{ font: "400 12.5px/1.5 var(--font-instrument, sans-serif)", color: 'var(--al-mut2)' }}>
-                    {consentCopy.termsBefore}<a href="/terms" target="_blank" style={{ color: 'var(--al-accent)' }}>{consentCopy.terms}</a>{consentCopy.and}<a href="/privacy" target="_blank" style={{ color: 'var(--al-accent)' }}>{consentCopy.privacy}</a>{consentCopy.termsAfter} <span style={{ color: '#E07070' }}>*</span>
+                    {consentCopy.termsBefore}<a href={consentCopy.termsHref} target="_blank" style={{ color: 'var(--al-accent)' }}>{consentCopy.terms}</a>{consentCopy.and}<a href={consentCopy.privacyHref} target="_blank" style={{ color: 'var(--al-accent)' }}>{consentCopy.privacy}</a>{consentCopy.termsAfter} <span style={{ color: '#E07070' }}>*</span>
                   </span>
                 </label>
               </div>

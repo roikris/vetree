@@ -1,216 +1,237 @@
+import type { Metadata } from 'next'
 import Link from 'next/link'
+import { LegalShell, LegalSection, LegalList, ContactButton, CONTACT_EMAIL, legalLang } from '@/components/legal/LegalShell'
 
-export default function TermsPage() {
+// Update BOTH languages and EFFECTIVE_DATE together (and CURRENT_CONSENT_VERSION if material).
+const EFFECTIVE_DATE = '2026-09-30'
+
+export const metadata: Metadata = { title: 'Terms of Service — Vetree', alternates: { canonical: '/terms' } }
+
+export default async function TermsPage({ searchParams }: { searchParams: Promise<{ lang?: string | string[] }> }) {
+  const lang = legalLang((await searchParams).lang)
+  return lang === 'he' ? <TermsHe /> : <TermsEn />
+}
+
+const WARN = 'bg-amber-50 dark:bg-amber-900/20 border-s-4 border-amber-500 dark:border-amber-600 p-6 rounded-e-lg text-amber-900 dark:text-amber-200'
+const LINK = 'text-[#3D7A5F] dark:text-[#4E9A78] hover:underline'
+
+function TermsEn() {
   return (
-    <div className="min-h-screen bg-white dark:bg-[#0F0F0F]">
-      <div className="max-w-3xl mx-auto px-6 py-12">
-        {/* Back Link */}
-        <Link
-          href="/"
-          className="inline-flex items-center gap-2 text-[#3D7A5F] dark:text-[#4E9A78] hover:text-[#2F5F4A] dark:hover:text-[#5FAA88] transition-colors mb-8"
-        >
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-          </svg>
-          <span className="text-sm font-medium">Back to Vetree</span>
-        </Link>
+    <LegalShell lang="en" path="/terms" title="Terms of Service" effectiveDate={EFFECTIVE_DATE}>
+      <LegalSection title="1. Acceptance">
+        <p>
+          These Terms govern your use of Vetree (vetree.app), an evidence-based veterinary research platform
+          operated by Roi Krispin, La Guardia 60, Tel Aviv, Israel (&ldquo;Vetree&rdquo;, &ldquo;we&rdquo;). By creating an account or using Vetree you agree
+          to these Terms and to our <Link href="/privacy" className={LINK}>Privacy Policy</Link>. If you do not agree,
+          please do not use Vetree.
+        </p>
+      </LegalSection>
 
-        {/* Header */}
-        <div className="mb-12">
-          <h1 className="text-4xl font-bold text-[#1A1A1A] dark:text-[#E8E8E8] mb-4">
-            Terms of Service
-          </h1>
-          <p className="text-zinc-600 dark:text-zinc-400">
-            Last updated: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+      <LegalSection title="2. The service">
+        <p>
+          Vetree collects published veterinary research, presents it with AI-generated summaries and clinical bottom
+          lines, and lets you search, filter, save and follow topics. With your consent we send a weekly digest of
+          new research by email.
+        </p>
+      </LegalSection>
+
+      <LegalSection title="3. Not veterinary advice">
+        <div className={WARN}>
+          <p>
+            Summaries, clinical bottom lines, evidence labels and research syntheses on Vetree are generated with
+            artificial intelligence. They are for <strong>information only</strong>, may contain errors or omissions,
+            and are <strong>not veterinary or medical advice</strong>. Always read the original article and use your
+            professional judgment before making clinical decisions.
           </p>
         </div>
+      </LegalSection>
 
-        {/* Content */}
-        <div className="prose prose-zinc dark:prose-invert max-w-none">
-          <section className="mb-8">
-            <h2 className="text-2xl font-semibold text-[#1A1A1A] dark:text-[#E8E8E8] mb-4">
-              Acceptance of Terms
-            </h2>
-            <p className="text-zinc-700 dark:text-zinc-300 leading-relaxed">
-              By accessing and using Vetree, you accept and agree to be bound by these Terms of Service. If you do not agree to these terms, please do not use our service.
-            </p>
-          </section>
+      <LegalSection title="4. Your account">
+        <p>To use some features you need an account. You agree to:</p>
+        <LegalList items={[
+          'provide accurate information and keep it up to date;',
+          'keep your sign-in details secure and not share your account;',
+          `tell us promptly at ${CONTACT_EMAIL} about any unauthorized use;`,
+          'be responsible for activity under your account.',
+        ]} />
+      </LegalSection>
 
-          <section className="mb-8">
-            <h2 className="text-2xl font-semibold text-[#1A1A1A] dark:text-[#E8E8E8] mb-4">
-              Service Description
-            </h2>
-            <p className="text-zinc-700 dark:text-zinc-300 leading-relaxed">
-              Vetree is a platform that aggregates and presents veterinary research articles with AI-generated summaries and clinical insights. We provide tools to search, filter, save, and organize veterinary research literature.
-            </p>
-          </section>
+      <LegalSection title="5. Acceptable use">
+        <p>You agree not to:</p>
+        <LegalList items={[
+          'use Vetree for any unlawful purpose;',
+          'try to gain unauthorized access to our systems or other users’ data;',
+          'interfere with or disrupt the service;',
+          'scrape, crawl or systematically download content from Vetree;',
+          'upload malware or harmful code;',
+          'impersonate others or misrepresent your affiliation;',
+          'use the service to send spam or to harass others.',
+        ]} />
+      </LegalSection>
 
-          <section className="mb-8">
-            <h2 className="text-2xl font-semibold text-[#1A1A1A] dark:text-[#E8E8E8] mb-4">
-              User Accounts
-            </h2>
-            <div className="text-zinc-700 dark:text-zinc-300 leading-relaxed space-y-4">
-              <p>To access certain features, you must create an account. You agree to:</p>
-              <ul className="list-disc pl-6 space-y-2">
-                <li>Provide accurate, current, and complete information</li>
-                <li>Maintain the security of your account credentials</li>
-                <li>Notify us immediately of any unauthorized access</li>
-                <li>Be responsible for all activities under your account</li>
-                <li>Not share your account with others</li>
-              </ul>
-            </div>
-          </section>
+      <LegalSection title="6. Intellectual property">
+        <p>
+          Rights in the Vetree platform — its design, code and features — belong to Vetree or its licensors, to the
+          extent those rights exist under applicable law. We do not claim ownership of third-party articles or
+          guarantee that AI-generated text qualifies for copyright protection. Research articles belong to their
+          publishers and authors; we link to the original and show abstracts with attribution, and their use is
+          subject to the publishers&apos; terms. You keep ownership of
+          content you send us (such as reports) and allow us to use it to operate and improve the service.
+        </p>
+      </LegalSection>
 
-          <section className="mb-8">
-            <h2 className="text-2xl font-semibold text-[#1A1A1A] dark:text-[#E8E8E8] mb-4">
-              User Responsibilities
-            </h2>
-            <div className="text-zinc-700 dark:text-zinc-300 leading-relaxed space-y-4">
-              <p>You agree NOT to:</p>
-              <ul className="list-disc pl-6 space-y-2">
-                <li>Use Vetree for any illegal or unauthorized purpose</li>
-                <li>Attempt to gain unauthorized access to our systems</li>
-                <li>Interfere with or disrupt the service or servers</li>
-                <li>Scrape, crawl, or systematically collect data from Vetree</li>
-                <li>Transmit viruses, malware, or harmful code</li>
-                <li>Impersonate others or misrepresent your affiliation</li>
-                <li>Use the service to spam or harass others</li>
-              </ul>
-            </div>
-          </section>
+      <LegalSection title="7. Emails">
+        <p>
+          We send account emails you need (for example, email confirmation and password resets). The weekly digest is
+          sent only if you agreed, and you can stop it at any time with the unsubscribe link or in your profile.
+        </p>
+      </LegalSection>
 
-          <section className="mb-8">
-            <h2 className="text-2xl font-semibold text-[#1A1A1A] dark:text-[#E8E8E8] mb-4">
-              AI-Generated Content Disclaimer
-            </h2>
-            <div className="bg-amber-50 dark:bg-amber-900/20 border-l-4 border-amber-500 dark:border-amber-600 p-6 rounded-r-lg">
-              <p className="text-amber-900 dark:text-amber-200 font-semibold mb-2">
-                ⚠️ Important Notice
-              </p>
-              <p className="text-amber-800 dark:text-amber-300 leading-relaxed">
-                Vetree uses artificial intelligence to generate article summaries and clinical bottom lines. This content is for <strong>informational purposes only</strong> and should NOT be considered medical or veterinary advice. Always consult the original research article and qualified veterinary professionals before making clinical decisions. We make no warranties about the accuracy, completeness, or reliability of AI-generated content.
-              </p>
-            </div>
-          </section>
+      <LegalSection title="8. Ending your use">
+        <p>
+          You can delete your account at any time in your profile; your information is then deleted as described in
+          the Privacy Policy. We may suspend or close an account that breaches these Terms, is used unlawfully or abuses
+          the service.
+        </p>
+      </LegalSection>
 
-          <section className="mb-8">
-            <h2 className="text-2xl font-semibold text-[#1A1A1A] dark:text-[#E8E8E8] mb-4">
-              Intellectual Property
-            </h2>
-            <div className="text-zinc-700 dark:text-zinc-300 leading-relaxed space-y-4">
-              <div>
-                <h3 className="text-lg font-semibold text-[#1A1A1A] dark:text-[#E8E8E8] mb-2">
-                  Vetree Content
-                </h3>
-                <p>
-                  The Vetree platform, including its design, code, features, and AI-generated summaries, is owned by Vetree and protected by copyright and other intellectual property laws.
-                </p>
-              </div>
+      <LegalSection title="9. Disclaimer and limitation of liability">
+        <p>
+          Vetree is provided &ldquo;as is&rdquo; and &ldquo;as available&rdquo;. To the extent permitted by law, we give no
+          warranty that the service will be uninterrupted or error-free, or that its content — including
+          AI-generated content — is accurate or complete, and we are not liable for indirect or consequential
+          loss, or for loss arising from reliance on the content or from service interruptions. Nothing in these
+          Terms limits liability that cannot be limited by law.
+        </p>
+      </LegalSection>
 
-              <div>
-                <h3 className="text-lg font-semibold text-[#1A1A1A] dark:text-[#E8E8E8] mb-2">
-                  Research Articles
-                </h3>
-                <p>
-                  The original research articles displayed on Vetree are owned by their respective publishers and authors. Links to original articles are provided for your convenience. Use of those articles is subject to the publishers' terms.
-                </p>
-              </div>
+      <LegalSection title="10. Changes to these Terms">
+        <p>
+          When we change these Terms we update the effective date above. If a change is material, we will ask you
+          to review and accept the updated Terms when you next sign in.
+        </p>
+      </LegalSection>
 
-              <div>
-                <h3 className="text-lg font-semibold text-[#1A1A1A] dark:text-[#E8E8E8] mb-2">
-                  User Content
-                </h3>
-                <p>
-                  You retain ownership of any content you submit (e.g., bug reports). By submitting content, you grant us a license to use it to improve our service.
-                </p>
-              </div>
-            </div>
-          </section>
+      <LegalSection title="11. Governing law">
+        <p>
+          These Terms are governed by Israeli law, subject to mandatory protections that apply to you. The courts
+          of Israel have jurisdiction, except where applicable law gives you a non-waivable right to bring
+          proceedings elsewhere.
+        </p>
+      </LegalSection>
 
-          <section className="mb-8">
-            <h2 className="text-2xl font-semibold text-[#1A1A1A] dark:text-[#E8E8E8] mb-4">
-              Account Termination
-            </h2>
-            <div className="text-zinc-700 dark:text-zinc-300 leading-relaxed space-y-4">
-              <p>We reserve the right to suspend or terminate your account if you:</p>
-              <ul className="list-disc pl-6 space-y-2">
-                <li>Violate these Terms of Service</li>
-                <li>Engage in fraudulent or illegal activities</li>
-                <li>Abuse or misuse the service</li>
-                <li>Fail to comply with our policies</li>
-              </ul>
-              <p>You may delete your account at any time through your profile settings.</p>
-            </div>
-          </section>
+      <LegalSection title="12. Contact">
+        <p>Roi Krispin, La Guardia 60, Tel Aviv, Israel · <span dir="ltr">{CONTACT_EMAIL}</span></p>
+        <ContactButton lang="en" />
+      </LegalSection>
+    </LegalShell>
+  )
+}
 
-          <section className="mb-8">
-            <h2 className="text-2xl font-semibold text-[#1A1A1A] dark:text-[#E8E8E8] mb-4">
-              Disclaimer of Warranties
-            </h2>
-            <p className="text-zinc-700 dark:text-zinc-300 leading-relaxed">
-              Vetree is provided "AS IS" and "AS AVAILABLE" without warranties of any kind, either express or implied. We do not warrant that the service will be uninterrupted, secure, or error-free. We make no warranties about the accuracy or completeness of content, including AI-generated summaries.
-            </p>
-          </section>
+function TermsHe() {
+  return (
+    <LegalShell lang="he" path="/terms" title="תנאי שימוש" effectiveDate={EFFECTIVE_DATE}>
+      <LegalSection title="1. הסכמה לתנאים">
+        <p>
+          תנאים אלו חלים על השימוש שלך ב-Vetree, בכתובת <span dir="ltr">vetree.app</span> (להלן: &quot;Vetree&quot; או
+          &quot;אנחנו&quot;), פלטפורמה למחקר וטרינרי מבוסס ראיות המופעלת בידי רועי קריספין, לה גוארדיה 60, תל אביב, ישראל. ביצירת חשבון או בשימוש ב-Vetree את/ה מסכים/ה לתנאים אלו ול
+          <Link href="/privacy?lang=he" className={LINK}>מדיניות הפרטיות</Link> שלנו. אם אינך מסכים/ה, אנא אל תשתמש/י
+          ב-Vetree.
+        </p>
+      </LegalSection>
 
-          <section className="mb-8">
-            <h2 className="text-2xl font-semibold text-[#1A1A1A] dark:text-[#E8E8E8] mb-4">
-              Limitation of Liability
-            </h2>
-            <p className="text-zinc-700 dark:text-zinc-300 leading-relaxed">
-              To the maximum extent permitted by law, Vetree and its operators shall not be liable for any indirect, incidental, special, consequential, or punitive damages, or any loss of profits or revenues, whether incurred directly or indirectly, or any loss of data, use, goodwill, or other intangible losses resulting from:
-            </p>
-            <ul className="list-disc pl-6 space-y-2 text-zinc-700 dark:text-zinc-300 mt-4">
-              <li>Your use or inability to use the service</li>
-              <li>Any unauthorized access to or use of our servers</li>
-              <li>Any interruption or cessation of the service</li>
-              <li>Any errors or inaccuracies in content, including AI-generated content</li>
-              <li>Any reliance on information provided through the service</li>
-            </ul>
-          </section>
+      <LegalSection title="2. השירות">
+        <p>
+          Vetree אוספת מחקר וטרינרי שפורסם, מציגה אותו עם סיכומים ושורות תחתונות קליניות שנוצרו בבינה מלאכותית,
+          ומאפשרת לחפש, לסנן, לשמור ולעקוב אחר נושאים. בהסכמתך אנו שולחים בדוא&quot;ל תקציר שבועי של מחקרים חדשים.
+        </p>
+      </LegalSection>
 
-          <section className="mb-8">
-            <h2 className="text-2xl font-semibold text-[#1A1A1A] dark:text-[#E8E8E8] mb-4">
-              Indemnification
-            </h2>
-            <p className="text-zinc-700 dark:text-zinc-300 leading-relaxed">
-              You agree to indemnify and hold harmless Vetree and its operators from any claims, damages, losses, liabilities, and expenses arising from your use of the service or violation of these terms.
-            </p>
-          </section>
-
-          <section className="mb-8">
-            <h2 className="text-2xl font-semibold text-[#1A1A1A] dark:text-[#E8E8E8] mb-4">
-              Changes to Terms
-            </h2>
-            <p className="text-zinc-700 dark:text-zinc-300 leading-relaxed">
-              We reserve the right to modify these Terms of Service at any time. We will notify users of any material changes by updating the "Last updated" date. Your continued use of Vetree after changes constitutes acceptance of the new terms.
-            </p>
-          </section>
-
-          <section className="mb-8">
-            <h2 className="text-2xl font-semibold text-[#1A1A1A] dark:text-[#E8E8E8] mb-4">
-              Governing Law
-            </h2>
-            <p className="text-zinc-700 dark:text-zinc-300 leading-relaxed">
-              These Terms of Service shall be governed by and construed in accordance with applicable laws, without regard to conflict of law provisions.
-            </p>
-          </section>
-
-          <section className="mb-8">
-            <h2 className="text-2xl font-semibold text-[#1A1A1A] dark:text-[#E8E8E8] mb-4">
-              Contact Information
-            </h2>
-            <p className="text-zinc-700 dark:text-zinc-300 leading-relaxed">
-              If you have questions about these Terms of Service, please contact us at:{' '}
-              <a
-                href="mailto:privacy@vetree.app"
-                className="text-[#3D7A5F] dark:text-[#4E9A78] hover:underline font-medium"
-              >
-                privacy@vetree.app
-              </a>
-            </p>
-          </section>
+      <LegalSection title="3. אין באמור ייעוץ וטרינרי">
+        <div className={WARN}>
+          <p>
+            הסיכומים, השורות התחתונות הקליניות, תוויות רמת הראיות וסינתזות המחקר ב-Vetree נוצרים באמצעות בינה
+            מלאכותית. הם <strong>לצורכי מידע בלבד</strong>, עשויים לכלול טעויות או השמטות, ו<strong>אינם ייעוץ
+            וטרינרי או רפואי</strong>. יש תמיד לקרוא את המאמר המקורי ולהפעיל שיקול דעת מקצועי לפני קבלת החלטות
+            קליניות.
+          </p>
         </div>
-      </div>
-    </div>
+      </LegalSection>
+
+      <LegalSection title="4. החשבון שלך">
+        <p>חלק מהתכונות מחייבות חשבון. את/ה מתחייב/ת:</p>
+        <LegalList items={[
+          'למסור מידע נכון ולעדכן אותו;',
+          'לשמור על פרטי ההתחברות בסוד ולא לשתף את החשבון;',
+          `להודיע לנו מיד בכתובת ${CONTACT_EMAIL} על כל שימוש לא מורשה;`,
+          'לשאת באחריות לפעילות בחשבון שלך.',
+        ]} />
+      </LegalSection>
+
+      <LegalSection title="5. שימוש מותר">
+        <p>את/ה מתחייב/ת שלא:</p>
+        <LegalList items={[
+          'להשתמש ב-Vetree למטרה בלתי חוקית;',
+          'לנסות להשיג גישה לא מורשית למערכות שלנו או למידע של משתמשים אחרים;',
+          'להפריע לשירות או לשבש אותו;',
+          'לחלץ תוכן באופן אוטומטי, לסרוק את האתר או להוריד ממנו תוכן באופן שיטתי;',
+          'להעלות נוזקות או קוד מזיק;',
+          'להתחזות לאחרים או להציג שיוך כוזב;',
+          'להשתמש בשירות לשליחת דואר זבל או להטרדת אחרים.',
+        ]} />
+      </LegalSection>
+
+      <LegalSection title="6. קניין רוחני">
+        <p>
+          הזכויות בפלטפורמת Vetree — העיצוב, הקוד והתכונות — שייכות ל-Vetree או למעניקי הרישיון שלה, ככל שזכויות
+          אלה קיימות לפי הדין החל. איננו טוענים לבעלות במאמרים של צדדים שלישיים או מבטיחים שתוכן שנוצר בבינה
+          מלאכותית זכאי להגנת זכויות יוצרים. מאמרי המחקר שייכים למוציאים לאור ולמחברים; אנו מקשרים למקור ומציגים תקצירים עם ייחוס, והשימוש בהם כפוף לתנאי
+          המוציאים לאור. התוכן שאת/ה שולח/ת אלינו (כמו דיווחים) נשאר בבעלותך, ואת/ה מתיר/ה לנו להשתמש בו כדי להפעיל
+          ולשפר את השירות.
+        </p>
+      </LegalSection>
+
+      <LegalSection title="7. הודעות דוא&quot;ל">
+        <p>
+          אנו שולחים הודעות חשבון נחוצות (למשל אימות כתובת דוא&quot;ל ואיפוס סיסמה). התקציר השבועי נשלח רק אם הסכמת,
+          וניתן להפסיק אותו בכל עת באמצעות קישור ההסרה או בפרופיל.
+        </p>
+      </LegalSection>
+
+      <LegalSection title="8. הפסקת השימוש">
+        <p>
+          ניתן למחוק את החשבון בכל עת בפרופיל; המידע שלך נמחק אז כמתואר במדיניות הפרטיות. אנו רשאים להשעות או לסגור
+          חשבון המפר תנאים אלו, המשמש שלא כדין או המנצל את השירות לרעה.
+        </p>
+      </LegalSection>
+
+      <LegalSection title="9. הסתייגות והגבלת אחריות">
+        <p>
+          Vetree מסופקת &quot;כמות שהיא&quot; (AS IS) ו&quot;כפי שהיא זמינה&quot;. במידה המותרת בדין, איננו מתחייבים שהשירות
+          יפעל ללא הפסקות או תקלות, או שתוכנו — לרבות תוכן שנוצר בבינה מלאכותית — מדויק או שלם, ואיננו אחראים לנזק
+          עקיף או תוצאתי, או לנזק הנובע מהסתמכות על התוכן או מהפסקות בשירות. אין בתנאים אלו כדי להגביל אחריות שלא
+          ניתן להגבילה לפי דין.
+        </p>
+      </LegalSection>
+
+      <LegalSection title="10. שינויים בתנאים">
+        <p>
+          כאשר נשנה תנאים אלו, נעדכן את תאריך התוקף שלמעלה. אם השינוי מהותי, נבקש ממך לעיין בתנאים המעודכנים ולאשר
+          אותם בהתחברות הבאה.
+        </p>
+      </LegalSection>
+
+      <LegalSection title="11. הדין החל">
+        <p>
+          על תנאים אלו יחול הדין הישראלי, בכפוף להגנות המחייבות החלות עליך. לבתי המשפט בישראל תהיה סמכות שיפוט,
+          אלא אם הדין החל מקנה לך זכות שלא ניתן להתנות עליה לנקוט הליכים במקום אחר.
+        </p>
+      </LegalSection>
+
+      <LegalSection title="12. יצירת קשר">
+        <p>רועי קריספין, לה גוארדיה 60, תל אביב, ישראל · <span dir="ltr">{CONTACT_EMAIL}</span></p>
+        <ContactButton lang="he" />
+      </LegalSection>
+    </LegalShell>
   )
 }

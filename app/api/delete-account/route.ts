@@ -57,10 +57,10 @@ export async function POST(request: NextRequest) {
       'user_roles',
     ]
 
-    // The shared synthesis cache keeps its content but is no longer linked to the person (its FK
-    // used to have no delete rule and blocked deleting the auth user — migration 068)
+    // The person's cached syntheses (their search text and generated content) are deleted, not just
+    // unlinked; the cache regenerates on demand (migration 070)
     {
-      const { error } = await adminSupabase.from('topic_syntheses').update({ user_id: null }).eq('user_id', userId)
+      const { error } = await adminSupabase.from('topic_syntheses').delete().eq('user_id', userId)
       if (error) deletions.push({ table: 'topic_syntheses', error })
     }
 

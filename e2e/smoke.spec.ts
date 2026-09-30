@@ -200,17 +200,32 @@ test('guest save: feed row bookmark opens the article with the sign-in prompt', 
 test('signup: consent is in English by default and switches to Hebrew and back', { tag: '@desktop-only' }, async ({ page, context }) => {
   await clearCookiesKeepPreviewAccess(context)
   await page.goto('/signup')
-  await expect(page.getByText("I have read and agree to Vetree's")).toBeVisible()
-  await expect(page.getByText('Get the weekly evidence digest')).toBeVisible()
+  await expect(page.getByText("I agree to Vetree's")).toBeVisible()
+  await expect(page.getByText("Email me Vetree's weekly research digest")).toBeVisible()
   // One step: no role / specialty steps
   await expect(page.getByRole('button', { name: 'Create account' })).toBeVisible()
   await expect(page.getByText('Tell us who you are.')).toHaveCount(0)
   const toggle = page.locator('[data-testid="consent-language-toggle"]')
   await toggle.click()
-  await expect(page.getByText('קראתי ואני מסכים/ה ל')).toBeVisible()
-  await expect(page.getByText('לקבל את תקציר הראיות השבועי')).toBeVisible()
+  await expect(page.getByText('אני מסכים/ה ל')).toBeVisible()
+  await expect(page.getByText('לקבל בדוא"ל את תקציר המחקרים השבועי')).toBeVisible()
   await toggle.click()
-  await expect(page.getByText("I have read and agree to Vetree's")).toBeVisible()
+  await expect(page.getByText("I agree to Vetree's")).toBeVisible()
+})
+
+// ─── Privacy Policy and Terms exist in English and Hebrew, with a fixed effective date ─────
+test('legal: privacy and terms in English and Hebrew (RTL), fixed effective date', { tag: '@desktop-only' }, async ({ page }) => {
+  for (const [path, en, he] of [['/privacy', 'Privacy Policy', 'מדיניות פרטיות'], ['/terms', 'Terms of Service', 'תנאי שימוש']] as const) {
+    await page.goto(path)
+    await expect(page.getByRole('heading', { level: 1, name: en })).toBeVisible()
+    // A fixed effective date, not "today" computed at render time
+    await expect(page.getByText(/Effective: September 30, 2026/)).toBeVisible()
+    await expect(page.locator('[data-testid="legal-contact"]').first()).toHaveAttribute('href', 'mailto:vetree.app@gmail.com?subject=privacy')
+    await page.locator('[data-testid="legal-language-toggle"]').click()
+    await expect(page).toHaveURL(new RegExp(`${path}\\?lang=he`))
+    await expect(page.getByRole('heading', { level: 1, name: he })).toBeVisible()
+    await expect(page.locator('div[dir="rtl"][lang="he"]').first()).toBeVisible()
+  }
 })
 
 // ─── Consent can only be recorded for yourself ─────────────────────────────────
@@ -396,6 +411,20 @@ test('save-intent (logged out): auth sheet appears, intent stripped, links are v
   }
 })
 
+// The test account (like every user) is asked once to accept each new version of the Terms and
+// Privacy Policy (ConsentGate, CURRENT_CONSENT_VERSION). Accept it if shown, so the overlay doesn't
+// block the rest of the test.
+async function acceptUpdatedTermsIfShown(page: import('@playwright/test').Page, waitMs = 3_000) {
+  const submit = page.getByRole('button', { name: 'Confirm and continue' })
+  // isVisible() doesn't wait; the gate appears only after the auth + consent lookups finish
+  const shown = await submit.waitFor({ state: 'visible', timeout: waitMs }).then(() => true, () => false)
+  if (shown) {
+    await page.locator('div.fixed.inset-0 input[type="checkbox"]').check()
+    await submit.click()
+    await expect(submit).toBeHidden({ timeout: 10_000 })
+  }
+}
+
 // ─── 5. Auth round-trip (desktop only) ───────────────────────────────────────
 test('auth round-trip: intent=save saves article, appears in library, unsave removes it', { tag: '@desktop-only' }, async ({ page, context }) => {
   test.skip(!process.env.TEST_USER_EMAIL || !process.env.TEST_USER_PASSWORD, 'gated on missing TEST_USER_EMAIL/TEST_USER_PASSWORD')
@@ -408,6 +437,7 @@ test('auth round-trip: intent=save saves article, appears in library, unsave rem
 
   // Logged-in users see the full feed at /
   await page.goto('/')
+  await acceptUpdatedTermsIfShown(page, 15_000)
   // PR, post-deploy and scheduled runs share this test account and can overlap, so a run must
   // never touch another run's save: it picks, in random order, an internal article the account
   // has NOT saved (per the server, not the button), and only ever unsaves that one. An article
@@ -459,6 +489,7 @@ test('auth round-trip: intent=save saves article, appears in library, unsave rem
 
     // Unsave — wait for this run's own delete to be confirmed, not just the optimistic UI
     await page.goto(`/article/${articleId}`)
+    await acceptUpdatedTermsIfShown(page)
     const unsaveBtn = page.locator('[aria-label="Remove from library"], [aria-label="Unsave"]').first()
     await expect(unsaveBtn).toBeVisible({ timeout: 6_000 })
     const unsaved = saveResponse('unsave')

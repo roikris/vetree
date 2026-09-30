@@ -196,9 +196,9 @@ export function ConsentGate() {
             />
             <span className="text-sm text-zinc-700 dark:text-zinc-300 leading-snug">
               {copy.termsBefore}
-              <a href="/terms" target="_blank" className="text-[#3D7A5F] dark:text-[#4E9A78] hover:underline">{copy.terms}</a>
+              <a href={copy.termsHref} target="_blank" className="text-[#3D7A5F] dark:text-[#4E9A78] hover:underline">{copy.terms}</a>
               {copy.and}
-              <a href="/privacy" target="_blank" className="text-[#3D7A5F] dark:text-[#4E9A78] hover:underline">{copy.privacy}</a>
+              <a href={copy.privacyHref} target="_blank" className="text-[#3D7A5F] dark:text-[#4E9A78] hover:underline">{copy.privacy}</a>
               {copy.termsAfter}{' '}
               <span className="text-red-500">*</span>
             </span>

@@ -1,7 +1,7 @@
 /**
  * Consent wording in both languages. The interface is English, so consent defaults to English
  * (it used to be Hebrew-only inside English forms); a toggle shows the same wording in Hebrew.
- * Both versions say the same thing and link to the same /terms and /privacy documents.
+ * Both versions say the same thing and link to the Terms and Privacy Policy in the same language.
  */
 export type ConsentLang = 'en' | 'he'
 export const isConsentLang = (v: unknown): v is ConsentLang => v === 'en' || v === 'he'
@@ -9,15 +9,17 @@ export const isConsentLang = (v: unknown): v is ConsentLang => v === 'en' || v =
 export const CONSENT_COPY = {
   en: {
     dir: 'ltr' as const,
+    termsHref: '/terms',
+    privacyHref: '/privacy',
     switchTo: 'עברית',
     switchLabel: 'הצג את נוסח ההסכמה בעברית',
-    termsBefore: "I have read and agree to Vetree's ",
+    termsBefore: "I agree to Vetree's ",
     terms: 'Terms of Service',
-    and: ' and ',
+    and: ' and acknowledge its ',
     privacy: 'Privacy Policy',
     termsAfter: '.',
     termsRequired: 'Please accept the Terms of Service and Privacy Policy to continue.',
-    digestQuestion: "Get the weekly evidence digest — the week's new research, once, Fridays.",
+    digestQuestion: "Email me Vetree's weekly research digest on Fridays? It may be personalised using the specialties I follow and my recent activity. Optional — unsubscribe any time.",
     digestYes: 'Yes, send it',
     digestNo: 'No thanks',
     gateTitle: 'Updated terms',
@@ -29,16 +31,17 @@ export const CONSENT_COPY = {
   },
   he: {
     dir: 'rtl' as const,
+    termsHref: '/terms?lang=he',
+    privacyHref: '/privacy?lang=he',
     switchTo: 'English',
     switchLabel: 'Show the consent wording in English',
-    termsBefore: 'קראתי ואני מסכים/ה ל',
-    // The documents themselves are in English; say so rather than imply a Hebrew version
-    terms: 'תנאי השימוש (באנגלית)',
-    and: ' ול',
-    privacy: 'מדיניות הפרטיות (באנגלית)',
-    termsAfter: ' של Vetree.',
+    termsBefore: 'אני מסכים/ה ל',
+    terms: 'תנאי השימוש',
+    and: ' של Vetree ומאשר/ת שעיינתי ב',
+    privacy: 'מדיניות הפרטיות',
+    termsAfter: '.',
     termsRequired: 'יש לאשר את תנאי השימוש ומדיניות הפרטיות כדי להמשיך',
-    digestQuestion: 'לקבל את תקציר הראיות השבועי — המחקרים החדשים של השבוע, פעם בשבוע, בימי שישי.',
+    digestQuestion: 'לקבל בדוא"ל את תקציר המחקרים השבועי של Vetree בימי שישי? התקציר עשוי להיות מותאם לתחומי ההתמחות שבחרתי ולפעילותי האחרונה. רשות — ניתן לבטל בכל עת.',
     digestYes: 'כן, שלחו לי',
     digestNo: 'לא תודה',
     gateTitle: 'עדכון תנאי שימוש',

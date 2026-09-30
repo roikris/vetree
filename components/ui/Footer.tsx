@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { ReportModal } from './ReportModal'
+import { CookieSettingsButton } from '@/components/consent/TrackingConsent'
 
 export function Footer() {
   const [showReportModal, setShowReportModal] = useState(false)
@@ -31,6 +32,8 @@ export function Footer() {
           >
             Terms of Service
           </Link>
+          <span className="hidden sm:inline text-zinc-300 dark:text-zinc-700">•</span>
+          <CookieSettingsButton className="text-sm text-zinc-500 dark:text-zinc-400 hover:text-[#3D7A5F] dark:hover:text-[#4E9A78] transition-colors" />
         </div>
         <div className="text-xs text-zinc-400 dark:text-zinc-500 text-center mt-4">
           © {new Date().getFullYear()} Vetree. All rights reserved.

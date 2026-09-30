@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { sendPasswordResetEmail, setDigestConsent } from '@/app/actions/profile'
+import { CookieSettingsButton } from '@/components/consent/TrackingConsent'
 
 export function ProfileClient({ userId, initialDigestOptIn }: { userId: string; initialDigestOptIn: boolean }) {
   const router = useRouter()
@@ -127,6 +128,13 @@ export function ProfileClient({ userId, initialDigestOptIn }: { userId: string; 
             />
           </button>
         </div>
+      </div>
+
+      {/* Optional cookies (LinkedIn / Meta ad measurement) */}
+      <div className="bg-white dark:bg-[#1A1A1A] border border-zinc-200 dark:border-zinc-800 rounded-lg p-6 mb-8">
+        <h2 className="text-xl font-semibold text-[#1A1A1A] dark:text-[#E8E8E8] mb-2">Privacy</h2>
+        <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-3">Choose whether Vetree may use optional LinkedIn and Meta cookies to measure its ads.</p>
+        <CookieSettingsButton className="text-sm font-medium text-[#3D7A5F] dark:text-[#4E9A78] underline underline-offset-4" />
       </div>
 
       {/* Account Actions */}

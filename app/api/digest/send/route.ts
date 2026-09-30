@@ -589,9 +589,13 @@ function generateEmailHTML(email: string, userId: string, unsubscribeToken: stri
               · or reply to this email to stop receiving it
             </p>
             <p style="margin: 0; font-size: 13px; color: #4b5563; line-height: 1.6;">
-              Advertising email (פרסומת) from Vetree · Roi Krispin, La Guardia 60, Tel Aviv, Israel · vetree.app@gmail.com<br/>
-              You receive this because you agreed to the weekly digest on Vetree.
-              <span dir="rtl">דיוור זה נשלח מאת רועי קריספין, לה גוארדיה 60, תל אביב, בהסכמתך. להסרה: קישור ההסרה או מענה להודעה זו.</span>
+              Advertising and direct mailing (פרסומת · דיוור ישיר) from Vetree · Roi Krispin, La Guardia 60, Tel Aviv, Israel · vetree.app@gmail.com<br/>
+              You receive this because you agreed to the weekly digest. It is selected using your Vetree registration,
+              the specialties you follow and your activity. To stop it, use the link above or reply; to have the
+              information used for it deleted, email vetree.app@gmail.com.<br/>
+              <span dir="rtl">דיוור ישיר ופרסומת מאת רועי קריספין, לה גוארדיה 60, תל אביב, בהסכמתך. הדיוור מותאם על סמך ההרשמה
+              שלך ל-Vetree, תחומי ההתמחות שבחרת והפעילות שלך. להסרה: קישור ההסרה או מענה להודעה זו; למחיקת המידע המשמש
+              לדיוור: vetree.app@gmail.com.</span>
             </p>
           </div>
         </div>
