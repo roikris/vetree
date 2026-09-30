@@ -18,9 +18,10 @@ export type PendingSignupConsent = { terms: true; marketing: boolean; version: '
 // PENDING_DIGEST_CONSENT_KEY holds { marketing, lang, at, nonce } since 2026-09-30 (a bare
 // boolean before). A Google signup writes it before the OAuth redirect, with no email to bind to,
 // so it is bound to THAT OAuth flow: the nonce also travels through the redirect, and
-// /auth/callback hands it back in SIGNUP_NONCE_COOKIE only after that flow's sign-in succeeded.
-// ConsentGate uses the choice only when the two nonces match — anyone else signing in on this
-// browser (another Google login, an abandoned signup) is asked afresh. (Codex, 2026-09-30.)
+// /auth/callback hands it back in SIGNUP_NONCE_COOKIE as "<nonce>.<userId>" only after that
+// flow's sign-in succeeded — bound to the account it signed in — and deletes any leftover cookie
+// on every other sign-in. ConsentGate uses the choice only when the nonce matches AND the cookie's
+// user is the signed-in user; anyone else is asked afresh. (Codex, 2026-09-30.)
 export const PENDING_DIGEST_CONSENT_MAX_AGE_MS = 60 * 60 * 1000
 export const SIGNUP_NONCE_COOKIE = 'vetree_signup_nonce'
 export const SIGNUP_NONCE_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
@@ -42,8 +43,21 @@ export function parsePendingDigestConsent(raw: string | null): PendingDigestCons
   return null
 }
 
-/** The pending digest choice belongs to this sign-in only if it came back through the same OAuth flow */
-export function pendingDigestMatchesFlow(p: PendingDigestConsent, callbackNonce: string | null, now = Date.now()): boolean {
-  if (!p.nonce || !callbackNonce || p.nonce !== callbackNonce) return false
+/** Cookie value "<nonce>.<userId>" → parts, or null if malformed */
+export function parseSignupNonceCookie(raw: string | null): { nonce: string; userId: string } | null {
+  if (!raw) return null
+  const [nonce, userId, extra] = raw.split('.')
+  if (extra !== undefined || !nonce || !userId || !SIGNUP_NONCE_RE.test(nonce) || !SIGNUP_NONCE_RE.test(userId)) return null
+  return { nonce, userId }
+}
+
+/**
+ * The pending digest choice belongs to this user only if it came back through the same OAuth flow
+ * (nonce) AND that flow signed in this very account (cookie user = signed-in user).
+ */
+export function pendingDigestMatchesFlow(
+  p: PendingDigestConsent, cookie: { nonce: string; userId: string } | null, signedInUserId: string, now = Date.now(),
+): boolean {
+  if (!p.nonce || !cookie || p.nonce !== cookie.nonce || cookie.userId !== signedInUserId) return false
   return p.at !== undefined && now - p.at >= 0 && now - p.at <= PENDING_DIGEST_CONSENT_MAX_AGE_MS
 }

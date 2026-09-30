@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { PENDING_DIGEST_CONSENT_KEY, PENDING_SIGNUP_CONSENT_KEY, PENDING_SIGNUP_CONSENT_MAX_AGE_MS, parsePendingDigestConsent, pendingDigestMatchesFlow, SIGNUP_NONCE_COOKIE, type PendingSignupConsent } from '@/lib/constants/consent'
+import { PENDING_DIGEST_CONSENT_KEY, PENDING_SIGNUP_CONSENT_KEY, PENDING_SIGNUP_CONSENT_MAX_AGE_MS, parsePendingDigestConsent, pendingDigestMatchesFlow, parseSignupNonceCookie, SIGNUP_NONCE_COOKIE, type PendingSignupConsent } from '@/lib/constants/consent'
 import { CONSENT_COPY, type ConsentLang } from '@/lib/consent/copy'
 import { ConsentLanguageToggle } from '@/components/consent/ConsentLanguageToggle'
 
@@ -34,9 +34,9 @@ function readPendingSignupConsent(userEmail: string | undefined): PendingSignupC
 }
 
 // The nonce /auth/callback handed back after a successful Google signup (lib/constants/consent)
-function readSignupNonce(): string | null {
+function readSignupNonce(): { nonce: string; userId: string } | null {
   const m = document.cookie.match(new RegExp(`(?:^|; )${SIGNUP_NONCE_COOKIE}=([^;]+)`))
-  return m ? decodeURIComponent(m[1]) : null
+  return parseSignupNonceCookie(m ? decodeURIComponent(m[1]) : null)
 }
 function clearPendingDigest() {
   try { localStorage.removeItem(PENDING_DIGEST_CONSENT_KEY) } catch { /* unavailable */ }
@@ -90,6 +90,7 @@ export function ConsentGate() {
             })
             if (res.ok) {
               localStorage.removeItem(PENDING_SIGNUP_CONSENT_KEY)
+              clearPendingDigest()   // any Google leftovers in this browser are not this user's
               return
             }
             if (res.status === 403) {
@@ -124,7 +125,7 @@ export function ConsentGate() {
     let consentSource: 'signup' | null = null
     let marketingLanguage: ConsentLang | null = null
     const pending = parsePendingDigestConsent(localStorage.getItem(PENDING_DIGEST_CONSENT_KEY))
-    if (pending && pendingDigestMatchesFlow(pending, readSignupNonce())) {
+    if (pending && pendingDigestMatchesFlow(pending, readSignupNonce(), userId)) {
       marketingOptIn = pending.marketing
       consentSource = 'signup'
       marketingLanguage = pending.lang ?? null   // asked on the signup page, in that language
