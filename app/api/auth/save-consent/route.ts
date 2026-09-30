@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getClientIP, ratelimitModerate } from '@/lib/ratelimit'
 import { recordConsent, CONSENT_SOURCES, type ConsentSource } from '@/lib/consent/record'
+import { isConsentLang } from '@/lib/consent/copy'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -35,7 +36,7 @@ export async function POST(request: NextRequest) {
     const { success } = await ratelimitModerate.limit(`consent:${user.id}`)
     if (!success) return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
 
-    const { userId, termsAccepted, marketingOptIn, consentSource } = await request.json()
+    const { userId, termsAccepted, marketingOptIn, consentSource, termsLanguage, marketingLanguage } = await request.json()
     // A body userId is tolerated for older clients but must be the caller
     if (userId != null && userId !== user.id) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -46,6 +47,10 @@ export async function POST(request: NextRequest) {
     if (marketingOptIn != null && typeof marketingOptIn !== 'boolean') {
       return NextResponse.json({ error: 'marketingOptIn must be a boolean' }, { status: 400 })
     }
+    // Language of the wording the person saw (migration 067); optional for older clients
+    if ((termsLanguage != null && !isConsentLang(termsLanguage)) || (marketingLanguage != null && !isConsentLang(marketingLanguage))) {
+      return NextResponse.json({ error: "termsLanguage / marketingLanguage must be 'en' or 'he'" }, { status: 400 })
+    }
     if (consentSource != null && !CONSENT_SOURCES.includes(consentSource)) {
       return NextResponse.json({ error: `consentSource must be one of ${CONSENT_SOURCES.join(', ')} or omitted` }, { status: 400 })
     }
@@ -55,6 +60,8 @@ export async function POST(request: NextRequest) {
       termsAccepted,
       marketingOptIn: marketingOptIn ?? false,
       consentSource: (consentSource ?? null) as ConsentSource | null,
+      termsLanguage: termsLanguage ?? null,
+      marketingLanguage: marketingLanguage ?? null,
       ip: getClientIP(request),
       userAgent: request.headers.get('user-agent') || null,
     })

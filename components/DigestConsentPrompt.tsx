@@ -85,6 +85,7 @@ export function DigestConsentPrompt() {
           termsAccepted: true, // already true — this user passed ConsentGate to be here
           marketingOptIn: value,
           consentSource: 'in_app_prompt',
+          marketingLanguage: lang,   // the question was asked in this language; terms weren't shown
         }),
       })
     } catch {

@@ -77,7 +77,7 @@ export default function SignUpPage() {
     // The OAuth redirect is a full page navigation — React state (marketingChoice)
     // doesn't survive it. Persist the choice made on this page so ConsentGate can
     // record it, correctly sourced, the first time it sees this user post-redirect.
-    localStorage.setItem(PENDING_DIGEST_CONSENT_KEY, JSON.stringify(marketingChoice === true))
+    localStorage.setItem(PENDING_DIGEST_CONSENT_KEY, JSON.stringify({ marketing: marketingChoice === true, lang: consentLang }))
     const returnUrl = new URLSearchParams(window.location.search).get('return') || '/'
     const safeReturn = returnUrl.startsWith('/') ? returnUrl : '/'
     // Through /auth/callback, not the destination directly — see app/login/page.tsx's
@@ -140,7 +140,7 @@ export default function SignUpPage() {
           try {
             const pending: PendingSignupConsent = {
               terms: true, marketing: marketingChoice === true, version: '1.0',
-              email: email.trim().toLowerCase(), at: Date.now(),
+              email: email.trim().toLowerCase(), at: Date.now(), lang: consentLang,
             }
             localStorage.setItem(PENDING_SIGNUP_CONSENT_KEY, JSON.stringify(pending))
           } catch { /* storage unavailable: ConsentGate will ask after verification */ }

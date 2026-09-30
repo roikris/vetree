@@ -128,6 +128,7 @@ export async function setDigestConsent(optIn: boolean) {
     termsAccepted: true, // already true — settings is only reachable by an active, terms-accepted user
     marketingOptIn: optIn,
     consentSource: 'settings',
+    marketingLanguage: 'en', // the profile settings page is English-only
     // Audit metadata only (ownership is the session). Trustworthy only as far as the ingress
     // (Vercel) sets these headers.
     ip: h.get('x-forwarded-for')?.split(',')[0]?.trim() || h.get('x-real-ip') || null,

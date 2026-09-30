@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { PENDING_DIGEST_CONSENT_KEY, PENDING_SIGNUP_CONSENT_KEY, PENDING_SIGNUP_CONSENT_MAX_AGE_MS, type PendingSignupConsent } from '@/lib/constants/consent'
+import { PENDING_DIGEST_CONSENT_KEY, PENDING_SIGNUP_CONSENT_KEY, PENDING_SIGNUP_CONSENT_MAX_AGE_MS, parsePendingDigestConsent, type PendingSignupConsent } from '@/lib/constants/consent'
 import { CONSENT_COPY, type ConsentLang } from '@/lib/consent/copy'
 import { ConsentLanguageToggle } from '@/components/consent/ConsentLanguageToggle'
 
@@ -67,7 +67,11 @@ export function ConsentGate() {
               // userId pins the write to the user the pending choice was validated against: if the
               // session changed meanwhile (another tab signed in as someone else), the route's
               // session/userId check rejects it and the gate asks instead
-              body: JSON.stringify({ userId: user.id, termsAccepted: true, marketingOptIn: pending.marketing, consentSource: 'signup' }),
+              body: JSON.stringify({
+                userId: user.id, termsAccepted: true, marketingOptIn: pending.marketing, consentSource: 'signup',
+                // Both questions were shown on the signup page, in this language
+                termsLanguage: pending.lang ?? null, marketingLanguage: pending.lang ?? null,
+              }),
             })
             if (res.ok) {
               localStorage.removeItem(PENDING_SIGNUP_CONSENT_KEY)
@@ -104,19 +108,20 @@ export function ConsentGate() {
     // first-ever consent row, correctly sourced — otherwise it's a placeholder.
     let marketingOptIn = false
     let consentSource: 'signup' | null = null
-    const pending = localStorage.getItem(PENDING_DIGEST_CONSENT_KEY)
-    if (pending !== null) {
-      try {
-        marketingOptIn = JSON.parse(pending) === true
-        consentSource = 'signup'
-      } catch { /* malformed value, ignore */ }
+    let marketingLanguage: ConsentLang | null = null
+    const pending = parsePendingDigestConsent(localStorage.getItem(PENDING_DIGEST_CONSENT_KEY))
+    if (pending) {
+      marketingOptIn = pending.marketing
+      consentSource = 'signup'
+      marketingLanguage = pending.lang ?? null   // asked on the signup page, in that language
     }
 
     try {
       const res = await fetch('/api/auth/save-consent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, termsAccepted, marketingOptIn, consentSource }),
+        // Terms were shown here, in `lang`; the digest question only if it came from signup
+        body: JSON.stringify({ userId, termsAccepted, marketingOptIn, consentSource, termsLanguage: lang, marketingLanguage }),
       })
 
       if (!res.ok) {
