@@ -12,6 +12,7 @@ import {
   StudyTypeBreakdown,
 } from '@/lib/synthesis/generateSynthesis'
 import Anthropic from '@anthropic-ai/sdk'
+import { CLAUDE_MODEL, NO_UPFRONT_THINKING, responseText } from '@/lib/ai/model'
 
 type FormatKey = 'evidence_report' | 'clinical_insight' | 'myth_vs_evidence'
 
@@ -96,13 +97,14 @@ Write a LinkedIn post in "Myth vs Evidence" style:
   }
 
   const response = await anthropic.messages.create({
-    model: 'claude-sonnet-4-6',
+      ...NO_UPFRONT_THINKING,
+    model: CLAUDE_MODEL,
     max_tokens: 800,
     system: 'You are a veterinary content writer. Write specific, clinically relevant LinkedIn posts for DVMs in small animal practice.',
     messages: [{ role: 'user', content: prompt }],
   })
 
-  return response.content[0].type === 'text' ? response.content[0].text : ''
+  return responseText(response)
 }
 
 export async function POST(request: NextRequest) {

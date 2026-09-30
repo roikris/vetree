@@ -32,7 +32,7 @@ Solo DVM developer. Target: Israeli + international vets.
 ## Stack
 - **Frontend/Backend:** Next.js 16 (App Router, Turbopack) on Vercel
 - **Database:** Supabase (PostgreSQL + Auth + Storage + RLS)
-- **AI enrichment:** Claude Sonnet `claude-sonnet-4-6` (all AI calls — Haiku is retired)
+- **AI:** Claude Sonnet 5.5 `claude-sonnet-5-5` for every AI call (`lib/ai/model.ts`; Haiku is retired)
 - **Email:** Resend — weekly digest from `digest@digest.vetree.app`; auth emails via Resend custom SMTP (`auth@digest.vetree.app`)
 - **xlsx:** pinned to SheetJS CDN tarball `https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz` (no CVE; do NOT upgrade via npm)
 - **Monitoring:** Sentry (@sentry/nextjs@7)
@@ -48,15 +48,16 @@ Solo DVM developer. Target: Israeli + international vets.
 
 ## CRITICAL RULES — Never violate these
 
-### 0. Minimum AI model — Claude Sonnet 4.6 for ALL calls
+### 0. AI model — Claude Sonnet 5.5 for ALL calls
 ```ts
-// ✅ ONLY valid model string in this project
-const model = 'claude-sonnet-4-6'
+// ✅ ONLY valid model in this project — always import the constant, never hard-code the ID
+import { CLAUDE_MODEL } from '@/lib/ai/model'   // = 'claude-sonnet-5-5'
+// scripts/*.mjs and .github/workflows/scripts/*.js can't import TS: they repeat the same ID
 
 // ❌ NEVER use — Haiku is retired from this project
 // 'claude-haiku-4-5-20251001'
 ```
-Every Claude API call — enrichment, synthesis, content agent, analysis agent, security agent, LinkedIn matcher — must use `claude-sonnet-4-6`. Do not introduce Haiku for any reason, including cost optimisation.
+Every Claude API call — enrichment, synthesis, content agent, analysis agent, security agent, LinkedIn matcher — must use `CLAUDE_MODEL` (`claude-sonnet-5-5`, switched from `claude-sonnet-4-6` on 2026-09-30). Do not introduce Haiku for any reason, including cost optimisation.
 
 ### 1. API Routes — always add
 ```ts
@@ -110,7 +111,7 @@ const filtered = articles.filter(a => !a.labels?.some((l: string) => LARGE_ANIMA
 
 ### 7. Parse Claude JSON responses — always strip markdown fences
 ```ts
-const raw = response.content[0].type === 'text' ? response.content[0].text : ''
+const raw = responseText(response)   // lib/ai/model — text blocks only; throws if cut off at max_tokens
 const clean = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim()
 const parsed = JSON.parse(clean)
 ```

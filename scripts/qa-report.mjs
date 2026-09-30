@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * qa-report.mjs
- * Reads playwright-results.json, optionally triages failures with Claude Haiku,
+ * Reads playwright-results.json, optionally triages failures with Claude Sonnet 5.5,
  * then sends a Slack summary. Called by the qa-smoke.yml workflow.
  */
 import { readFileSync, existsSync } from 'fs'
@@ -44,7 +44,7 @@ function parseResults(filePath) {
   return { passed, total, duration: Math.round(durationMs / 1000), failures }
 }
 
-// ─── Call Claude Haiku for triage ─────────────────────────────────────────────
+// ─── Call Claude Sonnet 5.5 for triage ─────────────────────────────────────────────
 
 async function triageFailures(failures) {
   if (!ANTHROPIC_API_KEY || failures.length === 0) return null
@@ -58,8 +58,9 @@ async function triageFailures(failures) {
     .join('\n\n---\n\n')
 
   const response = await anthropic.messages.create({
-    model: 'claude-haiku-4-5-20251001',
+    model: 'claude-sonnet-5-5'  /* keep in step with lib/ai/model.ts */,
     max_tokens: 512,
+    thinking: { type: 'between_tools' },  // no upfront thinking (Sonnet 5.5 default; counts against max_tokens)
     system:
       'You are a QA triage assistant for Vetree (Next.js 16 App Router + Supabase). ' +
       'Given failed Playwright smoke tests against https://vetree.app, diagnose the most likely cause ' +
@@ -73,7 +74,9 @@ async function triageFailures(failures) {
     ],
   })
 
-  const raw = response.content[0]?.type === 'text' ? response.content[0].text : ''
+  // Text blocks only (a reply may start with a thinking block); a cut-off reply is not used
+  if (response.stop_reason === 'max_tokens') return ''
+  const raw = (response.content || []).filter(b => b.type === 'text').map(b => b.text).join('')
   return raw.trim()
 }
 
@@ -127,7 +130,7 @@ async function main() {
 
     const triage = await triageFailures(failures)
     if (triage) {
-      message += `\n\n*Claude Haiku triage:*\n${triage}`
+      message += `\n\n*Claude triage:*\n${triage}`
     }
   }
 

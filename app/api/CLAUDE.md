@@ -136,7 +136,7 @@ await resend.emails.send({
 
 ### Parse Claude JSON response
 ```ts
-const raw = response.content[0].type === 'text' ? response.content[0].text : ''
+const raw = responseText(response)   // lib/ai/model — text blocks only; throws if cut off at max_tokens
 const clean = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim()
 try {
   const parsed = JSON.parse(clean)

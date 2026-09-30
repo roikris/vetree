@@ -414,9 +414,10 @@ test('save-intent (logged out): auth sheet appears, intent stripped, links are v
 // The test account (like every user) is asked once to accept each new version of the Terms and
 // Privacy Policy (ConsentGate, CURRENT_CONSENT_VERSION). Accept it if shown, so the overlay doesn't
 // block the rest of the test.
-async function acceptUpdatedTermsIfShown(page: import('@playwright/test').Page, waitMs = 3_000) {
+async function acceptUpdatedTermsIfShown(page: import('@playwright/test').Page, waitMs = 1_500) {
   const submit = page.getByRole('button', { name: 'Confirm and continue' })
-  // isVisible() doesn't wait; the gate appears only after the auth + consent lookups finish
+  // The gate renders right after its consent lookup; once that settled, a short wait is enough
+  // (isVisible() doesn't wait at all)
   const shown = await submit.waitFor({ state: 'visible', timeout: waitMs }).then(() => true, () => false)
   if (shown) {
     await page.locator('div.fixed.inset-0 input[type="checkbox"]').check()
@@ -428,6 +429,8 @@ async function acceptUpdatedTermsIfShown(page: import('@playwright/test').Page, 
 // ─── 5. Auth round-trip (desktop only) ───────────────────────────────────────
 test('auth round-trip: intent=save saves article, appears in library, unsave removes it', { tag: '@desktop-only' }, async ({ page, context }) => {
   test.skip(!process.env.TEST_USER_EMAIL || !process.env.TEST_USER_PASSWORD, 'gated on missing TEST_USER_EMAIL/TEST_USER_PASSWORD')
+  // Login, feed, save, library, unsave, library: several full page loads on a preview
+  test.setTimeout(60_000)
 
   await page.goto('/login')
   await page.locator('input[type="email"]').fill(process.env.TEST_USER_EMAIL!)
@@ -435,9 +438,12 @@ test('auth round-trip: intent=save saves article, appears in library, unsave rem
   await page.locator('button[type="submit"]').click()
   await page.waitForURL(url => !url.pathname.startsWith('/login'), { timeout: 15_000 })
 
-  // Logged-in users see the full feed at /
+  // Logged-in users see the full feed at /. Wait for ConsentGate's own consent lookup, then accept
+  // the updated terms if it asks (no fixed long wait once the test account has accepted).
+  const consentLookup = page.waitForResponse(r => r.url().includes('/rest/v1/user_consents'), { timeout: 20_000 }).catch(() => null)
   await page.goto('/')
-  await acceptUpdatedTermsIfShown(page, 15_000)
+  await consentLookup
+  await acceptUpdatedTermsIfShown(page, 3_000)
   // PR, post-deploy and scheduled runs share this test account and can overlap, so a run must
   // never touch another run's save: it picks, in random order, an internal article the account
   // has NOT saved (per the server, not the button), and only ever unsaves that one. An article

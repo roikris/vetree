@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { ratelimitModerate, getClientIP } from '@/lib/ratelimit'
 import { createClient } from '@/lib/supabase/server'
+import { CLAUDE_MODEL, NO_UPFRONT_THINKING, responseText } from '@/lib/ai/model'
 
 export async function POST(request: NextRequest) {
   try {
@@ -580,7 +581,8 @@ Return ONLY the post text. Follow the platform rule exactly.`
     }
 
     const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-6',
+      ...NO_UPFRONT_THINKING,
+      model: CLAUDE_MODEL,
       max_tokens: 1000,
       messages: [{
         role: 'user',
@@ -589,14 +591,15 @@ Return ONLY the post text. Follow the platform rule exactly.`
       system: `You are a veterinary content writer. Write specific, clinically relevant posts for DVMs in small animal practice. ${language === 'he' ? 'Write in natural Hebrew.' : 'Write in English.'}${hotQueries.length > 0 ? `\n\nCurrent audience demand — topics your audience is actively searching for with no results yet: ${hotQueries.join(', ')}. If this article is directly relevant to any of these, make that connection explicit in your post (e.g. "Searching for answers on hyperthyroidism? This study..." but more natural). Otherwise, ignore this context.` : ''}`
     })
 
-    postContent = message.content[0].type === 'text' ? message.content[0].text : ''
+    postContent = responseText(message)
 
     // Twitter-specific length check
     if (platform === 'twitter' && postContent.length > 280 && !postContent.includes('SKIP_LARGE_ANIMAL')) {
       console.log(`[generate-post] Tweet too long (${postContent.length} chars), asking Claude to shorten...`)
 
       const shortenMessage = await anthropic.messages.create({
-        model: 'claude-sonnet-4-6',
+      ...NO_UPFRONT_THINKING,
+        model: CLAUDE_MODEL,
         max_tokens: 500,
         messages: [{
           role: 'user',
@@ -608,7 +611,9 @@ Return ONLY the shortened tweet (under 280 chars).`
         }]
       })
 
-      const shortenedContent = shortenMessage.content[0].type === 'text' ? shortenMessage.content[0].text : postContent
+      // A cut-off or empty shortening reply falls back to the original post
+      let shortenedContent = postContent
+      try { shortenedContent = responseText(shortenMessage) || postContent } catch { /* truncated: keep the original */ }
 
       // If still too long, truncate intelligently
       if (shortenedContent.length <= 280) {
