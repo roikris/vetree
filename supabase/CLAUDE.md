@@ -112,8 +112,8 @@ the append-only compliance record of whether they ever consented in the first pl
 | consent_version | text | DEFAULT '1.0' |
 | consent_source | text nullable | 'signup' \| 'in_app_prompt' \| 'settings' \| NULL — added migration 048 |
 | consented_at | timestamptz | NOT NULL DEFAULT now() — always populated, never backfilled null |
-| terms_language | text nullable | 'en'/'he' — language of the terms wording shown for this row; NULL = not shown or pre-2026-09-30 (migration 067) |
-| marketing_language | text nullable | 'en'/'he' — language of the digest question asked for this row; NULL = not asked or pre-2026-09-30 |
+| terms_language | text nullable | 'en'/'he' — language of the terms wording shown for this row; NULL = not shown, or unknown (pre-2026-09-30 or a legacy pending choice) (migration 067) |
+| marketing_language | text nullable | 'en'/'he' — language of the digest question asked for this row; NULL = not asked, or unknown |
 | ip_address | text | |
 | user_agent | text | |
 | created_at | timestamptz | |
