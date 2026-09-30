@@ -30,9 +30,10 @@ export const CONSENT_COPY = {
     switchTo: 'English',
     switchLabel: 'Show the consent wording in English',
     termsBefore: 'קראתי ואני מסכים/ה ל',
-    terms: 'תנאי השימוש',
+    // The documents themselves are in English; say so rather than imply a Hebrew version
+    terms: 'תנאי השימוש (באנגלית)',
     and: ' ול',
-    privacy: 'מדיניות הפרטיות',
+    privacy: 'מדיניות הפרטיות (באנגלית)',
     termsAfter: ' של Vetree.',
     termsRequired: 'יש לאשר את תנאי השימוש ומדיניות הפרטיות כדי להמשיך',
     digestQuestion: 'לקבל את תקציר הראיות השבועי — המחקרים החדשים של השבוע, פעם בשבוע, בימי שישי.',

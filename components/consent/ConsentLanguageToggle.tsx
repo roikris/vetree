@@ -12,6 +12,7 @@ export function ConsentLanguageToggle({ lang, onChange }: { lang: ConsentLang; o
       onClick={() => onChange(lang === 'en' ? 'he' : 'en')}
       aria-label={copy.switchLabel}
       lang={lang === 'en' ? 'he' : 'en'}
+      dir={lang === 'en' ? 'rtl' : 'ltr'}
       style={{
         background: 'none', border: 'none', padding: 0, cursor: 'pointer',
         font: '500 12.5px/1 var(--font-instrument, sans-serif)', color: 'var(--al-accent)',

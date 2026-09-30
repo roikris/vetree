@@ -177,7 +177,7 @@ export function ConsentGate() {
         </div>
 
         {error && (
-          <p className="text-red-600 dark:text-red-400 text-sm mb-4 text-center">{error}</p>
+          <p dir="auto" className="text-red-600 dark:text-red-400 text-sm mb-4 text-center">{error}</p>
         )}
 
         <button

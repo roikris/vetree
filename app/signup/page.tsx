@@ -21,9 +21,10 @@ function trackEvent(eventName: string, detail?: Record<string, unknown>) {
 }
 
 // Signup is one step: account + consent, then "check your email". The former steps 2–4 (role,
-// focus, specialties) ran before the account was verified, so they had no session: the follows
-// failed silently and role/focus were only written to localStorage, which nothing read. Readers
-// personalize after signing in instead.
+// focus, specialties) ran before email verification, so their tag follows normally failed
+// (401/403, ignored) unless the reader had already verified in another tab; role and branches
+// went to localStorage keys nothing read, and focus was never stored. Readers personalize after
+// signing in instead.
 
 // ─── Main component ────────────────────────────────────────────────────────
 
@@ -247,7 +248,7 @@ export default function SignUpPage() {
               </p>
 
               {error && (
-                <div ref={errorRef} style={{ background: 'rgba(220,60,60,.08)', border: '1px solid rgba(220,60,60,.22)', borderRadius: 12, padding: '12px 16px', marginBottom: 20, font: "400 13.5px/1.5 var(--font-instrument, sans-serif)", color: '#E07070' }}>
+                <div ref={errorRef} dir="auto" style={{ background: 'rgba(220,60,60,.08)', border: '1px solid rgba(220,60,60,.22)', borderRadius: 12, padding: '12px 16px', marginBottom: 20, font: "400 13.5px/1.5 var(--font-instrument, sans-serif)", color: '#E07070' }}>
                   {error}
                 </div>
               )}

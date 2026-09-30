@@ -33,6 +33,7 @@ export function DigestConsentQuestion({
       <div style={{ display: 'flex', gap: 10 }}>
         <button
           type="button"
+          aria-pressed={value === true}
           onClick={() => onChange(true)}
           style={{
             flex: 1, padding: '11px', borderRadius: 10, cursor: 'pointer',
@@ -47,6 +48,7 @@ export function DigestConsentQuestion({
         </button>
         <button
           type="button"
+          aria-pressed={value === false}
           onClick={() => onChange(false)}
           style={{
             flex: 1, padding: '11px', borderRadius: 10, cursor: 'pointer',
