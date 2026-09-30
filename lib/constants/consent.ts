@@ -15,7 +15,7 @@ export const PENDING_SIGNUP_CONSENT_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000
 // change materially: ConsentGate then asks every signed-in user to accept the new version (their
 // older acceptance no longer counts), and pending signup choices made under the old wording are
 // discarded. Recorded in user_consents.consent_version (lib/consent/record.ts).
-export const CURRENT_CONSENT_VERSION = '1.0'
+export const CURRENT_CONSENT_VERSION = '2.0'   // 2026-09-30: new Privacy Policy + Terms (EN/HE), optional-tracking consent
 
 // lang: the language of the consent wording on the signup page (both questions); absent on
 // payloads written before 2026-09-30
