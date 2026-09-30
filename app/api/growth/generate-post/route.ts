@@ -583,7 +583,7 @@ Return ONLY the post text. Follow the platform rule exactly.`
     const message = await anthropic.messages.create({
       ...NO_UPFRONT_THINKING,
       model: CLAUDE_MODEL,
-      max_tokens: 1000,
+      max_tokens: 2500,
       messages: [{
         role: 'user',
         content: promptContent
@@ -600,7 +600,7 @@ Return ONLY the post text. Follow the platform rule exactly.`
       const shortenMessage = await anthropic.messages.create({
       ...NO_UPFRONT_THINKING,
         model: CLAUDE_MODEL,
-        max_tokens: 500,
+        max_tokens: 1200,
         messages: [{
           role: 'user',
           content: `This tweet is ${postContent.length} characters but must be under 280. Shorten it ruthlessly while keeping the clinical insight and link:

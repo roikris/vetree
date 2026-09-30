@@ -227,7 +227,7 @@ ${JSON.stringify(slugDescriptions, null, 2)}`
       const response = await anthropic.messages.create({
       ...NO_UPFRONT_THINKING,
         model: CLAUDE_MODEL,
-        max_tokens: 1000,
+        max_tokens: 2000,
         messages: [{ role: 'user', content: prompt }],
       })
 

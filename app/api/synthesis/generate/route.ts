@@ -274,7 +274,7 @@ export async function POST(request: NextRequest) {
     const response = await anthropic.messages.create({
       ...NO_UPFRONT_THINKING,
       model: modelToUse,
-      max_tokens: 1500,
+      max_tokens: 4000,
       system: `You are a veterinary evidence synthesis system.
 Your task is to synthesize research findings for veterinary professionals.
 

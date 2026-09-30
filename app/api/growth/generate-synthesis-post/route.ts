@@ -99,7 +99,7 @@ Write a LinkedIn post in "Myth vs Evidence" style:
   const response = await anthropic.messages.create({
       ...NO_UPFRONT_THINKING,
     model: CLAUDE_MODEL,
-    max_tokens: 800,
+    max_tokens: 2000,
     system: 'You are a veterinary content writer. Write specific, clinically relevant LinkedIn posts for DVMs in small animal practice.',
     messages: [{ role: 'user', content: prompt }],
   })

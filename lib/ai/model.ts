@@ -6,8 +6,9 @@ export const CLAUDE_MODEL = 'claude-sonnet-5-5'
 
 /**
  * Sonnet 5.5 may think before answering unless told otherwise, and thinking counts against
- * max_tokens. No Vetree call uses tools, so 'between_tools' means no upfront thinking — the same
- * output budget as before. (Typed loosely: the installed SDK's types predate this parameter.)
+ * max_tokens. No Vetree call uses tools, so 'between_tools' means no upfront thinking. Sonnet 5.5
+ * also writes longer answers than 4.6: budgets were raised 2–3x on 2026-10-01 after syntheses were
+ * cut off at 1,500 tokens. (Typed loosely: the installed SDK's types predate this parameter.)
  */
 export const NO_UPFRONT_THINKING = { thinking: { type: 'between_tools' } } as unknown as Record<string, never>
 

@@ -59,7 +59,7 @@ async function triageFailures(failures) {
 
   const response = await anthropic.messages.create({
     model: 'claude-sonnet-5-5'  /* keep in step with lib/ai/model.ts */,
-    max_tokens: 512,
+    max_tokens: 1500,
     thinking: { type: 'between_tools' },  // no upfront thinking (Sonnet 5.5 default; counts against max_tokens)
     system:
       'You are a QA triage assistant for Vetree (Next.js 16 App Router + Supabase). ' +
