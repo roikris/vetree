@@ -108,7 +108,8 @@ async function main() {
   // Read report
   if (!fs.existsSync(REPORT_PATH)) {
     console.log('[triage] No report found, skipping')
-    const label = ({ schedule: 'scheduled · production', push: 'post-deploy · production', pull_request: 'PR · preview', workflow_dispatch: 'manual' })[TRIGGER] || TRIGGER
+    const label = (({ schedule: 'scheduled · production', push: 'post-deploy · production', pull_request: 'PR · preview', workflow_dispatch: 'manual' })[TRIGGER] || TRIGGER)
+      + (process.env.SUITE ? ` · ${process.env.SUITE}` : '')
     await postToSlack(`🔴 *Smoke (${label})*: no test report — the run failed before the tests (e.g. the production deploy never went live, or setup failed). Target: ${TARGET} <${RUN_URL}|View run>`)
     return
   }
