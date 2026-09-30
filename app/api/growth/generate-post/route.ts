@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { ratelimitModerate, getClientIP } from '@/lib/ratelimit'
 import { createClient } from '@/lib/supabase/server'
+import { CLAUDE_MODEL } from '@/lib/ai/model'
 
 export async function POST(request: NextRequest) {
   try {
@@ -580,7 +581,7 @@ Return ONLY the post text. Follow the platform rule exactly.`
     }
 
     const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-6',
+      model: CLAUDE_MODEL,
       max_tokens: 1000,
       messages: [{
         role: 'user',
@@ -596,7 +597,7 @@ Return ONLY the post text. Follow the platform rule exactly.`
       console.log(`[generate-post] Tweet too long (${postContent.length} chars), asking Claude to shorten...`)
 
       const shortenMessage = await anthropic.messages.create({
-        model: 'claude-sonnet-4-6',
+        model: CLAUDE_MODEL,
         max_tokens: 500,
         messages: [{
           role: 'user',

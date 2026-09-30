@@ -10,6 +10,7 @@ import { Redis } from '@upstash/redis'
 import { synthesisLimiter, getClientIP } from '@/lib/ratelimit'
 import { detectBotName } from '@/lib/bot-detection'
 import { analyticsRecordingEnabled, isQATraffic } from '@/lib/analytics/recording'
+import { CLAUDE_MODEL } from '@/lib/ai/model'
 
 // Cost controls (Codex re-evaluation #5c). Synthesis auto-runs on every search (experiment
 // restarted 2026-09-28), and each cache miss is a Claude call on a public route:
@@ -251,7 +252,7 @@ export async function POST(request: NextRequest) {
     }))
 
     // STEP 4: Call Claude to generate synthesis
-    const modelToUse = 'claude-sonnet-4-6'
+    const modelToUse = CLAUDE_MODEL
 
     // Cost controls, applied only now — immediately before the paid Claude call — so a lock
     // conflict or an insufficient-evidence answer never spends a reader's allowance or budget.

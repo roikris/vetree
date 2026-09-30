@@ -6,6 +6,7 @@
  * TIER 3 — Claude Sonnet batch for still-unmatched rows
  */
 import Anthropic from '@anthropic-ai/sdk'
+import { CLAUDE_MODEL } from '@/lib/ai/model'
 
 export type MemoryRow = {
   id: string
@@ -224,7 +225,7 @@ Posts:
 ${JSON.stringify(slugDescriptions, null, 2)}`
 
       const response = await anthropic.messages.create({
-        model: 'claude-sonnet-4-6',
+        model: CLAUDE_MODEL,
         max_tokens: 1000,
         messages: [{ role: 'user', content: prompt }],
       })

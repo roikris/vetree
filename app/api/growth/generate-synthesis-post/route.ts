@@ -12,6 +12,7 @@ import {
   StudyTypeBreakdown,
 } from '@/lib/synthesis/generateSynthesis'
 import Anthropic from '@anthropic-ai/sdk'
+import { CLAUDE_MODEL } from '@/lib/ai/model'
 
 type FormatKey = 'evidence_report' | 'clinical_insight' | 'myth_vs_evidence'
 
@@ -96,7 +97,7 @@ Write a LinkedIn post in "Myth vs Evidence" style:
   }
 
   const response = await anthropic.messages.create({
-    model: 'claude-sonnet-4-6',
+    model: CLAUDE_MODEL,
     max_tokens: 800,
     system: 'You are a veterinary content writer. Write specific, clinically relevant LinkedIn posts for DVMs in small animal practice.',
     messages: [{ role: 'user', content: prompt }],

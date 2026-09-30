@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { SupabaseClient } from '@supabase/supabase-js'
 import { normalizeQuery, extractKeyLabels } from '@/lib/utils/normalizeQuery'
+import { CLAUDE_MODEL } from '@/lib/ai/model'
 
 const LARGE_ANIMAL_LABELS = [
   'Equine', 'equine', 'Large Animal', 'large animal',
@@ -193,7 +194,7 @@ export async function fetchOrGenerateSynthesis(
     labels: a.labels?.join(', ') || 'N/A',
   }))
 
-  const modelToUse = 'claude-sonnet-4-6'
+  const modelToUse = CLAUDE_MODEL
 
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
 

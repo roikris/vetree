@@ -58,7 +58,7 @@ async function triageFailures(failures) {
     .join('\n\n---\n\n')
 
   const response = await anthropic.messages.create({
-    model: 'claude-haiku-4-5-20251001',
+    model: 'claude-sonnet-5-5'  /* keep in step with lib/ai/model.ts */,
     max_tokens: 512,
     system:
       'You are a QA triage assistant for Vetree (Next.js 16 App Router + Supabase). ' +

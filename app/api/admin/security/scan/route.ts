@@ -4,6 +4,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@/lib/supabase/server'
 import fs from 'fs'
 import path from 'path'
+import { CLAUDE_MODEL } from '@/lib/ai/model'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -787,7 +788,7 @@ export async function POST(request: NextRequest) {
       findings.map(async (finding) => {
         try {
           const response = await anthropic.messages.create({
-            model: 'claude-sonnet-4-6',
+            model: CLAUDE_MODEL,
             max_tokens: 500,
             messages: [{
               role: 'user',

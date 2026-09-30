@@ -47,7 +47,7 @@ Return ONLY valid JSON, no markdown formatting.`;
 
   try {
     const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-6',
+      model: 'claude-sonnet-5-5'  /* keep in step with lib/ai/model.ts */,
       max_tokens: 1024,
       system: system,
       messages: [{
