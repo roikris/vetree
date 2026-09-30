@@ -125,7 +125,7 @@ export default function RootLayout({
         <PWAInstallPrompt />
         <Analytics />
 
-        {/* LinkedIn / Meta pixels and Sentry session replay load only after the visitor accepts */}
+        {/* LinkedIn / Meta pixels load only after the visitor accepts optional cookies */}
         <TrackingConsent linkedinPartnerId={LINKEDIN_PARTNER_ID} fbPixelId={FB_PIXEL_ID} />
       </body>
     </html>
