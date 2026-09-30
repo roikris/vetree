@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * qa-report.mjs
- * Reads playwright-results.json, optionally triages failures with Claude Haiku,
+ * Reads playwright-results.json, optionally triages failures with Claude Sonnet 5.5,
  * then sends a Slack summary. Called by the qa-smoke.yml workflow.
  */
 import { readFileSync, existsSync } from 'fs'
@@ -44,7 +44,7 @@ function parseResults(filePath) {
   return { passed, total, duration: Math.round(durationMs / 1000), failures }
 }
 
-// ─── Call Claude Haiku for triage ─────────────────────────────────────────────
+// ─── Call Claude Sonnet 5.5 for triage ─────────────────────────────────────────────
 
 async function triageFailures(failures) {
   if (!ANTHROPIC_API_KEY || failures.length === 0) return null
