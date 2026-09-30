@@ -126,8 +126,8 @@ const FUZZY_RPC_CAP = 100
 /**
  * Closest-match fallback for a search whose full-text batch found NOTHING (typos, author
  * names — lib/search/progressive.ts calls it only after a successful empty first batch).
- * ILIKE on title / bottom line / authors, then trigram fuzzy (both fetched in parallel; the
- * title-FTS tier of searchArticles is omitted — see below), filters applied in SQL, one capped
+ * ILIKE on title / bottom line / authors, then trigram fuzzy (started together; title FTS only
+ * for negated queries — see below), filters applied in SQL, one capped
  * list instead of pages: up to
  * FALLBACK_CAP rows, newest first. Errors THROW — a failed fallback must surface as an error,
  * never as an empty "no coverage" result.
@@ -154,24 +154,32 @@ export async function fallbackSearch(filters: ParsedFilters, sanitizedSearch: st
   const done = (data: any[] | null, tier: FallbackResult['tier']): FallbackResult =>
     ({ data: data ?? [], tier, capped: (data?.length ?? 0) >= FALLBACK_CAP })
 
-  // No title full-text tier here: this runs only after search_articles_batch returned zero rows
-  // for the same text and scope, and its search_vector contains to_tsvector('english', title)
-  // under identical visibility/species filters — so a title FTS match is impossible. That tier
-  // was a sequential scan (no to_tsvector(title) index): ~3.4 s via the anon role, most of the
-  // 3–10 s every zero-result search used to take.
-  //
-  // ILIKE (author names, substrings) and trigram fuzzy (typos) run in parallel; ILIKE wins if it
-  // finds anything, exactly as when they ran one after the other.
-  const [ilike, fuzzyRpc] = await Promise.all([
-    scoped(base().or(
-      `title.ilike.%${sanitizedSearch}%,clinical_bottom_line.ilike.%${sanitizedSearch}%,authors.ilike.%${sanitizedSearch}%`
-    )),
-    supabase.rpc('search_articles_fuzzy', { search_query: sanitizedSearch, similarity_threshold: 0.3 }),
-  ])
+  // Title full-text tier ONLY for queries with a negated term ("asthma -cats"). This runs after
+  // search_articles_batch returned zero rows for the same text and scope, and its search_vector
+  // contains to_tsvector('english', title) under identical visibility/species filters — so for a
+  // positive query a title match is impossible and the tier (a sequential scan, ~3.4 s via anon,
+  // most of the 3–10 s every zero-result search used to take) is skipped. A negation can reject a
+  // whole article on a word in its summary while its title alone still matches, so it keeps the
+  // tier. (Codex review, 2026-09-30.)
+  if (/(^|\s)-\S/.test(sanitizedSearch)) {
+    const fts = await scoped(base().textSearch('title', sanitizedSearch, { type: 'websearch' }))
+    if (fts.error) throw new Error(`fallback FTS failed: ${fts.error.message}`)
+    if (fts.data && fts.data.length > 0) return done(fts.data, 'exact')
+  }
+
+  // ILIKE (author names, substrings) and trigram fuzzy (typos) start together; ILIKE wins if it
+  // finds anything, exactly as when they ran one after the other — and then nothing waits for
+  // the fuzzy lookup. (Supabase builders are lazy: .then() starts the request now.)
+  const fuzzyRpc = supabase
+    .rpc('search_articles_fuzzy', { search_query: sanitizedSearch, similarity_threshold: 0.3 })
+    .then(r => r, (e: unknown) => ({ data: null, error: { message: String(e) } }))
+  const ilike = await scoped(base().or(
+    `title.ilike.%${sanitizedSearch}%,clinical_bottom_line.ilike.%${sanitizedSearch}%,authors.ilike.%${sanitizedSearch}%`
+  ))
   if (ilike.error) throw new Error(`fallback ILIKE failed: ${ilike.error.message}`)
   if (ilike.data && ilike.data.length > 0) return done(ilike.data, 'ilike')
 
-  const { data: fuzzyIds, error: fuzzyError } = fuzzyRpc
+  const { data: fuzzyIds, error: fuzzyError } = await fuzzyRpc
   if (fuzzyError) throw new Error(`fallback fuzzy failed: ${fuzzyError.message}`)
   if (!fuzzyIds || fuzzyIds.length === 0) return done([], null)
   const fuzzy = await scoped(base().in('id', fuzzyIds.map((a: any) => a.id)))
