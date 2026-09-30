@@ -195,7 +195,7 @@ Arrived events without a matching resolved event in the same window are abandonm
 
 **Signup wizard funnel** (`app/signup/page.tsx`) — added after 31 consecutive sessions reached
 `/signup` post the 2026-07-03 redesign with zero completions:
-- `signup_step_viewed` — `detail: { step: 1|2|3|4 }` — fires on every render of a step, including
+- `signup_step_viewed` — `detail: { step: 1 }` (signup is one step since 2026-09-30; older rows have steps 2–4) — fires on every render of a step, including
   the initial mount and re-visits via Back.
 - `signup_step_completed` — `detail: { step, method?: 'email'|'google' }` — fires when a step is
   successfully left forward. For step 1 + `method: 'google'`, this fires *before* the OAuth

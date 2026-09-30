@@ -195,6 +195,24 @@ test('guest save: feed row bookmark opens the article with the sign-in prompt', 
   await expectSavePrompt(page, /\/article\//)
 })
 
+// ─── Signup consent follows the interface language, switchable to Hebrew ──────
+// It used to be Hebrew-only inside the English form. Read-only: nothing is submitted.
+test('signup: consent is in English by default and switches to Hebrew and back', { tag: '@desktop-only' }, async ({ page, context }) => {
+  await clearCookiesKeepPreviewAccess(context)
+  await page.goto('/signup')
+  await expect(page.getByText("I have read and agree to Vetree's")).toBeVisible()
+  await expect(page.getByText('Get the weekly evidence digest')).toBeVisible()
+  // One step: no role / specialty steps
+  await expect(page.getByRole('button', { name: 'Create account' })).toBeVisible()
+  await expect(page.getByText('Tell us who you are.')).toHaveCount(0)
+  const toggle = page.locator('[data-testid="consent-language-toggle"]')
+  await toggle.click()
+  await expect(page.getByText('קראתי ואני מסכים/ה ל')).toBeVisible()
+  await expect(page.getByText('לקבל את תקציר הראיות השבועי')).toBeVisible()
+  await toggle.click()
+  await expect(page.getByText("I have read and agree to Vetree's")).toBeVisible()
+})
+
 // ─── Consent can only be recorded for yourself ─────────────────────────────────
 // The endpoint used to accept any body userId, so anyone could opt any user into the digest.
 // Without a session it must refuse — and a refusal writes nothing, so this is safe on production.

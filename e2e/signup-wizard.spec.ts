@@ -4,7 +4,8 @@
  * Full front-door regression test for the Phase 5 onboarding wizard
  * (app/signup/page.tsx). 31 consecutive sessions reached /signup after the
  * 2026-07-03 redesign and zero completed, vs ~50% before it. The signup
- * machine's alibi has to come from driving the real UI through all 4 steps
+ * machine's alibi has to come from driving the real UI (one step since 2026-09-30:
+ * account + consent → "Check your email"; the old role/specialty steps saved nothing)
  * — an API-level check (calling supabase.auth.signUp() directly) would prove
  * the backend works and say nothing about the wizard itself, which is where
  * the regression almost certainly is (see the responsive-layout and
@@ -31,10 +32,10 @@ import { createClient } from '@supabase/supabase-js'
 
 const GATE_MISSING = !process.env.SUPABASE_SERVICE_ROLE_KEY || !process.env.NEXT_PUBLIC_SUPABASE_URL
 
-test.describe('signup wizard: real UI, all 4 steps, email path', () => {
+test.describe('signup: real UI, email path', () => {
   test.skip(GATE_MISSING, 'gated on missing SUPABASE_SERVICE_ROLE_KEY/NEXT_PUBLIC_SUPABASE_URL')
 
-  test('completes the wizard front-to-back and reaches email verification', async ({ page }) => {
+  test('creates an account and reaches email verification', async ({ page }) => {
     const supabaseAdmin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
     // NOT @example.com: Supabase Auth's confirmation-email send fails synchronously
     // against RFC 2606 reserved domains (no MX record) and the whole signup call
@@ -72,20 +73,8 @@ test.describe('signup wizard: real UI, all 4 steps, email path', () => {
       await page.locator('input[type="checkbox"]').check()
       await page.getByRole('button', { name: 'Create account' }).click()
 
-      // ── Step 2: About you ──
-      await expect(page.getByText('Tell us who you are.')).toBeVisible({ timeout: 20_000 })
-      await page.getByRole('button', { name: 'Continue' }).click()
-
-      // ── Step 3: Your grove ──
-      await expect(page.getByText('Plant your branches.')).toBeVisible()
-      await page.getByRole('button', { name: 'Continue' }).click()
-
-      // ── Step 4: Ready ──
-      await expect(page.getByText('Your grove is planted.')).toBeVisible()
-      await page.getByRole('button', { name: 'Enter Vetree' }).click()
-
-      // ── Pending verification screen — the wizard's actual finish line ──
-      await expect(page.getByText('Check your email.')).toBeVisible({ timeout: 15_000 })
+      // ── Pending verification screen — the finish line ──
+      await expect(page.getByText('Check your email.')).toBeVisible({ timeout: 20_000 })
       await expect(page.getByText(email)).toBeVisible()
 
       // Confirm the account genuinely exists server-side, not just that the UI
@@ -97,7 +86,7 @@ test.describe('signup wizard: real UI, all 4 steps, email path', () => {
         found = data.users.find(u => u.email === email) ?? null
         if (data.users.length < 1000) break
       }
-      expect(found, 'account must exist in auth.users after completing the wizard').toBeTruthy()
+      expect(found, 'account must exist in auth.users after signing up').toBeTruthy()
       createdUserId = found!.id
     } finally {
       if (createdUserId) {

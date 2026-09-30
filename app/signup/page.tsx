@@ -2,11 +2,11 @@
 
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { getLabelHue } from '@/lib/constants/labelColors'
 import { DigestConsentQuestion } from '@/components/DigestConsentQuestion'
 import { PENDING_DIGEST_CONSENT_KEY, PENDING_SIGNUP_CONSENT_KEY, type PendingSignupConsent } from '@/lib/constants/consent'
+import { CONSENT_COPY, type ConsentLang } from '@/lib/consent/copy'
+import { ConsentLanguageToggle } from '@/components/consent/ConsentLanguageToggle'
 
 // Fire-and-forget, mirrors SaveIntentHandler's trackEvent — the server merges
 // device type from the user-agent header, so step-by-device breakdowns don't
@@ -20,60 +20,18 @@ function trackEvent(eventName: string, detail?: Record<string, unknown>) {
   }).catch(() => {})
 }
 
-// ─── Data ────────────────────────────────────────────────────────────────────
-
-const STEP_DEFS = [
-  { n: 1, label: 'Account',    hint: 'Create your login' },
-  { n: 2, label: 'About you',  hint: 'Role & focus' },
-  { n: 3, label: 'Your grove', hint: 'Follow specialties' },
-  { n: 4, label: 'Ready',      hint: 'Start reading' },
-]
-
-const ROLE_OPTS = ['Veterinarian', 'Vet nurse / technician', 'Student', 'Researcher']
-
-const FOCUS_OPTS = ['Small animal', 'Large animal', 'Equine', 'Exotic', 'Mixed practice']
-
-const SPECIALTIES = [
-  'Anesthesia', 'Behavior', 'Cardiology', 'Dentistry', 'Dermatology',
-  'Emergency', 'Equine', 'Exotic', 'Internal Medicine', 'Neurology',
-  'Nutrition', 'Oncology', 'Ophthalmology', 'Orthopedics', 'Pathology',
-  'Pharmacology', 'Radiology', 'Reproduction', 'Soft Tissue Surgery',
-]
-
-// ─── Dot step indicator ────────────────────────────────────────────────────
-
-function StepDot({ n, current, done }: { n: number; current: boolean; done: boolean }) {
-  const base: React.CSSProperties = {
-    width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    font: "600 12.5px/1 var(--font-instrument, sans-serif)",
-    transition: 'all .2s',
-  }
-  if (current) return (
-    <span style={{ ...base, background: 'var(--al-accent)', color: 'var(--al-onaccent)' }}>{n}</span>
-  )
-  if (done) return (
-    <span style={{ ...base, background: 'rgba(var(--al-acct),.18)', color: 'var(--al-accent)', border: '1px solid rgba(var(--al-acct),.4)' }}>
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M20 6L9 17l-5-5"/>
-      </svg>
-    </span>
-  )
-  return (
-    <span style={{ ...base, background: 'var(--al-card)', color: 'var(--al-mut6)', border: '1px solid rgba(var(--al-line),.14)' }}>{n}</span>
-  )
-}
+// Signup is one step: account + consent, then "check your email". The former steps 2–4 (role,
+// focus, specialties) ran before email verification, so their tag follows normally failed
+// (401/403, ignored) unless the reader had already verified in another tab; role and branches
+// went to localStorage keys nothing read, and focus was never stored. Readers personalize after
+// signing in instead.
 
 // ─── Main component ────────────────────────────────────────────────────────
 
 export default function SignUpPage() {
-  const router = useRouter()
   const supabase = createClient()
 
-  // Step state
-  const [step, setStep] = useState(1)
-
-  // Step 1 — account
+  // Account
   const [email, setEmail]               = useState('')
   const [password, setPassword]         = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -83,16 +41,9 @@ export default function SignUpPage() {
   const [loading, setLoading]         = useState(false)
   const [googleLoading, setGoogleLoading]   = useState(false)
   const [pendingVerification, setPendingVerification] = useState(false)
-  const [createdUserId, setCreatedUserId] = useState<string | null>(null)
-
-  // Step 2 — about you
-  const [role, setRole]   = useState('Veterinarian')
-  const [focus, setFocus] = useState<Set<string>>(new Set(['Small animal']))
-
-  // Step 3 — grove
-  const [branches, setBranches] = useState<Set<string>>(
-    new Set(['Cardiology', 'Emergency', 'Internal Medicine', 'Ophthalmology'])
-  )
+  // Consent wording follows the interface (English); the reader can switch to Hebrew
+  const [consentLang, setConsentLang] = useState<ConsentLang>('en')
+  const consentCopy = CONSENT_COPY[consentLang]
 
   // Validation errors render near the top of step 1 (right after the hero copy);
   // the submit button lives in a sticky footer at the bottom. On any viewport
@@ -104,19 +55,13 @@ export default function SignUpPage() {
     if (error) errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
   }, [error])
 
-  // Fires on every step render, including the initial mount — the funnel this
-  // is meant to expose is per-step render vs per-step completion.
+  // The funnel keeps its event names; there is now a single step (1)
   useEffect(() => {
-    trackEvent('signup_step_viewed', { step })
-  }, [step])
+    trackEvent('signup_step_viewed', { step: 1 })
+  }, [])
 
   const trackError = (step: number, message: string, surfaced: boolean) => {
     trackEvent('signup_error', { step, message, surfaced })
-  }
-
-  const advanceStep = (fromStep: number) => {
-    trackEvent('signup_step_completed', { step: fromStep })
-    setStep(s => s + 1)
   }
 
   // ── Handlers ────────────────────────────────────────────────────────────
@@ -155,7 +100,7 @@ export default function SignUpPage() {
     setError(null)
     if (password !== confirmPassword) { trackError(1, 'Passwords do not match', true); setError('Passwords do not match'); return }
     if (password.length < 6) { trackError(1, 'Password must be at least 6 characters', true); setError('Password must be at least 6 characters'); return }
-    if (!termsAccepted) { trackError(1, 'Terms not accepted', true); setError('יש לאשר את תנאי השימוש ומדיניות הפרטיות כדי להמשיך'); return }
+    if (!termsAccepted) { trackError(1, 'Terms not accepted', true); setError(consentCopy.termsRequired); return }
 
     setLoading(true)
     try {
@@ -189,7 +134,6 @@ export default function SignUpPage() {
         return
       }
       if (data.user) {
-        setCreatedUserId(data.user.id)
         // Kept in this browser; ConsentGate records it once the verified owner is signed in
         // (lib/constants/consent PENDING_SIGNUP_CONSENT_KEY)
         if (termsAccepted) {
@@ -202,9 +146,8 @@ export default function SignUpPage() {
           } catch { /* storage unavailable: ConsentGate will ask after verification */ }
         }
       }
-      // Advance to step 2
       trackEvent('signup_step_completed', { step: 1, method: 'email' })
-      setStep(2)
+      setPendingVerification(true)
     } catch {
       trackError(1, 'Unexpected error', true)
       setError('An unexpected error occurred. Please try again.')
@@ -212,47 +155,7 @@ export default function SignUpPage() {
     setLoading(false)
   }
 
-  const handleEnterVetree = async () => {
-    trackEvent('signup_step_completed', { step: 4 })
-    // Save specialties to localStorage so they can be applied post-verification
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('vetree_onboarding_role', role)
-      localStorage.setItem('vetree_onboarding_branches', JSON.stringify(Array.from(branches)))
-    }
-    // Try to follow tags if session exists
-    try {
-      await Promise.all(
-        Array.from(branches).map(tag =>
-          fetch('/api/tags/follow', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ tag }),
-          })
-        )
-      )
-    } catch { trackError(4, 'follow-tags request failed', false) }
-
-    // Show verification reminder if email signup, then go home
-    setPendingVerification(true)
-  }
-
-  const toggleFocus = (f: string) => {
-    setFocus(prev => {
-      const next = new Set(prev)
-      next.has(f) ? next.delete(f) : next.add(f)
-      return next
-    })
-  }
-
-  const toggleBranch = (b: string) => {
-    setBranches(prev => {
-      const next = new Set(prev)
-      next.has(b) ? next.delete(b) : next.add(b)
-      return next
-    })
-  }
-
-  // ── Pending verification screen (shown after "Enter Vetree") ─────────────
+  // ── Pending verification screen (shown after the account is created) ──────
 
   if (pendingVerification) {
     return (
@@ -265,7 +168,7 @@ export default function SignUpPage() {
             Check your email.
           </h1>
           <p style={{ margin: '0 0 28px', font: "400 15.5px/1.6 var(--font-instrument, sans-serif)", color: 'var(--al-mut2)' }}>
-            We sent a confirmation link to <strong style={{ color: 'var(--al-ink3)' }}>{email}</strong>. Click it to activate your account, then come back to start reading.
+            We sent a confirmation link to <strong style={{ color: 'var(--al-ink3)' }}>{email}</strong>. Click it to activate your account, then come back to start reading — you can follow the specialties you care about once you&apos;re in.
           </p>
           <Link href="/login" style={{
             display: 'inline-flex', alignItems: 'center', gap: 9,
@@ -314,27 +217,9 @@ export default function SignUpPage() {
             <span style={{ font: "600 21px/1 var(--font-spectral, serif)", color: 'var(--al-ink2)' }}>Vetree</span>
           </div>
 
-          {/* Progress steps */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            {STEP_DEFS.map(s => (
-              <div key={s.n} style={{ display: 'flex', alignItems: 'center', gap: 13, padding: '11px 0' }}>
-                <StepDot n={s.n} current={s.n === step} done={s.n < step} />
-                <div>
-                  <div style={{
-                    font: s.n === step
-                      ? "600 14px/1.2 var(--font-instrument, sans-serif)"
-                      : "500 14px/1.2 var(--font-instrument, sans-serif)",
-                    color: s.n === step ? 'var(--al-ink2)' : s.n < step ? 'var(--al-sub)' : 'var(--al-mut6)',
-                  }}>
-                    {s.label}
-                  </div>
-                  <div style={{ font: "400 12px/1.3 var(--font-instrument, sans-serif)", color: 'var(--al-mut6)', marginTop: 2 }}>
-                    {s.hint}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+          <p style={{ margin: 0, font: "400 15px/1.6 var(--font-instrument, sans-serif)", color: 'var(--al-mut2)' }}>
+            Evidence-based veterinary research, distilled to the bottom line.
+          </p>
         </div>
 
         <p style={{
@@ -342,7 +227,7 @@ export default function SignUpPage() {
           font: "italic 400 14px/1.55 var(--font-spectral, serif)",
           color: 'var(--al-mut3)',
         }}>
-          "Knowledge that branches out, yet stays connected — and feeds the core."
+          &ldquo;Knowledge that branches out, yet stays connected — and feeds the core.&rdquo;
         </p>
       </aside>
 
@@ -350,9 +235,8 @@ export default function SignUpPage() {
       <main style={{ flex: 1, height: '100vh', overflowY: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         <div className="signup-main-content" style={{ width: '100%', maxWidth: 660, padding: '64px 44px 48px', flex: 1 }}>
 
-          {/* ── STEP 1: ACCOUNT ── */}
-          {step === 1 && (
-            <>
+          {/* ── ACCOUNT ── */}
+          <>
               <div style={{ font: "600 12px/1 var(--font-instrument, sans-serif)", letterSpacing: '.15em', textTransform: 'uppercase', color: 'var(--al-accent)', marginBottom: 14 }}>
                 Welcome
               </div>
@@ -364,7 +248,7 @@ export default function SignUpPage() {
               </p>
 
               {error && (
-                <div ref={errorRef} style={{ background: 'rgba(220,60,60,.08)', border: '1px solid rgba(220,60,60,.22)', borderRadius: 12, padding: '12px 16px', marginBottom: 20, font: "400 13.5px/1.5 var(--font-instrument, sans-serif)", color: '#E07070' }}>
+                <div ref={errorRef} dir="auto" style={{ background: 'rgba(220,60,60,.08)', border: '1px solid rgba(220,60,60,.22)', borderRadius: 12, padding: '12px 16px', marginBottom: 20, font: "400 13.5px/1.5 var(--font-instrument, sans-serif)", color: '#E07070' }}>
                   {error}
                 </div>
               )}
@@ -438,8 +322,13 @@ export default function SignUpPage() {
                 />
               </div>
 
+              {/* Consent in the interface language (English), switchable to Hebrew */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+                <ConsentLanguageToggle lang={consentLang} onChange={setConsentLang} />
+              </div>
+
               {/* Terms checkbox — Israeli Privacy Protection Law requirement */}
-              <div style={{ marginBottom: 16, direction: 'rtl' }}>
+              <div dir={consentCopy.dir} lang={consentLang} style={{ marginBottom: 16 }}>
                 <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
                   <input
                     type="checkbox"
@@ -448,195 +337,21 @@ export default function SignUpPage() {
                     style={{ marginTop: 2, flexShrink: 0, accentColor: 'var(--al-accent)' }}
                   />
                   <span style={{ font: "400 12.5px/1.5 var(--font-instrument, sans-serif)", color: 'var(--al-mut2)' }}>
-                    קראתי ואני מסכים/ה ל<a href="/terms" target="_blank" style={{ color: 'var(--al-accent)' }}>תנאי השימוש</a> ול<a href="/privacy" target="_blank" style={{ color: 'var(--al-accent)' }}>מדיניות הפרטיות</a> של Vetree. <span style={{ color: '#E07070' }}>*</span>
+                    {consentCopy.termsBefore}<a href="/terms" target="_blank" style={{ color: 'var(--al-accent)' }}>{consentCopy.terms}</a>{consentCopy.and}<a href="/privacy" target="_blank" style={{ color: 'var(--al-accent)' }}>{consentCopy.privacy}</a>{consentCopy.termsAfter} <span style={{ color: '#E07070' }}>*</span>
                   </span>
                 </label>
               </div>
 
               {/* Digest consent — dedicated element, explicit Yes/No, never pre-checked */}
               <div style={{ marginBottom: 16 }}>
-                <DigestConsentQuestion value={marketingChoice} onChange={setMarketingChoice} />
+                <DigestConsentQuestion lang={consentLang} value={marketingChoice} onChange={setMarketingChoice} />
               </div>
 
               <div style={{ font: "400 13px/1 var(--font-instrument, sans-serif)", color: 'var(--al-mut4)', textAlign: 'center' }}>
                 Already have an account?{' '}
                 <Link href="/login" style={{ color: 'var(--al-accent)' }}>Log in</Link>
               </div>
-            </>
-          )}
-
-          {/* ── STEP 2: ABOUT YOU ── */}
-          {step === 2 && (
-            <>
-              <div style={{ font: "600 12px/1 var(--font-instrument, sans-serif)", letterSpacing: '.15em', textTransform: 'uppercase', color: 'var(--al-accent)', marginBottom: 14 }}>
-                About you
-              </div>
-              <h1 style={{ margin: '0 0 12px', font: "500 38px/1.14 var(--font-spectral, serif)", color: 'var(--al-ink2)', letterSpacing: '-.015em' }}>
-                Tell us who you are.
-              </h1>
-              <p style={{ margin: '0 0 30px', font: "400 15.5px/1.6 var(--font-instrument, sans-serif)", color: 'var(--al-mut2)' }}>
-                We tune the language and the evidence bar to match your work.
-              </p>
-
-              <div style={{ font: "600 13px/1 var(--font-instrument, sans-serif)", color: 'var(--al-body)', marginBottom: 13 }}>
-                Your role
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 9, marginBottom: 32 }}>
-                {ROLE_OPTS.map(name => {
-                  const active = role === name
-                  return (
-                    <button
-                      key={name}
-                      onClick={() => setRole(name)}
-                      style={{
-                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                        width: '100%', textAlign: 'left', padding: '15px 18px',
-                        borderRadius: 13, cursor: 'pointer',
-                        font: `${active ? '600' : '500'} 14.5px/1 var(--font-instrument, sans-serif)`,
-                        background: active ? 'rgba(var(--al-acct),.12)' : 'var(--al-card)',
-                        border: active ? '1.5px solid var(--al-accent)' : '1.5px solid rgba(var(--al-line),.1)',
-                        color: active ? 'var(--al-ink2)' : 'var(--al-sub)',
-                        transition: 'all .15s',
-                      }}
-                    >
-                      {name}
-                      {active && (
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--al-accent)" strokeWidth="2.5">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M20 6L9 17l-5-5"/>
-                        </svg>
-                      )}
-                    </button>
-                  )
-                })}
-              </div>
-
-              <div style={{ font: "600 13px/1 var(--font-instrument, sans-serif)", color: 'var(--al-body)', marginBottom: 13 }}>
-                Your focus{' '}
-                <span style={{ color: 'var(--al-mut6)', fontWeight: 400 }}>· choose any</span>
-              </div>
-              <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap' }}>
-                {FOCUS_OPTS.map(name => {
-                  const active = focus.has(name)
-                  return (
-                    <button
-                      key={name}
-                      onClick={() => toggleFocus(name)}
-                      style={{
-                        display: 'inline-flex', alignItems: 'center', gap: active ? 7 : 0,
-                        padding: '10px 16px', borderRadius: 999, cursor: 'pointer',
-                        font: `${active ? '600' : '500'} 13.5px/1 var(--font-instrument, sans-serif)`,
-                        background: active ? 'rgba(var(--al-acct),.14)' : 'var(--al-card)',
-                        border: active ? '1.5px solid var(--al-accent)' : '1.5px solid rgba(var(--al-line),.12)',
-                        color: active ? 'var(--al-accent)' : 'var(--al-sub)',
-                        transition: 'all .15s',
-                      }}
-                    >
-                      {active && (
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M20 6L9 17l-5-5"/>
-                        </svg>
-                      )}
-                      {name}
-                    </button>
-                  )
-                })}
-              </div>
-            </>
-          )}
-
-          {/* ── STEP 3: YOUR GROVE ── */}
-          {step === 3 && (
-            <>
-              <div style={{ font: "600 12px/1 var(--font-instrument, sans-serif)", letterSpacing: '.15em', textTransform: 'uppercase', color: 'var(--al-accent)', marginBottom: 14 }}>
-                Your grove
-              </div>
-              <h1 style={{ margin: '0 0 12px', font: "500 38px/1.14 var(--font-spectral, serif)", color: 'var(--al-ink2)', letterSpacing: '-.015em' }}>
-                Plant your branches.
-              </h1>
-              <p style={{ margin: '0 0 26px', font: "400 15.5px/1.6 var(--font-instrument, sans-serif)", color: 'var(--al-mut2)' }}>
-                Follow the specialties you care about — your Stream and Grove grow from these. Prune or add anytime.
-              </p>
-
-              <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap' }}>
-                {SPECIALTIES.map(name => {
-                  const active = branches.has(name)
-                  const hue = getLabelHue(name)
-                  return (
-                    <button
-                      key={name}
-                      onClick={() => toggleBranch(name)}
-                      style={{
-                        display: 'inline-flex', alignItems: 'center', gap: active ? 7 : 0,
-                        padding: '10px 16px', borderRadius: 999, cursor: 'pointer',
-                        font: `${active ? '600' : '500'} 13.5px/1 var(--font-instrument, sans-serif)`,
-                        background: active ? `${hue}26` : 'var(--al-card)',
-                        border: active ? `1.5px solid ${hue}` : '1.5px solid rgba(var(--al-line),.12)',
-                        color: active ? hue : 'var(--al-sub)',
-                        transition: 'all .15s',
-                      }}
-                    >
-                      {active && (
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M20 6L9 17l-5-5"/>
-                        </svg>
-                      )}
-                      {name}
-                    </button>
-                  )
-                })}
-              </div>
-            </>
-          )}
-
-          {/* ── STEP 4: READY ── */}
-          {step === 4 && (
-            <>
-              <div style={{ font: "600 12px/1 var(--font-instrument, sans-serif)", letterSpacing: '.15em', textTransform: 'uppercase', color: 'var(--al-accent)', marginBottom: 14 }}>
-                All set
-              </div>
-              <h1 style={{ margin: '0 0 12px', font: "500 40px/1.12 var(--font-spectral, serif)", color: 'var(--al-ink2)', letterSpacing: '-.015em' }}>
-                Your grove is planted.
-              </h1>
-              <p style={{ margin: '0 0 30px', font: "400 16px/1.6 var(--font-instrument, sans-serif)", color: 'var(--al-mut2)' }}>
-                <span style={{ color: 'var(--al-accent)', fontWeight: 600 }}>{branches.size} branches</span> followed.{' '}
-                Fresh bottom lines will land in your Stream every day.
-              </p>
-
-              {/* Selected branches summary card */}
-              <div style={{
-                background: 'var(--al-card)', border: '1px solid rgba(var(--al-line),.1)',
-                borderRadius: 16, padding: '24px 26px', marginBottom: 8,
-              }}>
-                <div style={{
-                  font: "600 11px/1 var(--font-instrument, sans-serif)",
-                  letterSpacing: '.14em', textTransform: 'uppercase',
-                  color: 'var(--al-mut4)', marginBottom: 16,
-                }}>
-                  Following
-                </div>
-                <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap' }}>
-                  {Array.from(branches).map(name => {
-                    const hue = getLabelHue(name)
-                    return (
-                      <span key={name} style={{
-                        display: 'inline-flex', alignItems: 'center', gap: 6,
-                        padding: '8px 14px', borderRadius: 999,
-                        font: "600 13px/1 var(--font-instrument, sans-serif)",
-                        background: `${hue}26`,
-                        border: `1px solid ${hue}88`,
-                        color: hue,
-                      }}>
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M20 6L9 17l-5-5"/>
-                        </svg>
-                        {name}
-                      </span>
-                    )
-                  })}
-                </div>
-              </div>
-            </>
-          )}
+          </>
 
         </div>
 
@@ -651,59 +366,26 @@ export default function SignUpPage() {
             maxWidth: 660, margin: '0 auto', padding: '18px 44px',
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           }}>
-            {/* Back button */}
-            {step > 1 ? (
-              <button
-                onClick={() => setStep(s => s - 1)}
-                style={{
-                  background: 'none', border: 'none', cursor: 'pointer',
-                  font: "600 14px/1 var(--font-instrument, sans-serif)",
-                  color: 'var(--al-mut3)', padding: 0,
-                }}
-              >
-                ← Back
-              </button>
-            ) : (
-              <span />
-            )}
+            <span />
 
-            {/* Continue / Create account / Enter Vetree */}
-            {step < 4 ? (
-              <button
-                onClick={step === 1 ? handleCreateAccount : () => advanceStep(step)}
-                disabled={loading}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 9,
-                  background: 'var(--al-accent)', color: 'var(--al-onaccent)',
-                  border: 'none', borderRadius: 11, padding: '13px 26px',
-                  font: "600 14.5px/1 var(--font-instrument, sans-serif)",
-                  cursor: loading ? 'not-allowed' : 'pointer',
-                  opacity: loading ? 0.7 : 1,
-                  transition: 'filter .15s',
-                }}
-              >
-                {loading ? 'Creating account…' : step === 1 ? 'Create account' : 'Continue'}
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14M13 6l6 6-6 6"/>
-                </svg>
-              </button>
-            ) : (
-              <button
-                onClick={handleEnterVetree}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 9,
-                  background: 'var(--al-accent)', color: 'var(--al-onaccent)',
-                  border: 'none', borderRadius: 11, padding: '13px 30px',
-                  font: "600 14.5px/1 var(--font-instrument, sans-serif)", cursor: 'pointer',
-                  transition: 'filter .15s',
-                }}
-              >
-                Enter Vetree
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14M13 6l6 6-6 6"/>
-                </svg>
-              </button>
-            )}
+            <button
+              onClick={handleCreateAccount}
+              disabled={loading}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 9,
+                background: 'var(--al-accent)', color: 'var(--al-onaccent)',
+                border: 'none', borderRadius: 11, padding: '13px 26px',
+                font: "600 14.5px/1 var(--font-instrument, sans-serif)",
+                cursor: loading ? 'not-allowed' : 'pointer',
+                opacity: loading ? 0.7 : 1,
+                transition: 'filter .15s',
+              }}
+            >
+              {loading ? 'Creating account…' : 'Create account'}
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14M13 6l6 6-6 6"/>
+              </svg>
+            </button>
           </div>
         </div>
       </main>

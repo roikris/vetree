@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { DigestConsentQuestion } from '@/components/DigestConsentQuestion'
+import { ConsentLanguageToggle } from '@/components/consent/ConsentLanguageToggle'
+import type { ConsentLang } from '@/lib/consent/copy'
 
 const STATE_KEY = 'vetree_digest_prompt_state'
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000
@@ -44,6 +46,7 @@ export function DigestConsentPrompt() {
   const [show, setShow] = useState(false)
   const [choice, setChoice] = useState<boolean | null>(null)
   const [saving, setSaving] = useState(false)
+  const [lang, setLang] = useState<ConsentLang>('en')
 
   useEffect(() => {
     const supabase = createClient()
@@ -119,7 +122,10 @@ export function DigestConsentPrompt() {
           </svg>
         </div>
 
-        <DigestConsentQuestion value={choice} onChange={value => { setChoice(value); submit(value) }} />
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+          <ConsentLanguageToggle lang={lang} onChange={setLang} />
+        </div>
+        <DigestConsentQuestion lang={lang} value={choice} onChange={value => { setChoice(value); submit(value) }} />
 
         <button
           onClick={() => setShow(false)}
