@@ -15,12 +15,16 @@ export const PENDING_SIGNUP_CONSENT_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000
 // payloads written before 2026-09-30
 export type PendingSignupConsent = { terms: true; marketing: boolean; version: '1.0'; email: string; at: number; lang?: 'en' | 'he' }
 
-// PENDING_DIGEST_CONSENT_KEY holds { marketing, lang, at } since 2026-09-30 (a bare boolean
-// before). It is written by a Google signup before the OAuth redirect and has no email to bind
-// to, so it may only be used by an account CREATED within the hour after it was written — the
-// signup that wrote it. Anyone else signing in on this browser is asked afresh (Codex, 2026-09-30).
+// PENDING_DIGEST_CONSENT_KEY holds { marketing, lang, at, nonce } since 2026-09-30 (a bare
+// boolean before). A Google signup writes it before the OAuth redirect, with no email to bind to,
+// so it is bound to THAT OAuth flow: the nonce also travels through the redirect, and
+// /auth/callback hands it back in SIGNUP_NONCE_COOKIE only after that flow's sign-in succeeded.
+// ConsentGate uses the choice only when the two nonces match — anyone else signing in on this
+// browser (another Google login, an abandoned signup) is asked afresh. (Codex, 2026-09-30.)
 export const PENDING_DIGEST_CONSENT_MAX_AGE_MS = 60 * 60 * 1000
-export type PendingDigestConsent = { marketing: boolean; lang?: 'en' | 'he'; at?: number }
+export const SIGNUP_NONCE_COOKIE = 'vetree_signup_nonce'
+export const SIGNUP_NONCE_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
+export type PendingDigestConsent = { marketing: boolean; lang?: 'en' | 'he'; at?: number; nonce?: string }
 export function parsePendingDigestConsent(raw: string | null): PendingDigestConsent | null {
   if (raw === null) return null
   try {
@@ -31,17 +35,15 @@ export function parsePendingDigestConsent(raw: string | null): PendingDigestCons
         marketing: v.marketing,
         lang: v.lang === 'en' || v.lang === 'he' ? v.lang : undefined,
         at: typeof v.at === 'number' && Number.isFinite(v.at) ? v.at : undefined,
+        nonce: typeof v.nonce === 'string' && SIGNUP_NONCE_RE.test(v.nonce) ? v.nonce : undefined,
       }
     }
   } catch { /* malformed */ }
   return null
 }
 
-/** The pending digest choice belongs to this user only if they signed up right after it was written */
-export function pendingDigestBelongsTo(p: PendingDigestConsent, userCreatedAt: string | undefined, now = Date.now()): boolean {
-  const created = userCreatedAt ? Date.parse(userCreatedAt) : NaN
-  if (!Number.isFinite(created) || now - created > PENDING_DIGEST_CONSENT_MAX_AGE_MS) return false
-  // Legacy payloads (no timestamp, written before this change) are trusted only via a fresh account
-  if (p.at === undefined) return true
-  return p.at <= created + 60_000 && created - p.at <= PENDING_DIGEST_CONSENT_MAX_AGE_MS
+/** The pending digest choice belongs to this sign-in only if it came back through the same OAuth flow */
+export function pendingDigestMatchesFlow(p: PendingDigestConsent, callbackNonce: string | null, now = Date.now()): boolean {
+  if (!p.nonce || !callbackNonce || p.nonce !== callbackNonce) return false
+  return p.at !== undefined && now - p.at >= 0 && now - p.at <= PENDING_DIGEST_CONSENT_MAX_AGE_MS
 }

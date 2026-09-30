@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { PENDING_DIGEST_CONSENT_KEY, PENDING_SIGNUP_CONSENT_KEY, PENDING_SIGNUP_CONSENT_MAX_AGE_MS, parsePendingDigestConsent, pendingDigestBelongsTo, type PendingSignupConsent } from '@/lib/constants/consent'
+import { PENDING_DIGEST_CONSENT_KEY, PENDING_SIGNUP_CONSENT_KEY, PENDING_SIGNUP_CONSENT_MAX_AGE_MS, parsePendingDigestConsent, pendingDigestMatchesFlow, SIGNUP_NONCE_COOKIE, type PendingSignupConsent } from '@/lib/constants/consent'
 import { CONSENT_COPY, type ConsentLang } from '@/lib/consent/copy'
 import { ConsentLanguageToggle } from '@/components/consent/ConsentLanguageToggle'
 
@@ -33,10 +33,19 @@ function readPendingSignupConsent(userEmail: string | undefined): PendingSignupC
   }
 }
 
+// The nonce /auth/callback handed back after a successful Google signup (lib/constants/consent)
+function readSignupNonce(): string | null {
+  const m = document.cookie.match(new RegExp(`(?:^|; )${SIGNUP_NONCE_COOKIE}=([^;]+)`))
+  return m ? decodeURIComponent(m[1]) : null
+}
+function clearPendingDigest() {
+  try { localStorage.removeItem(PENDING_DIGEST_CONSENT_KEY) } catch { /* unavailable */ }
+  document.cookie = `${SIGNUP_NONCE_COOKIE}=; Max-Age=0; path=/`
+}
+
 export function ConsentGate() {
   const [show, setShow] = useState(false)
   const [userId, setUserId] = useState<string | null>(null)
-  const [userCreatedAt, setUserCreatedAt] = useState<string | undefined>(undefined)
   const [termsAccepted, setTermsAccepted] = useState(false)
   const [saving, setSaving] = useState(false)
   // Consent wording follows the interface (English); the reader can switch to Hebrew
@@ -59,10 +68,9 @@ export function ConsentGate() {
 
       if (consent) {
         // Already recorded: a leftover Google-signup digest choice in this browser is not theirs
-        try { localStorage.removeItem(PENDING_DIGEST_CONSENT_KEY) } catch { /* unavailable */ }
+        clearPendingDigest()
         return
       }
-      setUserCreatedAt(user.created_at)
       // Email signup made its choices in this browser before verification. Record them now, as
         // the verified owner, if they were made for THIS email and aren't stale — otherwise ask.
         const pending = readPendingSignupConsent(user.email)
@@ -89,7 +97,6 @@ export function ConsentGate() {
               const { data: { user: current } } = await supabase.auth.getUser()
               if (!current) return
               setUserId(current.id)
-              setUserCreatedAt(current.created_at)
               setShow(true)
               return
             }
@@ -117,7 +124,7 @@ export function ConsentGate() {
     let consentSource: 'signup' | null = null
     let marketingLanguage: ConsentLang | null = null
     const pending = parsePendingDigestConsent(localStorage.getItem(PENDING_DIGEST_CONSENT_KEY))
-    if (pending && pendingDigestBelongsTo(pending, userCreatedAt)) {
+    if (pending && pendingDigestMatchesFlow(pending, readSignupNonce())) {
       marketingOptIn = pending.marketing
       consentSource = 'signup'
       marketingLanguage = pending.lang ?? null   // asked on the signup page, in that language
@@ -138,7 +145,7 @@ export function ConsentGate() {
         return
       }
 
-      localStorage.removeItem(PENDING_DIGEST_CONSENT_KEY)
+      clearPendingDigest()
       setShow(false)
     } catch {
       setError(CONSENT_COPY[lang].gateSaveError)

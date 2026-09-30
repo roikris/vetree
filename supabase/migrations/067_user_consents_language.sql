@@ -7,10 +7,10 @@
 -- on ConsentGate after the OAuth redirect):
 --   terms_language      language of the terms/privacy wording, when it was shown for this row
 --   marketing_language  language of the digest question, when it was asked for this row
--- NULL = that wording was not shown for this row, or its language is unknown (a pending choice
--- written before this change) — e.g. the digest prompt re-records terms as
--- already accepted), or the row predates this migration. Before 2026-09-30 the terms wording was
--- Hebrew-only and the digest wording English-only.
+-- NULL = that wording was not shown for this row (e.g. the digest prompt re-records terms as
+-- already accepted), or its language is unknown (the row predates this migration, or came from a
+-- pending choice written before it). Before 2026-09-30 the terms wording was Hebrew-only and the
+-- digest wording English-only.
 --
 -- Additive: the running code neither reads nor writes these columns.
 

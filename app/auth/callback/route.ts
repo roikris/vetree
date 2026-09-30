@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { SIGNUP_NONCE_COOKIE, SIGNUP_NONCE_RE } from '@/lib/constants/consent'
 
 // Server-side OAuth code exchange — the only place that should ever redirect a
 // user straight from Google back into the app. Before this route existed,
@@ -23,7 +24,15 @@ export async function GET(request: NextRequest) {
     const supabase = await createClient()
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     if (!error) {
-      return NextResponse.redirect(`${origin}${next}`)
+      const res = NextResponse.redirect(`${origin}${next}`)
+      // A Google SIGNUP carries the nonce of the digest choice it stored before redirecting. Hand
+      // it back only now that this flow's sign-in succeeded; ConsentGate records the choice only
+      // for a matching nonce (lib/constants/consent). Readable by the page, short-lived.
+      const nonce = searchParams.get('signup_nonce')
+      if (nonce && SIGNUP_NONCE_RE.test(nonce)) {
+        res.cookies.set(SIGNUP_NONCE_COOKIE, nonce, { maxAge: 600, path: '/', sameSite: 'lax', secure: true, httpOnly: false })
+      }
+      return res
     }
   }
 
