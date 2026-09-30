@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { PENDING_DIGEST_CONSENT_KEY, PENDING_SIGNUP_CONSENT_KEY, PENDING_SIGNUP_CONSENT_MAX_AGE_MS, type PendingSignupConsent } from '@/lib/constants/consent'
+import { CONSENT_COPY, type ConsentLang } from '@/lib/consent/copy'
+import { ConsentLanguageToggle } from '@/components/consent/ConsentLanguageToggle'
 
 // Terms-acceptance gate only — mandatory, blocking. Marketing/digest consent is
 // NOT asked here; it's asked properly by the dedicated signup step (Part 2) and
@@ -35,6 +37,8 @@ export function ConsentGate() {
   const [userId, setUserId] = useState<string | null>(null)
   const [termsAccepted, setTermsAccepted] = useState(false)
   const [saving, setSaving] = useState(false)
+  // Consent wording follows the interface (English); the reader can switch to Hebrew
+  const [lang, setLang] = useState<ConsentLang>('en')
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -87,7 +91,7 @@ export function ConsentGate() {
 
   const handleSubmit = async () => {
     if (!termsAccepted) {
-      setError('יש לאשר את תנאי השימוש ומדיניות הפרטיות כדי להמשיך')
+      setError(CONSENT_COPY[lang].termsRequired)
       return
     }
     if (!userId) return
@@ -117,7 +121,7 @@ export function ConsentGate() {
 
       if (!res.ok) {
         const data = await res.json()
-        setError(data.error || 'שגיאה בשמירת ההסכמה. נסה/י שוב.')
+        setError(data.error || CONSENT_COPY[lang].gateSaveError)
         setSaving(false)
         return
       }
@@ -125,27 +129,31 @@ export function ConsentGate() {
       localStorage.removeItem(PENDING_DIGEST_CONSENT_KEY)
       setShow(false)
     } catch {
-      setError('שגיאה בשמירת ההסכמה. נסה/י שוב.')
+      setError(CONSENT_COPY[lang].gateSaveError)
       setSaving(false)
     }
   }
 
   if (!show) return null
+  const copy = CONSENT_COPY[lang]
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div
         className="bg-white dark:bg-[#1A1A1A] rounded-2xl shadow-xl max-w-md w-full p-8"
-        dir="rtl"
+        dir={copy.dir}
+        lang={lang}
       >
+        <div className="flex justify-end mb-2">
+          <ConsentLanguageToggle lang={lang} onChange={setLang} />
+        </div>
         <div className="text-center mb-6">
           <div className="text-4xl mb-3">🌿</div>
           <h2 className="text-xl font-semibold text-[#1A1A1A] dark:text-[#E8E8E8] mb-2">
-            עדכון תנאי שימוש
+            {copy.gateTitle}
           </h2>
           <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">
-            עדכנו את תנאי השימוש ומדיניות הפרטיות שלנו.
-            אנא אשר/י את הסכמתך כדי להמשיך להשתמש ב-Vetree.
+            {copy.gateBody}
           </p>
         </div>
 
@@ -158,11 +166,11 @@ export function ConsentGate() {
               className="mt-0.5 h-4 w-4 rounded border-zinc-300 text-[#3D7A5F] focus:ring-[#3D7A5F] flex-shrink-0"
             />
             <span className="text-sm text-zinc-700 dark:text-zinc-300 leading-snug">
-              קראתי ואני מסכים/ה ל
-              <a href="/terms" target="_blank" className="text-[#3D7A5F] dark:text-[#4E9A78] hover:underline">תנאי השימוש</a>
-              {' '}ול
-              <a href="/privacy" target="_blank" className="text-[#3D7A5F] dark:text-[#4E9A78] hover:underline">מדיניות הפרטיות</a>
-              {' '}של Vetree.{' '}
+              {copy.termsBefore}
+              <a href="/terms" target="_blank" className="text-[#3D7A5F] dark:text-[#4E9A78] hover:underline">{copy.terms}</a>
+              {copy.and}
+              <a href="/privacy" target="_blank" className="text-[#3D7A5F] dark:text-[#4E9A78] hover:underline">{copy.privacy}</a>
+              {copy.termsAfter}{' '}
               <span className="text-red-500">*</span>
             </span>
           </label>
@@ -177,7 +185,7 @@ export function ConsentGate() {
           disabled={saving || !termsAccepted}
           className="w-full bg-[#3D7A5F] dark:bg-[#4E9A78] text-white hover:bg-[#2F5F4A] dark:hover:bg-[#5FAA88] disabled:opacity-50 disabled:cursor-not-allowed rounded-lg px-4 py-3 font-medium transition-colors"
         >
-          {saving ? 'שומר...' : 'אישור והמשך'}
+          {saving ? copy.gateSaving : copy.gateSubmit}
         </button>
       </div>
     </div>

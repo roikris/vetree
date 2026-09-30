@@ -6,15 +6,21 @@
 // Never render either button as pre-selected: value starts at null (untouched),
 // which is treated as "No" if the caller submits without an explicit click.
 
+import { CONSENT_COPY, type ConsentLang } from '@/lib/consent/copy'
+
 export function DigestConsentQuestion({
   value,
   onChange,
+  lang = 'en',
 }: {
   value: boolean | null
   onChange: (value: boolean) => void
+  /** Consent wording follows the interface (English) unless the reader switches to Hebrew */
+  lang?: ConsentLang
 }) {
+  const copy = CONSENT_COPY[lang]
   return (
-    <div style={{
+    <div dir={copy.dir} lang={lang} style={{
       background: 'var(--al-card)', border: '1px solid rgba(var(--al-line),.13)',
       borderRadius: 14, padding: '18px 20px',
     }}>
@@ -22,7 +28,7 @@ export function DigestConsentQuestion({
         margin: '0 0 14px', font: "500 14.5px/1.5 var(--font-instrument, sans-serif)",
         color: 'var(--al-ink3)',
       }}>
-        Get the weekly evidence digest — the week&apos;s new research, once, Fridays.
+        {copy.digestQuestion}
       </p>
       <div style={{ display: 'flex', gap: 10 }}>
         <button
@@ -37,7 +43,7 @@ export function DigestConsentQuestion({
             transition: 'all .15s',
           }}
         >
-          Yes, send it
+          {copy.digestYes}
         </button>
         <button
           type="button"
@@ -51,7 +57,7 @@ export function DigestConsentQuestion({
             transition: 'all .15s',
           }}
         >
-          No thanks
+          {copy.digestNo}
         </button>
       </div>
     </div>
