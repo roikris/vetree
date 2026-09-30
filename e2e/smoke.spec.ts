@@ -390,60 +390,77 @@ test('auth round-trip: intent=save saves article, appears in library, unsave rem
 
   // Logged-in users see the full feed at /
   await page.goto('/')
-  const firstLink = page.locator('[data-testid="article-card"] a').first()
-  const href = await firstLink.getAttribute('href')
-  expect(href).toBeTruthy()
-  const articleId = href!.match(/\/article\/([^/?]+)/)?.[1]
-  expect(articleId).toBeTruthy()
+  // PR, post-deploy and scheduled runs share this test account and can overlap, so a run must
+  // never touch another run's save: it picks, in random order, an internal article the account
+  // has NOT saved (per the server, not the button), and only ever unsaves that one. An article
+  // that is already saved — another run's, or a crashed run's — is skipped, never unsaved.
+  // Residual risk: two runs picking the same unsaved article within seconds → a false red that a
+  // rerun clears, never a false green. (Not a GitHub concurrency group: it cancels queued runs,
+  // which would leave PRs' required check cancelled.)
+  const links = page.locator('[data-testid="article-card"] a[href^="/article/"]')
+  await links.first().waitFor({ timeout: 15_000 })
+  const ids = [...new Set((await links.evaluateAll(as => as.map(a => a.getAttribute('href') || '')))
+    .map(h => h.match(/^\/article\/([^/?#]+)/)?.[1])
+    .filter((id): id is string => !!id))]
+  const savedRes = await page.request.get('/api/saved-articles')
+  expect(savedRes.ok(), 'saved-articles lookup must succeed').toBe(true)
+  const saved = new Set<string>((await savedRes.json()).articleIds ?? [])
+  const candidates = ids.filter(id => !saved.has(id))
+  expect(candidates.length, 'the feed must offer an article the test account has not saved').toBeGreaterThan(0)
+  const articleId = candidates[Math.floor(Math.random() * candidates.length)]
 
+  // The save-article response for THIS article and action. `changed` (app/api/save-article)
+  // proves this run's own request inserted/deleted the row — not another run's.
+  const saveResponse = (action: 'save' | 'unsave') => page.waitForResponse(r => {
+    if (!r.url().includes('/api/save-article') || r.request().method() !== 'POST') return false
+    const body = r.request().postDataJSON?.() as { articleId?: string; action?: string } | null
+    return body?.articleId === articleId && body?.action === action
+  }, { timeout: 15_000 })
+
+  // Armed only after this run's own insertion is confirmed, disarmed after its own unsave is
+  // confirmed, so cleanup only removes this run's save. (Edge: if an unsave commits but its
+  // response is lost, cleanup could remove a later run's save of the same article — that run
+  // then fails conservatively; it can't pass falsely.)
+  let ownsSave = false
   try {
-    // Idempotent: unsave if already saved from a previous crashed run.
-    // Wait for the button to reflect "Save to library" (confirms the API call completed)
-    // before navigating away — avoids a race where SaveIntentHandler still sees it as saved.
-    await page.goto(`/article/${articleId}`)
-    const bookmarkBtn = page.locator('[aria-label="Remove from library"], [aria-label="Unsave"]').first()
-    if (await bookmarkBtn.isVisible({ timeout: 5_000 }).catch(() => false)) {
-      await bookmarkBtn.click()
-      await page.locator('[aria-label="Save to library"]').first().waitFor({ timeout: 6_000 })
-    }
-
-    // Visit with intent=save
+    // Visit with intent=save: SaveIntentHandler saves and shows a toast or the first-save shelf
+    const saved1 = saveResponse('save')
     await page.goto(`/article/${articleId}?intent=save`)
-    // SaveIntentHandler shows a toast (save-toast) or first-save shelf (first-save-shelf)
+    const saveRes = await saved1
+    expect(saveRes.ok(), 'save request must succeed').toBe(true)
+    // A collision with an overlapping run (it saved this article first) fails here — conservatively
+    expect((await saveRes.json()).changed, 'this run must have inserted the save itself').toBe(true)
+    ownsSave = true
     await expect(
-      page.locator('[data-testid="save-toast"]')
-        .or(page.locator('[data-testid="already-saved-toast"]'))
-        .or(page.locator('[data-testid="first-save-shelf"]'))
+      page.locator('[data-testid="save-toast"]').or(page.locator('[data-testid="first-save-shelf"]'))
     ).toBeVisible({ timeout: 15_000 })
 
     // Verify in library
     await page.goto('/library')
     await expect(page.locator(`[href="/article/${articleId}"], [href*="${articleId}"]`).first()).toBeVisible({ timeout: 8_000 })
 
-    // Unsave — wait for API commit, not just optimistic UI, before navigating
+    // Unsave — wait for this run's own delete to be confirmed, not just the optimistic UI
     await page.goto(`/article/${articleId}`)
     const unsaveBtn = page.locator('[aria-label="Remove from library"], [aria-label="Unsave"]').first()
     await expect(unsaveBtn).toBeVisible({ timeout: 6_000 })
-    await Promise.all([
-      page.waitForResponse(r => r.url().includes('/api/save-article') && r.ok()),
-      unsaveBtn.click(),
-    ])
+    const unsaved = saveResponse('unsave')
+    await unsaveBtn.click()
+    const unsaveRes = await unsaved
+    expect(unsaveRes.ok(), 'unsave request must succeed').toBe(true)
+    expect((await unsaveRes.json()).changed, 'this run must have deleted its own save').toBe(true)
+    ownsSave = false
 
     // Verify removed from library
     await page.goto('/library')
     await expect(page.locator(`[href="/article/${articleId}"], [href*="${articleId}"]`).first()).not.toBeVisible({ timeout: 6_000 })
 
   } finally {
-    try {
-      await page.goto(`/article/${articleId}`)
-      const cleanup = page.locator('[aria-label="Remove from library"], [aria-label="Unsave"]').first()
-      if (await cleanup.isVisible({ timeout: 5_000 }).catch(() => false)) {
-        await Promise.all([
-          page.waitForResponse(r => r.url().includes('/api/save-article') && r.ok()),
-          cleanup.click(),
-        ])
-      }
-    } catch { /* best-effort */ }
+    // Only a save this run inserted and has not yet removed
+    if (ownsSave) {
+      try {
+        await page.request.post('/api/save-article', { data: { articleId, action: 'unsave' } })
+      } catch { /* best-effort */ }
+    }
   }
 })
 

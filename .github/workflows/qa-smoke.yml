@@ -7,10 +7,13 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: read   # the deploy wait compares commits via the GitHub API
+
 jobs:
   smoke:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
@@ -20,10 +23,36 @@ jobs:
         with:
           node-version: '20'
 
-      # On push: wait for Vercel to finish deploying (pragmatic 120s; not a guaranteed window)
-      - name: Wait for Vercel deploy
+      # On push: test the release that was just pushed, never the previous one. Poll
+      # /api/version until production serves this exact commit (fails after 15 minutes).
+      - name: Wait until production serves this commit
         if: github.event_name == 'push'
-        run: sleep 120
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          DEADLINE=$((SECONDS + 900))   # 15 minutes of wall-clock time, all calls included
+          while [ $SECONDS -lt $DEADLINE ]; do
+            SERVED=$(curl -s --max-time 10 https://vetree.app/api/version | sed -n 's/.*"sha":"\([0-9a-f]*\)".*/\1/p' || true)
+            if [ "$SERVED" = "$EXPECTED_SHA" ]; then
+              echo "Production serves $EXPECTED_SHA"
+              exit 0
+            fi
+            # A later push already live (it contains this commit): test that instead of waiting forever
+            if [ -n "$SERVED" ]; then
+              STATUS=$(timeout 20 gh api "repos/${{ github.repository }}/compare/$EXPECTED_SHA...$SERVED" --jq .status 2>&1 || true)
+              if [ "$STATUS" = "ahead" ]; then
+                echo "Production serves $SERVED, a later commit that includes $EXPECTED_SHA"
+                exit 0
+              fi
+              echo "production serves $SERVED (compare: $STATUS), waiting for $EXPECTED_SHA"
+            else
+              echo "production version unknown, waiting for $EXPECTED_SHA"
+            fi
+            sleep 15
+          done
+          echo "ERROR: production did not serve $EXPECTED_SHA within 15 minutes"
+          exit 1
 
       - name: Install dependencies
         run: npm ci
@@ -47,6 +76,7 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           SMOKE_OUTCOME: ${{ steps.smoke.outcome }}
+          SMOKE_BASE_URL: https://vetree.app
           GITHUB_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           TRIGGER: ${{ github.event_name }}
 

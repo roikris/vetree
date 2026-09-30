@@ -13,6 +13,9 @@ const WEBHOOK_URL = process.env.SLACK_WEBHOOK_URL
 const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY
 const RUN_URL = process.env.GITHUB_RUN_URL || ''
 const TRIGGER = process.env.TRIGGER || 'unknown'
+// What was tested — the preview URL on PRs, production otherwise
+const TARGET = process.env.SMOKE_BASE_URL
+  || (TRIGGER === 'pull_request' ? '(preview URL unavailable)' : 'https://vetree.app')
 
 // Map test title fragments → feature description for triage context
 const TEST_FEATURE_MAP = {
@@ -105,7 +108,8 @@ async function main() {
   // Read report
   if (!fs.existsSync(REPORT_PATH)) {
     console.log('[triage] No report found, skipping')
-    await postToSlack(`⚠️ *Smoke*: Report file not found — tests may have crashed before running. <${RUN_URL}|View run>`)
+    const label = ({ schedule: 'scheduled · production', push: 'post-deploy · production', pull_request: 'PR · preview', workflow_dispatch: 'manual' })[TRIGGER] || TRIGGER
+    await postToSlack(`🔴 *Smoke (${label})*: no test report — the run failed before the tests (e.g. the production deploy never went live, or setup failed). Target: ${TARGET} <${RUN_URL}|View run>`)
     return
   }
 
@@ -158,7 +162,12 @@ async function main() {
   }
   for (const suite of suites) walkSuite(suite)
 
-  const triggerLabel = TRIGGER === 'schedule' ? 'daily' : TRIGGER === 'push' ? 'push' : TRIGGER
+  const triggerLabel = ({
+    schedule: 'scheduled · production',
+    push: 'post-deploy · production',
+    pull_request: 'PR · preview',
+    workflow_dispatch: 'manual',
+  })[TRIGGER] || TRIGGER
 
   // A run that failed outside individual tests (global setup, config, a crash) has no failed
   // test entries — it must still alarm, never read as green. Signals: the workflow's own smoke
@@ -196,7 +205,7 @@ async function main() {
     return `• "${f.title}" [${featureFor(f.title)}]${locPart}\n  Error: ${f.error}`
   }).join('\n\n')
 
-  const prompt = `These Playwright smoke tests failed against https://vetree.app:
+  const prompt = `These Playwright smoke tests failed against ${TARGET} (${triggerLabel}${TRIGGER === 'pull_request' ? ' — a Vercel preview deployment of an unmerged PR, sharing the production database; production itself was not tested' : ''}):
 
 ${failedSummary}
 

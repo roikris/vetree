@@ -32,6 +32,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
     }
 
+    // `changed`: whether this request actually inserted/deleted the row (false = it was already in
+    // the requested state). Clients only need `success`; the smoke test uses `changed` to prove its
+    // own save happened rather than another run's.
+    let changed = false
     if (action === 'save') {
       const { error } = await supabase
         .from('saved_articles')
@@ -40,17 +44,20 @@ export async function POST(request: NextRequest) {
       if (error) {
         // Duplicate key = already saved = desired state achieved
         if (error.code === '23505') {
-          return NextResponse.json({ success: true })
+          return NextResponse.json({ success: true, changed: false })
         }
         console.error('[save-article] insert error:', error)
         return NextResponse.json({ error: error.message }, { status: 500 })
       }
+      changed = true
     } else {
-      const { error } = await supabase
+      const { data: deleted, error } = await supabase
         .from('saved_articles')
         .delete()
         .eq('user_id', user.id)
         .eq('article_id', articleId)
+        .select('article_id')
+      changed = (deleted?.length ?? 0) > 0
 
       if (error) {
         console.error('[save-article] delete error:', error)
@@ -59,7 +66,7 @@ export async function POST(request: NextRequest) {
     }
 
     revalidatePath('/library')
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ success: true, changed })
 
   } catch (error) {
     console.error('[save-article] unexpected error:', error)
