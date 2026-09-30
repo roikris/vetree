@@ -11,9 +11,15 @@ export const PENDING_DIGEST_CONSENT_KEY = 'vetree_pending_digest_consent'
 // email must match the signed-in user, and it expires, so a shared browser can't leak a choice.
 export const PENDING_SIGNUP_CONSENT_KEY = 'vetree_pending_signup_consent'
 export const PENDING_SIGNUP_CONSENT_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000
+// Version of the Terms of Service + Privacy Policy a person accepts. Bump it when those documents
+// change materially: ConsentGate then asks every signed-in user to accept the new version (their
+// older acceptance no longer counts), and pending signup choices made under the old wording are
+// discarded. Recorded in user_consents.consent_version (lib/consent/record.ts).
+export const CURRENT_CONSENT_VERSION = '1.0'
+
 // lang: the language of the consent wording on the signup page (both questions); absent on
 // payloads written before 2026-09-30
-export type PendingSignupConsent = { terms: true; marketing: boolean; version: '1.0'; email: string; at: number; lang?: 'en' | 'he' }
+export type PendingSignupConsent = { terms: true; marketing: boolean; version: string; email: string; at: number; lang?: 'en' | 'he' }
 
 // PENDING_DIGEST_CONSENT_KEY holds { marketing, lang, at, nonce } since 2026-09-30 (a bare
 // boolean before). A Google signup writes it before the OAuth redirect, with no email to bind to,

@@ -40,7 +40,7 @@ Routes verified from `app/api/` directory tree.
 | `/api/reports` | POST | Submit article report | User session |
 | `/api/grove` | GET | Grove feed endpoint | Public |
 | `/api/auth/save-consent` | POST | Record analytics consent | User session |
-| `/api/avatars/[userId]` | GET | Signed URL for private avatar | User session |
+| `/api/avatars/[userId]` | GET | Signed URL for the caller's OWN avatar (403 for anyone else) | User session |
 | `/api/articles/[id]/summary` | GET | Lazy-load article summary | Public |
 | `/api/articles/[id]/save-count` | GET | Public save count for article | Public |
 | `/api/articles/search-quick` | GET | Admin article picker search | Admin |

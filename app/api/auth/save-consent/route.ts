@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getClientIP, ratelimitModerate } from '@/lib/ratelimit'
 import { recordConsent, CONSENT_SOURCES, type ConsentSource } from '@/lib/consent/record'
 import { isConsentLang } from '@/lib/consent/copy'
+import { CURRENT_CONSENT_VERSION } from '@/lib/constants/consent'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -36,7 +37,7 @@ export async function POST(request: NextRequest) {
     const { success } = await ratelimitModerate.limit(`consent:${user.id}`)
     if (!success) return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
 
-    const { userId, termsAccepted, marketingOptIn, consentSource, termsLanguage, marketingLanguage } = await request.json()
+    const { userId, termsAccepted, marketingOptIn, consentSource, termsLanguage, marketingLanguage, consentVersion } = await request.json()
     // A body userId is tolerated for older clients but must be the caller
     if (userId != null && userId !== user.id) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -46,6 +47,15 @@ export async function POST(request: NextRequest) {
     }
     if (marketingOptIn != null && typeof marketingOptIn !== 'boolean') {
       return NextResponse.json({ error: 'marketingOptIn must be a boolean' }, { status: 400 })
+    }
+    // The version of the terms the person was SHOWN. A page left open across a terms update must not
+    // record acceptance of wording it never displayed.
+    // Rows that record terms acceptance (signup, or the consent gate: source null) must state the
+    // version they showed — a page from before this check sends none and must reload too.
+    // Marketing-only callers (digest prompt) re-record terms as a placeholder and may omit it.
+    const termsBearing = consentSource == null || consentSource === 'signup'
+    if ((termsBearing && consentVersion == null) || (consentVersion != null && consentVersion !== CURRENT_CONSENT_VERSION)) {
+      return NextResponse.json({ error: 'The terms have been updated. Please reload to review them.', code: 'stale_version' }, { status: 409 })
     }
     // Language of the wording the person saw (migration 067); optional for older clients
     if ((termsLanguage != null && !isConsentLang(termsLanguage)) || (marketingLanguage != null && !isConsentLang(marketingLanguage))) {

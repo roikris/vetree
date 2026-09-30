@@ -84,8 +84,8 @@ export async function GET(request: NextRequest) {
     return htmlPage(false, 'We couldn\'t process your request. Please try again or contact support.')
   }
 
-  // Also remove followed tags so they stop receiving tag-based content
-  await supabase.from('followed_tags').delete().eq('user_id', uid)
+  // Followed specialties are NOT deleted: unsubscribing stops the email, it doesn't erase the
+  // reader's personalization (the opt-out alone stops every digest)
 
   return htmlPage(true, 'You\'ve been unsubscribed from all Vetree digest emails. You can re-subscribe any time from your profile.')
 }
@@ -117,7 +117,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: prefError.message }, { status: 500 })
     }
 
-    await supabase.from('followed_tags').delete().eq('user_id', user.id)
 
     return NextResponse.json({ success: true, message: 'Unsubscribed from all tag digests' })
 

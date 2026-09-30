@@ -360,9 +360,11 @@ export async function POST(request: NextRequest) {
 
       // Build email subject
       const formattedDate = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-      const subject = tags.length > 0
+      // Treated as advertising (owner's decision, 2026-09-30): Israeli Communications Law §30A —
+      // the subject starts with "פרסומת", the footer names the sender and a refusal channel
+      const subject = '(פרסומת) ' + (tags.length > 0
         ? `🌿 Your Vetree Weekly Digest — ${tags.slice(0, 3).join(', ')}${tags.length > 3 ? `, +${tags.length - 3}` : ''}`
-        : `🌿 This Week on Vetree — Fresh Research (${formattedDate})`
+        : `🌿 This Week on Vetree — Fresh Research (${formattedDate})`)
 
       // Dry-run: collect preview without sending
       if (dryRun) {
@@ -378,8 +380,19 @@ export async function POST(request: NextRequest) {
 
       // Send email
       try {
+        // Re-check the opt-out right before sending: the list above was read at the start of the
+        // run, and someone may unsubscribe while it is in progress
+        const { data: latestPref, error: prefCheckError } = await supabase
+          .from('user_preferences').select('digest_opt_out').eq('user_id', user.id).maybeSingle()
+        if (prefCheckError || latestPref?.digest_opt_out === true) {
+          // Fail closed: if we can't confirm they're still subscribed, don't send
+          skip(user.email, 'opted_out')
+          continue
+        }
+
         await resend.emails.send({
           from: 'Vetree <digest@digest.vetree.app>',
+          replyTo: 'vetree.app@gmail.com',   // a monitored mailbox: replying is also a way to refuse
           to: user.email,
           subject,
           html: generateEmailHTML(user.email, user.id, generateUnsubscribeToken(user.id), tags, articles, intro, reEngagementArticles ?? undefined)
@@ -571,8 +584,14 @@ function generateEmailHTML(email: string, userId: string, unsubscribeToken: stri
             <p style="margin: 0 0 12px 0; font-size: 14px; color: #6b7280;">
               <a href="https://vetree.app" style="color: #3D7A5F; text-decoration: none;">Browse more articles →</a>
             </p>
-            <p style="margin: 0; font-size: 12px; color: #9ca3af;">
+            <p style="margin: 0 0 10px 0; font-size: 12px; color: #9ca3af;">
               <a href="${unsubscribeUrl}" style="color: #9ca3af; text-decoration: underline;">Unsubscribe from all digests</a>
+              · or reply to this email to stop receiving it
+            </p>
+            <p style="margin: 0; font-size: 13px; color: #4b5563; line-height: 1.6;">
+              Advertising email (פרסומת) from Vetree · Roi Krispin, La Guardia 60, Tel Aviv, Israel · vetree.app@gmail.com<br/>
+              You receive this because you agreed to the weekly digest on Vetree.
+              <span dir="rtl">דיוור זה נשלח מאת רועי קריספין, לה גוארדיה 60, תל אביב, בהסכמתך. להסרה: קישור ההסרה או מענה להודעה זו.</span>
             </p>
           </div>
         </div>
