@@ -52,27 +52,27 @@ posts findings to Slack, saves to `security_reports`.
 
 ---
 
-### `qa-smoke.yml` — QA Smoke Suite
-**Schedule:** 06:00 UTC daily | **Trigger:** push to `main` | **Manual:** workflow_dispatch
+### `qa-smoke.yml` — Production Smoke (job `smoke-production`)
+**Schedule:** Mon–Sat 06:00 UTC (essentials), Sunday 06:00 UTC (full) | **Trigger:** push to `main` (essentials) | **Manual:** workflow_dispatch (choose `full` or `essentials`)
 
-Runs Playwright smoke suite against `https://vetree.app`. After run (pass or fail):
-- Calls `scripts/qa-triage.mjs` (Claude Sonnet triage → Slack)
-- Uploads `playwright-report/` artifact (7-day retention)
-
-Triage output includes: pass/fail/skipped/flaky buckets, file:line for failures, Claude analysis.
-Job name is `smoke` — this is the status check required by branch protection (`smoke / smoke`).
-
-On `push` trigger: waits 120s for Vercel deployment before running.
+Runs Playwright against `https://vetree.app`. *Essentials* = every test not tagged `@weekly`;
+*full* = everything. On `push`, it first polls `/api/version` until production serves the pushed
+commit (or a later one containing it), up to 15 minutes — never tests the previous release.
+After the run, `scripts/qa-triage.mjs` posts to Slack **only on failure or flaky results** (Claude
+Sonnet triage for failures; runs that fail before any test also alarm), and the report is
+uploaded as an artifact (7-day retention). Not a required check.
 
 ---
 
-### `qa-smoke-pr.yml` — PR Smoke Suite
+### `qa-smoke-pr.yml` — PR Smoke Suite (job `smoke` — the required check)
 **Trigger:** pull_request to `main` (preview-gated)
 
-Polls Vercel API for the preview deployment URL (up to 10 min, 15s intervals).
-Checks that the preview URL is accessible (no Vercel protection interstitial).
-Runs the same smoke suite against the preview URL.
-Job name is `smoke` — same status check name as above (required for PR merge).
+Polls Vercel for the PR's preview deployment, checks it is behind Vercel Deployment Protection
+(anonymous request → Vercel login), then runs the **full** suite against it.
+`e2e/global-setup.ts` exchanges `VERCEL_AUTOMATION_BYPASS_SECRET` once for a preview-host cookie
+(the secret is never sent to other origins). Job name `smoke` is the status check required by
+branch protection on `main`. Previews share the production database; analytics writers record
+nothing outside production.
 
 ---
 

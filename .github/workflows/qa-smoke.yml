@@ -1,17 +1,29 @@
 name: QA Smoke Suite
 
+# Production smoke. Essentials (tests not tagged @weekly) run Mon–Sat and after every deploy; the
+# full suite runs weekly on Sunday. Every PR runs the full suite on its preview (qa-smoke-pr.yml,
+# the required `smoke` check), so a regression is caught before merge; the weekly production run
+# covers production-only data and configuration.
 on:
   schedule:
-    - cron: '0 6 * * *'   # Daily 06:00 UTC
+    - cron: '0 6 * * 1-6'   # Mon–Sat 06:00 UTC — essentials
+    - cron: '0 6 * * 0'     # Sunday 06:00 UTC — full suite
   push:
-    branches: [main]
+    branches: [main]        # post-deploy — essentials
   workflow_dispatch:
+    inputs:
+      suite:
+        description: 'Which suite to run'
+        type: choice
+        options: [full, essentials]
+        default: full
 
 permissions:
   contents: read   # the deploy wait compares commits via the GitHub API
 
 jobs:
-  smoke:
+  # Deliberately not named `smoke`: that is the PR workflow's required check
+  smoke-production:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -62,9 +74,11 @@ jobs:
 
       - name: Run smoke tests
         id: smoke
-        run: npm run test:smoke
+        run: |
+          if [ "$SUITE" = "full" ]; then npm run test:smoke; else npm run test:smoke -- --grep-invert @weekly; fi
         continue-on-error: true
         env:
+          SUITE: ${{ (github.event.schedule == '0 6 * * 0' || (github.event_name == 'workflow_dispatch' && inputs.suite == 'full')) && 'full' || 'essentials' }}
           SMOKE_BASE_URL: https://vetree.app
           TEST_USER_EMAIL: ${{ secrets.TEST_USER_EMAIL }}
           TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
@@ -79,6 +93,7 @@ jobs:
           SMOKE_BASE_URL: https://vetree.app
           GITHUB_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           TRIGGER: ${{ github.event_name }}
+          SUITE: ${{ (github.event.schedule == '0 6 * * 0' || (github.event_name == 'workflow_dispatch' && inputs.suite == 'full')) && 'full' || 'essentials' }}
 
       - name: Upload Playwright report
         if: always()

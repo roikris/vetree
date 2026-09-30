@@ -410,8 +410,8 @@ export const getDistinctEvidenceLevels = unstable_cache(async () => { ... }, ['d
 | growth-daily-reminder.yml | 03:00 UTC daily | Slack reminder for content post |
 | analysis-agent.yml | 02:00 UTC daily (aggregate+signals) + Friday 12:00 UTC (insights) | Analytics agent |
 | security-agent.yml | Thursday 19:00 UTC | Security scan |
-| qa-smoke.yml | 06:00 UTC daily + push to main + manual | Playwright smoke + Claude triage → Slack |
-| qa-smoke-pr.yml | Every PR to main (preview-gated) | Same smoke suite on Vercel preview URL |
+| qa-smoke.yml | Mon–Sat 06:00 UTC + every deploy (essentials); Sunday 06:00 UTC (full); manual | Production smoke (job `smoke-production`); tests tagged `@weekly` run only in the full suite; post-deploy runs wait for `/api/version` to serve the pushed commit; Slack only on failure/flaky |
+| qa-smoke-pr.yml | Every PR to main (preview-gated) | Full suite on the protected Vercel preview — the required `smoke` check |
 | reset-enrichment.yml | Manual | Reset enrichment flags |
 | fix-encoding.yml | Manual | Fix HTML entities |
 
