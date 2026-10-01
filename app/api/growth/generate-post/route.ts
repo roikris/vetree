@@ -10,6 +10,7 @@ import { rankGrowthCandidates } from '@/lib/growth/candidates'
 import { excludedUsersOrFilter } from '@/lib/analytics-excluded-ids'
 
 export async function POST(request: NextRequest) {
+  const startedAt = Date.now()
   try {
     // Rate limiting - 10 requests per minute per IP
     const ip = getClientIP(request)
@@ -458,23 +459,29 @@ Return ONLY the post text. Follow the platform rule exactly.`
     if (platform === 'twitter' && postContent.length > 280) {
       console.log(`[generate-post] Tweet too long (${postContent.length} chars), asking Claude to shorten...`)
 
-      const shortenMessage = await anthropic.messages.create({
-        ...NO_UPFRONT_THINKING,
-        model: CLAUDE_MODEL,
-        max_tokens: 1200,
-        messages: [{
-          role: 'user',
-          content: `This tweet is ${postContent.length} characters but must be under 280. Shorten it ruthlessly while keeping the clinical insight and link:
+      // A failed, slow, cut-off or empty shortening reply falls back to the original post (then
+      // the truncation below). Skipped when the 60s function deadline couldn't absorb it.
+      let shortenedContent = postContent
+      if (Date.now() - startedAt < 45_000) {
+        try {
+          const shortenMessage = await anthropic.messages.create({
+            ...NO_UPFRONT_THINKING,
+            model: CLAUDE_MODEL,
+            max_tokens: 1200,
+            messages: [{
+              role: 'user',
+              content: `This tweet is ${postContent.length} characters but must be under 280. Shorten it ruthlessly while keeping the clinical insight and link:
 
 ${postContent}
 
 Return ONLY the shortened tweet (under 280 chars).`
-        }]
-      }, { timeout: 12_000, maxRetries: 0 })
-
-      // A cut-off or empty shortening reply falls back to the original post
-      let shortenedContent = postContent
-      try { shortenedContent = responseText(shortenMessage) || postContent } catch { /* truncated: keep the original */ }
+            }]
+          }, { timeout: 12_000, maxRetries: 0 })
+          shortenedContent = responseText(shortenMessage) || postContent
+        } catch (e) {
+          console.warn('[generate-post] shortening failed, truncating instead:', String(e))
+        }
+      }
 
       // If still too long, truncate intelligently
       if (shortenedContent.length <= 280) {
