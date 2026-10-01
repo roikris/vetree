@@ -102,7 +102,7 @@ async function scoreBatch(supabase: SupabaseClient, batch: ScorableArticle[], si
   }, { signal, maxRetries: 0 })  // the signal also covers reading the body, unlike `timeout`
 
   const scores = parseScores(responseText(res), batch)
-  if (scores.length === 0) return 0
+  if (scores.length === 0) throw new Error(`scoring reply had no valid scores for a batch of ${batch.length}`)
   const hashes = new Map(batch.map(a => [a.id, scoreInputHash(a)]))
   const now = new Date().toISOString()
   const { error } = await supabase.from('growth_article_scores').upsert(scores.map(s => ({
@@ -113,7 +113,15 @@ async function scoreBatch(supabase: SupabaseClient, batch: ScorableArticle[], si
     scored_at: now,
   })), { onConflict: 'article_id' }).abortSignal(signal)
   if (error) throw new Error(`[growth/scoring] upsert: ${error.message}`)
+  // Partial reply: the valid scores are kept, the omitted/invalid ones still count as an error
+  if (scores.length < batch.length) throw new PartialBatch(scores.length, batch.length)
   return scores.length
+}
+
+class PartialBatch extends Error {
+  constructor(public saved: number, total: number) {
+    super(`scoring reply covered ${saved}/${total} articles`)
+  }
 }
 
 /**
@@ -136,7 +144,10 @@ export async function scoreArticles(
     const wave = await Promise.allSettled(batches.slice(i, i + parallel).map(b => scoreBatch(supabase, b, signal)))
     for (const r of wave) {
       if (r.status === 'fulfilled') scored += r.value
-      else errors.push(String(r.reason))
+      else {
+        if (r.reason instanceof PartialBatch) scored += r.reason.saved
+        errors.push(String(r.reason))
+      }
     }
   }
   return { scored, errors }
