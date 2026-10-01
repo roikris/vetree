@@ -102,7 +102,8 @@ export async function POST(request: NextRequest) {
     // Auto-pick: the same ranked pool as the recommendations panel (lib/growth/candidates.ts),
     // weighted random among the top 10 so consecutive days don't always get #1.
     if (!article) {
-      const ranked = (await rankGrowthCandidates(supabase)).slice(0, 10)
+      // Cached scores only — no scoring calls here; generation needs the time budget
+      const ranked = (await rankGrowthCandidates(supabase)).ranked.slice(0, 10)
       if (ranked.length === 0) {
         return NextResponse.json({
           error: 'No eligible article to post',

@@ -245,12 +245,25 @@ Article choice is shared with the recommendations panel: `rankGrowthCandidates()
    - Exception: crowd favorites (≥ 20 social clicks) may return 182 days after their last post or
      click — flagged `crowdFavorite`, shown as "⭐ Crowd favorite"
    - Skipped: 7 days; anything touched today: excluded
-   - Score = 0.5 × recency (created_at) + 0.5 × evidence tier (getEvidenceLevel)
+   - Rank: Claude-scored articles first, by max(practice, talk, wow) (0–10 each, cached in
+     `growth_article_scores`, `lib/growth/scoring.ts`); evidence tier then recency break ties.
+     Unscored articles only fill in behind (0.5 recency + 0.5 evidence). Validated offline
+     2026-10-01: AUC 0.80 vs 0.67 keyword rules on the owner's 324 past decisions
+   - The auto-pick never scores (generation budget); the recommendations panel scores up to 50
+     unscored articles per load (30s budget, fail-open). Backfill: `scripts/score-growth-articles.mts`
    - Read errors throw (500) — never silently "nothing excluded"
 3. Call Claude Sonnet with platform-specific prompt (SDK timeout 35s, no retries; twitter shorten 12s) — fits maxDuration 60
 4. `SKIP_LARGE_ANIMAL` reply → 500 error, never returned as post content
 5. Check length limits (twitter ≤ 280), embed UTM in article URL
 6. Return `{ post_content, article_id, article_title, article_labels, crowd_favorite, hook_line, ... }`
+
+## Recommendations panel (`/api/admin/growth/recommendations`)
+- 9 top picks + 1 **wildcard** (owner, 2026-10-01): drawn first from the bottom half of the scored
+  pool, random position, shown as "🎲 Wildcard" — room for serendipity; a dismissal is training data
+- Cards: "⚡ WOW" / "Practice" / "Talk-worthy" chips for dimensions ≥ 7, Claude's one-line reason
+- Every served set is logged to `growth_recommendation_sets` (pool rank, position, wildcard,
+  scores) — join to `growth_agent_memory` by article_id + time to learn from what was shown
+- Bump `RUBRIC_VERSION` whenever the rubric changes (older scores stop counting)
 
 ## Platform Rules (for prompts)
 ```ts
