@@ -39,6 +39,7 @@ export async function GET() {
     })
     const recommendations = pickRecommendations(ranked)
 
+    // The log is what later decisions are learned against — no log, no set
     const { error: logError } = await supabase.from('growth_recommendation_sets').insert({
       rubric_version: RUBRIC_VERSION,
       ranking_policy: RANKING_POLICY,
@@ -52,8 +53,11 @@ export async function GET() {
         crowd_favorite: r.crowdFavorite,
         scores: r.scores ? { practice: r.scores.practice, talk: r.scores.talk, wow: r.scores.wow } : null,
       })),
-    })
-    if (logError) console.error('[growth/recommendations] set log failed:', logError.message)
+    }).abortSignal(AbortSignal.timeout(10_000))
+    if (logError) {
+      console.error('[growth/recommendations] set log failed:', logError.message)
+      return NextResponse.json({ error: "Couldn't record this recommendation set", details: logError.message }, { status: 500 })
+    }
 
     return NextResponse.json({
       recommendations,

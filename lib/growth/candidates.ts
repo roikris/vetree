@@ -51,7 +51,7 @@ type ArticleRow = Omit<GrowthCandidate, 'crowdFavorite' | 'socialClicks' | 'scor
 
 export type RankResult = {
   ranked: GrowthCandidate[]
-  /** true when cached scores couldn't be read — the ranking is the heuristic only */
+  /** true when no article has a usable score because reading or scoring failed — heuristic order only */
   degraded: boolean
   scoredCount: number
   scoringErrors: string[]
@@ -190,8 +190,10 @@ export async function rankGrowthCandidates(
   let degraded = false
   const scoringErrors: string[] = []
   let scores = new Map<string, ArticleScore>()
+  // With scoreMissing, one deadline bounds every scoring step (cache reads, Claude, upserts)
+  const signal = scoreMissing ? AbortSignal.timeout(Math.max(0, scoreMissing.deadline - Date.now())) : undefined
   try {
-    scores = await loadValidScores(supabase, eligible)
+    scores = await loadValidScores(supabase, eligible, signal)
     if (scoreMissing && scoreMissing.max > 0) {
       const missing = eligible.filter(a => !scores.has(a.id))
         .sort((x, y) => y.created_at.localeCompare(x.created_at))
@@ -200,15 +202,15 @@ export async function rankGrowthCandidates(
         const result = await scoreArticles(supabase, missing, { deadline: scoreMissing.deadline })
         scoringErrors.push(...result.errors)
         if (result.scored > 0) {
-          const fresh = await loadValidScores(supabase, missing)
+          const fresh = await loadValidScores(supabase, missing, signal)
           for (const [id, sc] of fresh) scores.set(id, sc)
         }
       }
     }
   } catch (e) {
-    degraded = scores.size === 0
     scoringErrors.push(String(e))
   }
+  degraded = scores.size === 0 && scoringErrors.length > 0
   if (scoringErrors.length) console.error('[growth/candidates] scoring:', scoringErrors)
 
   const ranked: GrowthCandidate[] = eligible.map(({ heuristic, evidence, recency, ...a }) => {

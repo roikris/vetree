@@ -46,15 +46,17 @@ export function scoreInputHash(a: ScorableArticle): string {
 }
 
 /** Valid cached scores for these articles (rubric + input unchanged). Throws on read error. */
-export async function loadValidScores(supabase: SupabaseClient, articles: ScorableArticle[]): Promise<Map<string, ArticleScore>> {
+export async function loadValidScores(supabase: SupabaseClient, articles: ScorableArticle[], signal?: AbortSignal): Promise<Map<string, ArticleScore>> {
   const out = new Map<string, ArticleScore>()
   const byId = new Map(articles.map(a => [a.id, a]))
   const ids = [...byId.keys()]
   for (let i = 0; i < ids.length; i += 100) {
-    const { data, error } = await supabase.from('growth_article_scores')
+    let query = supabase.from('growth_article_scores')
       .select('article_id, practice, talk, wow, reason, rubric_version, input_hash')
       .in('article_id', ids.slice(i, i + 100))
       .eq('rubric_version', RUBRIC_VERSION)
+    if (signal) query = query.abortSignal(signal)
+    const { data, error } = await query
     if (error) throw new Error(`[growth/scoring] load scores: ${error.message}`)
     for (const r of data || []) {
       const a = byId.get(r.article_id)
@@ -87,7 +89,7 @@ export function parseScores(raw: string, batch: ScorableArticle[]): ArticleScore
   return out
 }
 
-async function scoreBatch(supabase: SupabaseClient, batch: ScorableArticle[], timeoutMs: number): Promise<number> {
+async function scoreBatch(supabase: SupabaseClient, batch: ScorableArticle[], signal: AbortSignal): Promise<number> {
   const Anthropic = (await import('@anthropic-ai/sdk')).default
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
   const list = batch.map(a => JSON.stringify({ id: a.id, title: a.title, bottom_line: a.clinical_bottom_line, study: a.strength_of_evidence, labels: a.labels }))
@@ -97,7 +99,7 @@ async function scoreBatch(supabase: SupabaseClient, batch: ScorableArticle[], ti
     max_tokens: 4000,
     system: RUBRIC,
     messages: [{ role: 'user', content: `Articles (one JSON per line):\n${list.join('\n')}\n\nReturn ONLY a JSON array: [{"id":"...","practice":0-10,"talk":0-10,"wow":0-10,"reason":"..."}] covering every article.` }],
-  }, { timeout: timeoutMs, maxRetries: 0 })
+  }, { signal, maxRetries: 0 })  // the signal also covers reading the body, unlike `timeout`
 
   const scores = parseScores(responseText(res), batch)
   if (scores.length === 0) return 0
@@ -109,15 +111,15 @@ async function scoreBatch(supabase: SupabaseClient, batch: ScorableArticle[], ti
     model: CLAUDE_MODEL,
     input_hash: hashes.get(s.article_id)!,
     scored_at: now,
-  })), { onConflict: 'article_id' })
+  })), { onConflict: 'article_id' }).abortSignal(signal)
   if (error) throw new Error(`[growth/scoring] upsert: ${error.message}`)
   return scores.length
 }
 
 /**
- * Score articles in batches of 25, `parallel` at a time, stopping when the deadline (epoch ms)
- * can't fit another call. Each batch settles independently. Returns how many were scored and any
- * batch errors (the caller decides whether to log or fail).
+ * Score articles in batches of 25, `parallel` at a time. Everything — Claude calls including the
+ * response body, and the upserts — is aborted at the deadline (epoch ms); no new wave starts with
+ * < 10s left. Each batch settles independently. Returns how many were scored and any batch errors.
  */
 export async function scoreArticles(
   supabase: SupabaseClient,
@@ -128,10 +130,10 @@ export async function scoreArticles(
   for (let i = 0; i < articles.length; i += BATCH_SIZE) batches.push(articles.slice(i, i + BATCH_SIZE))
   let scored = 0
   const errors: string[] = []
+  const signal = AbortSignal.timeout(Math.max(0, deadline - Date.now()))
   for (let i = 0; i < batches.length; i += parallel) {
-    const remaining = deadline - Date.now()
-    if (remaining < 10_000) break
-    const wave = await Promise.allSettled(batches.slice(i, i + parallel).map(b => scoreBatch(supabase, b, remaining - 3_000)))
+    if (deadline - Date.now() < 10_000) break
+    const wave = await Promise.allSettled(batches.slice(i, i + parallel).map(b => scoreBatch(supabase, b, signal)))
     for (const r of wave) {
       if (r.status === 'fulfilled') scored += r.value
       else errors.push(String(r.reason))

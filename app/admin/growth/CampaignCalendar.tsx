@@ -93,7 +93,7 @@ export function CampaignCalendar() {
   const [loadingRecs, setLoadingRecs] = useState(false)
   const [recsError, setRecsError] = useState<string | null>(null)
   const [eligibleCount, setEligibleCount] = useState<number | null>(null)
-  const [recsMeta, setRecsMeta] = useState<{ scored: number; degraded: boolean } | null>(null)
+  const [recsMeta, setRecsMeta] = useState<{ scored: number; degraded: boolean; errors: number } | null>(null)
 
   // LinkedIn posted-URL backlog — DB-driven, survives reloads (unlike markedPosted/
   // linkedinTabMarked, which only remind within the same unrefreshed session)
@@ -385,7 +385,7 @@ export function CampaignCalendar() {
       if (!res.ok) throw new Error(data.details || data.error || `HTTP ${res.status}`)
       setRecommendations(data.recommendations || [])
       setEligibleCount(data.eligible_count ?? null)
-      setRecsMeta({ scored: data.scored_count ?? 0, degraded: !!data.degraded })
+      setRecsMeta({ scored: data.scored_count ?? 0, degraded: !!data.degraded, errors: data.scoring_errors ?? 0 })
       setShowRecommendations(true)
     } catch (e) {
       console.error('[recommendations] Failed:', e)
@@ -1848,6 +1848,7 @@ export function CampaignCalendar() {
                     {recommendations.some(r => r.wildcard) ? `${recommendations.length - 1} top picks + 1 wildcard` : `Top ${recommendations.length}`} of {eligibleCount} eligible
                     {recsMeta && ` · ${recsMeta.scored} scored for practice / talk-worthiness / WOW`}
                     {recsMeta?.degraded && ' · scores unavailable, ranked by evidence + recency'}
+                    {recsMeta && !recsMeta.degraded && recsMeta.errors > 0 && ' · some new articles couldn\'t be scored this time'}
                   </p>
                 )}
 
@@ -1872,7 +1873,7 @@ export function CampaignCalendar() {
                         <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">
                           {article.scores?.reason || article.clinical_bottom_line}
                         </p>
-                        <div className="flex items-center gap-3 mt-1.5">
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5">
                           <div className="flex gap-1 flex-wrap">
                             {(article.labels || [])
                               .filter((l: string) => !['Small Animal','Large Animal'].includes(l))
