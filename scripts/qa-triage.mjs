@@ -70,7 +70,7 @@ async function callClaude(prompt) {
 
   const body = JSON.stringify({
     model: 'claude-sonnet-5-5'  /* keep in step with lib/ai/model.ts */,
-    max_tokens: 1024,
+    max_tokens: 2500,
     thinking: { type: 'between_tools' },  // no upfront thinking (Sonnet 5.5 default; counts against max_tokens)
     messages: [{ role: 'user', content: prompt }],
     system: 'You are a QA engineer triaging Playwright smoke test failures for Vetree, a veterinary research platform. Be concise and actionable. Return only valid JSON, no markdown fences.',

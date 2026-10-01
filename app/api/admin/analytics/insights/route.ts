@@ -364,7 +364,7 @@ CONTENT ROADMAP RULE: Populate content_roadmap ONLY from signals with type=conte
     const response = await anthropic.messages.create({
       ...NO_UPFRONT_THINKING,
       model: CLAUDE_MODEL,
-      max_tokens: 4000,
+      max_tokens: 8000,
       messages: [{ role: 'user', content: userPrompt }],
       system: systemPrompt
     })
@@ -413,7 +413,7 @@ ${JSON.stringify(insightsData, null, 2)}`
     const critiqueResponse = await anthropic.messages.create({
       ...NO_UPFRONT_THINKING,
       model: CLAUDE_MODEL,
-      max_tokens: 2000,
+      max_tokens: 4000,
       messages: [{ role: 'user', content: critiquePrompt }],
       system: 'You are a quality and contract-compliance checker for product insights. Return only valid JSON matching the input format, with low-quality or non-compliant content removed or trimmed.'
     })
@@ -448,7 +448,7 @@ ${JSON.stringify(insightsData, null, 2)}`
     const reportResponse = await anthropic.messages.create({
       ...NO_UPFRONT_THINKING,
       model: CLAUDE_MODEL,
-      max_tokens: 2000,
+      max_tokens: 4000,
       system: `You are generating a status briefing for Vetree, an evidence-based veterinary research platform. Output clean markdown only. No preamble.`,
       messages: [{
         role: 'user',

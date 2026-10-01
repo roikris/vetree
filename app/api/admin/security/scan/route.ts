@@ -790,7 +790,7 @@ export async function POST(request: NextRequest) {
           const response = await anthropic.messages.create({
       ...NO_UPFRONT_THINKING,
             model: CLAUDE_MODEL,
-            max_tokens: 500,
+            max_tokens: 1500,
             messages: [{
               role: 'user',
               content: `You are generating a Claude Code prompt to fix a security issue in Vetree, a Next.js + Supabase veterinary platform.
