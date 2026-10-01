@@ -247,7 +247,7 @@ Article choice is shared with the recommendations panel: `rankGrowthCandidates()
    - Skipped: 7 days; anything touched today: excluded
    - Score = 0.5 × recency (created_at) + 0.5 × evidence tier (getEvidenceLevel)
    - Read errors throw (500) — never silently "nothing excluded"
-3. Call Claude Sonnet with platform-specific prompt (SDK timeout 40s, 1 retry; twitter shorten 15s, no retry)
+3. Call Claude Sonnet with platform-specific prompt (SDK timeout 35s, no retries; twitter shorten 12s) — fits maxDuration 60
 4. `SKIP_LARGE_ANIMAL` reply → 500 error, never returned as post content
 5. Check length limits (twitter ≤ 280), embed UTM in article URL
 6. Return `{ post_content, article_id, article_title, article_labels, crowd_favorite, hook_line, ... }`

@@ -878,6 +878,9 @@ export function CampaignCalendar() {
         return
       }
 
+      // A forced article_id comes back crowd_favorite:false — keep the recommendation's marker
+      firstData.crowd_favorite = !!firstData.crowd_favorite || (lockedArticle?.id === firstData.article_id && !!lockedArticle?.crowdFavorite)
+
       const sharedArticleId = firstData.article_id
       const sharedArticleTitle = firstData.article_title ?? sharedArticleId
       console.log('[handleGenerateAll] Confirmed article:', sharedArticleId, sharedArticleTitle?.slice(0, 60))

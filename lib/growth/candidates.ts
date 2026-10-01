@@ -77,12 +77,12 @@ export async function rankGrowthCandidates(supabase: SupabaseClient, now = Date.
   const [memory, socialViews, recent] = await Promise.all([
     readAll<{ article_id: string | null; outcome: string; created_at: string }>('memory', (f, t) =>
       supabase.from('growth_agent_memory').select('article_id, outcome, created_at')
-        .not('article_id', 'is', null).order('created_at', { ascending: true }).range(f, t)),
+        .not('article_id', 'is', null).order('created_at', { ascending: true }).order('id', { ascending: true }).range(f, t)),
     // Human social clicks on article pages, all retained history
     readAll<{ path: string; created_at: string }>('social views', (f, t) =>
       supabase.from('page_views').select('path, created_at')
         .eq('utm_medium', 'social').like('path', '/article/%').is('bot_name', null)
-        .or(excludedUsersOrFilter()).order('created_at', { ascending: true }).range(f, t)),
+        .or(excludedUsersOrFilter()).order('created_at', { ascending: true }).order('id', { ascending: true }).range(f, t)),
     readAll<Omit<GrowthCandidate, 'crowdFavorite' | 'socialClicks' | 'score'>>('recent articles', (f, t) =>
       supabase.from('articles').select(CANDIDATE_SELECT)
         .eq('needs_enrichment', false)
@@ -90,7 +90,7 @@ export async function rankGrowthCandidates(supabase: SupabaseClient, now = Date.
         .not('clinical_bottom_line', 'is', null)
         .or('quarantined.is.null,quarantined.eq.false')
         .gte('created_at', new Date(now - CANDIDATE_WINDOW_DAYS * DAY).toISOString())
-        .order('created_at', { ascending: false }).range(f, t)),
+        .order('created_at', { ascending: false }).order('id', { ascending: true }).range(f, t)),
   ])
 
   // Social clicks + last click per article
@@ -127,15 +127,21 @@ export async function rankGrowthCandidates(supabase: SupabaseClient, now = Date.
   }
   const favoriteSet = new Set(restedFavorites)
 
-  // Favorites are older than the recent window — fetch them by id, same visibility filters
-  const favorites = restedFavorites.length === 0 ? [] : await readAll<Omit<GrowthCandidate, 'crowdFavorite' | 'socialClicks' | 'score'>>('crowd favorites', (f, t) =>
-    supabase.from('articles').select(CANDIDATE_SELECT)
-      .in('id', restedFavorites)
+  // Favorites are older than the recent window — fetch them by id (batched to keep URLs short),
+  // same visibility filters
+  const favorites: Omit<GrowthCandidate, 'crowdFavorite' | 'socialClicks' | 'score'>[] = []
+  for (let i = 0; i < restedFavorites.length; i += 100) {
+    const batch = restedFavorites.slice(i, i + 100)
+    const { data, error } = await supabase.from('articles').select(CANDIDATE_SELECT)
+      .in('id', batch)
       .eq('needs_enrichment', false)
       .not('summary', 'is', null)
       .not('clinical_bottom_line', 'is', null)
       .or('quarantined.is.null,quarantined.eq.false')
-      .range(f, t))
+      .order('id', { ascending: true })
+    fail('crowd favorites', error)
+    favorites.push(...(data || []))
+  }
 
   const seen = new Set<string>()
   const ranked: GrowthCandidate[] = []

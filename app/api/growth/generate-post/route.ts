@@ -163,8 +163,9 @@ export async function POST(request: NextRequest) {
 
     // Call Anthropic API to generate post for the selected article
     const Anthropic = (await import('@anthropic-ai/sdk')).default
-    // Bounded so generation (+ the twitter shortening step) fits maxDuration
-    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, timeout: 40_000, maxRetries: 1 })
+    // Bounded so DB reads + generation (35s) + the twitter shortening step (12s) fit maxDuration 60.
+    // No SDK retries: a retry after a timeout would overrun the function deadline.
+    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, timeout: 35_000, maxRetries: 0 })
 
     // Platform-specific formatting rules
     const platformRules = {
@@ -469,7 +470,7 @@ ${postContent}
 
 Return ONLY the shortened tweet (under 280 chars).`
         }]
-      }, { timeout: 15_000, maxRetries: 0 })
+      }, { timeout: 12_000, maxRetries: 0 })
 
       // A cut-off or empty shortening reply falls back to the original post
       let shortenedContent = postContent
