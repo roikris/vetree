@@ -93,6 +93,7 @@ export function CampaignCalendar() {
   const [loadingRecs, setLoadingRecs] = useState(false)
   const [recsError, setRecsError] = useState<string | null>(null)
   const [eligibleCount, setEligibleCount] = useState<number | null>(null)
+  const [recsMeta, setRecsMeta] = useState<{ scored: number; degraded: boolean; errors: number } | null>(null)
 
   // LinkedIn posted-URL backlog — DB-driven, survives reloads (unlike markedPosted/
   // linkedinTabMarked, which only remind within the same unrefreshed session)
@@ -384,6 +385,7 @@ export function CampaignCalendar() {
       if (!res.ok) throw new Error(data.details || data.error || `HTTP ${res.status}`)
       setRecommendations(data.recommendations || [])
       setEligibleCount(data.eligible_count ?? null)
+      setRecsMeta({ scored: data.scored_count ?? 0, degraded: !!data.degraded, errors: data.scoring_errors ?? 0 })
       setShowRecommendations(true)
     } catch (e) {
       console.error('[recommendations] Failed:', e)
@@ -1842,7 +1844,12 @@ export function CampaignCalendar() {
                   <p className="mb-2 text-xs text-gray-500">No eligible articles right now — everything recent is posted, dismissed or skipped.</p>
                 )}
                 {eligibleCount !== null && recommendations.length > 0 && (
-                  <p className="mb-2 text-xs text-gray-600">Top {recommendations.length} of {eligibleCount} eligible articles · ranked by evidence and how new they are to Vetree</p>
+                  <p className="mb-2 text-xs text-gray-600">
+                    {recommendations.some(r => r.wildcard) ? `${recommendations.length - 1} top picks + 1 wildcard` : `Top ${recommendations.length}`} of {eligibleCount} eligible
+                    {recsMeta && ` · ${recsMeta.scored} scored for practice / talk-worthiness / WOW`}
+                    {recsMeta?.degraded && ' · scores unavailable, ranked by evidence + recency'}
+                    {recsMeta && !recsMeta.degraded && recsMeta.errors > 0 && ' · some new articles couldn\'t be scored this time'}
+                  </p>
                 )}
 
                 {/* Recommendation cards */}
@@ -1864,9 +1871,9 @@ export function CampaignCalendar() {
                           {article.title}
                         </p>
                         <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">
-                          {article.clinical_bottom_line}
+                          {article.scores?.reason || article.clinical_bottom_line}
                         </p>
-                        <div className="flex items-center gap-3 mt-1.5">
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5">
                           <div className="flex gap-1 flex-wrap">
                             {(article.labels || [])
                               .filter((l: string) => !['Small Animal','Large Animal'].includes(l))
@@ -1878,6 +1885,21 @@ export function CampaignCalendar() {
                               ))
                             }
                           </div>
+                          {article.wildcard && (
+                            <span className="px-1.5 py-0.5 bg-purple-900/40 text-purple-300 rounded text-xs shrink-0" title="Deliberately low-ranked — room for serendipity. Dismiss it if it's bad: that's data too.">🎲 Wildcard</span>
+                          )}
+                          {article.scores?.wow >= 7 && (
+                            <span className="px-1.5 py-0.5 bg-pink-900/40 text-pink-300 rounded text-xs shrink-0">⚡ WOW</span>
+                          )}
+                          {article.scores?.practice >= 7 && (
+                            <span className="px-1.5 py-0.5 bg-emerald-900/40 text-emerald-300 rounded text-xs shrink-0">Practice</span>
+                          )}
+                          {article.scores?.talk >= 7 && (
+                            <span className="px-1.5 py-0.5 bg-sky-900/40 text-sky-300 rounded text-xs shrink-0">Talk-worthy</span>
+                          )}
+                          {!article.scores && (
+                            <span className="px-1.5 py-0.5 bg-gray-700 text-gray-400 rounded text-xs shrink-0">Not yet scored</span>
+                          )}
                           {article.crowdFavorite && (
                             <span className="px-1.5 py-0.5 bg-amber-900/40 text-amber-400 rounded text-xs shrink-0" title={`${article.socialClicks} social clicks when first posted`}>⭐ Crowd favorite</span>
                           )}

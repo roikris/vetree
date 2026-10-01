@@ -188,6 +188,28 @@ UNIQUE(user_id, tag)
 | approved_count | integer |
 | skipped_count | integer |
 
+### `growth_article_scores` (migration 071)
+| Column | Type | Notes |
+|--------|------|-------|
+| article_id | text PK FK → articles | ON DELETE CASCADE |
+| practice / talk / wow | smallint | 0–10 each; ranking uses the max |
+| reason | text | ≤ 300 chars, shown on recommendation cards |
+| rubric_version | integer | must equal `RUBRIC_VERSION` (lib/growth/scoring.ts) to count |
+| model | text | |
+| input_hash | text | sha256 of model + scored article fields; mismatch = re-score |
+| scored_at | timestamptz | |
+Service role only (RLS on, no policies). No personal data.
+
+### `growth_recommendation_sets` (migration 071)
+| Column | Type | Notes |
+|--------|------|-------|
+| id | uuid PK | |
+| served_at | timestamptz | |
+| rubric_version / ranking_policy | integer / text | |
+| eligible_count / scored_count | integer | |
+| items | jsonb | [{article_id, position, pool_rank, wildcard, crowd_favorite, scores}] |
+Every recommendation set shown in Growth OS. Service role only. No personal data.
+
 ### `page_views`
 | Column | Type | Notes |
 |--------|------|-------|

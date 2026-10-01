@@ -17,6 +17,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { excludedUsersOrFilter } from '@/lib/analytics-excluded-ids'
 import { getEvidenceLevel } from '@/lib/utils/evidenceBadge'
+import { loadValidScores, scoreArticles, type ArticleScore } from '@/lib/growth/scoring'
 
 export const CANDIDATE_WINDOW_DAYS = 60
 export const CROWD_FAVORITE_MIN_CLICKS = 20   // ≈ top 15% of posted articles (2026-10)
@@ -40,8 +41,23 @@ export type GrowthCandidate = {
   created_at: string
   crowdFavorite: boolean
   socialClicks: number
+  /** Cached Claude scores (lib/growth/scoring.ts); null = not scored yet */
+  scores: Pick<ArticleScore, 'practice' | 'talk' | 'wow' | 'reason'> | null
+  /** max(practice, talk, wow) / 10 when scored, else the recency+evidence heuristic. 0..1 */
   score: number
 }
+
+type ArticleRow = Omit<GrowthCandidate, 'crowdFavorite' | 'socialClicks' | 'scores' | 'score'>
+
+export type RankResult = {
+  ranked: GrowthCandidate[]
+  /** true when no article has a usable score because reading or scoring failed — heuristic order only */
+  degraded: boolean
+  scoredCount: number
+  scoringErrors: string[]
+}
+
+export const RANKING_POLICY = 'max-dimension-v1'
 
 const DAY = 24 * 60 * 60 * 1000
 
@@ -71,7 +87,17 @@ function articleIdFromPath(path: string) {
 const EVIDENCE_POINTS = { gold: 1, silver: 0.6, bronze: 0.2, unknown: 0.4 } as const
 
 /** Eligible articles, best first. Throws on any read error. */
-export async function rankGrowthCandidates(supabase: SupabaseClient, now = Date.now()): Promise<GrowthCandidate[]> {
+// Ranking (validated offline, see lib/growth/scoring.ts): scored articles first, by
+// max(practice, talk, wow); evidence tier then recency only break ties. Unscored articles only
+// fill in behind them — a missing score is never treated as a good or a bad one.
+//
+// `scoreMissing`: score up to `max` unscored eligible articles (newest first) before ranking,
+// within `deadline` (epoch ms). Scoring and score-cache failures fail open (heuristic order);
+// eligibility and exclusion reads still throw.
+export async function rankGrowthCandidates(
+  supabase: SupabaseClient,
+  { now = Date.now(), scoreMissing }: { now?: number; scoreMissing?: { max: number; deadline: number } } = {},
+): Promise<RankResult> {
   const today = new Date(now).toISOString().split('T')[0]
 
   const [memory, socialViews, recent] = await Promise.all([
@@ -83,7 +109,7 @@ export async function rankGrowthCandidates(supabase: SupabaseClient, now = Date.
       supabase.from('page_views').select('path, created_at')
         .eq('utm_medium', 'social').like('path', '/article/%').is('bot_name', null)
         .or(excludedUsersOrFilter()).order('created_at', { ascending: true }).order('id', { ascending: true }).range(f, t)),
-    readAll<Omit<GrowthCandidate, 'crowdFavorite' | 'socialClicks' | 'score'>>('recent articles', (f, t) =>
+    readAll<ArticleRow>('recent articles', (f, t) =>
       supabase.from('articles').select(CANDIDATE_SELECT)
         .eq('needs_enrichment', false)
         .not('summary', 'is', null)
@@ -129,7 +155,7 @@ export async function rankGrowthCandidates(supabase: SupabaseClient, now = Date.
 
   // Favorites are older than the recent window — fetch them by id (batched to keep URLs short),
   // same visibility filters
-  const favorites: Omit<GrowthCandidate, 'crowdFavorite' | 'socialClicks' | 'score'>[] = []
+  const favorites: ArticleRow[] = []
   for (let i = 0; i < restedFavorites.length; i += 100) {
     const batch = restedFavorites.slice(i, i + 100)
     const { data, error } = await supabase.from('articles').select(CANDIDATE_SELECT)
@@ -144,7 +170,7 @@ export async function rankGrowthCandidates(supabase: SupabaseClient, now = Date.
   }
 
   const seen = new Set<string>()
-  const ranked: GrowthCandidate[] = []
+  const eligible: (Omit<GrowthCandidate, 'scores' | 'score'> & { heuristic: number; evidence: number; recency: number })[] = []
   for (const a of [...recent, ...favorites]) {
     if (seen.has(a.id)) continue
     seen.add(a.id)
@@ -157,13 +183,74 @@ export async function rankGrowthCandidates(supabase: SupabaseClient, now = Date.
     const ageDays = Math.max(0, (now - Date.parse(a.created_at)) / DAY)
     const recency = crowdFavorite ? 0.5 : Math.max(0, 1 - ageDays / CANDIDATE_WINDOW_DAYS)
     const evidence = EVIDENCE_POINTS[getEvidenceLevel(a.strength_of_evidence, a.labels)]
-    ranked.push({
-      ...a,
-      crowdFavorite,
-      socialClicks: clicks.get(a.id) || 0,
-      score: 0.5 * recency + 0.5 * evidence,
-    })
+    eligible.push({ ...a, crowdFavorite, socialClicks: clicks.get(a.id) || 0, recency, evidence, heuristic: 0.5 * recency + 0.5 * evidence })
   }
 
-  return ranked.sort((x, y) => y.score - x.score)
+  // Cached scores — optional: a failure degrades to the heuristic order, never to an error
+  let degraded = false
+  const scoringErrors: string[] = []
+  let scores = new Map<string, ArticleScore>()
+  // With scoreMissing, one deadline bounds every scoring step (cache reads, Claude, upserts)
+  const signal = scoreMissing ? AbortSignal.timeout(Math.max(0, scoreMissing.deadline - Date.now())) : undefined
+  try {
+    scores = await loadValidScores(supabase, eligible, signal)
+    if (scoreMissing && scoreMissing.max > 0) {
+      const missing = eligible.filter(a => !scores.has(a.id))
+        .sort((x, y) => y.created_at.localeCompare(x.created_at))
+        .slice(0, scoreMissing.max)
+      if (missing.length > 0) {
+        const result = await scoreArticles(supabase, missing, { deadline: scoreMissing.deadline })
+        scoringErrors.push(...result.errors)
+        if (result.scored > 0) {
+          const fresh = await loadValidScores(supabase, missing, signal)
+          for (const [id, sc] of fresh) scores.set(id, sc)
+        }
+      }
+    }
+  } catch (e) {
+    scoringErrors.push(String(e))
+  }
+  degraded = scores.size === 0 && scoringErrors.length > 0
+  if (scoringErrors.length) console.error('[growth/candidates] scoring:', scoringErrors)
+
+  const ranked: GrowthCandidate[] = eligible.map(({ heuristic, evidence, recency, ...a }) => {
+    const sc = scores.get(a.id)
+    return {
+      ...a,
+      scores: sc ? { practice: sc.practice, talk: sc.talk, wow: sc.wow, reason: sc.reason } : null,
+      score: sc ? Math.max(sc.practice, sc.talk, sc.wow) / 10 : heuristic,
+      _tie: [evidence, recency] as const,
+    }
+  }).sort((x, y) =>
+    Number(!!y.scores) - Number(!!x.scores)
+    || y.score - x.score
+    || y._tie[0] - x._tie[0]
+    || y._tie[1] - x._tie[1]
+    || x.id.localeCompare(y.id)
+  ).map(({ _tie, ...c }) => c)
+
+  return { ranked, degraded, scoredCount: ranked.filter(c => c.scores).length, scoringErrors }
+}
+
+export type Recommendation = GrowthCandidate & { wildcard: boolean; poolRank: number }
+
+/**
+ * The panel's set: `size` items, one of them a deliberate low-ranked wildcard (owner, 2026-10-01:
+ * room for serendipity; a bad one gets dismissed, which is more data). The wildcard is drawn first
+ * from the bottom half of the SCORED pool — a low score, not a missing one — so it can never also
+ * be a top pick; the rest are the highest-ranked others. It goes in a random position. Fewer than
+ * 2 scored candidates → no wildcard.
+ */
+export function pickRecommendations(ranked: GrowthCandidate[], size = 10, random = Math.random): Recommendation[] {
+  const withRank = ranked.map((c, i) => ({ ...c, poolRank: i + 1, wildcard: false }))
+  const scored = withRank.filter(c => c.scores)
+  let wildcard: Recommendation | null = null
+  if (scored.length >= 2 && size >= 2) {
+    const bottomHalf = scored.slice(Math.ceil(scored.length / 2))
+    wildcard = { ...bottomHalf[Math.floor(random() * bottomHalf.length)], wildcard: true }
+  }
+  const top = withRank.filter(c => c.id !== wildcard?.id).slice(0, wildcard ? size - 1 : size)
+  if (!wildcard) return top
+  const at = Math.floor(random() * (top.length + 1))
+  return [...top.slice(0, at), wildcard, ...top.slice(at)]
 }
