@@ -45,6 +45,7 @@ type SavedPost = {
   article_id: string
   article_title?: string
   labels?: string[]
+  crowd_favorite?: boolean
   platform: string
   language: string
   generated_at: string
@@ -77,7 +78,7 @@ export function CampaignCalendar() {
   const [failedPlatforms, setFailedPlatforms] = useState<string[]>([])
   const [articleSearch, setArticleSearch] = useState('')
   const [articleResults, setArticleResults] = useState<any[]>([])
-  const [selectedArticle, setSelectedArticle] = useState<{id: string, title: string} | null>(null)
+  const [selectedArticle, setSelectedArticle] = useState<{id: string, title: string, crowdFavorite?: boolean} | null>(null)
   const [manualSelectionLocked, setManualSelectionLocked] = useState(false)
   const [generatingAllForArticle, setGeneratingAllForArticle] = useState<{id: string, title: string} | null>(null)
   const [articleExclusionNote, setArticleExclusionNote] = useState<string | null>(null)
@@ -90,7 +91,8 @@ export function CampaignCalendar() {
   const [recommendations, setRecommendations] = useState<any[]>([])
   const [showRecommendations, setShowRecommendations] = useState(false)
   const [loadingRecs, setLoadingRecs] = useState(false)
-  const [insights, setInsights] = useState<any>(null)
+  const [recsError, setRecsError] = useState<string | null>(null)
+  const [eligibleCount, setEligibleCount] = useState<number | null>(null)
 
   // LinkedIn posted-URL backlog — DB-driven, survives reloads (unlike markedPosted/
   // linkedinTabMarked, which only remind within the same unrefreshed session)
@@ -376,13 +378,18 @@ export function CampaignCalendar() {
   const loadRecommendations = async () => {
     setLoadingRecs(true)
     try {
+      setRecsError(null)
       const res = await fetch('/api/admin/growth/recommendations')
       const data = await res.json()
+      if (!res.ok) throw new Error(data.details || data.error || `HTTP ${res.status}`)
       setRecommendations(data.recommendations || [])
-      setInsights(data.insights || null)
+      setEligibleCount(data.eligible_count ?? null)
       setShowRecommendations(true)
     } catch (e) {
       console.error('[recommendations] Failed:', e)
+      setRecommendations([])
+      setRecsError(`Couldn't load recommendations: ${e instanceof Error ? e.message : String(e)}`)
+      setShowRecommendations(true)
     } finally {
       setLoadingRecs(false)
     }
@@ -390,16 +397,21 @@ export function CampaignCalendar() {
 
   // Dismiss a recommendation permanently (irrelevant or already_published)
   const dismissRecommendation = async (articleId: string, outcome: 'irrelevant' | 'already_published') => {
-    // Optimistic: remove from list immediately
+    // Optimistic: remove from list immediately; put it back if the write didn't land,
+    // so a lost dismissal is never mistaken for a recorded one
+    const dismissed = recommendations.find(a => a.id === articleId)
     setRecommendations(prev => prev.filter(a => a.id !== articleId))
     try {
-      await fetch('/api/admin/growth/recommendations', {
+      const res = await fetch('/api/admin/growth/recommendations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ article_id: articleId, outcome }),
       })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
     } catch (e) {
       console.error('[recommendations] dismiss failed:', e)
+      if (dismissed) setRecommendations(prev => prev.some(a => a.id === articleId) ? prev : [...prev, dismissed].sort((x, y) => y.score - x.score))
+      setRecsError("Dismissal wasn't saved — try again")
     }
   }
 
@@ -470,6 +482,7 @@ export function CampaignCalendar() {
         article_id: data.article_id,
         article_title: data.article_title,
         labels: data.article_labels,
+        crowd_favorite: !!data.crowd_favorite || (selectedArticle?.id === data.article_id && !!selectedArticle?.crowdFavorite),
         platform: todaysPlatform.platform,
         language: todaysPlatform.language,
         generated_at: new Date().toISOString()
@@ -516,6 +529,7 @@ export function CampaignCalendar() {
         article_id: data.article_id,
         article_title: data.article_title,
         labels: data.article_labels,
+        crowd_favorite: savedPostData?.article_id === data.article_id && !!savedPostData?.crowd_favorite,
         platform,
         language,
         generated_at: new Date().toISOString()
@@ -1519,6 +1533,9 @@ export function CampaignCalendar() {
               >
                 <span>📄</span>
                 <span className="truncate">Based on: {savedPostData.article_title}</span>
+                {savedPostData.crowd_favorite && (
+                  <span className="shrink-0 px-1.5 py-0.5 bg-amber-900/40 text-amber-400 rounded text-xs">⭐ Crowd favorite</span>
+                )}
                 <svg className="w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                 </svg>
@@ -1812,20 +1829,17 @@ export function CampaignCalendar() {
               }
             </button>
 
-            {showRecommendations && insights && (
+            {showRecommendations && (
               <div className="mt-3">
-                {/* Insight bar */}
-                <div className="flex gap-2 flex-wrap mb-3 items-center">
-                  <span className="text-xs text-gray-500">Top performing specialties:</span>
-                  {insights.top_specialties.map((s: string) => (
-                    <span key={s} className="px-2 py-0.5 bg-emerald-900/40 text-emerald-400 rounded-full text-xs">
-                      {s}
-                    </span>
-                  ))}
-                  <span className="text-xs text-gray-600 ml-auto">
-                    Based on {insights.total_social_visits_analyzed} social visits
-                  </span>
-                </div>
+                {recsError && (
+                  <p className="mb-2 text-xs text-red-400">{recsError}</p>
+                )}
+                {!recsError && recommendations.length === 0 && (
+                  <p className="mb-2 text-xs text-gray-500">No eligible articles right now — everything recent is posted, dismissed or skipped.</p>
+                )}
+                {eligibleCount !== null && recommendations.length > 0 && (
+                  <p className="mb-2 text-xs text-gray-600">Top {recommendations.length} of {eligibleCount} eligible articles · ranked by evidence and how new they are to Vetree</p>
+                )}
 
                 {/* Recommendation cards */}
                 <div className="space-y-2">
@@ -1837,7 +1851,7 @@ export function CampaignCalendar() {
                       <div
                         className="flex-1 min-w-0 cursor-pointer"
                         onClick={() => {
-                          setSelectedArticle({ id: article.id, title: article.title })
+                          setSelectedArticle({ id: article.id, title: article.title, crowdFavorite: !!article.crowdFavorite })
                           setManualSelectionLocked(true)
                           setShowRecommendations(false)
                         }}
@@ -1860,6 +1874,9 @@ export function CampaignCalendar() {
                               ))
                             }
                           </div>
+                          {article.crowdFavorite && (
+                            <span className="px-1.5 py-0.5 bg-amber-900/40 text-amber-400 rounded text-xs shrink-0" title={`${article.socialClicks} social clicks when first posted`}>⭐ Crowd favorite</span>
+                          )}
                           <span className="text-xs text-gray-600 truncate">{article.source_journal}</span>
                         </div>
                       </div>
@@ -1876,11 +1893,11 @@ export function CampaignCalendar() {
                         </button>
                         <button
                           type="button"
-                          title="Not relevant"
+                          title="Not relevant — never recommend again"
                           onClick={e => { e.stopPropagation(); dismissRecommendation(article.id, 'irrelevant') }}
                           className="text-xs text-gray-600 hover:text-red-400 transition px-1.5 py-0.5 rounded hover:bg-gray-700"
                         >
-                          ✕ skip
+                          ✕ not relevant
                         </button>
                       </div>
                     </div>

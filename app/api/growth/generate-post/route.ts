@@ -1,10 +1,13 @@
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
+export const maxDuration = 60
 
 import { NextRequest, NextResponse } from 'next/server'
 import { ratelimitModerate, getClientIP } from '@/lib/ratelimit'
 import { createClient } from '@/lib/supabase/server'
 import { CLAUDE_MODEL, NO_UPFRONT_THINKING, responseText } from '@/lib/ai/model'
+import { rankGrowthCandidates } from '@/lib/growth/candidates'
+import { excludedUsersOrFilter } from '@/lib/analytics-excluded-ids'
 
 export async function POST(request: NextRequest) {
   try {
@@ -28,7 +31,7 @@ export async function POST(request: NextRequest) {
       .from('user_roles')
       .select('role')
       .eq('user_id', user.id)
-      .single()
+      .maybeSingle()
     if (role?.role !== 'admin') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
@@ -50,21 +53,9 @@ export async function POST(request: NextRequest) {
     const existingPost: string | undefined = body.existing_post
     console.log('[generate-post] platform:', platform, 'forced article_id:', articleId || '(none)', 'style rewrite:', !!styleInstruction)
 
-    // Retry logic for large animal detection
-    const MAX_RETRIES = 3
-    let retryCount = 0
     let postContent = ''
     let article: any = null
     let hookLine = ''
-
-    // Define large animal labels to exclude
-    const largeAnimalLabels = [
-      'Equine', 'equine',
-      'Large Animal', 'large animal',
-      'Livestock', 'livestock',
-      'Poultry', 'poultry',
-      'Food Animal', 'food animal'
-    ]
 
     // If article_id is provided, fetch that specific article and use it VERBATIM.
     // Principle: explicit article_id = use exactly that article. Never substitute.
@@ -91,47 +82,14 @@ export async function POST(request: NextRequest) {
       console.log('[generate-post] EXPLICIT: using forced article_id', forcedArticleId, '—', specificArticle.title?.slice(0, 70))
     }
 
-    // Improvement #2: Fetch page view counts (last 30 days) to boost high-engagement articles
-    // Excludes bots — a crawler burst hitting many articles once each would otherwise
-    // look like organic reader interest and skew which article gets picked.
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
-    const { data: topViewedPaths } = await supabase
-      .from('page_views')
-      .select('path')
-      .ilike('path', '/article/%')
-      .gte('created_at', thirtyDaysAgo)
-      .is('bot_name', null)
-
-    const viewCounts = new Map<string, number>()
-    for (const row of topViewedPaths || []) {
-      const id = row.path.replace('/article/', '').split('?')[0].trim()
-      if (id) viewCounts.set(id, (viewCounts.get(id) || 0) + 1)
-    }
-    console.log('[generate-post] View counts loaded for', viewCounts.size, 'articles')
-
-    // LinkedIn performance feedback: boost articles that resonated on LinkedIn
-    // Aggregates CTR + engagements across all historical posts for each article.
-    // Score = sum(ctr * 0.1 + engagements * 0.002) — high CTR/engagement → stronger boost.
-    const { data: liMetrics } = await supabase
-      .from('linkedin_post_metrics')
-      .select('article_id, ctr, engagements')
-      .not('article_id', 'is', null)
-
-    const liScore = new Map<string, number>()
-    for (const m of liMetrics || []) {
-      if (!m.article_id) continue
-      const score = (m.ctr ?? 0) * 0.1 + (m.engagements ?? 0) * 0.002
-      liScore.set(m.article_id, (liScore.get(m.article_id) || 0) + score)
-    }
-    console.log('[generate-post] LinkedIn scores loaded for', liScore.size, 'articles')
-
-    // Improvement #3: Fetch recent zero-result searches as hot demand signal
+    // Recent zero-result searches as a hot demand signal for the post copy
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
     const { data: zeroResultSearches } = await supabase
       .from('search_logs')
       .select('query')
       .eq('results_count', 0)
       .gte('created_at', sevenDaysAgo)
+      .or(excludedUsersOrFilter())
       .order('created_at', { ascending: false })
       .limit(50)
 
@@ -140,131 +98,24 @@ export async function POST(request: NextRequest) {
       .slice(0, 5)
     console.log('[generate-post] Hot zero-result queries:', hotQueries)
 
-    while (retryCount < MAX_RETRIES && !article) {
-      console.log('[generate-post] FALLBACK: no forced article_id — running weighted random selection, attempt', retryCount + 1)
-      // Exclude approved articles from last 14 days (don't repeat published content)
-      // and skipped articles from last 7 days (respect explicit skips, but recycle after a week)
-      const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString()
-      const sevenDaysAgoExclusion = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
-      const { data: approvedMemory } = await supabase
-        .from('growth_agent_memory')
-        .select('article_id')
-        .eq('outcome', 'approved')
-        .gte('created_at', fourteenDaysAgo)
-      const { data: skippedMemory } = await supabase
-        .from('growth_agent_memory')
-        .select('article_id')
-        .eq('outcome', 'skipped')
-        .gte('created_at', sevenDaysAgoExclusion)
-      const recentMemory = [...(approvedMemory || []), ...(skippedMemory || [])]
-
-      const recentArticleIds = recentMemory?.map(row => row.article_id) || []
-
-      // FIX 5: Also exclude articles already generated TODAY (session-level check)
-      const today = new Date().toISOString().split('T')[0]
-      const { data: todayMemory } = await supabase
-        .from('growth_agent_memory')
-        .select('article_id')
-        .gte('created_at', today)
-
-      const todayArticleIds = new Set(todayMemory?.map(m => m.article_id) || [])
-
-      // FIX 4: On 3rd attempt, disable memory exclusion entirely (fallback)
-      let allExcludedIds: string[] = []
-      if (retryCount >= 2) {
-        console.log('[generate-post] Attempt 3: Fallback - ignoring memory exclusion')
-        allExcludedIds = [] // Last resort: no exclusions except large animals
-      } else {
-        allExcludedIds = Array.from(new Set([...recentArticleIds, ...todayArticleIds]))
-      }
-
-      // FIX 3: Query for enriched articles - fetch top 200 most recently ingested (created_at,
-      // NOT publication_date — preprints can carry a publication_date months in the future,
-      // which would permanently pin them at index 0 and, combined with the exponential-decay
-      // recency weighting below, make them win selection every single day. created_at is when
-      // Vetree ingested the article; publication_date remains display-only. See CLAUDE.md.
-      // NOTE: GIN index exists on labels column (idx_articles_labels_gin) for efficient array operations.
-      // Ideally we'd filter large animals server-side with .not('labels', 'ov', largeAnimalLabels),
-      // but Supabase PostgREST doesn't reliably support .not() with overlap operators.
-      // JS filtering works fine for small result sets. For raw SQL queries, the GIN index will be used automatically.
-      const { data: articles, error } = await supabase
-        .from('articles')
-        .select('id, title, clinical_bottom_line, summary, labels, source_journal, publication_date')
-        .eq('needs_enrichment', false)
-        .not('clinical_bottom_line', 'is', null)
-        .not('summary', 'is', null)
-        .limit(200)  // Increased from 50 to 200
-        .order('created_at', { ascending: false })
-
-      if (error || !articles || articles.length === 0) {
+    // Auto-pick: the same ranked pool as the recommendations panel (lib/growth/candidates.ts),
+    // weighted random among the top 10 so consecutive days don't always get #1.
+    if (!article) {
+      const ranked = (await rankGrowthCandidates(supabase)).slice(0, 10)
+      if (ranked.length === 0) {
         return NextResponse.json({
-          error: 'No articles found',
-          details: error?.message
+          error: 'No eligible article to post',
+          details: 'Every recent small-animal article is already posted, dismissed or skipped'
         }, { status: 500 })
       }
-
-      // Debug logging
-      console.log('[generate-post] Total articles fetched:', articles.length)
-      console.log('[generate-post] Excluded from memory:', allExcludedIds.length)
-
-      // Filter out large animal articles and already-used articles (JS filtering)
-      const filteredArticles = articles.filter(article => {
-        const labels = article.labels || []
-        const isLargeAnimal = labels.some((label: string) =>
-          largeAnimalLabels.includes(label)
-        )
-        const alreadyUsed = allExcludedIds.includes(article.id)
-        return !isLargeAnimal && !alreadyUsed
-      })
-
-      console.log('[generate-post] After large animal filter:', filteredArticles.length)
-
-      if (filteredArticles.length === 0) {
-        retryCount++
-        if (retryCount >= MAX_RETRIES) {
-          return NextResponse.json({
-            error: 'No small animal articles found',
-            details: 'All recent articles are large animal focused or already used'
-          }, { status: 500 })
-        }
-        continue // Retry with next attempt
-      }
-
-      // Weighted random selection - newer articles get higher probability,
-      // boosted by page views (last 30d) and LinkedIn performance (all-time CTR + engagements).
-      // Each page view adds +20% weight; LinkedIn score multiplies on top.
-      const weighted = filteredArticles.map((article, index) => ({
-        article,
-        weight: Math.pow(0.95, index)
-          * (1 + (viewCounts.get(article.id) || 0) * 0.2)
-          * (1 + (liScore.get(article.id) || 0))
-      }))
-      console.log('[generate-post] Top 3 weighted articles:', weighted.slice(0,3).map(w => `${w.article.id.slice(-8)} w=${w.weight.toFixed(2)} li=${(liScore.get(w.article.id) || 0).toFixed(2)}`))
-
-      const totalWeight = weighted.reduce((sum, w) => sum + w.weight, 0)
+      const totalWeight = ranked.reduce((sum, c) => sum + c.score, 0)
       let random = Math.random() * totalWeight
-      let selected = weighted[0].article
-
-      for (const { article: weightedArticle, weight } of weighted) {
-        random -= weight
-        if (random <= 0) {
-          selected = weightedArticle
-          break
-        }
+      article = ranked[ranked.length - 1]
+      for (const c of ranked) {
+        random -= c.score
+        if (random <= 0) { article = c; break }
       }
-
-      article = selected
-
-      // Success - break out of retry loop after selecting article
-      break
-    }
-
-    // If no article found after retries (shouldn't happen if articleId was provided)
-    if (!article) {
-      return NextResponse.json({
-        error: 'No suitable article found',
-        details: 'Unable to find an article after retries'
-      }, { status: 500 })
+      console.log('[generate-post] AUTO-PICK:', article.id, `score=${article.score.toFixed(2)}`, article.crowdFavorite ? '(crowd favorite)' : '', '—', article.title?.slice(0, 70))
     }
 
     // Explicit picks bypass all exclusion filters (large-animal, etc.) — SKIP_LARGE_ANIMAL
@@ -312,7 +163,8 @@ export async function POST(request: NextRequest) {
 
     // Call Anthropic API to generate post for the selected article
     const Anthropic = (await import('@anthropic-ai/sdk')).default
-    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+    // Bounded so generation (+ the twitter shortening step) fits maxDuration
+    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, timeout: 40_000, maxRetries: 1 })
 
     // Platform-specific formatting rules
     const platformRules = {
@@ -593,12 +445,20 @@ Return ONLY the post text. Follow the platform rule exactly.`
 
     postContent = responseText(message)
 
+    // The model refused the article as large-animal — an error, never post content
+    if (postContent.includes('SKIP_LARGE_ANIMAL')) {
+      return NextResponse.json({
+        error: 'Selected article is large-animal focused',
+        details: `Claude declined article ${article.id}; generate again or pick another article`
+      }, { status: 500 })
+    }
+
     // Twitter-specific length check
-    if (platform === 'twitter' && postContent.length > 280 && !postContent.includes('SKIP_LARGE_ANIMAL')) {
+    if (platform === 'twitter' && postContent.length > 280) {
       console.log(`[generate-post] Tweet too long (${postContent.length} chars), asking Claude to shorten...`)
 
       const shortenMessage = await anthropic.messages.create({
-      ...NO_UPFRONT_THINKING,
+        ...NO_UPFRONT_THINKING,
         model: CLAUDE_MODEL,
         max_tokens: 1200,
         messages: [{
@@ -609,7 +469,7 @@ ${postContent}
 
 Return ONLY the shortened tweet (under 280 chars).`
         }]
-      })
+      }, { timeout: 15_000, maxRetries: 0 })
 
       // A cut-off or empty shortening reply falls back to the original post
       let shortenedContent = postContent
@@ -637,6 +497,7 @@ Return ONLY the shortened tweet (under 280 chars).`
       article_id: article.id,
       article_title: article.title,
       article_labels: article.labels || [],
+      crowd_favorite: !!article.crowdFavorite,
       hook_line: hookLine,
       article_url: `vetree.app/article/${article.id}`,
       source_journal: article.source_journal || 'N/A'
