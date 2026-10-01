@@ -234,17 +234,23 @@ The aggregate route must:
 Silent error swallowing (missing error variable) caused two weeks of all-zero snapshots (2026-07-13).
 
 ## Content Agent — generate-post flow
-1. Fetch preferences from `growth_agent_preferences`
-2. Fetch already-used article_ids from `growth_agent_memory` (approved only, last 14 days)
-3. Also exclude articles used TODAY across all platforms
-4. If `article_id` forced (Generate All mode) → skip article selection, use that article
-5. Fetch articles (top 200 by created_at DESC — ingestion time, not publication_date), filter large animal in JS
-6. Weighted random selection by recency (exponential decay: weight = 0.95^index)
-7. Call Claude Sonnet with platform-specific prompt
-8. If SKIP_LARGE_ANIMAL response → retry up to 3x (ignore forced article_id on retry)
-9. Check length limits (twitter ≤ 280, whatsapp ≤ 400)
-10. Embed UTM in article URL
-11. Return `{ post_content, article_id, article_title, article_url, labels, hook_line }`
+Article choice is shared with the recommendations panel: `rankGrowthCandidates()` in
+`lib/growth/candidates.ts` (both surfaces rank one pool, so they agree).
+1. If `article_id` forced (Generate All, manual pick, rewrite) → use it verbatim, no policy filters
+2. Otherwise auto-pick: weighted random over the top 10 of `rankGrowthCandidates()`
+   - Pool: publicly visible articles ingested in the last 60 days (`created_at`), labelled
+     'Small Animal', not large-animal, not Exotic
+   - Never again: `irrelevant` / `already_published` dismissals, and anything posted (an approved
+     memory row OR any human social click)
+   - Exception: crowd favorites (≥ 20 social clicks) may return 182 days after their last post or
+     click — flagged `crowdFavorite`, shown as "⭐ Crowd favorite"
+   - Skipped: 7 days; anything touched today: excluded
+   - Score = 0.5 × recency (created_at) + 0.5 × evidence tier (getEvidenceLevel)
+   - Read errors throw (500) — never silently "nothing excluded"
+3. Call Claude Sonnet with platform-specific prompt (SDK timeout 35s, no retries; twitter shorten 12s) — fits maxDuration 60
+4. `SKIP_LARGE_ANIMAL` reply → 500 error, never returned as post content
+5. Check length limits (twitter ≤ 280), embed UTM in article URL
+6. Return `{ post_content, article_id, article_title, article_labels, crowd_favorite, hook_line, ... }`
 
 ## Platform Rules (for prompts)
 ```ts
