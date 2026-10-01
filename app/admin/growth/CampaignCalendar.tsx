@@ -975,6 +975,7 @@ export function CampaignCalendar() {
         const platform = remainingPlatforms[i].platform
 
         if (result.status === 'fulfilled' && result.value.post_content) {
+          result.value.crowd_favorite = firstData.crowd_favorite  // same article on every platform
           allPosts[platform] = result.value
 
           // Save to localStorage with platform-specific key
