@@ -43,7 +43,7 @@
  */
 
 import { test, expect } from '@playwright/test'
-import { createClient } from '@supabase/supabase-js'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 
 const GATE_MISSING =
   !process.env.DIGEST_SECRET ||
@@ -53,7 +53,7 @@ const GATE_MISSING =
 
 const ARTICLE_FIELDS = 'id, title, clinical_bottom_line, labels, publication_date, created_at, quarantined, needs_enrichment'
 
-async function pickEligibleArticleIds(supabaseAdmin: ReturnType<typeof createClient>, count: number) {
+async function pickEligibleArticleIds(supabaseAdmin: SupabaseClient, count: number) {
   const { data, error } = await supabaseAdmin
     .from('articles')
     .select(ARTICLE_FIELDS)
@@ -67,14 +67,14 @@ async function pickEligibleArticleIds(supabaseAdmin: ReturnType<typeof createCli
   return data!
 }
 
-async function swapFollowedTags(supabaseAdmin: ReturnType<typeof createClient>, userId: string, tag: string) {
+async function swapFollowedTags(supabaseAdmin: SupabaseClient, userId: string, tag: string) {
   const { data: original } = await supabaseAdmin.from('followed_tags').select('user_id, tag').eq('user_id', userId)
   await supabaseAdmin.from('followed_tags').delete().eq('user_id', userId)
   await supabaseAdmin.from('followed_tags').insert({ user_id: userId, tag })
   return original || []
 }
 
-async function restoreFollowedTags(supabaseAdmin: ReturnType<typeof createClient>, userId: string, original: { user_id: string; tag: string }[]) {
+async function restoreFollowedTags(supabaseAdmin: SupabaseClient, userId: string, original: { user_id: string; tag: string }[]) {
   await supabaseAdmin.from('followed_tags').delete().eq('user_id', userId)
   if (original.length > 0) {
     await supabaseAdmin.from('followed_tags').insert(original)
@@ -86,7 +86,7 @@ async function restoreFollowedTags(supabaseAdmin: ReturnType<typeof createClient
 // from the 2026-07-31 incident. Without this, a test asserting "recipient is
 // selected" is only as reliable as the account's incidental real-world state,
 // which is exactly what made that incident's dry-run misleading.
-async function ensureFullyEligible(supabaseAdmin: ReturnType<typeof createClient>, userId: string) {
+async function ensureFullyEligible(supabaseAdmin: SupabaseClient, userId: string) {
   const { data: existingTrueConsent } = await supabaseAdmin
     .from('user_consents').select('id').eq('user_id', userId).eq('marketing_opted_in', true).limit(1)
   let insertedConsentId: string | null = null
@@ -112,7 +112,7 @@ async function ensureFullyEligible(supabaseAdmin: ReturnType<typeof createClient
 }
 
 async function restoreEligibility(
-  supabaseAdmin: ReturnType<typeof createClient>,
+  supabaseAdmin: SupabaseClient,
   userId: string,
   original: { insertedConsentId: string | null; existingPrefs: any; recentLogs: any[] }
 ) {

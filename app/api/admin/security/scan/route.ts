@@ -362,9 +362,22 @@ export async function POST(request: NextRequest) {
       const hasExternalSink = content.includes('SLACK_WEBHOOK_URL') || content.includes('captureException') || content.includes('captureMessage')
       if (!hasExternalSink) continue
 
-      // Extract ~500 chars around each external-sink call and look for PII patterns
-      const sinkMatches = [...content.matchAll(/(SLACK_WEBHOOK_URL|captureException|captureMessage)[\s\S]{0,500}/g)]
-      const contexts = sinkMatches.map(m => m[0])
+      // Sentry: inspect only the call's own arguments — the old 500-char window flagged ordinary
+      // code that merely sat next to a capture call (e.g. a `user_id:` insert after a constant
+      // message). Slack payloads are usually assembled in variables around the webhook, so Slack
+      // keeps the ~500-char window.
+      const callArgs = (from: number): string => {
+        let depth = 0
+        for (let i = from; i < content.length; i++) {
+          if (content[i] === '(') depth++
+          else if (content[i] === ')' && --depth === 0) return content.slice(from, i + 1)
+        }
+        return content.slice(from, from + 500)
+      }
+      const contexts = [
+        ...[...content.matchAll(/(captureException|captureMessage)\s*\(/g)].map(m => callArgs(m.index! + m[0].length - 1)),
+        ...[...content.matchAll(/SLACK_WEBHOOK_URL[\s\S]{0,500}/g)].map(m => m[0]),
+      ]
       const hasPII = piiPatterns.some(p => {
         const re = new RegExp(p.replace('.', '\\.').replace('\\b', '\\b'))
         return contexts.some(ctx => re.test(ctx))

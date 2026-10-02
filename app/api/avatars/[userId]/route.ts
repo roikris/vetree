@@ -20,6 +20,7 @@ export async function GET(
   const session = await createSessionClient()
   const { data: { user } } = await session.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!user.email_confirmed_at) return NextResponse.json({ error: 'Email verification required' }, { status: 403 })
   if (user.id !== userId) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const supabase = createClient(
