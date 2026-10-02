@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * qa-report.mjs
- * Reads playwright-results.json, optionally triages failures with Claude Sonnet 5.5,
+ * Reads playwright-results.json, optionally triages failures with Claude Sonnet 4.6,
  * then sends a Slack summary. Called by the qa-smoke.yml workflow.
  */
 import { readFileSync, existsSync } from 'fs'
@@ -44,7 +44,7 @@ function parseResults(filePath) {
   return { passed, total, duration: Math.round(durationMs / 1000), failures }
 }
 
-// ─── Call Claude Sonnet 5.5 for triage ─────────────────────────────────────────────
+// ─── Call Claude Sonnet 4.6 for triage ─────────────────────────────────────────────
 
 async function triageFailures(failures) {
   if (!ANTHROPIC_API_KEY || failures.length === 0) return null
@@ -58,9 +58,8 @@ async function triageFailures(failures) {
     .join('\n\n---\n\n')
 
   const response = await anthropic.messages.create({
-    model: 'claude-sonnet-5-5'  /* keep in step with lib/ai/model.ts */,
+    model: 'claude-sonnet-4-6'  /* keep in step with lib/ai/model.ts */,
     max_tokens: 1500,
-    thinking: { type: 'between_tools' },  // no upfront thinking (Sonnet 5.5 default; counts against max_tokens)
     system:
       'You are a QA triage assistant for Vetree (Next.js 16 App Router + Supabase). ' +
       'Given failed Playwright smoke tests against https://vetree.app, diagnose the most likely cause ' +

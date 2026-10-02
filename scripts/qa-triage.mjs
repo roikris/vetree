@@ -69,9 +69,8 @@ async function callClaude(prompt) {
   if (!ANTHROPIC_KEY) throw new Error('No ANTHROPIC_API_KEY')
 
   const body = JSON.stringify({
-    model: 'claude-sonnet-5-5'  /* keep in step with lib/ai/model.ts */,
+    model: 'claude-sonnet-4-6'  /* keep in step with lib/ai/model.ts */,
     max_tokens: 2500,
-    thinking: { type: 'between_tools' },  // no upfront thinking (Sonnet 5.5 default; counts against max_tokens)
     messages: [{ role: 'user', content: prompt }],
     system: 'You are a QA engineer triaging Playwright smoke test failures for Vetree, a veterinary research platform. Be concise and actionable. Return only valid JSON, no markdown fences.',
   })
