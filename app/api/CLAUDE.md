@@ -263,7 +263,8 @@ Article choice is shared with the recommendations panel: `rankGrowthCandidates()
 - Cards: "⚡ WOW" / "Practice" / "Talk-worthy" chips for dimensions ≥ 7, Claude's one-line reason
 - Every served set is logged to `growth_recommendation_sets` (pool rank, position, wildcard,
   scores) — join to `growth_agent_memory` by article_id + time to learn from what was shown
-- Bump `RUBRIC_VERSION` whenever the rubric changes (older scores stop counting)
+- Bump `RUBRIC_VERSION` whenever the rubric changes (older scores stop counting). A model switch keeps
+  existing scores (each is checked against the model stored on its row); new articles use the current model
 
 ## Platform Rules (for prompts)
 ```ts

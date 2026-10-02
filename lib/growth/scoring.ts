@@ -38,10 +38,15 @@ export type ArticleScore = {
   reason: string | null
 }
 
-/** Hash of everything the prompt sees for this article, plus the model — a change invalidates the score. */
-export function scoreInputHash(a: ScorableArticle): string {
+/**
+ * Hash of the model that scored it + everything the prompt saw. A score is checked against the
+ * model stored on its own row, so switching CLAUDE_MODEL does NOT invalidate existing scores
+ * (Sonnet 4.6 and 5.5 judge alike on the held-out set: AUC 0.82 vs 0.80); only an edited article
+ * or a RUBRIC_VERSION bump does. Bump RUBRIC_VERSION to re-score everything deliberately.
+ */
+export function scoreInputHash(a: ScorableArticle, model: string = CLAUDE_MODEL): string {
   return createHash('sha256')
-    .update(JSON.stringify([CLAUDE_MODEL, a.title, a.clinical_bottom_line, a.strength_of_evidence, a.labels ?? []]))
+    .update(JSON.stringify([model, a.title, a.clinical_bottom_line, a.strength_of_evidence, a.labels ?? []]))
     .digest('hex')
 }
 
@@ -52,7 +57,7 @@ export async function loadValidScores(supabase: SupabaseClient, articles: Scorab
   const ids = [...byId.keys()]
   for (let i = 0; i < ids.length; i += 100) {
     let query = supabase.from('growth_article_scores')
-      .select('article_id, practice, talk, wow, reason, rubric_version, input_hash')
+      .select('article_id, practice, talk, wow, reason, rubric_version, input_hash, model')
       .in('article_id', ids.slice(i, i + 100))
       .eq('rubric_version', RUBRIC_VERSION)
     if (signal) query = query.abortSignal(signal)
@@ -60,7 +65,7 @@ export async function loadValidScores(supabase: SupabaseClient, articles: Scorab
     if (error) throw new Error(`[growth/scoring] load scores: ${error.message}`)
     for (const r of data || []) {
       const a = byId.get(r.article_id)
-      if (a && r.input_hash === scoreInputHash(a)) {
+      if (a && r.input_hash === scoreInputHash(a, r.model)) {
         out.set(r.article_id, { article_id: r.article_id, practice: r.practice, talk: r.talk, wow: r.wow, reason: r.reason })
       }
     }

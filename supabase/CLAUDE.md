@@ -196,7 +196,7 @@ UNIQUE(user_id, tag)
 | reason | text | ≤ 300 chars, shown on recommendation cards |
 | rubric_version | integer | must equal `RUBRIC_VERSION` (lib/growth/scoring.ts) to count |
 | model | text | |
-| input_hash | text | sha256 of model + scored article fields; mismatch = re-score |
+| input_hash | text | sha256 of the row's own `model` + scored article fields; an edited article = re-score. Changing CLAUDE_MODEL does NOT invalidate scores — bump RUBRIC_VERSION for that |
 | scored_at | timestamptz | |
 Service role only (RLS on, no policies). No personal data.
 
