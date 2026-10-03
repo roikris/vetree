@@ -126,17 +126,27 @@ export function scrubString(input: string): string {
 /**
  * URL / path fields keep only the route SHAPE: query and fragment removed, credentials in the
  * authority removed, and every path segment that is not a plain lowercase word (or vN, or a
- * [param] pattern) becomes ":id". Tokens, ids, emails and JWTs in paths disappear by construction:
- * /reset/<token> → /reset/:id, /article/pubmed-123 → /article/:id.
+ * [param] pattern) becomes ":id", and so does any segment after a known dynamic parent
+ * (DYNAMIC_PARENTS). /reset/<token> → /reset/:id, /synthesis/lymphoma → /synthesis/:id. Residual:
+ * a plain lowercase word in an unlisted dynamic route survives — add new dynamic routes there.
  */
 const SAFE_SEGMENT = /^_?[a-z][a-z_-]{0,40}$|^v\d{1,2}$|^\[{1,2}(\.\.\.)?[a-z_]+\]{1,2}$/
+const IS_PARAM_PATTERN = /^\[/
+// Segments right after these are always dynamic parameters, even when they look like a plain word
+// (/synthesis/<reader's topic>, /article/<id>, /api/avatars/<user id>)
+const DYNAMIC_PARENTS = new Set(['synthesis', 'article', 'avatars', 'articles'])
 export function routeShape(input: string): string {
   const s = cutQuery(cap(input))
   const m = /^([a-z][a-z0-9+.-]*:\/\/)([^/]*)(.*)$/i.exec(s)
   const origin = m ? m[1] + m[2].slice(m[2].lastIndexOf('@') + 1) : ''
   const path = m ? m[3] : s
   if (!m && !path.startsWith('/')) return scrubString(path)          // not a URL or path: free text
-  return origin + path.split('/').map(seg => (seg === '' || SAFE_SEGMENT.test(seg) ? seg : ':id')).join('/')
+  const segs = path.split('/')
+  return origin + segs.map((seg, k) => {
+    if (seg === '' || IS_PARAM_PATTERN.test(seg)) return seg
+    if (k > 0 && DYNAMIC_PARENTS.has(segs[k - 1])) return ':id'
+    return SAFE_SEGMENT.test(seg) ? seg : ':id'
+  }).join('/')
 }
 
 const str = (v: unknown) => (typeof v === 'string' ? scrubString(v) : undefined)
@@ -154,6 +164,11 @@ const fileStr = (v: unknown) => (typeof v === 'string'
     ).replace(UUID, '[uuid]')
   : undefined)
 const raw = (v: unknown) => (typeof v === 'string' ? v : undefined)
+// Sentry's own identifiers pass only in their exact format (32-hex event/trace ids, 16-hex span
+// ids) — never through the free-text scrubber, which would take them for opaque tokens and break
+// ingestion (the envelope header reuses event_id)
+const hexId = (len: number) => (v: unknown) =>
+  typeof v === 'string' && v.length === len && /^[0-9a-f]+$/i.test(v) ? v : undefined
 const num = (v: unknown) => (typeof v === 'number' ? v : undefined)
 const bool = (v: unknown) => (typeof v === 'boolean' ? v : undefined)
 
@@ -202,7 +217,7 @@ export function scrubBreadcrumb<T>(breadcrumb: T): T {
     return pick(breadcrumb, { type: str, category: str, level: str, timestamp: num }) as T
   }
   return pick(breadcrumb, {
-    type: str, category: str, level: str, timestamp: num, event_id: str,
+    type: str, category: str, level: str, timestamp: num, event_id: hexId(32),
     message: str,
     data: breadcrumbData,
   }) as T
@@ -220,7 +235,7 @@ const contexts = (c: unknown) => pick(c, {
   app: ctxFields(['app_start_time', 'app_memory']),
   culture: ctxFields(['locale', 'timezone']),
   cloud_resource: ctxFields(['cloud.provider', 'cloud.region']),
-  trace: ctxFields(['trace_id', 'span_id', 'parent_span_id', 'op', 'status']),
+  trace: (v: unknown) => pick(v, { trace_id: hexId(32), span_id: hexId(16), parent_span_id: hexId(16), op: str, status: str }),
   nextjs: (v: unknown) => pick(v, { request_path: urlStr, router_kind: str, router_path: urlStr, route_type: str }),
 })
 
@@ -228,7 +243,7 @@ const contexts = (c: unknown) => pick(c, {
 export function scrubEvent<T>(event: T): T {
   const e = event as Record<string, unknown>
   const out = pick(e, {
-    event_id: str, timestamp: num, start_timestamp: num, platform: str, level: str, logger: str,
+    event_id: hexId(32), timestamp: num, start_timestamp: num, platform: str, level: str, logger: str,
     environment: raw, release: raw, dist: raw, server_name: str, type: raw,
     transaction: (v: unknown) => (typeof v === 'string'
       ? v.replace(/^([A-Z]+ )?(.*)$/, (_, method = '', rest) => method + routeShape(rest))

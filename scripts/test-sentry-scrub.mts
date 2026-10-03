@@ -2,7 +2,9 @@
 // Regression suite for lib/sentry/scrub.ts — every leak found in the PR #104 Codex review rounds,
 // planted in every field the scrubber keeps, plus what must be dropped and what must survive.
 // Run: npx tsx scripts/test-sentry-scrub.mts   (exits 1 on any failure)
+import { createEventEnvelope, makeDsn } from '@sentry/core'
 import { scrubEvent, scrubBreadcrumb, scrubString, routeShape } from '../lib/sentry/scrub'
+import { SENTRY_DSN } from '../lib/sentry/options'
 
 let failures = 0
 const fail = (msg: string) => { failures++; console.log('FAIL', msg) }
@@ -80,6 +82,20 @@ expect(!('data' in dropped.exception.values[0].mechanism), 'mechanism.data dropp
 expect(JSON.stringify(scrubBreadcrumb({ category: 'console', level: 'log', message: 'Patient Fluffy belongs to Alice', timestamp: 1 })) === '{"category":"console","level":"log","timestamp":1}', 'console breadcrumb reduced to category')
 expect(JSON.stringify(scrubBreadcrumb({ category: 'ui.click', message: 'button[aria-label="Alice"]', timestamp: 1 })) === '{"category":"ui.click","timestamp":1}', 'ui breadcrumb reduced to category')
 expect(!JSON.stringify(scrubBreadcrumb({ category: 'fetch', data: { url: '/x', body: 'pw', 'http.query': 'q' } })).includes('pw'), 'unknown breadcrumb data dropped')
+
+// Sentry identifiers must survive exactly (the envelope header reuses event_id)
+const ids: any = scrubEvent({ event_id: '0576c3bc671d40988bf94bb6f4a7f8d9', exception: { values: [{ type: 'E', value: 'x' }] },
+  contexts: { trace: { trace_id: '4bf92f3577b34da6a3ce929d0e0e4736', span_id: '00f067aa0ba902b7', op: 'http.server' } },
+  breadcrumbs: [{ category: 'sentry.event', event_id: '0576c3bc671d40988bf94bb6f4a7f8d9' }] } as any)
+expect(ids.event_id === '0576c3bc671d40988bf94bb6f4a7f8d9', 'event_id kept exactly')
+expect(ids.contexts.trace.trace_id === '4bf92f3577b34da6a3ce929d0e0e4736' && ids.contexts.trace.span_id === '00f067aa0ba902b7', 'trace/span ids kept exactly')
+expect(ids.breadcrumbs[0].event_id === '0576c3bc671d40988bf94bb6f4a7f8d9', 'breadcrumb event_id kept')
+expect(!('event_id' in (scrubEvent({ event_id: 'alice@example.test' } as any) as any)), 'malformed event_id dropped')
+// Offline envelope (what the SDK actually sends): header and item carry the same valid event_id
+const envelope: any = createEventEnvelope(ids, makeDsn(SENTRY_DSN))
+expect(envelope[0].event_id === '0576c3bc671d40988bf94bb6f4a7f8d9' && envelope[1][0][1].event_id === envelope[0].event_id, 'envelope header + payload event_id valid')
+// Dynamic routes are masked even when the parameter is a plain word
+expect(routeShape('/synthesis/lymphoma') === '/synthesis/:id' && routeShape('/article/[id]') === '/article/[id]', 'dynamic segments masked, patterns kept')
 
 // Must survive
 const CHUNK = 'https://vetree.app/_next/static/chunks/0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b.js'
