@@ -369,6 +369,9 @@ export async function POST(request: NextRequest) {
       // Parentheses inside string/template literals and comments don't count — `captureMessage("x )",
       // { email })` must not end the argument list at the quoted ")". Template ${…} bodies are
       // skipped with the literal; their text is still part of the returned argument string.
+      // HEURISTIC, not a parser: a ")" inside a regex literal (/\)/) or a nested template inside
+      // ${…} can still end the argument early and hide what follows. The real guarantee is
+      // lib/sentry/scrub.ts, which strips emails, tokens and ids from every event at send time.
       const callArgs = (from: number): string => {
         let depth = 0
         for (let i = from; i < content.length; i++) {

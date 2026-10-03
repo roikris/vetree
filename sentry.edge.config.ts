@@ -5,5 +5,6 @@ import { sentryPrivacyOptions } from './lib/sentry/options'
 Sentry.init({
   ...sentryPrivacyOptions,
   environment: process.env.VERCEL_ENV ?? 'development',
-  enabled: process.env.NODE_ENV === 'production',
+  // Vercel deployments only (production + previews, labelled by environment) — never local builds
+  enabled: !!process.env.VERCEL_ENV,
 })

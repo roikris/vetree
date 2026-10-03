@@ -7,5 +7,14 @@ import { sentryPrivacyOptions } from './lib/sentry/options'
 Sentry.init({
   ...sentryPrivacyOptions,
   environment: process.env.VERCEL_ENV ?? 'development',
-  enabled: process.env.NODE_ENV === 'production',
+  // Vercel deployments only (production + previews, labelled by environment) — never local builds
+  enabled: !!process.env.VERCEL_ENV,
+  integrations: [
+    // The Node SDK's defaults collect cookies, all headers, request bodies and query strings even
+    // with sendDefaultPii:false. Collect the URL only (scrubbed again in beforeSend).
+    Sentry.requestDataIntegration({
+      include: { cookies: false, data: false, headers: false, ip: false, query_string: false, url: true },
+    }),
+    Sentry.httpIntegration({ maxIncomingRequestBodySize: 'none' }),
+  ],
 })

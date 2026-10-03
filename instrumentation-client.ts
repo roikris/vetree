@@ -6,4 +6,8 @@ import { sentryPrivacyOptions } from './lib/sentry/options'
 
 // Error reports only (no tracing, no session replay — removed 2026-09-30), emails scrubbed from
 // events and breadcrumbs before sending (lib/sentry/scrub.ts)
-Sentry.init(sentryPrivacyOptions)
+Sentry.init({
+  ...sentryPrivacyOptions,
+  // Deployed builds only — not `next dev`
+  enabled: process.env.NODE_ENV === 'production',
+})
