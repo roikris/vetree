@@ -53,54 +53,65 @@ function cutQuery(s: string): string {
 // no backtracking); a run is redacted only if it looks like a secret.
 const TOKEN_RUN = /[A-Za-z0-9._~+/=-]{20,}/g
 const AUTH_SCHEME = /\b(Bearer|Basic|Token)\s+[A-Za-z0-9._~+/=-]{4,}/gi
-// A JWT anywhere in the run, by structure: a header segment that is base64url JSON — "{" encodes
-// to "e" + "y"/"w" whatever follows (eyJ for {"…, eyAi for { "…, ew… for {\n…) — then a dot and a
-// payload segment. Each segment is examined once with fixed-width patterns → linear.
-const JWT_HEADER = /^e[yw][A-Za-z0-9_-]{8}/
-const JWT_PAYLOAD = /^[A-Za-z0-9_-]{8}/
+const B64URL = /^[A-Za-z0-9_-]+$/
+
+/** Does this base64url text decode to something starting with "{" (after any whitespace)? */
+function decodesToJsonObject(seg: string): boolean {
+  if (seg.length < 10 || !B64URL.test(seg)) return false
+  try {
+    const head = seg.slice(0, 24).replace(/-/g, '+').replace(/_/g, '/')
+    return atob(head.slice(0, head.length - (head.length % 4))).trimStart().startsWith('{')
+  } catch {
+    return false
+  }
+}
+
+// A JWT anywhere in the run, by meaning: a segment that decodes to a JSON object, a dot, and a
+// payload segment — however the JSON was serialised. Each segment is examined once (bounded decode).
 function looksJwt(t: string): boolean {
   const segs = t.split('.')
   for (let k = 0; k + 1 < segs.length; k++) {
     const seg = segs[k]
     // the header starts after any non-base64url character the run allows (/, =, +, ~)
     const start = Math.max(seg.lastIndexOf('/'), seg.lastIndexOf('='), seg.lastIndexOf('+'), seg.lastIndexOf('~')) + 1
-    if (JWT_HEADER.test(seg.slice(start)) && JWT_PAYLOAD.test(segs[k + 1])) return true
+    if (decodesToJsonObject(seg.slice(start)) && /^[A-Za-z0-9_-]{8}/.test(segs[k + 1])) return true
   }
   return false
 }
 const hasSessionBlob = (t: string) => t.includes('base64-')                  // Supabase session cookie, any prefix
-function looksSecret(t: string): boolean {
-  if (looksJwt(t)) return true
-  if (hasSessionBlob(t)) return true
-  // Long opaque string: no dot (not a domain/file), not a path, mixes letters and digits
-  return t.length >= 40 && !t.includes('.') && t[0] !== '/' && /[0-9]/.test(t) && /[A-Za-z]/.test(t)
-}
+// Opaque secret: any piece of the run (split on / . = + ~) of ≥32 chars mixing letters and digits
+const hasOpaquePiece = (t: string) =>
+  t.split(/[/.=+~]/).some(p => p.length >= 32 && /[0-9]/.test(p) && /[A-Za-z]/.test(p))
+const looksSecret = (t: string) => looksJwt(t) || hasSessionBlob(t) || hasOpaquePiece(t)
 
-// 3. Emails: find each "@" / "%40", expand left over local-part chars (≤64) and right over domain
-const LOCAL_CH = /[A-Za-z0-9._%+-]/
-const DOMAIN_CH = /[A-Za-z0-9.-]/
-function maskEmails(s: string): string {
-  if (!s.includes('@') && !s.includes('%40')) return s
+// 3. Emails: find each "@", expand left over local-part chars (≤64) and right over domain chars,
+// Unicode included. Percent-encoded "@" and "." are decoded first (synthetic%40example%2Etest).
+const LOCAL_CH = /[\p{L}\p{N}._%+-]/u
+const DOMAIN_CH = /[\p{L}\p{N}.-]/u
+const DOMAIN = /^[\p{L}\p{N}-]+(\.[\p{L}\p{N}-]+)*\.(\p{L}{2,}|xn--[a-z0-9-]{2,})$/iu
+function maskEmails(input: string): string {
+  const s = /%(40|2e)/i.test(input) ? input.replace(/%40/gi, '@').replace(/%2e/gi, '.') : input
+  if (!s.includes('@')) return s
   let out = ''
   let last = 0
   for (let i = 0; i < s.length; i++) {
-    const width = s[i] === '@' ? 1 : s.startsWith('%40', i) ? 3 : 0
-    if (!width) continue
+    if (s[i] !== '@') continue
     let l = i
     while (l > last && i - l < 64 && LOCAL_CH.test(s[l - 1])) l--
-    let r = i + width
+    let r = i + 1
     while (r < s.length && r - i < 254 && DOMAIN_CH.test(s[r])) r++
-    const domain = s.slice(i + width, r).replace(/[.-]+$/, '')
-    if (l < i && /^[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*\.([A-Za-z]{2,}|xn--[A-Za-z0-9-]{2,})$/i.test(domain)) {
+    const domain = s.slice(i + 1, r).replace(/[.-]+$/, '')
+    if (l < i && DOMAIN.test(domain)) {
       out += s.slice(last, l) + '[email]'
-      last = i + width + domain.length
+      last = i + 1 + domain.length
       i = last - 1
     }
   }
   return out + s.slice(last)
 }
 
-const UUID = /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi
+// 4. UUIDs, with no word boundary (user_<uuid> too)
+const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi
 
 const cap = (s: string) => (s.length > MAX_STRING ? s.slice(0, MAX_STRING) + '…[truncated]' : s)
 
@@ -112,17 +123,34 @@ export function scrubString(input: string): string {
   ).replace(UUID, '[uuid]')
 }
 
+/**
+ * URL / path fields keep only the route SHAPE: query and fragment removed, credentials in the
+ * authority removed, and every path segment that is not a plain lowercase word (or vN, or a
+ * [param] pattern) becomes ":id". Tokens, ids, emails and JWTs in paths disappear by construction:
+ * /reset/<token> → /reset/:id, /article/pubmed-123 → /article/:id.
+ */
+const SAFE_SEGMENT = /^_?[a-z][a-z_-]{0,40}$|^v\d{1,2}$|^\[{1,2}(\.\.\.)?[a-z_]+\]{1,2}$/
+export function routeShape(input: string): string {
+  const s = cutQuery(cap(input))
+  const m = /^([a-z][a-z0-9+.-]*:\/\/)([^/]*)(.*)$/i.exec(s)
+  const origin = m ? m[1] + m[2].slice(m[2].lastIndexOf('@') + 1) : ''
+  const path = m ? m[3] : s
+  if (!m && !path.startsWith('/')) return scrubString(path)          // not a URL or path: free text
+  return origin + path.split('/').map(seg => (seg === '' || SAFE_SEGMENT.test(seg) ? seg : ':id')).join('/')
+}
+
 const str = (v: unknown) => (typeof v === 'string' ? scrubString(v) : undefined)
-// URL / path fields (request, navigation, Next.js paths, transaction): query and fragment cut
-// unconditionally, then the full scrub
-const urlStr = (v: unknown) => (typeof v === 'string' ? scrubString(cutQuery(v)) : undefined)
-// Code file names (frames, debug images): same, except the long-opaque-token rule — hashed chunk
-// names must survive for source maps (JWTs, session blobs and auth credentials are still caught)
+const urlStr = (v: unknown) => (typeof v === 'string' ? routeShape(v) : undefined)
+// Code file names (frames, debug images) must keep their real names for source maps: the query is
+// cut and everything secret-looking masked EXCEPT pure-hex pieces — bundler chunk hashes are hex
+// (0a1b2c…), opaque credentials mix cases/letters beyond a-f.
+const hasOpaqueNonHexPiece = (t: string) =>
+  t.split(/[/.=+~]/).some(p => p.length >= 32 && /[0-9]/.test(p) && /[A-Za-z]/.test(p) && !/^[0-9a-f]+$/.test(p))
 const fileStr = (v: unknown) => (typeof v === 'string'
   ? maskEmails(
       cutQuery(cap(v))
         .replace(AUTH_SCHEME, '$1 [token]')
-        .replace(TOKEN_RUN, t => (looksJwt(t) || hasSessionBlob(t) ? '[token]' : t))
+        .replace(TOKEN_RUN, t => (looksJwt(t) || hasSessionBlob(t) || hasOpaqueNonHexPiece(t) ? '[token]' : t))
     ).replace(UUID, '[uuid]')
   : undefined)
 const raw = (v: unknown) => (typeof v === 'string' ? v : undefined)
@@ -202,7 +230,9 @@ export function scrubEvent<T>(event: T): T {
   const out = pick(e, {
     event_id: str, timestamp: num, start_timestamp: num, platform: str, level: str, logger: str,
     environment: raw, release: raw, dist: raw, server_name: str, type: raw,
-    transaction: urlStr,
+    transaction: (v: unknown) => (typeof v === 'string'
+      ? v.replace(/^([A-Z]+ )?(.*)$/, (_, method = '', rest) => method + routeShape(rest))
+      : undefined),
     fingerprint: strArray(10),
     message: (m: unknown) => typeof m === 'string' ? scrubString(m) : pick(m, { message: str, formatted: str }),
     logentry: (m: unknown) => pick(m, { message: str }),
