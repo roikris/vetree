@@ -190,13 +190,6 @@ body {
   animation: fade-in 0.4s ease-out;
 }
 
-/* PWA standalone mode adjustments */
-@media (display-mode: standalone) {
-  .hero-section {
-    padding-top: max(env(safe-area-inset-top), 1rem);
-  }
-}
-
 /* Synthesis panel styling */
 .synthesis-content h2 {
   @apply text-lg font-semibold text-blue-900 dark:text-blue-100 mt-6 mb-3 first:mt-0;

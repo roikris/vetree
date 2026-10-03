@@ -154,6 +154,29 @@ export function LandingPage({ exampleArticle, articleCountLabel }: LandingPagePr
               </Link>
             </div>
             <p style={{ margin: '0 0 26px', font: "400 13.5px/1 var(--font-instrument, sans-serif)", color: 'var(--al-mut4)' }}>Free forever · No credit card · Built by a DVM</p>
+            {/* Search straight from the landing page — a plain GET form, so it works without JS and
+                runs on submit (Enter / button), same as the Stream's search; the feed logs it. */}
+            <form action="/" method="get" role="search" data-testid="landing-search" style={{ display: 'flex', alignItems: 'center', gap: 8, maxWidth: 500, marginBottom: 14, padding: '6px 6px 6px 16px', borderRadius: 12, background: 'var(--al-card3)', border: '1px solid rgba(var(--al-line), .18)' }}>
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--al-mut4)" strokeWidth="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path strokeLinecap="round" d="M20 20l-3.5-3.5"/></svg>
+              <input
+                type="search"
+                name="search"
+                required
+                minLength={2}
+                maxLength={200}
+                placeholder="Search the evidence — e.g. feline hypertension"
+                aria-label="Search veterinary research"
+                data-testid="landing-search-input"
+                style={{ flex: 1, minWidth: 0, border: 0, outline: 'none', background: 'transparent', font: "400 15px/1.4 var(--font-instrument, sans-serif)", color: 'var(--al-ink2)', padding: '8px 0' }}
+              />
+              <button
+                type="submit"
+                aria-label="Search"
+                style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 38, height: 38, flexShrink: 0, borderRadius: 9, border: 0, background: 'var(--al-accent)', color: 'var(--al-on-accent)', cursor: 'pointer' }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14M13 6l6 6-6 6"/></svg>
+              </button>
+            </form>
             <div style={{ display: 'flex', alignItems: 'center', gap: 9, flexWrap: 'wrap' }}>
               <span style={{ font: "italic 400 13.5px/1 var(--font-spectral, serif)", color: 'var(--al-mut6)', marginRight: 2 }}>Try —</span>
               {CHIPS.map(chip => (

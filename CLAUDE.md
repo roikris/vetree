@@ -322,7 +322,9 @@ NEXT_PUBLIC_FB_PIXEL_ID          # Meta Pixel ID; script is a no-op if unset
 - Accessibility: <main> landmark, skip nav link, aria-labels on inputs
 - Mobile UI: bottom nav + responsive cards + mobile article hero
 - Soft registration wall (3 articles free)
-- Hero section for guests (hidden for logged-in users); landing page for completely unfiltered logged-out view
+- Landing page for the completely unfiltered logged-out view, with a search box (plain GET form → `/?search=`); "Browse articles" goes straight to the Stream (the guests' second hero was removed 2026-10-03)
+- "Personalize later" card (`components/home/PersonalizeCard.tsx`): signed-in readers who follow no specialties see it atop the Stream; Follow → `/api/tags/follow`; "Not now" snoozes 14 days, gone after the 2nd; events `personalize_card_shown|saved|snoozed`
+- Library shows saved articles only — Collections / Reading list tabs hidden until built
 - Fuzzy search via pg_trgm with 3-tier fallback + synonym mapping; search activates on form submit (Enter or tap the arrow button) — NOT on keystroke; logging via SearchControls useEffect after navigation
 - Articles blacklist (prevents re-adding deleted articles)
 - Feature flags table (on/off switches for features)

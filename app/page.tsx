@@ -7,8 +7,8 @@ import { ArticleFeedWrapper } from '@/components/articles/ArticleFeedWrapper'
 import { DisclaimerBanner } from '@/components/ui/DisclaimerBanner'
 import { TrendingArticles } from '@/components/articles/TrendingArticles'
 import { PersonalizedFeed } from '@/components/articles/PersonalizedFeed'
-import { HeroSection } from '@/components/home/HeroSection'
 import { LandingPage } from '@/components/home/LandingPage'
+import { PersonalizeCard } from '@/components/home/PersonalizeCard'
 import { getTrendingArticles } from '@/app/actions/trending'
 import { getPersonalizedArticles } from '@/app/actions/personalized-feed'
 import { createClient } from '@/lib/supabase/server'
@@ -82,31 +82,10 @@ export default async function Home({ searchParams }: HomeProps) {
     )
   }
 
-  // Fetch most recent article for legacy hero (shown on first page when no search/labels but browse=1 or other filters)
-  let exampleArticle = null
-  if (!isLoggedIn && filters.page === 1 && !filters.search && filters.labels.length === 0) {
-    // Newest article matching the active species scope, so a large-animal-only card can't
-    // headline the small-animal feed (or vice versa). Card fields only — no summary.
-    const { data } = await supabase
-      .from('articles')
-      .select('id, title, clinical_bottom_line, labels, source_journal, publication_date, strength_of_evidence, authors, article_url, doi, pubmed_id')
-      .eq('needs_enrichment', false)
-      .not('clinical_bottom_line', 'is', null)
-      .order('publication_date', { ascending: false })
-      .limit(20)
-    exampleArticle = (data ?? []).find(a => matchesQuickFilter(a.labels, filters.quickFilter)) ?? null
-  }
-
-  // Searches skip the hero-only and feed-header-only queries below, so the search's own
-  // streamed results (and its "Searching…" loader) start sooner
+  // Searches skip the feed-header-only query below, so the search's own streamed results (and
+  // its "Searching…" loader) start sooner. (The guests' second hero on the Stream was removed
+  // 2026-10-03 — the landing page is the one pitch; "Browse articles" goes straight to the feed.)
   const isSearchRequest = !!filters.search.trim()
-
-  // Stats (legacy hero — never shown with a search)
-  const stats = !isLoggedIn && !isSearchRequest
-    ? await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://vetree.app'}/api/stats/public`, {
-        next: { revalidate: 3600 }
-      }).then(r => r.json()).catch(() => ({ confirmed_users: 0, articles_count: 8000 }))
-    : { confirmed_users: 0, articles_count: 0 }
 
   // Count articles published in the last 7 days (for stream header)
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
@@ -140,7 +119,10 @@ export default async function Home({ searchParams }: HomeProps) {
   // Fetch personalized articles (only show on first page with no filters)
   const { articles: personalizedArticles, hasFollowedTags } = showTrending
     ? await getPersonalizedArticles()
-    : { articles: [], hasFollowedTags: false }
+    : { articles: [], hasFollowedTags: null }
+  // Signed-in readers who follow nothing are invited to pick specialties (signup no longer asks).
+  // Page middleware already sends unverified accounts to /verify-email.
+  const showPersonalizeCard = !!user && hasFollowedTags === false
 
   // Deduplicate main feed articles to avoid showing same articles in personalized feed
   const personalizedIds = new Set(personalizedArticles.map(a => a.id))
@@ -158,11 +140,6 @@ export default async function Home({ searchParams }: HomeProps) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
       />
-
-      {/* Hero Section - only for non-logged-in users on first page */}
-      {!isLoggedIn && filters.page === 1 && !filters.search && filters.labels.length === 0 && (
-        <HeroSection exampleArticle={exampleArticle} stats={stats} />
-      )}
 
       <SearchControls
         initialFilters={filters}
@@ -210,6 +187,8 @@ export default async function Home({ searchParams }: HomeProps) {
         <div id="articles">
           {/* Constrain disclaimer + results count to feed width */}
           <div style={{ maxWidth: filters.view === 'list' ? 844 : 704, margin: '0 auto', padding: '0 32px' }}>
+            {showPersonalizeCard && <PersonalizeCard />}
+
             <DisclaimerBanner />
 
             <TrendingArticles articles={trendingArticles} />

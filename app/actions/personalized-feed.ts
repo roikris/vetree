@@ -11,11 +11,16 @@ export async function getPersonalizedArticles() {
     return { articles: [], hasFollowedTags: false }
   }
 
-  // Get user's followed tags
-  const { data: followedTagsData } = await supabase
+  // Get user's followed tags. hasFollowedTags: null = unknown (read failed) — callers must not
+  // treat that as "follows nothing" (e.g. the personalize card on the Stream)
+  const { data: followedTagsData, error: followedError } = await supabase
     .from('followed_tags')
     .select('tag')
     .eq('user_id', user.id)
+  if (followedError) {
+    console.error('[personalized-feed] followed_tags read failed:', followedError.message)
+    return { articles: [], hasFollowedTags: null }
+  }
 
   const followedTags = followedTagsData?.map(ft => ft.tag) || []
 
