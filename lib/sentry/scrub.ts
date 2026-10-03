@@ -53,9 +53,12 @@ function cutQuery(s: string): string {
 // no backtracking); a run is redacted only if it looks like a secret.
 const TOKEN_RUN = /[A-Za-z0-9._~+/=-]{20,}/g
 const AUTH_SCHEME = /\b(Bearer|Basic|Token)\s+[A-Za-z0-9._~+/=-]{4,}/gi
+function looksJwt(t: string): boolean {
+  const jwt = t.indexOf('eyJ')                                               // even after a prefix
+  return jwt >= 0 && t.slice(jwt).split('.').length >= 3
+}
 function looksSecret(t: string): boolean {
-  const jwt = t.indexOf('eyJ')                                               // JWT, even after a prefix
-  if (jwt >= 0 && t.slice(jwt).split('.').length >= 3) return true
+  if (looksJwt(t)) return true
   if (t.startsWith('base64-')) return true                                   // Supabase session cookie
   // Long opaque string: no dot (not a domain/file), not a path, mixes letters and digits
   return t.length >= 40 && !t.includes('.') && t[0] !== '/' && /[0-9]/.test(t) && /[A-Za-z]/.test(t)
@@ -76,7 +79,7 @@ function maskEmails(s: string): string {
     let r = i + width
     while (r < s.length && r - i < 254 && DOMAIN_CH.test(s[r])) r++
     const domain = s.slice(i + width, r).replace(/[.-]+$/, '')
-    if (l < i && /^[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}$/.test(domain)) {
+    if (l < i && /^[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*\.([A-Za-z]{2,}|xn--[A-Za-z0-9-]{2,})$/.test(domain)) {
       out += s.slice(last, l) + '[email]'
       last = i + width + domain.length
       i = last - 1
@@ -98,9 +101,18 @@ export function scrubString(input: string): string {
 }
 
 const str = (v: unknown) => (typeof v === 'string' ? scrubString(v) : undefined)
-// URL fields and code file names: query/fragment cut unconditionally, emails/UUIDs masked — but no
-// token rule, so hashed chunk names survive for source maps
-const urlStr = (v: unknown) => (typeof v === 'string' ? maskEmails(cutQuery(cap(v))).replace(UUID, '[uuid]') : undefined)
+// URL / path fields (request, navigation, Next.js paths, transaction): query and fragment cut
+// unconditionally, then the full scrub
+const urlStr = (v: unknown) => (typeof v === 'string' ? scrubString(cutQuery(v)) : undefined)
+// Code file names (frames, debug images): same, except the long-opaque-token rule — hashed chunk
+// names must survive for source maps (JWTs, session blobs and auth credentials are still caught)
+const fileStr = (v: unknown) => (typeof v === 'string'
+  ? maskEmails(
+      cutQuery(cap(v))
+        .replace(AUTH_SCHEME, '$1 [token]')
+        .replace(TOKEN_RUN, t => (looksJwt(t) || t.startsWith('base64-') ? '[token]' : t))
+    ).replace(UUID, '[uuid]')
+  : undefined)
 const raw = (v: unknown) => (typeof v === 'string' ? v : undefined)
 const num = (v: unknown) => (typeof v === 'number' ? v : undefined)
 const bool = (v: unknown) => (typeof v === 'boolean' ? v : undefined)
@@ -122,7 +134,7 @@ const arrayOf = (fn: (v: unknown) => unknown, max: number) => (v: unknown) =>
 const strArray = (max: number) => arrayOf(str, max)
 
 const frame = (f: unknown) => pick(f, {
-  filename: urlStr, abs_path: urlStr, module: urlStr, function: str, lineno: num, colno: num,
+  filename: fileStr, abs_path: fileStr, module: fileStr, function: str, lineno: num, colno: num,
   in_app: bool, context_line: str, pre_context: strArray(10), post_context: strArray(10),
   platform: raw,
   // vars (local variables) deliberately omitted
@@ -140,11 +152,13 @@ const breadcrumbData = (d: unknown) => pick(d, {
 })
 
 export function scrubBreadcrumb<T>(breadcrumb: T): T {
-  // DOM breadcrumbs (ui.click / ui.input) serialise element selectors, and labels can hold what the
-  // reader typed (e.g. the zero-results "Synthesize evidence for <query>" button). They are switched
-  // off in the browser; any that still arrive keep only their category.
+  // Free-form text breadcrumbs keep only their category (when + kind, never content):
+  // - ui.* (DOM): element selectors, and labels can hold what the reader typed (the zero-results
+  //   "Synthesize evidence for <query>" button); switched off in the browser anyway
+  // - console: any console.* line from any code path (search text, ids, error dumps) — logs stay
+  //   in Vercel's logs, never in Sentry
   const category = (breadcrumb as { category?: unknown })?.category
-  if (typeof category === 'string' && category.startsWith('ui.')) {
+  if (typeof category === 'string' && (category.startsWith('ui.') || category === 'console')) {
     return pick(breadcrumb, { type: str, category: str, level: str, timestamp: num }) as T
   }
   return pick(breadcrumb, {
@@ -176,7 +190,7 @@ export function scrubEvent<T>(event: T): T {
   const out = pick(e, {
     event_id: str, timestamp: num, start_timestamp: num, platform: str, level: str, logger: str,
     environment: raw, release: raw, dist: raw, server_name: str, type: raw,
-    transaction: (v: unknown) => (typeof v === 'string' ? scrubString(cutQuery(v)) : undefined),
+    transaction: urlStr,
     fingerprint: strArray(10),
     message: (m: unknown) => typeof m === 'string' ? scrubString(m) : pick(m, { message: str, formatted: str }),
     logentry: (m: unknown) => pick(m, { message: str }),
@@ -188,7 +202,7 @@ export function scrubEvent<T>(event: T): T {
     // Debug ids for source maps must stay intact; image file names are URLs like frame file names
     debug_meta: (v: unknown) => pick(v, {
       images: arrayOf((img: unknown) => pick(img, {
-        type: raw, debug_id: raw, code_id: raw, code_file: urlStr, image_addr: raw, image_size: num, arch: raw,
+        type: raw, debug_id: raw, code_id: raw, code_file: fileStr, image_addr: raw, image_size: num, arch: raw,
       }), 200),
     }),
   }) ?? {}

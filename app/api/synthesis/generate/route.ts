@@ -216,7 +216,7 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-    console.log('[synthesis] Cache miss, generating new synthesis for:', queryOriginal)
+    console.log('[synthesis] Cache miss, generating new synthesis')  // never log the reader's query
 
     const LARGE_ANIMAL_LABELS = [
       'Equine', 'equine', 'Large Animal', 'large animal',

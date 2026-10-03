@@ -106,7 +106,7 @@ export async function runSearchBatch(filters: ParsedFilters, cursor: Cursor | nu
   // retry, only for a timeout — the sprout loader covers the wait. Anon role kept on purpose
   // (the service key would lift the limit to 8 s but is reserved for admin paths).
   if (error?.code === '57014') {
-    console.warn('[search] batch timed out, retrying once:', text)
+    console.warn('[search] batch timed out, retrying once')  // never log the reader's query
     ;({ data, error } = await call())
   }
 
