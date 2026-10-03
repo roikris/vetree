@@ -1,15 +1,15 @@
 name: QA Smoke Suite
 
-# Production smoke. Essentials (tests not tagged @weekly) run Mon–Sat and after every deploy; the
-# full suite runs weekly on Sunday. Every PR runs the full suite on its preview (qa-smoke-pr.yml,
-# the required `smoke` check), so a regression is caught before merge; the weekly production run
-# covers production-only data and configuration.
+# Production smoke. Essentials (tests not tagged @weekly) run Mon–Sat; the full suite runs weekly on
+# Sunday. After every deploy only a light HTTP health check runs: the merged code already passed the
+# full suite on its preview (qa-smoke-pr.yml, the required `smoke` check), and every Playwright run
+# costs Vercel Fluid Active CPU (Hobby plan: ~4 h/month; 2026-09-24→10-02 test runs alone used ~70 min).
 on:
   schedule:
     - cron: '0 6 * * 1-6'   # Mon–Sat 06:00 UTC — essentials
     - cron: '0 6 * * 0'     # Sunday 06:00 UTC — full suite
   push:
-    branches: [main]        # post-deploy — essentials
+    branches: [main]        # post-deploy — HTTP health check only
   workflow_dispatch:
     inputs:
       suite:
@@ -66,14 +66,48 @@ jobs:
           echo "ERROR: production did not serve $EXPECTED_SHA within 15 minutes"
           exit 1
 
+      # Post-deploy: a few plain requests instead of Playwright — home, the version endpoint, a
+      # database-backed API, and a real article page taken from the (cached) sitemap.
+      - name: Post-deploy health check
+        id: health
+        if: github.event_name == 'push'
+        run: |
+          UA='VetreeQABot/1.0 (health check)'
+          fail=0
+          check() {  # url, expected text
+            body=$(curl -s -A "$UA" --max-time 20 -w '\n%{http_code}' "$1")
+            code=$(printf '%s' "$body" | tail -n1)
+            if [ "$code" = "200" ] && printf '%s' "$body" | grep -q "$2"; then echo "OK   $code $1"
+            else echo "FAIL $code $1 (expected 200 containing '$2')"; fail=1; fi
+          }
+          check https://vetree.app/ '<title>'
+          check https://vetree.app/api/version '"sha"'
+          check https://vetree.app/api/stats/public '{'
+          ARTICLE=$(curl -s -A "$UA" --max-time 20 https://vetree.app/sitemaps/sitemap/0.xml | grep -o 'https://vetree.app/article/[^<]*' | head -n1)
+          if [ -z "$ARTICLE" ]; then echo "FAIL no article URL in sitemap"; fail=1; else check "$ARTICLE" 'data-testid="article-title"'; fi
+          exit $fail
+
+      - name: Slack on failed health check
+        if: failure() && github.event_name == 'push' && steps.health.outcome == 'failure'
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          [ -n "$SLACK_WEBHOOK_URL" ] || exit 0
+          curl -s -X POST -H 'Content-Type: application/json' \
+            -d "{\"text\":\"🌿 *Vetree* — post-deploy health check FAILED for ${GITHUB_SHA:0:7}\\n$RUN_URL\"}" "$SLACK_WEBHOOK_URL"
+
       - name: Install dependencies
+        if: github.event_name != 'push'
         run: npm ci
 
       - name: Install Playwright browsers
+        if: github.event_name != 'push'
         run: npx playwright install --with-deps chromium
 
       - name: Run smoke tests
         id: smoke
+        if: github.event_name != 'push'
         run: |
           if [ "$SUITE" = "full" ]; then npm run test:smoke; else npm run test:smoke -- --grep-invert @weekly; fi
         continue-on-error: true
@@ -84,7 +118,7 @@ jobs:
           TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
 
       - name: Triage + Slack
-        if: always()
+        if: always() && github.event_name != 'push'
         run: node scripts/qa-triage.mjs
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -96,7 +130,7 @@ jobs:
           SUITE: ${{ (github.event.schedule == '0 6 * * 0' || (github.event_name == 'workflow_dispatch' && inputs.suite == 'full')) && 'full' || 'essentials' }}
 
       - name: Upload Playwright report
-        if: always()
+        if: always() && github.event_name != 'push'
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report

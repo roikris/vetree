@@ -1,12 +1,38 @@
 name: PR Smoke Suite
 
+# Every Playwright run costs Vercel Fluid Active CPU (Hobby plan: ~4 h/month). 2026-09-24→10-02,
+# re-running the full suite on every push to every PR used ~70 extra CPU-minutes. So:
+# - draft PRs don't run it: iterate as a draft, mark "Ready for review" to run it once
+# - docs-only changes (*.md, docs/**) don't run it
+# `smoke` is a required check, so it is skipped by a job condition, never by trigger filters:
+# GitHub reports a condition-skipped job as successful, whereas a workflow that never starts leaves
+# the required check pending forever. Drafts can't be merged; marking one ready re-runs this.
 on:
   pull_request:
     branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
 
 jobs:
+  scope:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      code: ${{ steps.diff.outputs.code }}
+    steps:
+      - name: Does this PR change anything besides docs?
+        id: diff
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          FILES=$(gh api --paginate "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/files" --jq '.[].filename')
+          echo "$FILES"
+          if [ -z "$FILES" ] || echo "$FILES" | grep -qvE '(\.md$|^docs/)'; then echo "code=true" >> "$GITHUB_OUTPUT"; else echo "code=false" >> "$GITHUB_OUTPUT"; echo "Docs-only change: smoke skipped"; fi
+
   smoke:
     name: smoke
+    needs: scope
+    if: github.event.pull_request.draft == false && needs.scope.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
