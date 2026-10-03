@@ -8,6 +8,6 @@ import { sentryPrivacyOptions } from './lib/sentry/options'
 // events and breadcrumbs before sending (lib/sentry/scrub.ts)
 Sentry.init({
   ...sentryPrivacyOptions,
-  // Deployed builds only — not `next dev`
+  // Production builds only (deployments, and a local `next start`) — not `next dev`
   enabled: process.env.NODE_ENV === 'production',
 })

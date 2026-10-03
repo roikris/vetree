@@ -15,6 +15,7 @@ Sentry.init({
     Sentry.requestDataIntegration({
       include: { cookies: false, data: false, headers: false, ip: false, query_string: false, url: true },
     }),
-    Sentry.httpIntegration({ maxIncomingRequestBodySize: 'none' }),
+    // disableIncomingRequestSpans: the Next.js default this replacement must keep
+    Sentry.httpIntegration({ maxIncomingRequestBodySize: 'none', disableIncomingRequestSpans: true }),
   ],
 })
