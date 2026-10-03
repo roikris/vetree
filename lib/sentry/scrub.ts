@@ -53,13 +53,25 @@ function cutQuery(s: string): string {
 // no backtracking); a run is redacted only if it looks like a secret.
 const TOKEN_RUN = /[A-Za-z0-9._~+/=-]{20,}/g
 const AUTH_SCHEME = /\b(Bearer|Basic|Token)\s+[A-Za-z0-9._~+/=-]{4,}/gi
+// A JWT anywhere in the run, by structure: a header segment that is base64url JSON — "{" encodes
+// to "e" + "y"/"w" whatever follows (eyJ for {"…, eyAi for { "…, ew… for {\n…) — then a dot and a
+// payload segment. Each segment is examined once with fixed-width patterns → linear.
+const JWT_HEADER = /^e[yw][A-Za-z0-9_-]{8}/
+const JWT_PAYLOAD = /^[A-Za-z0-9_-]{8}/
 function looksJwt(t: string): boolean {
-  const jwt = t.indexOf('eyJ')                                               // even after a prefix
-  return jwt >= 0 && t.slice(jwt).split('.').length >= 3
+  const segs = t.split('.')
+  for (let k = 0; k + 1 < segs.length; k++) {
+    const seg = segs[k]
+    // the header starts after any non-base64url character the run allows (/, =, +, ~)
+    const start = Math.max(seg.lastIndexOf('/'), seg.lastIndexOf('='), seg.lastIndexOf('+'), seg.lastIndexOf('~')) + 1
+    if (JWT_HEADER.test(seg.slice(start)) && JWT_PAYLOAD.test(segs[k + 1])) return true
+  }
+  return false
 }
+const hasSessionBlob = (t: string) => t.includes('base64-')                  // Supabase session cookie, any prefix
 function looksSecret(t: string): boolean {
   if (looksJwt(t)) return true
-  if (t.startsWith('base64-')) return true                                   // Supabase session cookie
+  if (hasSessionBlob(t)) return true
   // Long opaque string: no dot (not a domain/file), not a path, mixes letters and digits
   return t.length >= 40 && !t.includes('.') && t[0] !== '/' && /[0-9]/.test(t) && /[A-Za-z]/.test(t)
 }
@@ -79,7 +91,7 @@ function maskEmails(s: string): string {
     let r = i + width
     while (r < s.length && r - i < 254 && DOMAIN_CH.test(s[r])) r++
     const domain = s.slice(i + width, r).replace(/[.-]+$/, '')
-    if (l < i && /^[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*\.([A-Za-z]{2,}|xn--[A-Za-z0-9-]{2,})$/.test(domain)) {
+    if (l < i && /^[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*\.([A-Za-z]{2,}|xn--[A-Za-z0-9-]{2,})$/i.test(domain)) {
       out += s.slice(last, l) + '[email]'
       last = i + width + domain.length
       i = last - 1
@@ -110,7 +122,7 @@ const fileStr = (v: unknown) => (typeof v === 'string'
   ? maskEmails(
       cutQuery(cap(v))
         .replace(AUTH_SCHEME, '$1 [token]')
-        .replace(TOKEN_RUN, t => (looksJwt(t) || t.startsWith('base64-') ? '[token]' : t))
+        .replace(TOKEN_RUN, t => (looksJwt(t) || hasSessionBlob(t) ? '[token]' : t))
     ).replace(UUID, '[uuid]')
   : undefined)
 const raw = (v: unknown) => (typeof v === 'string' ? v : undefined)
