@@ -18,38 +18,44 @@ const MAX_STRING = 8192
 const MAX_FRAMES = 100
 const MAX_VALUES = 10
 
-const isWordCh = (c: string) => /[A-Za-z0-9_.\-[\]%]/.test(c)
 const isStop = (c: string) => /[\s"'<>`]/.test(c)
 
-/** 1. Cut "?k=…" / "#k=…" (and "#/route?k=…") up to the next whitespace or quote. */
+/** 1. Free text: cut "?…" / "#…" when the token after it carries data (contains = or &, or is a
+ *  hash route "#/…") — up to the next whitespace or quote. Linear: a scanned token is never rescanned. */
 function stripQueryData(s: string): string {
   let out = ''
   let last = 0
   for (let i = 0; i < s.length; i++) {
     const c = s[i]
     if (c !== '?' && c !== '#') continue
-    // Look ahead (bounded) for key= — or "#/" (hash route) — right after the delimiter
-    let j = i + 1
-    if (c === '#' && s[j] === '/') j++
-    const keyStart = j
-    while (j < s.length && j - keyStart < 64 && isWordCh(s[j])) j++
-    const isData = (j > keyStart && s[j] === '=') || (c === '#' && s[i + 1] === '/')
-    if (!isData) continue
-    let end = i
-    while (end < s.length && !isStop(s[end])) end++
-    out += s.slice(last, i)
-    last = end
-    i = end - 1
+    let end = i + 1
+    let isData = c === '#' && s[i + 1] === '/'
+    while (end < s.length && !isStop(s[end])) {
+      if (s[end] === '=' || s[end] === '&') isData = true
+      end++
+    }
+    if (isData) {
+      out += s.slice(last, i)
+      last = end
+    }
+    i = end - 1   // every ?/# inside this token shares the same tail: never rescan it
   }
   return out + s.slice(last)
+}
+
+/** Known URL fields: the whole query and fragment go, unconditionally. */
+function cutQuery(s: string): string {
+  const q = s.search(/[?#]/)
+  return q < 0 ? s : s.slice(0, q)
 }
 
 // 2. Credentials outside URLs. One pass over runs of token characters (a single greedy class, so
 // no backtracking); a run is redacted only if it looks like a secret.
 const TOKEN_RUN = /[A-Za-z0-9._~+/=-]{20,}/g
-const AUTH_SCHEME = /\b(Bearer|Basic|Token)\s+[A-Za-z0-9._~+/=-]{8,}/gi
+const AUTH_SCHEME = /\b(Bearer|Basic|Token)\s+[A-Za-z0-9._~+/=-]{4,}/gi
 function looksSecret(t: string): boolean {
-  if (t.startsWith('eyJ') && t.split('.').length >= 3) return true          // JWT
+  const jwt = t.indexOf('eyJ')                                               // JWT, even after a prefix
+  if (jwt >= 0 && t.slice(jwt).split('.').length >= 3) return true
   if (t.startsWith('base64-')) return true                                   // Supabase session cookie
   // Long opaque string: no dot (not a domain/file), not a path, mixes letters and digits
   return t.length >= 40 && !t.includes('.') && t[0] !== '/' && /[0-9]/.test(t) && /[A-Za-z]/.test(t)
@@ -92,9 +98,9 @@ export function scrubString(input: string): string {
 }
 
 const str = (v: unknown) => (typeof v === 'string' ? scrubString(v) : undefined)
-// Code locations (frame file names, source lines): only query data is cut — hashed chunk names
-// must survive for source maps
-const codeStr = (v: unknown) => (typeof v === 'string' ? stripQueryData(cap(v)) : undefined)
+// URL fields and code file names: query/fragment cut unconditionally, emails/UUIDs masked — but no
+// token rule, so hashed chunk names survive for source maps
+const urlStr = (v: unknown) => (typeof v === 'string' ? maskEmails(cutQuery(cap(v))).replace(UUID, '[uuid]') : undefined)
 const raw = (v: unknown) => (typeof v === 'string' ? v : undefined)
 const num = (v: unknown) => (typeof v === 'number' ? v : undefined)
 const bool = (v: unknown) => (typeof v === 'boolean' ? v : undefined)
@@ -116,8 +122,8 @@ const arrayOf = (fn: (v: unknown) => unknown, max: number) => (v: unknown) =>
 const strArray = (max: number) => arrayOf(str, max)
 
 const frame = (f: unknown) => pick(f, {
-  filename: codeStr, abs_path: codeStr, module: codeStr, function: codeStr, lineno: num, colno: num,
-  in_app: bool, context_line: codeStr, pre_context: arrayOf(codeStr, 10), post_context: arrayOf(codeStr, 10),
+  filename: urlStr, abs_path: urlStr, module: urlStr, function: str, lineno: num, colno: num,
+  in_app: bool, context_line: str, pre_context: strArray(10), post_context: strArray(10),
   platform: raw,
   // vars (local variables) deliberately omitted
 })
@@ -130,10 +136,17 @@ const exceptionValue = (e: unknown) => pick(e, {
 
 // Breadcrumb data: only these keys (URLs/paths pass through scrubString)
 const breadcrumbData = (d: unknown) => pick(d, {
-  url: str, method: str, status_code: num, from: str, to: str, reason: str,
+  url: urlStr, method: str, status_code: num, from: urlStr, to: urlStr, reason: str,
 })
 
 export function scrubBreadcrumb<T>(breadcrumb: T): T {
+  // DOM breadcrumbs (ui.click / ui.input) serialise element selectors, and labels can hold what the
+  // reader typed (e.g. the zero-results "Synthesize evidence for <query>" button). They are switched
+  // off in the browser; any that still arrive keep only their category.
+  const category = (breadcrumb as { category?: unknown })?.category
+  if (typeof category === 'string' && category.startsWith('ui.')) {
+    return pick(breadcrumb, { type: str, category: str, level: str, timestamp: num }) as T
+  }
   return pick(breadcrumb, {
     type: str, category: str, level: str, timestamp: num, event_id: str,
     message: str,
@@ -154,7 +167,7 @@ const contexts = (c: unknown) => pick(c, {
   culture: ctxFields(['locale', 'timezone']),
   cloud_resource: ctxFields(['cloud.provider', 'cloud.region']),
   trace: ctxFields(['trace_id', 'span_id', 'parent_span_id', 'op', 'status']),
-  nextjs: ctxFields(['request_path', 'router_kind', 'router_path', 'route_type']),
+  nextjs: (v: unknown) => pick(v, { request_path: urlStr, router_kind: str, router_path: urlStr, route_type: str }),
 })
 
 /** beforeSend: rebuild the event from an allowlist. */
@@ -162,16 +175,22 @@ export function scrubEvent<T>(event: T): T {
   const e = event as Record<string, unknown>
   const out = pick(e, {
     event_id: str, timestamp: num, start_timestamp: num, platform: str, level: str, logger: str,
-    environment: raw, release: raw, dist: raw, server_name: str, transaction: str, type: raw,
+    environment: raw, release: raw, dist: raw, server_name: str, type: raw,
+    transaction: (v: unknown) => (typeof v === 'string' ? scrubString(cutQuery(v)) : undefined),
     fingerprint: strArray(10),
     message: (m: unknown) => typeof m === 'string' ? scrubString(m) : pick(m, { message: str, formatted: str }),
     logentry: (m: unknown) => pick(m, { message: str }),
     exception: (x: unknown) => pick(x, { values: arrayOf(exceptionValue, MAX_VALUES) }),
     breadcrumbs: arrayOf(scrubBreadcrumb, 100),
-    request: (r: unknown) => pick(r, { url: str, method: str }),
+    request: (r: unknown) => pick(r, { url: urlStr, method: str }),
     contexts,
     sdk: (v: unknown) => v,          // SDK name/version/integrations — no user data
-    debug_meta: (v: unknown) => v,   // debug ids for source maps — must stay intact
+    // Debug ids for source maps must stay intact; image file names are URLs like frame file names
+    debug_meta: (v: unknown) => pick(v, {
+      images: arrayOf((img: unknown) => pick(img, {
+        type: raw, debug_id: raw, code_id: raw, code_file: urlStr, image_addr: raw, image_size: num, arch: raw,
+      }), 200),
+    }),
   }) ?? {}
   return out as T
 }

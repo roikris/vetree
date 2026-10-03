@@ -10,4 +10,6 @@ Sentry.init({
   ...sentryPrivacyOptions,
   // Production builds only (deployments, and a local `next start`) — not `next dev`
   enabled: process.env.NODE_ENV === 'production',
+  // No DOM click/input breadcrumbs: element selectors can contain what the reader typed
+  integrations: [Sentry.breadcrumbsIntegration({ dom: false })],
 })
