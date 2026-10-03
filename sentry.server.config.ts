@@ -1,11 +1,11 @@
+// Node-runtime Sentry, loaded by instrumentation.ts register(). Until 2026-10-03 there was no
+// instrumentation.ts, so this file never ran: no server-side error ever reached Sentry (the
+// "fail loud" production alerts of CLAUDE.md rule 13 included).
 import * as Sentry from '@sentry/nextjs'
+import { sentryPrivacyOptions } from './lib/sentry/options'
 
 Sentry.init({
-  dsn: 'https://28d0b1752adddcef43e6de7e5bdd7d77@o4510987282153472.ingest.us.sentry.io/4510987349000192',
-
-  // Adjust this value in production, or use tracesSampler for greater control
-  tracesSampleRate: 1.0,
-
-  // Setting this option to true will print useful information to the console while you're setting up Sentry.
-  debug: false,
+  ...sentryPrivacyOptions,
+  environment: process.env.VERCEL_ENV ?? 'development',
+  enabled: process.env.NODE_ENV === 'production',
 })

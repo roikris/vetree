@@ -50,7 +50,14 @@ export async function POST(request: NextRequest) {
   let recordFailure: (() => Promise<boolean>) | null = null
 
   try {
-    const body = await request.json()
+    // A body that isn't JSON is the caller's error (400), never a captured exception: JSON.parse
+    // errors quote the raw input, which would carry whatever was sent into Sentry
+    let body: { query?: unknown }
+    try {
+      body = await request.json()
+    } catch {
+      return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
+    }
     const { query } = body
 
     if (typeof query !== 'string' || query.trim().length < 3 || query.trim().length > 200) {

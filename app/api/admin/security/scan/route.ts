@@ -366,11 +366,22 @@ export async function POST(request: NextRequest) {
       // code that merely sat next to a capture call (e.g. a `user_id:` insert after a constant
       // message). Slack payloads are usually assembled in variables around the webhook, so Slack
       // keeps the ~500-char window.
+      // Parentheses inside string/template literals and comments don't count — `captureMessage("x )",
+      // { email })` must not end the argument list at the quoted ")". Template ${…} bodies are
+      // skipped with the literal; their text is still part of the returned argument string.
       const callArgs = (from: number): string => {
         let depth = 0
         for (let i = from; i < content.length; i++) {
-          if (content[i] === '(') depth++
-          else if (content[i] === ')' && --depth === 0) return content.slice(from, i + 1)
+          const c = content[i]
+          if (c === '"' || c === "'" || c === '`') {
+            for (i++; i < content.length && content[i] !== c; i++) if (content[i] === '\\') i++
+          } else if (c === '/' && content[i + 1] === '/') {
+            while (i < content.length && content[i] !== '\n') i++
+          } else if (c === '/' && content[i + 1] === '*') {
+            const end = content.indexOf('*/', i + 2)
+            i = end < 0 ? content.length : end + 1
+          } else if (c === '(') depth++
+          else if (c === ')' && --depth === 0) return content.slice(from, i + 1)
         }
         return content.slice(from, from + 500)
       }

@@ -35,7 +35,7 @@ Solo DVM developer. Target: Israeli + international vets.
 - **AI:** Claude Sonnet 4.6 `claude-sonnet-4-6` for every AI call (`lib/ai/model.ts`; Haiku is retired)
 - **Email:** Resend — weekly digest from `digest@digest.vetree.app`; auth emails via Resend custom SMTP (`auth@digest.vetree.app`)
 - **xlsx:** pinned to SheetJS CDN tarball `https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz` (no CVE; do NOT upgrade via npm)
-- **Monitoring:** Sentry (@sentry/nextjs@7)
+- **Monitoring:** Sentry (@sentry/nextjs@9) — error reports only, no tracing/replay. Browser: `instrumentation-client.ts`; server + edge: `instrumentation.ts` `register()` → `sentry.server.config.ts` / `sentry.edge.config.ts` (that file was missing until 2026-10-03, so no server error — rule 13's "fail loud" alerts included — ever reached Sentry). All three share `lib/sentry/options.ts`, which strips email addresses from every event and breadcrumb (`lib/sentry/scrub.ts`). Never log emails; never pass request bodies or user text to `captureException`/`captureMessage`.
 - **Rate limiting:** Upstash Redis (@upstash/ratelimit)
 - **Analytics:** Vercel Analytics + custom Supabase tables (page_views, search_logs, analytics_events)
 - **Search:** pg_trgm fuzzy search + 3-tier fallback (FTS → ILIKE → trigram RPC)

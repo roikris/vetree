@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    console.log(`[feature-flags] ${flag_name} set to ${enabled} by ${user.email}`)
+    console.log(`[feature-flags] ${flag_name} set to ${enabled} by an admin`)
 
     return NextResponse.json({ flag: data })
 

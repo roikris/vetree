@@ -252,7 +252,7 @@ export async function POST(request: NextRequest) {
 
       // DEDUP CHECK: Skip if user got an email in the last 5 days (batch lookup)
       if (recentDigestIds.has(user.id)) {
-        console.log(`[digest] Skipping ${user.email} - already sent in last 5 days`)
+        console.log('[digest] Skipping a recipient - already sent in last 5 days')
         skip(user.email, 'recent_digest')
         continue
       }
@@ -320,7 +320,7 @@ export async function POST(request: NextRequest) {
 
       // Skip user if no articles found even after backfill
       if (!articles || articles.length === 0) {
-        console.log(`[digest] Skipping ${user.email} - no unsent articles found`)
+        console.log('[digest] Skipping a recipient - no unsent articles found')
         skip(user.email, 'no_articles')
         continue
       }
@@ -412,7 +412,7 @@ export async function POST(request: NextRequest) {
 
         sentCount++
       } catch (emailError) {
-        console.error(`[digest] Failed to send to ${user.email}:`, emailError)
+        console.error('[digest] Failed to send to a recipient:', emailError)
         errorCount++
       }
     }
