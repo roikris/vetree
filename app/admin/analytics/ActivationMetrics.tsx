@@ -30,9 +30,10 @@ export function ActivationMetrics() {
 
   useEffect(() => {
     let cancelled = false
-    getActivationMetrics(days).then(res => {
-      if (!cancelled) setResult({ days, data: res.data, error: res.error })
-    })
+    getActivationMetrics(days).then(
+      res => { if (!cancelled) setResult({ days, data: res.data, error: res.error }) },
+      err => { if (!cancelled) setResult({ days, data: null, error: err instanceof Error ? err.message : 'Request failed' }) },
+    )
     return () => { cancelled = true }
   }, [days])
 
@@ -67,9 +68,9 @@ export function ActivationMetrics() {
             New confirmed accounts that signed up {data.cohortFrom} → {data.cohortTo} (each has had a full 7 days); admin and test account excluded.
           </p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Stat label="First save within 7 days" n={data.firstSave} of={data.cohortSize} sub="saved ≥ 1 article (unsaving removes the record, so slightly low)" />
-            <Stat label="Came back within 7 days" n={data.returned} of={data.cohortSize} sub="a page view on a later day than signup" />
-            <Stat label={`Returning signed-out visitors (${days}d)`} n={data.anonReturning} of={data.anonVisitors} sub="seen on 2+ different days (approximate: IPs change)" />
+            <Stat label="First save within 7 days" n={data.firstSave} of={data.cohortSize} sub="saved ≥ 1 article (a lower bound: unsaving removes the record)" />
+            <Stat label="Came back within 7 days" n={data.returned} of={data.cohortSize} sub="a page view on a later calendar day (UTC) than signup" />
+            <Stat label={`Returning signed-out visitors (${days}d)`} n={data.anonReturning} of={data.anonVisitors} sub="seen on 2+ days (approximate: IPs change and are shared)" />
           </div>
           {data.cohortSize < 30 && (
             <p className="text-xs text-amber-700 dark:text-amber-400 mt-3">

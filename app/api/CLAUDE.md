@@ -33,13 +33,13 @@ Routes verified from `app/api/` directory tree.
 
 | Route | Method | Purpose | Auth |
 |-------|--------|---------|------|
-| `/api/trigger-enrichment` | POST | Trigger enrichment pipeline | GitHub Action (DIGEST_SECRET) |
+| `/api/trigger-enrichment` | POST | Trigger enrichment pipeline | Admin session |
 | `/api/enrich-failed` | POST | Re-queue failed articles | Admin session |
 | `/api/delete-account` | POST | GDPR deletion | User session |
 | `/api/save-article` | POST | Save / unsave article | User session |
 | `/api/reports` | POST | Submit article report | User session |
 | `/api/grove` | GET | Grove feed endpoint | Public |
-| `/api/auth/save-consent` | POST | Record analytics consent | User session |
+| `/api/auth/save-consent` | POST | Record terms / digest-marketing consent (user_consents) | User session |
 | `/api/avatars/[userId]` | GET | Signed URL for the caller's OWN avatar (403 for anyone else) | User session |
 | `/api/articles/[id]/summary` | GET | Lazy-load article summary | Public |
 | `/api/articles/[id]/abstract` | GET | Source abstract for the article page's collapsed "Original abstract" (fetched on open) | Public (RLS: eligible articles) |
@@ -78,9 +78,9 @@ Routes verified from `app/api/` directory tree.
 | `/api/admin/analytics/insights` | POST | Weekly LLM analysis | DIGEST_SECRET |
 | `/api/admin/analytics/latest-insights` | GET | Fetch most recent insights | Admin |
 | `/api/admin/analytics/insight-feedback` | POST | Implemented/ignored/noted | Admin |
-| `/api/admin/analytics/retention` | GET | Retention cohort data | Admin |
+| `/api/admin/analytics/retention` | GET | DAU/WAU/MAU, active-user retention, churn, most active users (last 30 days; admin/test + crawlers excluded) | Admin |
 | `/api/admin/analytics/paid-campaigns` | GET | Paid ad traffic by campaign/ad set (utm_medium=paid-social) | Admin |
-| `/api/admin/security/scan` | POST | Security audit | DIGEST_SECRET |
+| `/api/admin/security/scan` | POST | Security audit | DIGEST_SECRET or admin session |
 | `/api/admin/linkedin-metrics/upload` | POST | XLSX import | Admin session |
 | `/api/admin/linkedin-metrics/rematch` | POST | Re-run article matching | Admin session |
 | `/api/admin/linkedin-metrics/funnel` | GET | Funnel analytics | Admin session |
@@ -300,12 +300,12 @@ const platformRules = {
 
 ## Topic Synthesis Flow
 Search: single RPC call — `search_articles_synthesis(search_query, candidate_limit=50, final_limit=15)`.
-This is NOT the 3-tier FTS/ILIKE/trigram used by the main article feed. The RPC does ranked scoring internally.
+This is NOT the feed's search (progressive `search_articles_batch` batches with a zero-result fallback). The RPC does ranked scoring internally.
 
 1. Check `topic_synthesis` feature flag
 2. Normalize query (normalizeQuery.ts)
 3. Check `topic_syntheses` cache (query_normalized match, expires_at > now, search_version >= 2)
-   - Cache entries with < 5 articles are treated as invalid and regenerated
+   - Cache entries with < 3 articles are treated as invalid and regenerated
 4. Cache miss: call `search_articles_synthesis` RPC (50 candidates → 15 final), filter large animal in JS
 5. Abort with `{ insufficient: true }` if fewer than 3 articles remain after filtering
 6. Build evidence packets (citation_id, id, title, journal, year, clinical_bottom_line, labels)

@@ -3,10 +3,10 @@
 // Definitions (also in CLAUDE.md → Metrics):
 //   Cohort        confirmed accounts (email_confirmed_at set), admin + TEST_USER_ID excluded, that
 //                 signed up in [now − days − 7d, now − 7d) — so every member has had a full 7 days
-//   First save    member saved ≥ 1 article within 7 days of signing up (saved_articles.saved_at).
-//                 Undercounts slightly: unsaving deletes the row.
-//   Return visit  member has a human page view (bot_name null) on a later UTC day than their
-//                 signup day, within 7 days of signing up
+//   First save    member saved ≥ 1 article between signup and 7 days after (saved_articles.saved_at).
+//                 A lower bound: unsaving deletes the row.
+//   Return visit  member has a human page view (bot_name null) on a later UTC calendar day than
+//                 their signup day, within 7 days (can be minutes later, across midnight)
 //   Returning anonymous visitors  of the visitor hashes (ip_hash, signed-out, human) seen in the
 //                 last `days`, the share seen on ≥ 2 distinct UTC days. Approximate: mobile IPs change.
 // Test traffic: analytics writers record only in production and skip QA traffic since 2026-09-29;
@@ -61,21 +61,28 @@ export async function computeActivation(db: SupabaseClient, days: number, now = 
   let firstSave = 0
   let returned = 0
   if (cohort.length > 0) {
-    const ids = cohort.map(c => c.id)
     const windowEnd = new Date(cohortTo.getTime() + 7 * DAY).toISOString()
-    const saves = await readAll<{ user_id: string; saved_at: string }>('saves', (f, t) =>
-      db.from('saved_articles').select('user_id, saved_at').in('user_id', ids)
-        .gte('saved_at', cohortFrom.toISOString()).lt('saved_at', windowEnd)
-        .order('saved_at').order('user_id').range(f, t))
-    const views = await readAll<{ user_id: string; created_at: string }>('views', (f, t) =>
-      db.from('page_views').select('user_id, created_at').in('user_id', ids).is('bot_name', null)
-        .gte('created_at', cohortFrom.toISOString()).lt('created_at', windowEnd)
-        .order('created_at').order('id').range(f, t))
+    // Per-user timestamps, fetched in chunks of 100 ids (a full id list would outgrow the request URL)
+    const saveTimes = new Map<string, number[]>()
+    const viewTimes = new Map<string, string[]>()
+    for (let i = 0; i < cohort.length; i += 100) {
+      const ids = cohort.slice(i, i + 100).map(c => c.id)
+      const saves = await readAll<{ user_id: string; saved_at: string }>('saves', (f, t) =>
+        db.from('saved_articles').select('user_id, saved_at').in('user_id', ids)
+          .gte('saved_at', cohortFrom.toISOString()).lt('saved_at', windowEnd)
+          .order('saved_at').order('user_id').order('article_id').range(f, t))
+      for (const sv of saves) saveTimes.set(sv.user_id, [...(saveTimes.get(sv.user_id) ?? []), Date.parse(sv.saved_at)])
+      const views = await readAll<{ user_id: string; created_at: string }>('views', (f, t) =>
+        db.from('page_views').select('user_id, created_at').in('user_id', ids).is('bot_name', null)
+          .gte('created_at', cohortFrom.toISOString()).lt('created_at', windowEnd)
+          .order('created_at').order('id').range(f, t))
+      for (const v of views) viewTimes.set(v.user_id, [...(viewTimes.get(v.user_id) ?? []), v.created_at])
+    }
     for (const c of cohort) {
       const end = c.created + 7 * DAY
-      if (saves.some(s => s.user_id === c.id && Date.parse(s.saved_at) < end)) firstSave++
+      if ((saveTimes.get(c.id) ?? []).some(t => t >= c.created && t < end)) firstSave++
       const signupDay = utcDay(new Date(c.created).toISOString())
-      if (views.some(v => v.user_id === c.id && Date.parse(v.created_at) < end && utcDay(v.created_at) > signupDay)) returned++
+      if ((viewTimes.get(c.id) ?? []).some(iso => Date.parse(iso) < end && utcDay(iso) > signupDay)) returned++
     }
   }
 

@@ -72,7 +72,7 @@ Column names verified against information_schema and migrations. Schema is the s
 | authors | text | |
 | pubmed_id | text | UNIQUE constraint |
 | needs_enrichment | boolean | false = ready |
-| enrichment_attempts | integer | capped at 3 |
+| enrichment_attempts | integer | the queue retries while < 3 (or force_retry); admin retries keep counting up |
 | force_retry | boolean | admin override |
 | quarantined | boolean | hidden from public |
 | quarantine_reason | text | `enrichment_failed` (lifted only by admin "Retry failed") \| `no_abstract` \| `admin` \| NULL = unknown/older, never lifted automatically (migration 072) |
@@ -464,7 +464,8 @@ Written by aggregate route; pre-filtered (admin + TEST_USER_ID excluded).
 | digest_date | date | |
 | article_id | text FK → articles | ON DELETE CASCADE |
 | created_at | timestamptz | |
-UNIQUE(digest_date, article_id). Every article ever included in a digest; selection excludes them (no repeats).
+UNIQUE(digest_date, article_id). Articles included in past digests; selection excludes them (best effort: a failed
+write is only logged).
 
 ### `analytics_maintenance_log` (migration 065)
 | Column | Type |
@@ -514,15 +515,11 @@ GRANT ALL ON public.table_name TO service_role;
 ALTER FUNCTION public.function_name() SET search_path = public;
 ```
 
-## Fuzzy Search RPC (main feed)
-3-tier fallback: FTS → ILIKE → trigram similarity
-```ts
-// Tier 3 uses search_articles_fuzzy RPC (pg_trgm extension required)
-const { data } = await supabase.rpc('search_articles_fuzzy', {
-  search_query: query,
-  similarity_threshold: 0.3
-})
-```
+## Feed search (progressive)
+Searches run as ranked batches through `search_articles_batch` (migration 060; `lib/search/progressive.ts`, next
+batches via `/api/search/batch`). Only when that returns nothing does `fallbackSearch` (`lib/queries/articles.ts`) run:
+title full-text (negation queries only), then ILIKE and the pg_trgm `search_articles_fuzzy` RPC (started together;
+the first tier with results wins).
 
 ## Synthesis Search RPC (synthesis only — different from feed search)
 Single RPC call, not the 3-tier fallback:

@@ -68,7 +68,8 @@ export async function GET(request: NextRequest) {
       if (!data || data.length < 1000) break
     }
 
-    const activeSince = (iso: string) => new Set(views.filter(v => v.created_at >= iso).map(v => v.user_id))
+    // Compare parsed instants, never strings: '…T00:00:00.500+00:00' sorts before '…T00:00:00Z'
+    const activeSince = (iso: string) => { const t = Date.parse(iso); return new Set(views.filter(v => Date.parse(v.created_at) >= t).map(v => v.user_id)) }
     const dau_today = activeSince(`${today}T00:00:00Z`).size
     const wau = activeSince(since(7)).size
     const mau = activeSince(since(30)).size
@@ -81,7 +82,7 @@ export async function GET(request: NextRequest) {
     for (const v of views) {
       const st = userStats.get(v.user_id) ?? { days: new Set<string>(), lastSeen: v.created_at }
       st.days.add(dayOf(v.created_at))
-      if (v.created_at > st.lastSeen) st.lastSeen = v.created_at
+      if (Date.parse(v.created_at) > Date.parse(st.lastSeen)) st.lastSeen = v.created_at
       userStats.set(v.user_id, st)
     }
 

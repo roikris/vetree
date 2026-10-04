@@ -144,7 +144,7 @@ const parsed = JSON.parse(clean)
 ```ts
 // Use server client to read session from cookies
 import { createClient } from '@/lib/supabase/server'
-const supabase = createClient()
+const supabase = await createClient()   // async factory
 const { data: { user } } = await supabase.auth.getUser()
 if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -340,7 +340,7 @@ NEXT_PUBLIC_FB_PIXEL_ID          # Meta Pixel ID; script is a no-op if unset
 - Articles blacklist (prevents re-adding deleted articles)
 - Feature flags table (on/off switches for features)
 - Pagination performance: cached journal/evidence filters, no select('*'), lazy summary load
-- GDPR-complete account deletion: `delete_user_account()` (migration 070) removes page_views, search_logs, analytics_events, digest_logs, topic_syntheses, user_preferences, user_consents, synthesis_feedback, followed_tags, saved_articles, reports and user_roles; `/api/delete-account` also removes the avatar from Storage before the auth user
+- GDPR-complete account deletion: `/api/delete-account` deletes the user's rows itself (page_views, search_logs, analytics_events, digest_logs, topic_syntheses, user_preferences, user_consents, synthesis_feedback, followed_tags, saved_articles, reports, user_roles), removes the avatar from Storage, then the auth user; the SQL function `delete_user_account()` (migration 070) covers the same tables for direct use
 - Medical disclaimer on article pages (components/ui/MedicalDisclaimer.tsx) — regulatory compliance
 - Avatars bucket private with signed URLs via /api/avatars/[userId] (1-hour TTL, service role)
 - Save intent deep links: ?intent=save on article URL; handled by SaveIntentHandler; funnel tracked in analytics_events
@@ -377,9 +377,11 @@ const articleUrl = `https://vetree.app/article/${article.id}?${utmParams[platfor
 - todaysTask comes from pure JS rotation, NOT from DB
 
 ## Rate Limiting (Upstash)
-Applied to: account deletion (`app/actions/profile.ts`), /api/save-article, /api/analytics/track, /api/auth/save-consent,
-/api/search/batch, /api/growth/generate-post, /api/growth/generate-synthesis-post, /api/digest/send, /api/admin/security/scan.
-Synthesis generation has its own Redis daily cap and per-user window (`/api/synthesis/generate`).
+Applied to (lib/ratelimit.ts limiters, verified 2026-10-04): /api/delete-account (`deleteAccountLimiter`),
+/api/save-article, /api/auth/save-consent, /api/growth/generate-post, /api/growth/generate-synthesis-post and the
+digest-consent server action in `app/actions/profile.ts` (`ratelimitModerate`), /api/analytics/track and
+/api/search/batch (`ratelimitLoose`), /api/digest/send (`ratelimitStrict`), /api/synthesis/generate (`synthesisLimiter`
++ its own Redis daily cap). NOT rate limited: /api/admin/security/scan (secret or admin only).
 ```ts
 import { ratelimitStrict } from '@/lib/ratelimit'  // or ratelimitModerate / ratelimitLoose
 const ip = getClientIP(request)  // use getClientIP() helper from lib/ratelimit
@@ -422,12 +424,15 @@ carry a future `publication_date`).
 Admin → Analytics → **Activation** (`lib/analytics/activation.ts`, `getActivationMetrics`). Admin + TEST_USER_ID
 excluded, crawlers (`bot_name`) excluded.
 - **Cohort:** confirmed accounts that signed up in [now − N days − 7, now − 7) — each has had a full 7 days
-- **First save:** cohort members who saved ≥ 1 article within 7 days of signing up (`saved_articles.saved_at`;
-  unsaving deletes the row, so slightly low)
-- **Return visit:** cohort members with a human page view on a later UTC day than signup, within 7 days
-- **Returning signed-out visitors:** of the `ip_hash`es seen in the last N days, the share seen on ≥ 2 days
-  (approximate — mobile IPs change)
-- Cohorts are tiny (5–25 accounts): read percentages as direction, not trend
+- **First save:** cohort members who saved ≥ 1 article between signup and 7 days after (`saved_articles.saved_at`)
+  — a lower bound: unsaving deletes the row
+- **Return visit:** a human page view on a later UTC calendar day than signup, within 7 days (can be minutes later,
+  across midnight — not necessarily a separate session). Confirmation is required now, not 7 days before.
+- **Returning signed-out visitors:** of the `ip_hash`es seen in the last N days, the share seen on ≥ 2 UTC days
+  (approximate both ways — mobile IPs change, shared IPs merge people)
+- Cohorts were 5–25 accounts on 2026-10-04: read percentages as direction, not trend
+- User Retention's "7/30-day retention" = users active in the window ÷ ALL registered users (not cohort retention);
+  its windows include today, so they span 8 / 31 UTC dates
 **Data quality:** analytics writers record only in production and skip QA traffic since **2026-09-29**
 (`lib/analytics/recording.ts`); earlier rows may include test traffic. `search_logs` before **2026-09-27** certainly
 do (smoke runs searched production). Synthesis events moved out of page_views by migration 065.

@@ -229,7 +229,7 @@ export function UserRetention() {
       <div>
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-semibold text-[#1A1A1A] dark:text-[#E8E8E8]">
-            Top Returning Users ({data.top_returning_users.length})
+            Most active users — last 30 days ({data.top_returning_users.length})
           </h3>
           <button
             onClick={() => setShowUsers(!showUsers)}
