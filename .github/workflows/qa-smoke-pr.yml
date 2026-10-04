@@ -13,9 +13,14 @@ on:
     branches: [main]
     types: [opened, synchronize, reopened, ready_for_review, converted_to_draft]
 
-# A newer push supersedes an older run of the same PR (saves Vercel CPU)
+# Deduplicate runs of the SAME commit (e.g. a push and "ready" for one head). Runs for different
+# commits never cancel each other — a delayed older run could otherwise cancel the current head's
+# run and then fail its own stale-head check, leaving the head untested. An outdated run is
+# stopped by the stale-head check in the Draft gate and again right before the tests; a run that
+# overlaps a newer push only in between (or finishes before a same-commit duplicate starts) can
+# still run the suite once more — rare, since pushes happen on drafts.
 concurrency:
-  group: smoke-pr-${{ github.event.pull_request.number }}
+  group: smoke-pr-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
   cancel-in-progress: true
 
 jobs:
@@ -56,14 +61,35 @@ jobs:
     if: ${{ !cancelled() && needs.scope.outputs.code != 'false' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    permissions:
+      contents: read
+      pull-requests: read
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
+      # The PR's CURRENT draft state, not the event's: a push and "ready for review" seconds apart start
+      # two runs, the concurrency group cancels the older (the ready one), and the push event still
+      # says draft — trusting it failed the gate with no suite run (2026-10-04, PR #107).
       - name: Draft gate
-        if: github.event.pull_request.draft == true
+        id: draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          echo "Draft PR: smoke not run (saves Vercel CPU). Mark the PR ready for review to run it once."
-          exit 1
+          PR=$(gh api "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}")
+          HEAD=$(printf '%s' "$PR" | jq -r .head.sha)
+          # Only a boolean false runs the suite: true, null, a string or anything unexpected fails closed
+          if ! printf '%s' "$PR" | jq -e '.draft == false' >/dev/null; then
+            echo "Draft PR (draft=$(printf '%s' "$PR" | jq -c .draft)): smoke not run (saves Vercel CPU). Mark the PR ready for review to run it once."
+            exit 1
+          fi
+          # A run started for an older commit must not stand in for the current head
+          if [ "$HEAD" != "$EVENT_SHA" ]; then
+            echo "Stale run: it was started for $EVENT_SHA, but the PR head is now $HEAD. Ignore this run — the"
+            echo "current head has its own run; if that one is missing, re-run smoke from the run for $HEAD (re-running THIS one fails again)."
+            exit 1
+          fi
+          echo "Ready for review at $HEAD: running the suite"
 
       - uses: actions/checkout@v4
 
@@ -137,6 +163,20 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
+      # Re-check right before the tests: a newer push may have landed while this run waited for
+      # its preview — don't spend Vercel CPU testing a commit that is no longer the head
+      - name: Still the PR head?
+        id: head
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          HEAD=$(gh api "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}" --jq .head.sha)
+          if [ "$HEAD" != "$EVENT_SHA" ]; then
+            echo "Stale run: the PR head moved to $HEAD while this run (for $EVENT_SHA) was preparing. Tests not run; the head has its own run."
+            exit 1
+          fi
+
       - name: Run smoke tests
         id: smoke
         run: npm run test:smoke
@@ -149,7 +189,7 @@ jobs:
           TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
 
       - name: Triage + Slack
-        if: always()
+        if: always() && steps.draft.outcome == 'success' && steps.head.outcome == 'success'
         run: node scripts/qa-triage.mjs
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -160,7 +200,7 @@ jobs:
           TRIGGER: pull_request
 
       - name: Upload Playwright report
-        if: always()
+        if: always() && steps.draft.outcome == 'success' && steps.head.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report-pr-${{ github.event.pull_request.number }}
