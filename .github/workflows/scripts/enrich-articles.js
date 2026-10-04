@@ -98,16 +98,19 @@ Return ONLY valid JSON, no markdown formatting.`;
       errorMessage = `Enrichment incomplete - missing: ${missing.join(', ')}`;
     }
 
-    // Update the article
+    // Update the article (an incomplete result: content only — the attempt itself is recorded by
+    // record_enrichment_failure below, the same locked path as a thrown error)
     const updates = {
       // Safe even on a partial result: the source stays in `abstract`, which is never written here
       summary: enrichment.summary || article.summary,
       clinical_bottom_line: enrichment.clinical_bottom_line || null,
       labels: validLabels,
       strength_of_evidence: enrichment.strength_of_evidence || null,
-      needs_enrichment: !isComplete,  // Only mark done if COMPLETE
-      enrichment_attempts: attemptNumber,
-      force_retry: false,  // Reset force_retry flag after processing
+      ...(isComplete ? {
+        needs_enrichment: false,
+        enrichment_attempts: attemptNumber,
+        force_retry: false,  // Reset force_retry flag after processing
+      } : {}),
       last_enrichment_at: new Date().toISOString(),
       last_enrichment_error: errorMessage,  // Set error if incomplete, null if complete
       prompt_version: PROMPT_VERSION  // Which prompt produced summary/clinical_bottom_line — enables precise rollback
@@ -131,7 +134,13 @@ Return ONLY valid JSON, no markdown formatting.`;
 
     if (!isComplete) {
       console.log(`  ✗ Incomplete: ${errorMessage}`);
-      return false;  // stays queued (needs_enrichment) — counted as a failure, not a success
+      const { data: outcome, error: rpcError } = await client.rpc('record_enrichment_failure', {
+        p_id: article.id,
+        p_error: errorMessage
+      });
+      if (rpcError) console.error(`  Error recording failure:`, rpcError.message);
+      else if (outcome === 'hidden') failedOutHidden++;
+      return false;  // a failure, not a success
     }
     console.log(`  ✓ Enriched: ${article.title.substring(0, 60)}...`);
     console.log(`    Labels: ${validLabels.join(', ')}`);
@@ -305,10 +314,12 @@ async function main() {
           .update({
             needs_enrichment: false,
             quarantined: true,
-            quarantine_reason: 'no_abstract',
             last_enrichment_error: 'no_abstract'
           })
           .eq('id', article.id);
+        // Reason only where none is recorded yet (an admin's or earlier reason is kept)
+        await supabase.from('articles').update({ quarantine_reason: 'no_abstract' })
+          .eq('id', article.id).is('quarantine_reason', null);
 
         stats.failCount++;
         continue; // Skip to next article
@@ -326,12 +337,13 @@ async function main() {
           .from('articles')
           .update({
             quarantined: true,
-            quarantine_reason: 'no_abstract',
             needs_enrichment: false,
             force_retry: false,
             last_enrichment_error: 'no_abstract_available - auto_quarantined'
           })
           .eq('id', article.id);
+        await supabase.from('articles').update({ quarantine_reason: 'no_abstract' })
+          .eq('id', article.id).is('quarantine_reason', null);
 
         stats.failCount++;
         continue; // Skip to next article
@@ -380,10 +392,10 @@ async function main() {
   const { count: failedCount } = await supabase
     .from('articles')
     .select('*', { count: 'exact', head: true })
-    .gte('enrichment_attempts', 3)
     .not('abstract', 'is', null)
-    .or('needs_enrichment.eq.true,summary.is.null,clinical_bottom_line.is.null,quarantine_reason.eq.enrichment_failed')  // = lib/enrichment/requeueFailed.ts
-    .neq('force_retry', true);
+    // = FAILED_UNPUBLISHED_OR in lib/enrichment/requeueFailed.ts
+    .or('quarantine_reason.eq.enrichment_failed,and(enrichment_attempts.gte.3,or(needs_enrichment.eq.true,summary.is.null,clinical_bottom_line.is.null))')
+    .not('force_retry', 'is', true);
 
   stats.failedArticles = failedCount || 0;
 
