@@ -57,4 +57,10 @@ Disallow: /
 User-agent: PerplexityBot
 Disallow: /
 
+# Meta's AI/indexing crawler -- walked 127-216 article pages in single bursts (2026-09-17,
+# 09-29, 10-02), each a server render on the Vercel free-tier CPU budget. Facebook/Instagram
+# link previews use facebookexternalhit, which is NOT blocked, so shared links still unfurl.
+User-agent: meta-externalagent
+Disallow: /
+
 Sitemap: https://vetree.app/sitemap.xml

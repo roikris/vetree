@@ -18,6 +18,17 @@
 - **Merge only on Roi's explicit word for that specific PR.** A green smoke run, a finished review,
   or a request to fix the PR is not permission to merge.
 - Branch naming: `feat/`, `fix/`, `chore/` prefix
+- **Vercel CPU budget (Hobby: ~4 h Fluid Active CPU / month).** Every Playwright smoke run costs
+  ~0.7 CPU-minutes, previews included. 2026-09-24→10-02, ~108 runs (a full-suite run on every push to
+  every PR, plus one after every merge) used ~70 extra minutes and hit the 100% alert. So:
+  - **Open PRs as drafts** (`gh pr create --draft`) and push freely: on a draft the required `smoke`
+    check fails in seconds ("mark ready to run") without running the suite. Mark ready (`gh pr ready`)
+    once, when the PR is done — that runs the suite. Newer pushes cancel older PR runs.
+  - Docs-only PRs (`*.md`, `docs/**`) skip smoke automatically.
+  - **Batch related changes into one PR**; don't open a PR per small fix.
+  - **Never push an empty commit to retrigger.** Smoke failed but the build is fine → re-run the job
+    (`gh run rerun <id> --failed`). Preview build failed transiently → `npx vercel redeploy <url>`.
+  - After a merge, production gets an HTTP health check, not the Playwright suite.
 - GitHub branch protection on `main` (enabled 2026-09-29, verified via the GraphQL API): PR
   required (0 approvals — solo repo), status check `smoke` must pass, force pushes and deletion
   blocked, and **enforced for admins** — neither Roi nor a session using his credentials can push
@@ -411,8 +422,8 @@ export const getDistinctEvidenceLevels = unstable_cache(async () => { ... }, ['d
 | growth-daily-reminder.yml | 03:00 UTC daily | Slack reminder for content post |
 | analysis-agent.yml | 02:00 UTC daily (aggregate+signals) + Friday 12:00 UTC (insights) | Analytics agent |
 | security-agent.yml | Thursday 19:00 UTC | Security scan |
-| qa-smoke.yml | Mon–Sat 06:00 UTC + every deploy (essentials); Sunday 06:00 UTC (full); manual | Production smoke (job `smoke-production`); tests tagged `@weekly` run only in the full suite; post-deploy runs wait for `/api/version` to serve the pushed commit; Slack only on failure/flaky |
-| qa-smoke-pr.yml | Every PR to main (preview-gated) | Full suite on the protected Vercel preview — the required `smoke` check |
+| qa-smoke.yml | Mon–Sat 06:00 UTC (essentials); Sunday 06:00 UTC (full); every deploy (HTTP health check only); manual | Production smoke (job `smoke-production`); tests tagged `@weekly` run only in the full suite; post-deploy waits for `/api/version` to serve the pushed commit, then checks home, `/api/version`, `/api/stats/public` and a sitemap article (Slack on failure); Slack only on failure/flaky |
+| qa-smoke-pr.yml | PRs to main: opened / pushed / ready for review | Full suite on the protected Vercel preview — the required `smoke` check; fails fast on drafts ("mark ready to run"), skipped (= passed) only for proven docs-only PRs; runs whenever docs-only can't be proven |
 | reset-enrichment.yml | Manual | Reset enrichment flags |
 | fix-encoding.yml | Manual | Fix HTML entities |
 
