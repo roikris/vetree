@@ -71,12 +71,12 @@ export async function computeActivation(db: SupabaseClient, days: number, now = 
         db.from('saved_articles').select('user_id, saved_at').in('user_id', ids)
           .gte('saved_at', cohortFrom.toISOString()).lt('saved_at', windowEnd)
           .order('saved_at').order('user_id').order('article_id').range(f, t))
-      for (const sv of saves) saveTimes.set(sv.user_id, [...(saveTimes.get(sv.user_id) ?? []), Date.parse(sv.saved_at)])
+      for (const sv of saves) { const list = saveTimes.get(sv.user_id) ?? []; list.push(Date.parse(sv.saved_at)); saveTimes.set(sv.user_id, list) }
       const views = await readAll<{ user_id: string; created_at: string }>('views', (f, t) =>
         db.from('page_views').select('user_id, created_at').in('user_id', ids).is('bot_name', null)
           .gte('created_at', cohortFrom.toISOString()).lt('created_at', windowEnd)
           .order('created_at').order('id').range(f, t))
-      for (const v of views) viewTimes.set(v.user_id, [...(viewTimes.get(v.user_id) ?? []), v.created_at])
+      for (const v of views) { const list = viewTimes.get(v.user_id) ?? []; list.push(v.created_at); viewTimes.set(v.user_id, list) }
     }
     for (const c of cohort) {
       const end = c.created + 7 * DAY

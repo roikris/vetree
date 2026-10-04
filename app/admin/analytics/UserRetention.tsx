@@ -154,22 +154,22 @@ export function UserRetention() {
       {/* Row 2 - Retention Rates */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <div className="border border-zinc-200 dark:border-zinc-800 rounded-lg p-4">
-          <div className="text-xs text-zinc-600 dark:text-zinc-400 mb-1">7-Day Retention</div>
+          <div className="text-xs text-zinc-600 dark:text-zinc-400 mb-1">Active in last 7 days</div>
           <div className={`text-2xl font-bold ${getRetentionColor(data.retention_7d)}`}>
             {data.retention_7d}%
           </div>
           <div className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
-            {data.retention_7d >= 40 ? '✓ Strong' : data.retention_7d >= 20 ? '⚠ Fair' : '✗ Weak'}
+            of all registered users (not cohort retention)
           </div>
         </div>
 
         <div className="border border-zinc-200 dark:border-zinc-800 rounded-lg p-4">
-          <div className="text-xs text-zinc-600 dark:text-zinc-400 mb-1">30-Day Retention</div>
+          <div className="text-xs text-zinc-600 dark:text-zinc-400 mb-1">Active in last 30 days</div>
           <div className={`text-2xl font-bold ${getRetentionColor(data.retention_30d)}`}>
             {data.retention_30d}%
           </div>
           <div className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
-            {data.retention_30d >= 40 ? '✓ Strong' : data.retention_30d >= 20 ? '⚠ Fair' : '✗ Weak'}
+            of all registered users (not cohort retention)
           </div>
         </div>
 
