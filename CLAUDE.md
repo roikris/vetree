@@ -49,7 +49,7 @@ Solo DVM developer. Target: Israeli + international vets.
 - **Monitoring:** Sentry (@sentry/nextjs@9) — error reports only, no tracing/replay. Browser: `instrumentation-client.ts`; server + edge: `instrumentation.ts` `register()` → `sentry.server.config.ts` / `sentry.edge.config.ts` (that file was missing until 2026-10-03, so no server error — rule 13's "fail loud" alerts included — ever reached Sentry). All three share `lib/sentry/options.ts`, which strips email addresses from every event and breadcrumb (`lib/sentry/scrub.ts`). Never log emails; never pass request bodies or user text to `captureException`/`captureMessage`.
 - **Rate limiting:** Upstash Redis (@upstash/ratelimit)
 - **Analytics:** Vercel Analytics + custom Supabase tables (page_views, search_logs, analytics_events)
-- **Search:** pg_trgm fuzzy search + 3-tier fallback (FTS → ILIKE → trigram RPC)
+- **Search:** progressive ranked batches (`search_articles_batch` RPC, migration 060 — `lib/search/progressive.ts`, `/api/search/batch`); only when that finds nothing, a fallback (`fallbackSearch` in `lib/queries/articles.ts`): title FTS (negation queries only) → ILIKE → pg_trgm fuzzy RPC
 
 ## Repo & Services
 - GitHub: `roikris/vetree`
@@ -144,13 +144,13 @@ const parsed = JSON.parse(clean)
 ```ts
 // Use server client to read session from cookies
 import { createClient } from '@/lib/supabase/server'
-const supabase = createClient()
+const supabase = await createClient()   // async factory
 const { data: { user } } = await supabase.auth.getUser()
 if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
 // Check admin
 const { data: role } = await supabase
-  .from('user_roles').select('role').eq('user_id', user.id).single()
+  .from('user_roles').select('role').eq('user_id', user.id).maybeSingle()   // non-admins have no row
 if (role?.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 ```
 
@@ -336,11 +336,11 @@ NEXT_PUBLIC_FB_PIXEL_ID          # Meta Pixel ID; script is a no-op if unset
 - Landing page for the completely unfiltered logged-out view, with a search box (plain GET form → `/?search=`); "Browse articles" goes straight to the Stream (the guests' second hero was removed 2026-10-03)
 - "Personalize later" card (`components/home/PersonalizeCard.tsx`): signed-in readers who follow no specialties see it atop the Stream; Follow → `/api/tags/follow`; "Not now" snoozes 14 days, gone after the 2nd; events `personalize_card_shown|saved|snoozed`
 - Library shows saved articles only — Collections / Reading list tabs hidden until built
-- Fuzzy search via pg_trgm with 3-tier fallback + synonym mapping; search activates on form submit (Enter or tap the arrow button) — NOT on keystroke; logging via SearchControls useEffect after navigation
+- Search: progressive ranked batches with a zero-result fallback (title FTS → ILIKE → pg_trgm fuzzy) + synonym mapping; activates on form submit (Enter or tap the arrow button) — NOT on keystroke; logged by the results component after navigation
 - Articles blacklist (prevents re-adding deleted articles)
 - Feature flags table (on/off switches for features)
 - Pagination performance: cached journal/evidence filters, no select('*'), lazy summary load
-- GDPR-complete account deletion: explicit service-role deletions across all 9 PII tables (page_views, search_logs, user_preferences, user_consents, synthesis_feedback, followed_tags, saved_articles, reports, user_roles) + auth.admin.deleteUser()
+- GDPR-complete account deletion: `/api/delete-account` deletes the user's rows itself (page_views, search_logs, analytics_events, digest_logs, topic_syntheses, user_preferences, user_consents, synthesis_feedback, followed_tags, saved_articles, reports, user_roles), removes the avatar from Storage, then the auth user; the SQL function `delete_user_account()` (migration 070) covers the same tables for direct use
 - Medical disclaimer on article pages (components/ui/MedicalDisclaimer.tsx) — regulatory compliance
 - Avatars bucket private with signed URLs via /api/avatars/[userId] (1-hour TTL, service role)
 - Save intent deep links: ?intent=save on article URL; handled by SaveIntentHandler; funnel tracked in analytics_events
@@ -377,7 +377,11 @@ const articleUrl = `https://vetree.app/article/${article.id}?${utmParams[platfor
 - todaysTask comes from pure JS rotation, NOT from DB
 
 ## Rate Limiting (Upstash)
-Applied to: /api/delete-account, /api/growth/generate-post, /api/analytics/track, /api/digest/send, /api/save-article
+Applied to (lib/ratelimit.ts limiters, verified 2026-10-04): /api/delete-account (`deleteAccountLimiter`),
+/api/save-article, /api/auth/save-consent, /api/growth/generate-post, /api/growth/generate-synthesis-post and the
+digest-consent server action in `app/actions/profile.ts` (`ratelimitModerate`), /api/analytics/track and
+/api/search/batch (`ratelimitLoose`), /api/digest/send (`ratelimitStrict`), /api/synthesis/generate (`synthesisLimiter`
++ its own Redis daily cap). NOT rate limited: /api/admin/security/scan (secret or admin only).
 ```ts
 import { ratelimitStrict } from '@/lib/ratelimit'  // or ratelimitModerate / ratelimitLoose
 const ip = getClientIP(request)  // use getClientIP() helper from lib/ratelimit
@@ -415,6 +419,25 @@ carry a future `publication_date`).
   hero (a hot preprint front-and-center is correct editorial behavior for a browsing surface) and
   synthesis/related-article pools (want the best evidence on a topic regardless of arrival date —
   recency is not their ranking clock).
+
+## Metrics (definitions — Batch C, 2026-10-04)
+Admin → Analytics → **Activation** (`lib/analytics/activation.ts`, `getActivationMetrics`). Admin + TEST_USER_ID
+excluded, crawlers (`bot_name`) excluded.
+- **Cohort:** confirmed accounts that signed up in [now − N days − 7, now − 7) — each has had a full 7 days
+- **First save:** cohort members who saved ≥ 1 article between signup and 7 days after (`saved_articles.saved_at`)
+  — a lower bound: unsaving deletes the row
+- **Return visit:** a human page view on a later UTC calendar day than signup, within 7 days (can be minutes later,
+  across midnight — not necessarily a separate session). Confirmation is required now, not 7 days before.
+- **Returning signed-out visitors:** of the `ip_hash`es seen in the last N days, the share seen on ≥ 2 UTC days
+  (approximate both ways — mobile IPs change, shared IPs merge people)
+- Cohorts were 5–25 accounts on 2026-10-04: read percentages as direction, not trend
+- User Retention's "7/30-day retention" = users active in the window ÷ ALL registered users (not cohort retention);
+  its windows include today, so they span 8 / 31 UTC dates
+**Data quality:** analytics writers record only in production and skip QA traffic since **2026-09-29**
+(`lib/analytics/recording.ts`); earlier rows may include test traffic. `search_logs` before **2026-09-27** certainly
+do (smoke runs searched production). Synthesis events moved out of page_views by migration 065.
+User Retention (`/api/admin/analytics/retention`) reads every signed-in human page view of the last 30 days with
+admin/test excluded (before 2026-10-04 it included them and could stop at 1,000 rows).
 
 ## Filter Caching (pagination performance)
 ```ts

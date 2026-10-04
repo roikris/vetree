@@ -1,6 +1,7 @@
 import { getAnalyticsOverview, getTopPages, getVisitorsOverTime, getTopArticles, getSessionDuration, getRecentSearches, getDeviceBreakdown, getTopCountries, getSavedArticlesStats, getTrafficSources, getSynthesisStats, getSaveIntentFunnel, getBotTraffic, getAnalyticsCleanupDate } from '@/app/actions/analytics'
 import { AnalyticsClient } from './AnalyticsClient'
 import { UserRetention } from './UserRetention'
+import { ActivationMetrics } from './ActivationMetrics'
 import { AnalysisAgent } from './AnalysisAgent'
 import { LinkedInSection } from './LinkedInSection'
 import { PaidCampaigns } from './PaidCampaigns'
@@ -78,6 +79,10 @@ export default async function AdminAnalyticsPage() {
 
       <div style={{ marginTop: 32 }}>
         <UserRetention />
+      </div>
+
+      <div style={{ marginTop: 32 }}>
+        <ActivationMetrics />
       </div>
 
       <div style={{ marginTop: 32 }}>

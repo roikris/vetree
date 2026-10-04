@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
+import { EXCLUDED_USER_IDS, excludedUsersOrFilter } from '@/lib/analytics-excluded-ids'
 
 export async function GET(request: NextRequest) {
   try {
@@ -19,7 +20,7 @@ export async function GET(request: NextRequest) {
       .from('user_roles')
       .select('role')
       .eq('user_id', user.id)
-      .single()
+      .maybeSingle()
 
     if (roleData?.role !== 'admin') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
@@ -32,186 +33,93 @@ export async function GET(request: NextRequest) {
     )
 
     const now = new Date()
-    const today = now.toISOString().split('T')[0]
-    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-    const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+    const DAY = 24 * 60 * 60 * 1000
+    const dayOf = (d: Date | string) => new Date(d).toISOString().split('T')[0]
+    const today = dayOf(now)
+    const since = (days: number) => `${dayOf(new Date(now.getTime() - days * DAY))}T00:00:00Z`
 
-    // Get total registered users (paginate to avoid default 50-user limit)
-    let allAuthUsers: any[] = []
-    let page = 1
-    while (true) {
-      const { data: pageData } = await adminSupabase.auth.admin.listUsers({ page, perPage: 1000 })
-      if (!pageData?.users?.length) break
-      allAuthUsers = allAuthUsers.concat(pageData.users)
+    // Registered users, admin + TEST_USER_ID excluded (CLAUDE.md rule 10)
+    const authUsers: { id: string; email?: string }[] = []
+    for (let page = 1; ; page++) {
+      const { data: pageData, error } = await adminSupabase.auth.admin.listUsers({ page, perPage: 1000 })
+      if (error) throw new Error(`users: ${error.message}`)
+      authUsers.push(...pageData.users.filter(u => !EXCLUDED_USER_IDS.includes(u.id)))
       if (pageData.users.length < 1000) break
-      page++
     }
-    const totalUsers = allAuthUsers.length
+    const totalUsers = authUsers.length
+    const emailById = new Map(authUsers.map(u => [u.id, u.email ?? 'unknown']))
 
-    // DAU - unique users today
-    const { data: dauData } = await adminSupabase
-      .from('page_views')
-      .select('user_id')
-      .gte('created_at', `${today}T00:00:00Z`)
-      .not('user_id', 'is', null)
-
-    const dau_today = dauData ? new Set(dauData.map(pv => pv.user_id)).size : 0
-
-    // WAU - unique users last 7 days
-    const { data: wauData } = await adminSupabase
-      .from('page_views')
-      .select('user_id')
-      .gte('created_at', `${sevenDaysAgo}T00:00:00Z`)
-      .not('user_id', 'is', null)
-
-    const wau = wauData ? new Set(wauData.map(pv => pv.user_id)).size : 0
-
-    // MAU - unique users last 30 days
-    const { data: mauData } = await adminSupabase
-      .from('page_views')
-      .select('user_id')
-      .gte('created_at', `${thirtyDaysAgo}T00:00:00Z`)
-      .not('user_id', 'is', null)
-
-    const mau = mauData ? new Set(mauData.map(pv => pv.user_id)).size : 0
-
-    // Get users active in last 7 days
-    const activeUsers7d = wauData ? new Set(wauData.map(pv => pv.user_id)).size : 0
-    const retention_7d = totalUsers > 0 ? (activeUsers7d / totalUsers) * 100 : 0
-
-    // Get users active in last 30 days
-    const activeUsers30d = mauData ? new Set(mauData.map(pv => pv.user_id)).size : 0
-    const retention_30d = totalUsers > 0 ? (activeUsers30d / totalUsers) * 100 : 0
-
-    // Churned users - not seen in 14+ days
-    const { data: recentUsers } = await adminSupabase
-      .from('page_views')
-      .select('user_id')
-      .gte('created_at', `${fourteenDaysAgo}T00:00:00Z`)
-      .not('user_id', 'is', null)
-
-    const recentUserIds = new Set(recentUsers?.map(pv => pv.user_id) || [])
-    const churned_users = totalUsers - recentUserIds.size
-
-    // Calculate average days between visits
-    const { data: userVisits } = await adminSupabase
-      .from('page_views')
-      .select('user_id, created_at')
-      .gte('created_at', `${thirtyDaysAgo}T00:00:00Z`)
-      .not('user_id', 'is', null)
-      .order('created_at', { ascending: true })
-
-    let totalGapDays = 0
-    let gapCount = 0
-
-    if (userVisits && userVisits.length > 0) {
-      // Group by user
-      const userVisitMap = new Map<string, Date[]>()
-      userVisits.forEach(visit => {
-        const userId = visit.user_id
-        const date = new Date(visit.created_at)
-        if (!userVisitMap.has(userId)) {
-          userVisitMap.set(userId, [])
-        }
-        userVisitMap.get(userId)!.push(date)
-      })
-
-      // Calculate gaps for each user
-      userVisitMap.forEach((dates) => {
-        // Get unique days
-        const uniqueDays = Array.from(new Set(dates.map(d => d.toISOString().split('T')[0])))
-          .sort()
-          .map(dateStr => new Date(dateStr))
-
-        for (let i = 1; i < uniqueDays.length; i++) {
-          const gap = (uniqueDays[i].getTime() - uniqueDays[i - 1].getTime()) / (1000 * 60 * 60 * 24)
-          totalGapDays += gap
-          gapCount++
-        }
-      })
-    }
-
-    const avg_days_between_visits = gapCount > 0 ? totalGapDays / gapCount : 0
-
-    // Top returning users - calculate manually
-    let top_returning_users: any[] = []
-
-    {
-      // Manual calculation
-      const { data: allPageViews } = await adminSupabase
+    // ONE read of signed-in human page views for the last 30 days, every row (PostgREST stops at
+    // 1,000 per request) — admin/test users and crawlers excluded. Every figure below comes from it.
+    const views: { user_id: string; created_at: string }[] = []
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await adminSupabase
         .from('page_views')
         .select('user_id, created_at')
+        .gte('created_at', since(30))
         .not('user_id', 'is', null)
-        .order('created_at', { ascending: false })
-
-      if (allPageViews) {
-        const userStats = new Map<string, { activeDays: Set<string>, lastSeen: Date }>()
-
-        allPageViews.forEach(pv => {
-          if (!userStats.has(pv.user_id)) {
-            userStats.set(pv.user_id, { activeDays: new Set(), lastSeen: new Date(pv.created_at) })
-          }
-          const stats = userStats.get(pv.user_id)!
-          const date = new Date(pv.created_at)
-          stats.activeDays.add(date.toISOString().split('T')[0])
-          if (date > stats.lastSeen) {
-            stats.lastSeen = date
-          }
-        })
-
-        // Get user emails
-        const userIds = Array.from(userStats.keys())
-        const userEmails = new Map<string, string>()
-
-        for (const userId of userIds) {
-          const { data: userData } = await adminSupabase.auth.admin.getUserById(userId)
-          if (userData?.user?.email) {
-            userEmails.set(userId, userData.user.email)
-          }
-        }
-
-        // Build top users array
-        top_returning_users = Array.from(userStats.entries())
-          .map(([userId, stats]) => ({
-            email: userEmails.get(userId) || 'unknown',
-            active_days: stats.activeDays.size,
-            last_seen: stats.lastSeen.toISOString().split('T')[0],
-            days_since_last_visit: Math.floor((now.getTime() - stats.lastSeen.getTime()) / (1000 * 60 * 60 * 24))
-          }))
-          .sort((a, b) => b.active_days - a.active_days)
-          .slice(0, 10)
-      }
+        .is('bot_name', null)
+        .or(excludedUsersOrFilter())
+        .order('created_at', { ascending: true })
+        .order('id', { ascending: true })
+        .range(from, from + 999)
+      if (error) throw new Error(`page_views: ${error.message}`)
+      views.push(...(data || []))
+      if (!data || data.length < 1000) break
     }
 
-    // Get DAU over last 30 days for chart
-    const { data: dailyData } = await adminSupabase
-      .from('page_views')
-      .select('user_id, created_at')
-      .gte('created_at', `${thirtyDaysAgo}T00:00:00Z`)
-      .not('user_id', 'is', null)
+    // Compare parsed instants, never strings: '…T00:00:00.500+00:00' sorts before '…T00:00:00Z'
+    const activeSince = (iso: string) => { const t = Date.parse(iso); return new Set(views.filter(v => Date.parse(v.created_at) >= t).map(v => v.user_id)) }
+    const dau_today = activeSince(`${today}T00:00:00Z`).size
+    const wau = activeSince(since(7)).size
+    const mau = activeSince(since(30)).size
+    const retention_7d = totalUsers > 0 ? (wau / totalUsers) * 100 : 0
+    const retention_30d = totalUsers > 0 ? (mau / totalUsers) * 100 : 0
+    const churned_users = totalUsers - activeSince(since(14)).size
 
-    const dailyActiveUsers: { date: string; users: number }[] = []
+    // Per user: active days and last visit (last 30 days)
+    const userStats = new Map<string, { days: Set<string>; lastSeen: string }>()
+    for (const v of views) {
+      const st = userStats.get(v.user_id) ?? { days: new Set<string>(), lastSeen: v.created_at }
+      st.days.add(dayOf(v.created_at))
+      if (Date.parse(v.created_at) > Date.parse(st.lastSeen)) st.lastSeen = v.created_at
+      userStats.set(v.user_id, st)
+    }
 
-    if (dailyData) {
-      const dailyMap = new Map<string, Set<string>>()
-
-      dailyData.forEach(pv => {
-        const date = new Date(pv.created_at).toISOString().split('T')[0]
-        if (!dailyMap.has(date)) {
-          dailyMap.set(date, new Set())
-        }
-        dailyMap.get(date)!.add(pv.user_id)
-      })
-
-      // Fill in all dates (including zeros)
-      for (let i = 30; i >= 0; i--) {
-        const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-        dailyActiveUsers.push({
-          date,
-          users: dailyMap.get(date)?.size || 0
-        })
+    // Average days between visits (distinct active days, last 30 days)
+    let totalGapDays = 0
+    let gapCount = 0
+    for (const st of userStats.values()) {
+      const days = [...st.days].sort()
+      for (let i = 1; i < days.length; i++) {
+        totalGapDays += (Date.parse(days[i]) - Date.parse(days[i - 1])) / DAY
+        gapCount++
       }
+    }
+    const avg_days_between_visits = gapCount > 0 ? totalGapDays / gapCount : 0
+
+    // Most active returning users (last 30 days)
+    const top_returning_users = [...userStats.entries()]
+      .map(([userId, st]) => ({
+        email: emailById.get(userId) || 'unknown',
+        active_days: st.days.size,
+        last_seen: dayOf(st.lastSeen),
+        days_since_last_visit: Math.floor((now.getTime() - Date.parse(st.lastSeen)) / DAY),
+      }))
+      .sort((a, b) => b.active_days - a.active_days)
+      .slice(0, 10)
+
+    // Daily active users, last 30 days (zeros included)
+    const dailyMap = new Map<string, Set<string>>()
+    for (const v of views) {
+      const d = dayOf(v.created_at)
+      if (!dailyMap.has(d)) dailyMap.set(d, new Set())
+      dailyMap.get(d)!.add(v.user_id)
+    }
+    const dailyActiveUsers: { date: string; users: number }[] = []
+    for (let i = 30; i >= 0; i--) {
+      const date = dayOf(new Date(now.getTime() - i * DAY))
+      dailyActiveUsers.push({ date, users: dailyMap.get(date)?.size || 0 })
     }
 
     return NextResponse.json({
