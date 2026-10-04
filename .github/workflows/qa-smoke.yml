@@ -73,35 +73,48 @@ jobs:
         if: github.event_name == 'push'
         run: |
           UA='VetreeQABot/1.0 (health check)'   # QA traffic: never recorded in analytics
-          fail=0
-          fetch() {  # url -> body + "\n<status>"; one retry for transient errors, never aborts the step
-            local out
-            out=$(curl -s -A "$UA" --max-time 20 -w '\n%{http_code}' "$1" || true)
-            if [ "$(printf '%s' "$out" | tail -n1)" != "200" ]; then sleep 5; out=$(curl -s -A "$UA" --max-time 20 -w '\n%{http_code}' "$1" || true); fi
-            printf '%s' "$out"
+          # fetch URL → body, then a last line "<curl exit>:<http status>". Retries once; a request only
+          # counts when curl succeeded (no partial transfer) AND the status is 200.
+          fetch() {
+            local out rc n
+            for n in 1 2; do
+              out=$(curl -sS -A "$UA" --max-time 20 -w '\n%{http_code}' "$1" 2>/dev/null); rc=$?
+              [ "$rc" = 0 ] && [ "$(printf '%s' "$out" | tail -n1)" = 200 ] && break
+              [ "$n" = 1 ] && sleep 5
+            done
+            printf '%s\n%s' "$(printf '%s' "$out" | sed '$d')" "$rc:$(printf '%s' "$out" | tail -n1)"
           }
-          check() {  # url, then every marker the 200 body must contain
+          ok() { [ "$(printf '%s' "$1" | tail -n1)" = "0:200" ]; }
+          check() {  # url, then every marker the body must contain
             local url=$1; shift
-            local out code m
-            out=$(fetch "$url"); code=$(printf '%s' "$out" | tail -n1)
-            if [ "$code" != "200" ]; then echo "FAIL $code $url"; fail=1; return; fi
+            local out m
+            out=$(fetch "$url")
+            if ! ok "$out"; then echo "FAIL $url (curl:http $(printf '%s' "$out" | tail -n1))"; fail=1; return; fi
             for m in "$@"; do
               if ! printf '%s' "$out" | grep -qF -- "$m"; then echo "FAIL $url: missing $m"; fail=1; return; fi
             done
             echo "OK   $url"
           }
-          # Real page markers, not just a <title> an error page would also have
-          check https://vetree.app/ 'data-testid="landing-cta-primary"'
-          # (the wait step above already proved this commit — or a later one containing it — is live)
-          check https://vetree.app/api/version '"sha":"'
-          # The stats route answers 200 with zeros when the database fails: require a real count
-          STATS=$(fetch https://vetree.app/api/stats/public | sed '$d')
-          COUNT=$(printf '%s' "$STATS" | sed -n 's/.*"articles_count":\([0-9]*\).*/\1/p')
-          if [ "${COUNT:-0}" -gt 1000 ]; then echo "OK   /api/stats/public ($COUNT articles)"; else echo "FAIL /api/stats/public: articles_count=${COUNT:-none} ($STATS)"; fail=1; fi
-          SITEMAP=$(fetch https://vetree.app/sitemaps/sitemap/0.xml)
-          ARTICLE=$(printf '%s' "$SITEMAP" | grep -o 'https://vetree.app/article/[^<]*' | head -n1 || true)
-          if [ "$(printf '%s' "$SITEMAP" | tail -n1)" != "200" ] || [ -z "$ARTICLE" ]; then echo "FAIL sitemap: no article URL"; fail=1
-          else check "$ARTICLE" 'data-testid="article-title"' 'data-testid="clinical-bottom-line"'; fi
+          run_checks() {
+            fail=0
+            # Real page markers, not just a <title> an error page would also have
+            check https://vetree.app/ 'data-testid="landing-cta-primary"'
+            # (the wait step above already proved this commit — or a later one containing it — is live)
+            check https://vetree.app/api/version '"sha":"'
+            # The stats route answers 200 with zeros when the database fails: require a real count
+            local stats count sitemap article
+            stats=$(fetch https://vetree.app/api/stats/public)
+            count=$(printf '%s' "$stats" | sed '$d' | sed -n 's/.*"articles_count":\([0-9]*\).*/\1/p')
+            if ok "$stats" && [ "${count:-0}" -gt 1000 ]; then echo "OK   /api/stats/public ($count articles)"
+            else echo "FAIL /api/stats/public (curl:http $(printf '%s' "$stats" | tail -n1), articles_count=${count:-none})"; fail=1; fi
+            sitemap=$(fetch https://vetree.app/sitemaps/sitemap/0.xml)
+            article=$(printf '%s' "$sitemap" | grep -o 'https://vetree.app/article/[^<]*' | head -n1 || true)
+            if ! ok "$sitemap" || [ -z "$article" ]; then echo "FAIL sitemap (no article URL)"; fail=1
+            else check "$article" 'data-testid="article-title"' 'data-testid="clinical-bottom-line"'; fi
+          }
+          run_checks
+          # One full re-run before alerting: a later deploy rolling out mid-check is not an outage
+          if [ "$fail" = 1 ]; then echo "--- retrying all checks in 20 s"; sleep 20; run_checks; fi
           exit $fail
 
       # Any post-deploy failure — the release never went live, setup failed, or the health check

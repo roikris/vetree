@@ -11,7 +11,12 @@ name: PR Smoke Suite
 on:
   pull_request:
     branches: [main]
-    types: [opened, synchronize, reopened, ready_for_review]
+    types: [opened, synchronize, reopened, ready_for_review, converted_to_draft]
+
+# A newer push supersedes an older run of the same PR (saves Vercel CPU)
+concurrency:
+  group: smoke-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
 
 jobs:
   scope:
@@ -33,8 +38,11 @@ jobs:
           FILES=$(gh api --paginate "$PR/files" --jq '.[] | .filename, (.previous_filename // empty)')
           LISTED=$(gh api --paginate "$PR/files" --jq '.[].filename' | wc -l | tr -d ' ')
           echo "$FILES"
+          # Count non-doc files reading ALL input (grep -q would exit early and SIGPIPE the writer,
+          # which pipefail turns into "no code"). Only an exact "0" proves docs-only.
+          NONDOC=$(printf '%s\n' "$FILES" | grep -cvE '(\.md$|^docs/)' || true)
           # The files API stops at 3000: an incomplete list can't prove docs-only
-          if [ "$LISTED" != "$EXPECTED" ] || [ -z "$FILES" ] || echo "$FILES" | grep -qvE '(\.md$|^docs/)'; then
+          if [ "$LISTED" != "$EXPECTED" ] || [ -z "$FILES" ] || [ "$NONDOC" != "0" ]; then
             echo "code=true" >> "$GITHUB_OUTPUT"
           else
             echo "code=false" >> "$GITHUB_OUTPUT"; echo "Docs-only change: smoke skipped"
@@ -43,9 +51,9 @@ jobs:
   smoke:
     name: smoke
     needs: scope
-    # always(): a failed/cancelled scope must not skip (= pass) the required check — anything but a
-    # proven docs-only result runs the suite
-    if: always() && needs.scope.outputs.code != 'false'
+    # !cancelled(): a FAILED scope must not skip (= pass) the required check — anything but a proven
+    # docs-only result runs the suite; a run cancelled by a newer push stays cancelled
+    if: ${{ !cancelled() && needs.scope.outputs.code != 'false' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
