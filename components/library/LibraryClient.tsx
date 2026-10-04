@@ -14,8 +14,6 @@ type SavedEntry = {
   savedAt: string
 }
 
-type Tab = 'saved' | 'collections' | 'reading'
-
 function timeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime()
   const mins = Math.floor(diff / 60000)
@@ -38,7 +36,6 @@ export function LibraryClient({ entries, userEmail }: Props) {
   const router = useRouter()
   const { user } = useAuth()
   const { isSaved, toggleSave } = useSavedArticles()
-  const [tab, setTab] = useState<Tab>('saved')
   const [activeSpec, setActiveSpec] = useState('All')
   const [query, setQuery] = useState('')
 
@@ -68,12 +65,6 @@ export function LibraryClient({ entries, userEmail }: Props) {
     }
     return items
   }, [entries, activeSpec, query])
-
-  const tabDefs = [
-    { key: 'saved' as Tab, label: 'Saved', count: entries.length },
-    { key: 'collections' as Tab, label: 'Collections', count: 0 },
-    { key: 'reading' as Tab, label: 'Reading list', count: 0 },
-  ]
 
   return (
     <>
@@ -193,7 +184,7 @@ export function LibraryClient({ entries, userEmail }: Props) {
               font: "italic 400 15px/1.4 var(--font-spectral, serif)",
               color: 'var(--al-mut3)',
             }}>
-              Everything you saved, collected and set aside to read — kept close.
+              Everything you saved — kept close.
             </p>
           </div>
 
@@ -203,59 +194,12 @@ export function LibraryClient({ entries, userEmail }: Props) {
               <div style={{ font: "600 26px/1 var(--font-spectral, serif)", color: 'var(--al-ink2)' }}>{entries.length}</div>
               <div style={{ font: "400 12px/1 var(--font-instrument, sans-serif)", color: 'var(--al-mut4)', marginTop: 5 }}>Saved</div>
             </div>
-            <div style={{ width: 1, background: 'rgba(var(--al-line),0.1)' }} />
-            <div>
-              <div style={{ font: "600 26px/1 var(--font-spectral, serif)", color: 'var(--al-ink2)' }}>0</div>
-              <div style={{ font: "400 12px/1 var(--font-instrument, sans-serif)", color: 'var(--al-mut4)', marginTop: 5 }}>Collections</div>
-            </div>
-            <div style={{ width: 1, background: 'rgba(var(--al-line),0.1)' }} />
-            <div>
-              <div style={{ font: "600 26px/1 var(--font-spectral, serif)", color: 'var(--al-ink2)' }}>0</div>
-              <div style={{ font: "400 12px/1 var(--font-instrument, sans-serif)", color: 'var(--al-mut4)', marginTop: 5 }}>To read</div>
-            </div>
           </div>
         </div>
 
-        {/* TABS */}
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 4,
-          borderBottom: '1px solid rgba(var(--al-line),0.1)', marginBottom: 30,
-        }}>
-          {tabDefs.map(t => {
-            const active = t.key === tab
-            return (
-              <button
-                key={t.key}
-                onClick={() => setTab(t.key)}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 8,
-                  background: 'none', border: 'none',
-                  borderBottom: active ? '2px solid var(--al-accent)' : '2px solid transparent',
-                  cursor: 'pointer', padding: '12px 16px 13px',
-                  font: active
-                    ? "600 14px/1 var(--font-instrument, sans-serif)"
-                    : "500 14px/1 var(--font-instrument, sans-serif)",
-                  color: active ? 'var(--al-ink2)' : 'var(--al-mut3)',
-                  transition: 'color .15s',
-                }}
-              >
-                {t.label}
-                <span style={{
-                  font: "600 11px/1 var(--font-instrument, sans-serif)",
-                  padding: '3px 7px', borderRadius: 999,
-                  background: active ? 'var(--al-accent)' : 'rgba(var(--al-line),0.08)',
-                  color: active ? 'var(--al-onaccent)' : 'var(--al-mut4)',
-                }}>
-                  {t.count}
-                </span>
-              </button>
-            )
-          })}
-        </div>
-
-        {/* ===== SAVED TAB ===== */}
-        {tab === 'saved' && (
-          <>
+        {/* Saved articles. (Collections and a reading list were shown as tabs with dead controls —
+            hidden 2026-10-03 until they exist.) */}
+        <div style={{ borderTop: '1px solid rgba(var(--al-line),0.1)', paddingTop: 30 }}>
             {/* Specialty filter pills */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 26 }}>
               {specs.map(spec => {
@@ -402,46 +346,7 @@ export function LibraryClient({ entries, userEmail }: Props) {
                 })}
               </div>
             )}
-          </>
-        )}
-
-        {/* ===== COLLECTIONS TAB ===== */}
-        {tab === 'collections' && (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
-            {/* Dashed "New collection" placeholder */}
-            <button style={{
-              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-              gap: 12, minHeight: 200, background: 'transparent',
-              border: '1px dashed rgba(var(--al-line),0.18)', borderRadius: 18,
-              cursor: 'pointer', color: 'var(--al-mut3)',
-              font: "500 13.5px/1 var(--font-instrument, sans-serif)",
-            }}>
-              <span style={{
-                width: 44, height: 44, borderRadius: '50%',
-                border: '1px solid rgba(var(--al-line),0.2)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                font: "300 26px/1 var(--font-instrument, sans-serif)",
-              }}>＋</span>
-              New collection
-            </button>
-          </div>
-        )}
-
-        {/* ===== READING LIST TAB ===== */}
-        {tab === 'reading' && (
-          <div style={{
-            textAlign: 'center', padding: '70px 20px',
-            border: '1px dashed rgba(var(--al-line),0.14)', borderRadius: 18,
-          }}>
-            <p style={{
-              margin: 0,
-              font: "italic 400 16px/1.5 var(--font-spectral, serif)",
-              color: 'var(--al-mut3)',
-            }}>
-              Reading list coming soon.
-            </p>
-          </div>
-        )}
+        </div>
 
       </div>
     </>
