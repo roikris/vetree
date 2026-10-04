@@ -1,7 +1,7 @@
 'use server'
 
 import { createClient, createAdminClient } from '@/lib/supabase/server'
-import { requeueFailedArticles, FAILED_UNPUBLISHED_OR, MARKER_LIKE } from '@/lib/enrichment/requeueFailed'
+import { requeueFailedArticles, FAILED_UNPUBLISHED_OR, ENRICHMENT_FAILED } from '@/lib/enrichment/requeueFailed'
 
 export async function getAdminStats() {
   const supabase = await createClient()
@@ -649,7 +649,7 @@ export async function quarantineUnfixable() {
   // Quarantine articles with 3+ attempts AND no clinical_bottom_line (enrichment failed)
   const { count, error } = await adminSupabase
     .from('articles')
-    .update({ quarantined: true })
+    .update({ quarantined: true, quarantine_reason: 'admin' })   // an admin's quarantine is never lifted by a retry
     .gte('enrichment_attempts', 3)
     .is('clinical_bottom_line', null)
 
@@ -681,7 +681,7 @@ export async function getFailedArticles(limit: number = 20) {
     .from('articles')
     .select('id, title, enrichment_attempts, last_enrichment_error, last_enrichment_at, labels, article_url, doi')
     .gte('enrichment_attempts', 3)
-    .or(`needs_enrichment.eq.true,last_enrichment_error.like.${MARKER_LIKE}`)
+    .or(`needs_enrichment.eq.true,quarantine_reason.eq.${ENRICHMENT_FAILED}`)
     .order('last_enrichment_at', { ascending: false, nullsFirst: false })
     .limit(limit)
 

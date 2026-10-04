@@ -72,6 +72,7 @@ Column names verified against information_schema and migrations. Schema is the s
 | enrichment_attempts | integer | capped at 3 |
 | force_retry | boolean | admin override |
 | quarantined | boolean | hidden from public |
+| quarantine_reason | text | `enrichment_failed` (lifted only by admin "Retry failed") \| `no_abstract` \| `admin` \| NULL = unknown/older, never lifted automatically (migration 072) |
 | last_enrichment_error | text | |
 | last_enrichment_at | timestamptz | |
 
