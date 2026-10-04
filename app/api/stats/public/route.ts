@@ -7,21 +7,24 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 // Public counts, cached for an hour: a public endpoint must not make the server list every user
-// (or count every article) on each request. Errors are thrown, so they are never cached.
+// (or count every article) on each request. Errors are thrown, so they are never cached: a cold
+// failure is a 500, while a failed background refresh keeps serving the last good counts.
 const getPublicStats = unstable_cache(async () => {
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
-  // Publicly visible articles (same filter as the feed)
+  // Publicly visible articles (the public article filter, supabase/CLAUDE.md)
   const { count: articlesCount, error: articlesError } = await supabase
     .from('articles')
     .select('*', { count: 'exact', head: true })
     .eq('needs_enrichment', false)
+    .not('summary', 'is', null)
     .not('clinical_bottom_line', 'is', null)
     .or('quarantined.is.null,quarantined.eq.false')
   if (articlesError) throw new Error(`articles count: ${articlesError.message}`)
+  if (typeof articlesCount !== 'number') throw new Error('articles count: no count returned')
 
   // Confirmed accounts, excluding the admin and the smoke-test account. auth.users is not reachable
   // through PostgREST (.from('auth.users') always failed, so this was 0 until 2026-10-04) — use the
@@ -34,7 +37,8 @@ const getPublicStats = unstable_cache(async () => {
     if (data.users.length < 1000) break
   }
 
-  return { confirmed_users: confirmedUsers, articles_count: articlesCount ?? 0 }
+  // Rounded down to a multiple of 5: an exact public total would let anyone track each new signup
+  return { confirmed_users: Math.floor(confirmedUsers / 5) * 5, articles_count: articlesCount }
 }, ['public-stats-v2'], { revalidate: 3600 })
 
 export async function GET() {
