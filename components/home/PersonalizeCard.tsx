@@ -28,6 +28,8 @@ const EMPTY: Stored = { until: 0, snoozes: 0 }
 
 // Dismissals made while storage was unavailable — honoured for the rest of this page's life
 const memory = new Map<string, Stored>()
+// "Shown" already recorded this page life (fallback when sessionStorage is unavailable)
+const shownInMemory = new Set<string>()
 
 const storageKey = (userId: string) => `vetree_personalize_card:${userId}`
 
@@ -85,11 +87,13 @@ export function PersonalizeCard({ userId }: { userId: string }) {
   // "Shown" once per browser session, not on every page view
   useEffect(() => {
     if (visibility !== 'show') return
+    const flag = `vetree_personalize_shown:${userId}`
+    if (shownInMemory.has(flag)) return
+    shownInMemory.add(flag)
     try {
-      const flag = `vetree_personalize_shown:${userId}`
       if (sessionStorage.getItem(flag)) return
       sessionStorage.setItem(flag, '1')
-    } catch { /* no session storage: still record */ }
+    } catch { /* no session storage: the in-memory flag still limits it to once per page life */ }
     trackEvent('personalize_card_shown', { snoozes: read(key).snoozes })
   }, [visibility, key, userId])
 

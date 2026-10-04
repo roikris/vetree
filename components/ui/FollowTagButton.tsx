@@ -26,12 +26,13 @@ export function FollowTagButton({ tag }: FollowTagButtonProps) {
       removeTag(tag)
     } else {
       // Follow
-      await fetch('/api/tags/follow', {
+      const res = await fetch('/api/tags/follow', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tag })
-      })
-      addTag(tag)
+      }).catch(() => null)
+      // Only show "following" when the server actually saved it
+      if (res?.ok) addTag(tag)
     }
 
     setIsLoading(false)
