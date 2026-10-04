@@ -72,30 +72,49 @@ jobs:
         id: health
         if: github.event_name == 'push'
         run: |
-          UA='VetreeQABot/1.0 (health check)'
+          UA='VetreeQABot/1.0 (health check)'   # QA traffic: never recorded in analytics
           fail=0
-          check() {  # url, expected text
-            body=$(curl -s -A "$UA" --max-time 20 -w '\n%{http_code}' "$1")
-            code=$(printf '%s' "$body" | tail -n1)
-            if [ "$code" = "200" ] && printf '%s' "$body" | grep -q "$2"; then echo "OK   $code $1"
-            else echo "FAIL $code $1 (expected 200 containing '$2')"; fail=1; fi
+          fetch() {  # url -> body + "\n<status>"; one retry for transient errors, never aborts the step
+            local out
+            out=$(curl -s -A "$UA" --max-time 20 -w '\n%{http_code}' "$1" || true)
+            if [ "$(printf '%s' "$out" | tail -n1)" != "200" ]; then sleep 5; out=$(curl -s -A "$UA" --max-time 20 -w '\n%{http_code}' "$1" || true); fi
+            printf '%s' "$out"
           }
-          check https://vetree.app/ '<title>'
-          check https://vetree.app/api/version '"sha"'
-          check https://vetree.app/api/stats/public '{'
-          ARTICLE=$(curl -s -A "$UA" --max-time 20 https://vetree.app/sitemaps/sitemap/0.xml | grep -o 'https://vetree.app/article/[^<]*' | head -n1)
-          if [ -z "$ARTICLE" ]; then echo "FAIL no article URL in sitemap"; fail=1; else check "$ARTICLE" 'data-testid="article-title"'; fi
+          check() {  # url, then every marker the 200 body must contain
+            local url=$1; shift
+            local out code m
+            out=$(fetch "$url"); code=$(printf '%s' "$out" | tail -n1)
+            if [ "$code" != "200" ]; then echo "FAIL $code $url"; fail=1; return; fi
+            for m in "$@"; do
+              if ! printf '%s' "$out" | grep -qF -- "$m"; then echo "FAIL $url: missing $m"; fail=1; return; fi
+            done
+            echo "OK   $url"
+          }
+          # Real page markers, not just a <title> an error page would also have
+          check https://vetree.app/ 'data-testid="landing-cta-primary"'
+          # (the wait step above already proved this commit — or a later one containing it — is live)
+          check https://vetree.app/api/version '"sha":"'
+          # The stats route answers 200 with zeros when the database fails: require a real count
+          STATS=$(fetch https://vetree.app/api/stats/public | sed '$d')
+          COUNT=$(printf '%s' "$STATS" | sed -n 's/.*"articles_count":\([0-9]*\).*/\1/p')
+          if [ "${COUNT:-0}" -gt 1000 ]; then echo "OK   /api/stats/public ($COUNT articles)"; else echo "FAIL /api/stats/public: articles_count=${COUNT:-none} ($STATS)"; fail=1; fi
+          SITEMAP=$(fetch https://vetree.app/sitemaps/sitemap/0.xml)
+          ARTICLE=$(printf '%s' "$SITEMAP" | grep -o 'https://vetree.app/article/[^<]*' | head -n1 || true)
+          if [ "$(printf '%s' "$SITEMAP" | tail -n1)" != "200" ] || [ -z "$ARTICLE" ]; then echo "FAIL sitemap: no article URL"; fail=1
+          else check "$ARTICLE" 'data-testid="article-title"' 'data-testid="clinical-bottom-line"'; fi
           exit $fail
 
-      - name: Slack on failed health check
-        if: failure() && github.event_name == 'push' && steps.health.outcome == 'failure'
+      # Any post-deploy failure — the release never went live, setup failed, or the health check
+      - name: Slack on failed post-deploy check
+        if: failure() && github.event_name == 'push'
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           [ -n "$SLACK_WEBHOOK_URL" ] || exit 0
           curl -s -X POST -H 'Content-Type: application/json' \
-            -d "{\"text\":\"🌿 *Vetree* — post-deploy health check FAILED for ${GITHUB_SHA:0:7}\\n$RUN_URL\"}" "$SLACK_WEBHOOK_URL"
+            -d "{\"text\":\"🌿 *Vetree* — post-deploy check FAILED for ${GITHUB_SHA:0:7}\\n$RUN_URL\"}" "$SLACK_WEBHOOK_URL" \
+            -o /dev/null -w 'Slack HTTP %{http_code}\n' -f || echo "::warning::Slack delivery failed"
 
       - name: Install dependencies
         if: github.event_name != 'push'

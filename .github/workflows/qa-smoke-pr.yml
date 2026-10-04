@@ -2,11 +2,12 @@ name: PR Smoke Suite
 
 # Every Playwright run costs Vercel Fluid Active CPU (Hobby plan: ~4 h/month). 2026-09-24→10-02,
 # re-running the full suite on every push to every PR used ~70 extra CPU-minutes. So:
-# - draft PRs don't run it: iterate as a draft, mark "Ready for review" to run it once
-# - docs-only changes (*.md, docs/**) don't run it
-# `smoke` is a required check, so it is skipped by a job condition, never by trigger filters:
-# GitHub reports a condition-skipped job as successful, whereas a workflow that never starts leaves
-# the required check pending forever. Drafts can't be merged; marking one ready re-runs this.
+# - draft PRs don't run the suite: `smoke` FAILS in seconds with "mark ready to run" (a red required
+#   check, never a stale pass); marking the PR ready re-runs this and the suite runs once
+# - docs-only changes (*.md, docs/**) skip the suite: `smoke` is skipped by its job condition,
+#   which GitHub reports as success (a trigger filter would leave the required check pending forever)
+# Fail-safe: whenever `scope` can't PROVE docs-only (API error, rate limit, incomplete file list,
+# a rename out of code), `smoke` runs the full suite.
 on:
   pull_request:
     branches: [main]
@@ -25,19 +26,37 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          FILES=$(gh api --paginate "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/files" --jq '.[].filename')
+          set -euo pipefail
+          PR="repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}"
+          EXPECTED=$(gh api "$PR" --jq .changed_files)
+          # Both sides of a rename: moving code into docs/ is still a code change
+          FILES=$(gh api --paginate "$PR/files" --jq '.[] | .filename, (.previous_filename // empty)')
+          LISTED=$(gh api --paginate "$PR/files" --jq '.[].filename' | wc -l | tr -d ' ')
           echo "$FILES"
-          if [ -z "$FILES" ] || echo "$FILES" | grep -qvE '(\.md$|^docs/)'; then echo "code=true" >> "$GITHUB_OUTPUT"; else echo "code=false" >> "$GITHUB_OUTPUT"; echo "Docs-only change: smoke skipped"; fi
+          # The files API stops at 3000: an incomplete list can't prove docs-only
+          if [ "$LISTED" != "$EXPECTED" ] || [ -z "$FILES" ] || echo "$FILES" | grep -qvE '(\.md$|^docs/)'; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "code=false" >> "$GITHUB_OUTPUT"; echo "Docs-only change: smoke skipped"
+          fi
 
   smoke:
     name: smoke
     needs: scope
-    if: github.event.pull_request.draft == false && needs.scope.outputs.code == 'true'
+    # always(): a failed/cancelled scope must not skip (= pass) the required check — anything but a
+    # proven docs-only result runs the suite
+    if: always() && needs.scope.outputs.code != 'false'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
+      - name: Draft gate
+        if: github.event.pull_request.draft == true
+        run: |
+          echo "Draft PR: smoke not run (saves Vercel CPU). Mark the PR ready for review to run it once."
+          exit 1
+
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
