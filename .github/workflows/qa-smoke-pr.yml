@@ -15,8 +15,10 @@ on:
 
 # Deduplicate runs of the SAME commit (e.g. a push and "ready" for one head). Runs for different
 # commits never cancel each other — a delayed older run could otherwise cancel the current head's
-# run and then fail its own stale-head check, leaving the head untested. An outdated run still
-# costs no Vercel CPU: the Draft gate's stale-head check fails it before the preview is touched.
+# run and then fail its own stale-head check, leaving the head untested. An outdated run is
+# stopped by the stale-head check in the Draft gate and again right before the tests; a run that
+# overlaps a newer push only in between (or finishes before a same-commit duplicate starts) can
+# still run the suite once more — rare, since pushes happen on drafts.
 concurrency:
   group: smoke-pr-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
   cancel-in-progress: true
@@ -161,6 +163,20 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
+      # Re-check right before the tests: a newer push may have landed while this run waited for
+      # its preview — don't spend Vercel CPU testing a commit that is no longer the head
+      - name: Still the PR head?
+        id: head
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          HEAD=$(gh api "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}" --jq .head.sha)
+          if [ "$HEAD" != "$EVENT_SHA" ]; then
+            echo "Stale run: the PR head moved to $HEAD while this run (for $EVENT_SHA) was preparing. Tests not run; the head has its own run."
+            exit 1
+          fi
+
       - name: Run smoke tests
         id: smoke
         run: npm run test:smoke
@@ -173,7 +189,7 @@ jobs:
           TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
 
       - name: Triage + Slack
-        if: always() && steps.draft.outcome == 'success'
+        if: always() && steps.draft.outcome == 'success' && steps.head.outcome == 'success'
         run: node scripts/qa-triage.mjs
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -184,7 +200,7 @@ jobs:
           TRIGGER: pull_request
 
       - name: Upload Playwright report
-        if: always() && steps.draft.outcome == 'success'
+        if: always() && steps.draft.outcome == 'success' && steps.head.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report-pr-${{ github.event.pull_request.number }}
