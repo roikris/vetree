@@ -79,11 +79,16 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Fetch all articles where enrichment_attempts >= 3 (using admin client to bypass RLS)
+    // Articles that FAILED: 3+ attempts and not published (still queued, missing their AI text, or
+    // hidden after failing). A bare `enrichment_attempts >= 3` also matched ~320 articles that
+    // succeeded on a later attempt and are live — re-queuing those hid them and paid to regenerate
+    // them. Only ones with a source abstract can be enriched at all.
     const { data: failedArticles, error: fetchError } = await supabaseAdmin
       .from('articles')
       .select('id')
       .gte('enrichment_attempts', 3)
+      .not('abstract', 'is', null)
+      .or('needs_enrichment.eq.true,summary.is.null,clinical_bottom_line.is.null,last_enrichment_error.like.enrichment_failed_3x*')
 
     if (fetchError) {
       console.error('Error fetching failed articles:', fetchError)

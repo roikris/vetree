@@ -26,6 +26,10 @@ const PROMPT_VERSION = 'v2-context-framing';
 // write prepared summaries with no timestamp), so there is no fallback: rows without an
 // abstract are not enriched (see the queue query and releaseSourcelessRequeues below).
 
+// Marker for articles hidden after 3 failed attempts (a retry that succeeds makes them public again)
+const FAILED_3X = 'enrichment_failed_3x';
+let failedOutHidden = 0;
+
 async function enrichArticle(client, anthropic, article) {
   const system = `You are a veterinary medicine expert supporting Vetree, an evidence-based clinical reference platform for licensed veterinary professionals. Your task is to summarize a single article that is already published and publicly indexed on PubMed — peer-reviewed veterinary and biomedical literature. You are not generating new research, protocols, or technical instructions; you are only extracting and restating what the published abstract already states, for clinical-reference use by practicing veterinarians.`;
 
@@ -109,6 +113,11 @@ Return ONLY valid JSON, no markdown formatting.`;
       last_enrichment_error: errorMessage,  // Set error if incomplete, null if complete
       prompt_version: PROMPT_VERSION  // Which prompt produced summary/clinical_bottom_line — enables precise rollback
     };
+    // A complete retry of an article hidden for failing 3 times makes it public again (only that
+    // kind of quarantine — never an admin's or a no-abstract one)
+    if (isComplete && article.quarantined && String(article.last_enrichment_error || '').startsWith(FAILED_3X)) {
+      updates.quarantined = false;
+    }
 
     // Update authors if corrected
     if (enrichment.authors) {
@@ -133,17 +142,23 @@ Return ONLY valid JSON, no markdown formatting.`;
   } catch (error) {
     console.error(`  ✗ Error enriching article ${article.id}:`, error.message);
 
-    // Increment attempt counter, log error, and reset force_retry
+    // Increment attempt counter, log error, and reset force_retry. The last attempt HIDES the
+    // article (quarantined) for admin review — it used to set needs_enrichment = false, which the
+    // visibility rule reads as "done": anything already carrying text went public unenriched.
+    const attempts = (article.enrichment_attempts || 0) + 1;
+    const exhausted = attempts >= 3;
     const { error: updateError } = await client
       .from('articles')
       .update({
-        enrichment_attempts: (article.enrichment_attempts || 0) + 1,
-        needs_enrichment: (article.enrichment_attempts || 0) + 1 < 3,
+        enrichment_attempts: attempts,
+        needs_enrichment: !exhausted,
+        ...(exhausted ? { quarantined: true } : {}),
         force_retry: false,  // Reset force_retry flag even on failure
-        last_enrichment_error: error.message,
+        last_enrichment_error: exhausted ? `${FAILED_3X}: ${error.message}` : error.message,
         last_enrichment_at: new Date().toISOString()
       })
       .eq('id', article.id);
+    if (exhausted) failedOutHidden++;
 
     if (updateError) {
       console.error(`  Error updating attempt counter:`, updateError.message);
@@ -170,7 +185,7 @@ async function sendSlackNotification(stats) {
     text: `🧠 *Vetree Enrichment Report*
 • Total processed this run: ${stats.totalProcessed}
 • Successfully enriched: ${stats.successCount}
-• Failed (will retry): ${stats.failCount}
+• Failed this run: ${stats.failCount} (hidden after 3 failed attempts: ${stats.hiddenThisRun})
 • Total remaining in queue: ${stats.remainingInQueue}${failedWarning}`
   };
 
@@ -380,8 +395,17 @@ async function main() {
   console.log(`   Failed: ${stats.failCount}`);
   console.log(`   Remaining in queue: ${stats.remainingInQueue}`);
 
+  stats.hiddenThisRun = failedOutHidden;
+
   // Send Slack notification
   await sendSlackNotification(stats);
+
+  // A run where every attempt failed is a systemic problem (API key, model, database): fail the
+  // workflow so it shows red in GitHub, not only in Slack
+  if (stats.totalProcessed > 0 && stats.successCount === 0) {
+    console.error(`✗ Every enrichment attempt in this run failed (${stats.failCount}) — exiting 1`);
+    process.exit(1);
+  }
 }
 
 main().catch(error => {
