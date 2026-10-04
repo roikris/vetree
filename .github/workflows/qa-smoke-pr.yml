@@ -13,9 +13,12 @@ on:
     branches: [main]
     types: [opened, synchronize, reopened, ready_for_review, converted_to_draft]
 
-# A newer push supersedes an older run of the same PR (saves Vercel CPU)
+# Deduplicate runs of the SAME commit (e.g. a push and "ready" for one head). Runs for different
+# commits never cancel each other — a delayed older run could otherwise cancel the current head's
+# run and then fail its own stale-head check, leaving the head untested. An outdated run still
+# costs no Vercel CPU: the Draft gate's stale-head check fails it before the preview is touched.
 concurrency:
-  group: smoke-pr-${{ github.event.pull_request.number }}
+  group: smoke-pr-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
   cancel-in-progress: true
 
 jobs:
@@ -72,16 +75,16 @@ jobs:
           EVENT_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           PR=$(gh api "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}")
-          DRAFT=$(printf '%s' "$PR" | jq -r .draft)
           HEAD=$(printf '%s' "$PR" | jq -r .head.sha)
-          # Only an explicit false runs the suite: true, null or anything unexpected fails closed
-          if [ "$DRAFT" != "false" ]; then
-            echo "Draft PR (draft=$DRAFT): smoke not run (saves Vercel CPU). Mark the PR ready for review to run it once."
+          # Only a boolean false runs the suite: true, null, a string or anything unexpected fails closed
+          if ! printf '%s' "$PR" | jq -e '.draft == false' >/dev/null; then
+            echo "Draft PR (draft=$(printf '%s' "$PR" | jq -c .draft)): smoke not run (saves Vercel CPU). Mark the PR ready for review to run it once."
             exit 1
           fi
           # A run started for an older commit must not stand in for the current head
           if [ "$HEAD" != "$EVENT_SHA" ]; then
-            echo "The PR head moved ($EVENT_SHA -> $HEAD) since this run started: re-run smoke for the current head."
+            echo "Stale run: it was started for $EVENT_SHA, but the PR head is now $HEAD. Ignore this run — the"
+            echo "current head has its own run; if that one is missing, re-run smoke from the run for $HEAD (re-running THIS one fails again)."
             exit 1
           fi
           echo "Ready for review at $HEAD: running the suite"

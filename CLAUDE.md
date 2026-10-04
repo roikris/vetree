@@ -23,7 +23,8 @@
   every PR, plus one after every merge) used ~70 extra minutes and hit the 100% alert. So:
   - **Open PRs as drafts** (`gh pr create --draft`) and push freely: on a draft the required `smoke`
     check fails in seconds ("mark ready to run") without running the suite. Mark ready (`gh pr ready`)
-    once, when the PR is done — that runs the suite. Newer pushes cancel older PR runs.
+    once, when the PR is done — that runs the suite. The gate reads the PR's current state via the API, and a
+    run for a commit that is no longer the head fails in seconds (re-run the head's run, not that one).
   - Docs-only PRs (`*.md`, `docs/**`) skip smoke automatically.
   - **Batch related changes into one PR**; don't open a PR per small fix.
   - **Never push an empty commit to retrigger.** Smoke failed but the build is fine → re-run the job

@@ -38,8 +38,10 @@ function eligible(q: any) {
 // workers, and a count request fails now and then (HEAD request, so an empty error
 // message). The query itself takes ~0.3-0.5 s; the failures are blips that outlasted 3 quick
 // tries (~3 s) twice — 2026-10-01 on Vercel, 2026-10-04 locally — failing whole builds.
-// So: 4 tries, 1, 2 and 4 s apart. The Supabase client already retries network errors / 503s
-// internally (~7 s per call), so the worst case stays ~35 s — inside Next's 60 s per-page budget.
+// So: 4 tries, 1, 2 and 4 s apart (7 s of our own waiting). The Supabase client also retries
+// network errors / 503s internally (~7 s per call), and request time and Retry-After add more —
+// there is no hard bound here, only a budget sized to sit well inside Next's 60 s per-page limit
+// for ordinary blips.
 async function withRetry<T>(label: string, run: () => PromiseLike<{ data?: T; count?: number | null; error: any }>) {
   let last: any
   for (let attempt = 0; attempt < 4; attempt++) {
