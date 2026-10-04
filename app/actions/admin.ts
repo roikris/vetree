@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { requeueFailedArticles, ENRICHMENT_FAILED_3X } from '@/lib/enrichment/requeueFailed'
 
 export async function getAdminStats() {
   const supabase = await createClient()
@@ -486,13 +487,14 @@ export async function getArticleHealthDiagnostics() {
     .from('articles')
     .select('*', { count: 'exact', head: true })
 
-  // Query 2: Visible articles (needs_enrichment = false AND summary IS NOT NULL AND clinical_bottom_line IS NOT NULL)
+  // Query 2: Visible articles — the public filter (supabase/CLAUDE.md), quarantine included
   const { count: visibleArticles } = await supabase
     .from('articles')
     .select('*', { count: 'exact', head: true })
     .eq('needs_enrichment', false)
     .not('summary', 'is', null)
     .not('clinical_bottom_line', 'is', null)
+    .or('quarantined.is.null,quarantined.eq.false')
 
   // Query 3: Pending enrichment (needs_enrichment = true)
   const { count: pendingEnrichment } = await supabase
@@ -612,20 +614,14 @@ export async function forceRetryFailed() {
     return { error: 'Unauthorized' }
   }
 
-  const { count, error } = await supabase
-    .from('articles')
-    .update({
-      needs_enrichment: true,
-      force_retry: true
-    })
-    .gte('enrichment_attempts', 3)
-    .eq('force_retry', false)
-
-  if (error) {
-    return { error: error.message }
+  // Only failed, unpublished articles — the old `attempts >= 3` matched ~320 live ones
+  // (lib/enrichment/requeueFailed.ts, shared with /api/enrich-failed)
+  try {
+    const { requeued } = await requeueFailedArticles(createAdminClient())
+    return { success: true, count: requeued }
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : String(e) }
   }
-
-  return { success: true, count: count || 0 }
 }
 
 export async function quarantineUnfixable() {
@@ -682,7 +678,7 @@ export async function getFailedArticles(limit: number = 20) {
     .from('articles')
     .select('id, title, enrichment_attempts, last_enrichment_error, last_enrichment_at, labels, article_url, doi')
     .gte('enrichment_attempts', 3)
-    .eq('needs_enrichment', true)
+    .or(`needs_enrichment.eq.true,last_enrichment_error.like.${ENRICHMENT_FAILED_3X}*`)
     .order('last_enrichment_at', { ascending: false, nullsFirst: false })
     .limit(limit)
 

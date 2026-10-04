@@ -113,11 +113,7 @@ Return ONLY valid JSON, no markdown formatting.`;
       last_enrichment_error: errorMessage,  // Set error if incomplete, null if complete
       prompt_version: PROMPT_VERSION  // Which prompt produced summary/clinical_bottom_line — enables precise rollback
     };
-    // A complete retry of an article hidden for failing 3 times makes it public again (only that
-    // kind of quarantine — never an admin's or a no-abstract one)
-    if (isComplete && article.quarantined && String(article.last_enrichment_error || '').startsWith(FAILED_3X)) {
-      updates.quarantined = false;
-    }
+
 
     // Update authors if corrected
     if (enrichment.authors) {
@@ -134,6 +130,10 @@ Return ONLY valid JSON, no markdown formatting.`;
       return false;
     }
 
+    if (!isComplete) {
+      console.log(`  ✗ Incomplete: ${errorMessage}`);
+      return false;  // stays queued (needs_enrichment) — counted as a failure, not a success
+    }
     console.log(`  ✓ Enriched: ${article.title.substring(0, 60)}...`);
     console.log(`    Labels: ${validLabels.join(', ')}`);
     console.log(`    Evidence: ${enrichment.strength_of_evidence}`);
@@ -145,20 +145,26 @@ Return ONLY valid JSON, no markdown formatting.`;
     // Increment attempt counter, log error, and reset force_retry. The last attempt HIDES the
     // article (quarantined) for admin review — it used to set needs_enrichment = false, which the
     // visibility rule reads as "done": anything already carrying text went public unenriched.
+    // An article that is already quarantined keeps its quarantine AND its reason: only one this
+    // job hid itself carries the FAILED_3X marker, which "Retry failed" may lift
+    // (lib/enrichment/requeueFailed.ts). An admin's or a no-abstract quarantine is never re-stamped.
     const attempts = (article.enrichment_attempts || 0) + 1;
     const exhausted = attempts >= 3;
+    const alreadyHidden = article.quarantined === true;
+    const hadMarker = String(article.last_enrichment_error || '').startsWith(FAILED_3X);
+    const hideNow = exhausted && !alreadyHidden;
     const { error: updateError } = await client
       .from('articles')
       .update({
         enrichment_attempts: attempts,
         needs_enrichment: !exhausted,
-        ...(exhausted ? { quarantined: true } : {}),
+        ...(hideNow ? { quarantined: true } : {}),
         force_retry: false,  // Reset force_retry flag even on failure
-        last_enrichment_error: exhausted ? `${FAILED_3X}: ${error.message}` : error.message,
+        last_enrichment_error: hideNow || (alreadyHidden && hadMarker) ? `${FAILED_3X}: ${error.message}` : error.message,
         last_enrichment_at: new Date().toISOString()
       })
       .eq('id', article.id);
-    if (exhausted) failedOutHidden++;
+    if (hideNow && !updateError) failedOutHidden++;
 
     if (updateError) {
       console.error(`  Error updating attempt counter:`, updateError.message);
@@ -232,7 +238,9 @@ async function main() {
     successCount: 0,
     failCount: 0,
     remainingInQueue: 0,
-    failedArticles: 0
+    failedArticles: 0,
+    attempted: 0,       // real AI attempts (skipped short abstracts excluded)
+    hiddenThisRun: 0
   };
 
   const BATCH_SIZE = 50;
@@ -341,6 +349,7 @@ async function main() {
         continue; // Skip to next article
       }
 
+      stats.attempted++;
       const success = await enrichArticle(supabase, anthropic, article);
 
       if (success) {
@@ -384,7 +393,7 @@ async function main() {
     .from('articles')
     .select('*', { count: 'exact', head: true })
     .gte('enrichment_attempts', 3)
-    .eq('needs_enrichment', true)
+    .or(`needs_enrichment.eq.true,last_enrichment_error.like.${FAILED_3X}*`)
     .neq('force_retry', true);
 
   stats.failedArticles = failedCount || 0;
@@ -400,10 +409,11 @@ async function main() {
   // Send Slack notification
   await sendSlackNotification(stats);
 
-  // A run where every attempt failed is a systemic problem (API key, model, database): fail the
-  // workflow so it shows red in GitHub, not only in Slack
-  if (stats.totalProcessed > 0 && stats.successCount === 0) {
-    console.error(`✗ Every enrichment attempt in this run failed (${stats.failCount}) — exiting 1`);
+  // Several real AI attempts that ALL failed is a systemic problem (API key, model, database): fail
+  // the workflow so it shows red in GitHub, not only in Slack. Skipped/quarantined short abstracts
+  // are not attempts, and one or two failures alone are not systemic.
+  if (stats.attempted >= 3 && stats.successCount === 0) {
+    console.error(`✗ All ${stats.attempted} enrichment attempts in this run failed — exiting 1`);
     process.exit(1);
   }
 }
