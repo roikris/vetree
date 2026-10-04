@@ -38,16 +38,17 @@ function eligible(q: any) {
 // workers, and a count request fails now and then (HEAD request, so an empty error
 // message). The query itself takes ~0.3-0.5 s; the failures are blips that outlasted 3 quick
 // tries (~3 s) twice — 2026-10-01 on Vercel, 2026-10-04 locally — failing whole builds.
-// So: 6 tries over ~31 s (1, 2, 4, 8, 16 s apart).
+// So: 4 tries, 1, 2 and 4 s apart. The Supabase client already retries network errors / 503s
+// internally (~7 s per call), so the worst case stays ~35 s — inside Next's 60 s per-page budget.
 async function withRetry<T>(label: string, run: () => PromiseLike<{ data?: T; count?: number | null; error: any }>) {
   let last: any
-  for (let attempt = 0; attempt < 6; attempt++) {
+  for (let attempt = 0; attempt < 4; attempt++) {
     if (attempt > 0) await new Promise((r) => setTimeout(r, 500 * 2 ** attempt))
     const res = await run()
     if (!res.error || res.error.code === 'PGRST103') return res
     last = res.error
   }
-  throw new Error(`sitemap: ${label} failed after 6 attempts: ${last?.message || last?.code || JSON.stringify(last)}`)
+  throw new Error(`sitemap: ${label} failed after 4 attempts: ${last?.message || last?.code || JSON.stringify(last)}`)
 }
 
 // Errors throw rather than return a short list: with ISR, a failed regeneration keeps

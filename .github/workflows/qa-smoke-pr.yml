@@ -69,13 +69,22 @@ jobs:
         id: draft
         env:
           GH_TOKEN: ${{ github.token }}
+          EVENT_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          DRAFT=$(gh api "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}" --jq .draft)
-          if [ "$DRAFT" = "true" ]; then
-            echo "Draft PR: smoke not run (saves Vercel CPU). Mark the PR ready for review to run it once."
+          PR=$(gh api "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}")
+          DRAFT=$(printf '%s' "$PR" | jq -r .draft)
+          HEAD=$(printf '%s' "$PR" | jq -r .head.sha)
+          # Only an explicit false runs the suite: true, null or anything unexpected fails closed
+          if [ "$DRAFT" != "false" ]; then
+            echo "Draft PR (draft=$DRAFT): smoke not run (saves Vercel CPU). Mark the PR ready for review to run it once."
             exit 1
           fi
-          echo "Ready for review: running the suite"
+          # A run started for an older commit must not stand in for the current head
+          if [ "$HEAD" != "$EVENT_SHA" ]; then
+            echo "The PR head moved ($EVENT_SHA -> $HEAD) since this run started: re-run smoke for the current head."
+            exit 1
+          fi
+          echo "Ready for review at $HEAD: running the suite"
 
       - uses: actions/checkout@v4
 
