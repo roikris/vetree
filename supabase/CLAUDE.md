@@ -60,6 +60,9 @@ Column names verified against information_schema and migrations. Schema is the s
 | id | text PK | PubMed ID |
 | title | text | |
 | summary | text | AI-generated, fetch lazily |
+| abstract | text | source abstract (migration 057) — the ONLY thing enrichment summarizes; never overwritten |
+| abstract_fetched_at | timestamptz | when the abstract was fetched |
+| prompt_version | text | which enrichment prompt produced summary/bottom line (migration 049) |
 | clinical_bottom_line | text | AI-generated — must exist to show publicly |
 | labels | text[] | GIN indexed |
 | source_journal | text | |
@@ -453,6 +456,33 @@ Written by aggregate route; pre-filtered (admin + TEST_USER_ID excluded).
 | new_followers | integer nullable | |
 | total_followers | integer nullable | only on LinkedIn snapshot dates |
 | uploaded_at | timestamptz | |
+
+### `digest_sent_articles` (migration 047)
+| Column | Type | Notes |
+|--------|------|-------|
+| id | uuid PK | |
+| digest_date | date | |
+| article_id | text FK → articles | ON DELETE CASCADE |
+| created_at | timestamptz | |
+UNIQUE(digest_date, article_id). Every article ever included in a digest; selection excludes them (no repeats).
+
+### `analytics_maintenance_log` (migration 065)
+| Column | Type |
+|--------|------|
+| id | bigserial PK |
+| action | text |
+| ran_at | timestamptz |
+| details | jsonb |
+Service role only. Records data migrations and each `purge_expired_logs()` run.
+
+## Database functions (service role only unless noted)
+| Function | Migration | Purpose |
+|----------|-----------|---------|
+| `record_enrichment_failure(id, error)` | 072 | One failed enrichment attempt, locked; the 3rd hides the article (`quarantine_reason = 'enrichment_failed'`) unless already quarantined |
+| `requeue_failed_articles()` | 072 | Admin "Retry failed": re-queues failed, unpublished articles; lifts only `enrichment_failed` quarantines |
+| `purge_expired_logs()` | 069/070 | 12-month retention purge (pg_cron daily) |
+| `delete_user_account(uuid)` | 070 | GDPR deletion of a user's rows across all PII tables |
+| `search_articles_batch` / `search_articles_fuzzy` / `search_articles_synthesis` | 060 / 054+056 / 026+030 | Search — granted to `anon` (public search) |
 
 ## RLS Patterns
 ```sql

@@ -42,6 +42,10 @@ Routes verified from `app/api/` directory tree.
 | `/api/auth/save-consent` | POST | Record analytics consent | User session |
 | `/api/avatars/[userId]` | GET | Signed URL for the caller's OWN avatar (403 for anyone else) | User session |
 | `/api/articles/[id]/summary` | GET | Lazy-load article summary | Public |
+| `/api/articles/[id]/abstract` | GET | Source abstract for the article page's collapsed "Original abstract" (fetched on open) | Public (RLS: eligible articles) |
+| `/api/saved-articles` | GET | IDs of the caller's saved articles (bookmark state) — plain route, not a server action (rule 12) | User session |
+| `/api/search/batch` | GET | Next batch of a progressive search (first batch is server-rendered) | Public (rate limited) |
+| `/api/version` | GET | `{ sha }` of the deployed commit — post-deploy checks wait on it | Public |
 | `/api/articles/[id]/save-count` | GET | Public save count for article | Public |
 | `/api/articles/search-quick` | GET | Admin article picker search | Admin |
 | `/api/analytics/track` | POST | Log page view | Public |

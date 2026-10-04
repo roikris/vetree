@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
 import { excludedUsersOrFilter } from '@/lib/analytics-excluded-ids'
 import { countSynthesisEvents, getAnalyticsCleanupBoundary } from '@/lib/analytics/synthesisEvents'
+import { computeActivation } from '@/lib/analytics/activation'
 
 /** Service-role client for admin data reads — bypasses RLS on page_views etc. */
 function adminDb() {
@@ -822,4 +823,23 @@ export async function getAnalyticsCleanupDate() {
     .from('user_roles').select('role').eq('user_id', user.id).maybeSingle()
   if (roleData?.role !== 'admin') return { error: 'Unauthorized', data: null }
   return { data: await getAnalyticsCleanupBoundary(adminDb()), error: null }
+}
+
+/**
+ * Activation: first save and return visit for new accounts (each with a full 7 days), plus the
+ * share of signed-out visitors who came back on another day. Definitions: lib/analytics/activation.ts.
+ */
+export async function getActivationMetrics(days: number = 60) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated', data: null }
+  const { data: roleData } = await supabase
+    .from('user_roles').select('role').eq('user_id', user.id).maybeSingle()
+  if (roleData?.role !== 'admin') return { error: 'Unauthorized', data: null }
+  try {
+    return { error: null, data: await computeActivation(adminDb(), days) }
+  } catch (e) {
+    console.error('[analytics] activation:', e)
+    return { error: 'Failed to compute activation metrics', data: null }
+  }
 }
