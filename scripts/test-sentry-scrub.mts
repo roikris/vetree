@@ -91,6 +91,15 @@ expect(ids.event_id === '0576c3bc671d40988bf94bb6f4a7f8d9', 'event_id kept exact
 expect(ids.contexts.trace.trace_id === '4bf92f3577b34da6a3ce929d0e0e4736' && ids.contexts.trace.span_id === '00f067aa0ba902b7', 'trace/span ids kept exactly')
 expect(ids.breadcrumbs[0].event_id === '0576c3bc671d40988bf94bb6f4a7f8d9', 'breadcrumb event_id kept')
 expect(!('event_id' in (scrubEvent({ event_id: 'alice@example.test' } as any) as any)), 'malformed event_id dropped')
+const idEdge: any = scrubEvent({ event_id: '0576c3bc671d40988bf94bb6f4a7f8d', contexts: { trace: {
+  trace_id: '4bf92f3577b34da6a3ce929d0e0e47360', span_id: '00f067aa0ba902b', parent_span_id: 'b7ad6b7169203331' } } } as any)
+expect(!('event_id' in idEdge) && !('trace_id' in idEdge.contexts.trace) && !('span_id' in idEdge.contexts.trace), 'ids one char short/long dropped')
+expect(idEdge.contexts.trace.parent_span_id === 'b7ad6b7169203331', 'parent span id kept exactly')
+const schema: any = scrubEvent({ platform: 'javascript', level: 'error', timestamp: 1759540000.123,
+  sdk: { name: 'sentry.javascript.nextjs', version: '9.47.2' },
+  exception: { values: [{ type: 'Error', value: 'x', mechanism: { type: 'onerror', handled: false } }] } } as any)
+expect(schema.platform === 'javascript' && schema.level === 'error' && schema.timestamp === 1759540000.123
+  && schema.sdk.version === '9.47.2' && schema.exception.values[0].mechanism.handled === false, 'schema fields Sentry needs kept')
 // Offline envelope (what the SDK actually sends): header and item carry the same valid event_id
 const envelope: any = createEventEnvelope(ids, makeDsn(SENTRY_DSN))
 expect(envelope[0].event_id === '0576c3bc671d40988bf94bb6f4a7f8d9' && envelope[1][0][1].event_id === envelope[0].event_id, 'envelope header + payload event_id valid')
