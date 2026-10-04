@@ -1,41 +1,52 @@
 import { NextResponse } from 'next/server'
+import { unstable_cache } from 'next/cache'
 import { createClient } from '@supabase/supabase-js'
+import { EXCLUDED_USER_IDS } from '@/lib/analytics-excluded-ids'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
-export const revalidate = 3600 // Cache for 1 hour
+
+// Public counts, cached for an hour: a public endpoint must not make the server list every user
+// (or count every article) on each request. Errors are thrown, so they are never cached: a cold
+// failure is a 500, while a failed background refresh keeps serving the last good counts.
+const getPublicStats = unstable_cache(async () => {
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+
+  // Publicly visible articles (the public article filter, supabase/CLAUDE.md)
+  const { count: articlesCount, error: articlesError } = await supabase
+    .from('articles')
+    .select('*', { count: 'exact', head: true })
+    .eq('needs_enrichment', false)
+    .not('summary', 'is', null)
+    .not('clinical_bottom_line', 'is', null)
+    .or('quarantined.is.null,quarantined.eq.false')
+  if (articlesError) throw new Error(`articles count: ${articlesError.message}`)
+  if (typeof articlesCount !== 'number') throw new Error('articles count: no count returned')
+
+  // Confirmed accounts, excluding the admin and the smoke-test account. auth.users is not reachable
+  // through PostgREST (.from('auth.users') always failed, so this was 0 until 2026-10-04) — use the
+  // auth admin API.
+  let confirmedUsers = 0
+  for (let page = 1; ; page++) {
+    const { data, error } = await supabase.auth.admin.listUsers({ page, perPage: 1000 })
+    if (error) throw new Error(`users count: ${error.message}`)
+    confirmedUsers += data.users.filter(u => u.email_confirmed_at && !EXCLUDED_USER_IDS.includes(u.id)).length
+    if (data.users.length < 1000) break
+  }
+
+  // Rounded down to a multiple of 5: an exact public total would let anyone track each new signup
+  return { confirmed_users: Math.floor(confirmedUsers / 5) * 5, articles_count: articlesCount }
+}, ['public-stats-v2'], { revalidate: 3600 })
 
 export async function GET() {
   try {
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
-
-    // Count confirmed users
-    const { count: confirmedUsers } = await supabase
-      .from('auth.users')
-      .select('*', { count: 'exact', head: true })
-      .not('email_confirmed_at', 'is', null)
-
-    // Count enriched articles
-    const { count: articlesCount } = await supabase
-      .from('articles')
-      .select('*', { count: 'exact', head: true })
-      .eq('needs_enrichment', false)
-      .not('clinical_bottom_line', 'is', null)
-      .or('quarantined.is.null,quarantined.eq.false')
-
-    return NextResponse.json({
-      confirmed_users: confirmedUsers || 0,
-      articles_count: articlesCount || 0
-    })
-
+    return NextResponse.json(await getPublicStats())
   } catch (error) {
+    // A data error is a 500 (CLAUDE.md rule 6) — never zeros that look like real counts
     console.error('[public-stats] Error:', error)
-    return NextResponse.json({
-      confirmed_users: 0,
-      articles_count: 0
-    }, { status: 200 })
+    return NextResponse.json({ error: 'Failed to load stats' }, { status: 500 })
   }
 }

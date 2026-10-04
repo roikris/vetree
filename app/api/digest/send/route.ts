@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { escapeHtml } from '@/lib/utils/escapeHtml'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { Resend } from 'resend'
 import { ratelimitStrict, getClientIP } from '@/lib/ratelimit'
@@ -497,27 +498,29 @@ export async function POST(request: NextRequest) {
   }
 }
 
+// Every inserted value is escaped (escapeHtml) or URL-encoded: titles and bottom lines come from
+// PubMed/AI text ("p < 0.05"), the intro carries followed tag names.
 function generateEmailHTML(email: string, userId: string, unsubscribeToken: string, tags: string[], articles: any[], intro: string, reEngagementArticles?: any[]): string {
-  const unsubscribeUrl = `https://vetree.app/api/tags/unsubscribe-all?uid=${encodeURIComponent(userId)}&token=${unsubscribeToken}`
+  const unsubscribeUrl = `https://vetree.app/api/tags/unsubscribe-all?uid=${encodeURIComponent(userId)}&token=${encodeURIComponent(unsubscribeToken)}`
   const articlesHTML = articles.map(article => `
     <div style="margin-bottom: 24px; padding: 20px; background: #f9fafb; border-radius: 8px; border-left: 4px solid #3D7A5F;">
       <h3 style="margin: 0 0 8px 0; font-size: 18px; color: #1a1a1a;">
-        <a href="https://vetree.app/article/${article.id}?utm_source=digest&utm_medium=email" style="color: #3D7A5F; text-decoration: none;">
-          ${article.title}
+        <a href="https://vetree.app/article/${encodeURIComponent(article.id)}?utm_source=digest&utm_medium=email" style="color: #3D7A5F; text-decoration: none;">
+          ${escapeHtml(article.title)}
         </a>
       </h3>
       <p style="margin: 4px 0; font-size: 14px; color: #6b7280;">
-        ${article.source_journal || 'Unknown Journal'} · ${new Date(article.publication_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+        ${escapeHtml(article.source_journal || 'Unknown Journal')} · ${new Date(article.publication_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
       </p>
       <div style="margin: 12px 0; padding: 12px; background: #fef3c7; border-radius: 6px;">
         <p style="margin: 0; font-size: 14px; color: #78350f; font-weight: 500;">📌 Clinical Bottom Line</p>
         <p style="margin: 8px 0 0 0; font-size: 14px; color: #451a03; line-height: 1.5;">
-          ${article.clinical_bottom_line}
+          ${escapeHtml(article.clinical_bottom_line)}
         </p>
       </div>
       ${article.strength_of_evidence ? `
         <span style="display: inline-block; padding: 4px 12px; background: #d1fae5; color: #065f46; font-size: 12px; border-radius: 12px; margin-top: 8px;">
-          Evidence: ${article.strength_of_evidence}
+          Evidence: ${escapeHtml(article.strength_of_evidence)}
         </span>
       ` : ''}
     </div>
@@ -535,15 +538,15 @@ function generateEmailHTML(email: string, userId: string, unsubscribeToken: stri
       ${reEngagementArticles.map(article => `
         <div style="margin-bottom: 16px; padding: 16px; background: #ffffff; border-radius: 8px; border-left: 4px solid #f59e0b;">
           <h3 style="margin: 0 0 6px 0; font-size: 16px; color: #1a1a1a;">
-            <a href="https://vetree.app/article/${article.id}?utm_source=digest&utm_medium=email&utm_campaign=reengagement" style="color: #f59e0b; text-decoration: none;">
-              ${article.title}
+            <a href="https://vetree.app/article/${encodeURIComponent(article.id)}?utm_source=digest&utm_medium=email&utm_campaign=reengagement" style="color: #f59e0b; text-decoration: none;">
+              ${escapeHtml(article.title)}
             </a>
           </h3>
           <p style="margin: 4px 0 8px 0; font-size: 13px; color: #6b7280;">
-            ${article.source_journal || 'Unknown Journal'} · ${new Date(article.publication_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+            ${escapeHtml(article.source_journal || 'Unknown Journal')} · ${new Date(article.publication_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
           </p>
           <p style="margin: 0; font-size: 14px; color: #451a03; line-height: 1.5;">
-            ${article.clinical_bottom_line}
+            ${escapeHtml(article.clinical_bottom_line)}
           </p>
         </div>
       `).join('')}
@@ -570,7 +573,7 @@ function generateEmailHTML(email: string, userId: string, unsubscribeToken: stri
             Hi there,
           </p>
           <p style="font-size: 16px; color: #1a1a1a; margin-bottom: 24px;">
-            ${intro}
+            ${escapeHtml(intro)}
           </p>
 
           <!-- Re-engagement Section (for at-risk users) -->
@@ -585,7 +588,7 @@ function generateEmailHTML(email: string, userId: string, unsubscribeToken: stri
               <a href="https://vetree.app" style="color: #3D7A5F; text-decoration: none;">Browse more articles →</a>
             </p>
             <p style="margin: 0 0 10px 0; font-size: 12px; color: #9ca3af;">
-              <a href="${unsubscribeUrl}" style="color: #9ca3af; text-decoration: underline;">Unsubscribe from all digests</a>
+              <a href="${escapeHtml(unsubscribeUrl)}" style="color: #9ca3af; text-decoration: underline;">Unsubscribe from all digests</a>
               · or reply to this email to stop receiving it
             </p>
             <p style="margin: 0; font-size: 13px; color: #4b5563; line-height: 1.6;">

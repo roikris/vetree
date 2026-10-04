@@ -52,7 +52,7 @@ Routes verified from `app/api/` directory tree.
 | `/api/tags/follow` | POST | Follow a tag | User session |
 | `/api/tags/unfollow` | DELETE | Unfollow a tag | User session |
 | `/api/tags/unsubscribe-all` | POST | Digest opt-out | User session |
-| `/api/stats/public` | GET | Public user/article counts | Public |
+| `/api/stats/public` | GET | Public counts (cached 1 h): confirmed users rounded down to 5, visible articles; 500 on data error | Public |
 | `/api/digest/send` | POST | Send weekly email | DIGEST_SECRET |
 | `/api/growth/generate-post` | POST | AI content agent | Admin session |
 | `/api/growth/feedback` | POST | Approve/skip feedback | Admin |
