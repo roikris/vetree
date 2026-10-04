@@ -47,11 +47,13 @@ export const config = {
      * - favicon.ico (favicon file)
      * - robots.txt, sitemap.xml, sitemaps/ (sitemap shards), manifest.json
      *   (static/generated SEO + PWA files)
+     * - sw.js (the service worker script — a redirect, e.g. to /verify-email, makes the browser
+     *   reject the update and keep the old worker)
      * - opengraph-image (per-article OG image routes — fetched by link-preview
      *   crawlers, never by an authenticated browser session)
      * - api (API routes — each does its own auth, see app/api/CLAUDE.md)
      * - raster image files
      */
-    '/((?!_next/static|_next/image|favicon\\.ico|robots\\.txt|sitemap\\.xml|sitemaps/|manifest\\.json|.*opengraph-image|api|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon\\.ico|robots\\.txt|sitemap\\.xml|sitemaps/|manifest\\.json|sw\\.js|.*opengraph-image|api|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }
