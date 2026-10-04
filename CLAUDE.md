@@ -387,6 +387,17 @@ if (!success) return NextResponse.json({ error: 'Too many requests' }, { status:
 
 ## Enrichment Rules
 - Cap: enrichment_attempts < 3 (normal) OR force_retry = true
+- **Third failed attempt = hidden, not published.** The job records each failure with the database function
+  `record_enrichment_failure` (migration 072, one locked statement): the attempt that reaches 3 sets
+  `quarantined = true, quarantine_reason = 'enrichment_failed'` — unless the article is already quarantined, whose
+  quarantine and reason stay as they are. (It used to set `needs_enrichment = false`, which the visibility rule reads
+  as done.) `articles.quarantine_reason`: `enrichment_failed` | `no_abstract` | `admin` | NULL (unknown/older).
+- Both "retry failed" controls (`/api/enrich-failed`, Article Health "Force Retry Failed") share
+  `lib/enrichment/requeueFailed.ts`: only unpublished 3+-attempt articles with a source abstract (never live ones that
+  succeeded later); only `quarantine_reason = 'enrichment_failed'` is lifted, by an UPDATE that re-checks it. Any
+  other quarantine reason is never lifted automatically, and a successful enrichment never lifts one by itself.
+- An incomplete result counts as a failure. The job exits 1 when ≥ 3 real AI attempts in a run all failed
+  (systemic: key, model, database), so the workflow goes red
 - Skip articles where abstract is null or < 50 chars (quarantine immediately)
 - Mark needs_enrichment = false ONLY when BOTH summary AND clinical_bottom_line are populated
 - If Claude returns "INSUFFICIENT_ABSTRACT" → quarantine article

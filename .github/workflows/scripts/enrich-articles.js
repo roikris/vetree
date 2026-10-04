@@ -26,6 +26,9 @@ const PROMPT_VERSION = 'v2-context-framing';
 // write prepared summaries with no timestamp), so there is no fallback: rows without an
 // abstract are not enriched (see the queue query and releaseSourcelessRequeues below).
 
+// Articles hidden this run after their 3rd failed attempt (see record_enrichment_failure)
+let failedOutHidden = 0;
+
 async function enrichArticle(client, anthropic, article) {
   const system = `You are a veterinary medicine expert supporting Vetree, an evidence-based clinical reference platform for licensed veterinary professionals. Your task is to summarize a single article that is already published and publicly indexed on PubMed — peer-reviewed veterinary and biomedical literature. You are not generating new research, protocols, or technical instructions; you are only extracting and restating what the published abstract already states, for clinical-reference use by practicing veterinarians.`;
 
@@ -95,20 +98,24 @@ Return ONLY valid JSON, no markdown formatting.`;
       errorMessage = `Enrichment incomplete - missing: ${missing.join(', ')}`;
     }
 
-    // Update the article
+    // Update the article (an incomplete result: content only — the attempt itself is recorded by
+    // record_enrichment_failure below, the same locked path as a thrown error)
     const updates = {
       // Safe even on a partial result: the source stays in `abstract`, which is never written here
       summary: enrichment.summary || article.summary,
       clinical_bottom_line: enrichment.clinical_bottom_line || null,
       labels: validLabels,
       strength_of_evidence: enrichment.strength_of_evidence || null,
-      needs_enrichment: !isComplete,  // Only mark done if COMPLETE
-      enrichment_attempts: attemptNumber,
-      force_retry: false,  // Reset force_retry flag after processing
+      ...(isComplete ? {
+        needs_enrichment: false,
+        enrichment_attempts: attemptNumber,
+        force_retry: false,  // Reset force_retry flag after processing
+      } : {}),
       last_enrichment_at: new Date().toISOString(),
       last_enrichment_error: errorMessage,  // Set error if incomplete, null if complete
       prompt_version: PROMPT_VERSION  // Which prompt produced summary/clinical_bottom_line — enables precise rollback
     };
+
 
     // Update authors if corrected
     if (enrichment.authors) {
@@ -122,9 +129,25 @@ Return ONLY valid JSON, no markdown formatting.`;
 
     if (error) {
       console.error(`  Error updating article ${article.id}:`, error.message);
+      // Count the attempt, so a payload the database keeps rejecting can't burn AI calls forever
+      const { data: outcome, error: rpcError } = await client.rpc('record_enrichment_failure', {
+        p_id: article.id,
+        p_error: `save failed: ${error.message}`
+      });
+      if (!rpcError && outcome === 'hidden') failedOutHidden++;
       return false;
     }
 
+    if (!isComplete) {
+      console.log(`  ✗ Incomplete: ${errorMessage}`);
+      const { data: outcome, error: rpcError } = await client.rpc('record_enrichment_failure', {
+        p_id: article.id,
+        p_error: errorMessage
+      });
+      if (rpcError) console.error(`  Error recording failure:`, rpcError.message);
+      else if (outcome === 'hidden') failedOutHidden++;
+      return false;  // a failure, not a success
+    }
     console.log(`  ✓ Enriched: ${article.title.substring(0, 60)}...`);
     console.log(`    Labels: ${validLabels.join(', ')}`);
     console.log(`    Evidence: ${enrichment.strength_of_evidence}`);
@@ -133,18 +156,17 @@ Return ONLY valid JSON, no markdown formatting.`;
   } catch (error) {
     console.error(`  ✗ Error enriching article ${article.id}:`, error.message);
 
-    // Increment attempt counter, log error, and reset force_retry
-    const { error: updateError } = await client
-      .from('articles')
-      .update({
-        enrichment_attempts: (article.enrichment_attempts || 0) + 1,
-        needs_enrichment: (article.enrichment_attempts || 0) + 1 < 3,
-        force_retry: false,  // Reset force_retry flag even on failure
-        last_enrichment_error: error.message,
-        last_enrichment_at: new Date().toISOString()
-      })
-      .eq('id', article.id);
-
+    // Record the failed attempt in ONE locked database call (migration 072): the attempt that
+    // reaches 3 hides the article (quarantined, quarantine_reason 'enrichment_failed') unless it is
+    // already quarantined — then its quarantine and reason stay exactly as they are. It used to set
+    // needs_enrichment = false, which the visibility rule reads as "done", so anything already
+    // carrying text went public unenriched. Only admin "Retry failed" lifts an
+    // 'enrichment_failed' quarantine (lib/enrichment/requeueFailed.ts).
+    const { data: outcome, error: updateError } = await client.rpc('record_enrichment_failure', {
+      p_id: article.id,
+      p_error: error.message
+    });
+    if (!updateError && outcome === 'hidden') failedOutHidden++;
     if (updateError) {
       console.error(`  Error updating attempt counter:`, updateError.message);
     }
@@ -170,7 +192,7 @@ async function sendSlackNotification(stats) {
     text: `🧠 *Vetree Enrichment Report*
 • Total processed this run: ${stats.totalProcessed}
 • Successfully enriched: ${stats.successCount}
-• Failed (will retry): ${stats.failCount}
+• Failed this run: ${stats.failCount} (hidden after 3 failed attempts: ${stats.hiddenThisRun})
 • Total remaining in queue: ${stats.remainingInQueue}${failedWarning}`
   };
 
@@ -217,7 +239,9 @@ async function main() {
     successCount: 0,
     failCount: 0,
     remainingInQueue: 0,
-    failedArticles: 0
+    failedArticles: 0,
+    attempted: 0,       // real AI attempts (skipped short abstracts excluded)
+    hiddenThisRun: 0
   };
 
   const BATCH_SIZE = 50;
@@ -299,6 +323,9 @@ async function main() {
             last_enrichment_error: 'no_abstract'
           })
           .eq('id', article.id);
+        // Reason only where none is recorded yet (an admin's or earlier reason is kept)
+        await supabase.from('articles').update({ quarantine_reason: 'no_abstract' })
+          .eq('id', article.id).is('quarantine_reason', null);
 
         stats.failCount++;
         continue; // Skip to next article
@@ -321,11 +348,14 @@ async function main() {
             last_enrichment_error: 'no_abstract_available - auto_quarantined'
           })
           .eq('id', article.id);
+        await supabase.from('articles').update({ quarantine_reason: 'no_abstract' })
+          .eq('id', article.id).is('quarantine_reason', null);
 
         stats.failCount++;
         continue; // Skip to next article
       }
 
+      stats.attempted++;
       const success = await enrichArticle(supabase, anthropic, article);
 
       if (success) {
@@ -368,9 +398,10 @@ async function main() {
   const { count: failedCount } = await supabase
     .from('articles')
     .select('*', { count: 'exact', head: true })
-    .gte('enrichment_attempts', 3)
-    .eq('needs_enrichment', true)
-    .neq('force_retry', true);
+    .not('abstract', 'is', null)
+    // = FAILED_UNPUBLISHED_OR in lib/enrichment/requeueFailed.ts
+    .or('quarantine_reason.eq.enrichment_failed,and(enrichment_attempts.gte.3,or(needs_enrichment.eq.true,summary.is.null,clinical_bottom_line.is.null))')
+    .not('force_retry', 'is', true);
 
   stats.failedArticles = failedCount || 0;
 
@@ -380,8 +411,18 @@ async function main() {
   console.log(`   Failed: ${stats.failCount}`);
   console.log(`   Remaining in queue: ${stats.remainingInQueue}`);
 
+  stats.hiddenThisRun = failedOutHidden;
+
   // Send Slack notification
   await sendSlackNotification(stats);
+
+  // Several real AI attempts that ALL failed is a systemic problem (API key, model, database): fail
+  // the workflow so it shows red in GitHub, not only in Slack. Skipped/quarantined short abstracts
+  // are not attempts, and one or two failures alone are not systemic.
+  if (stats.attempted >= 3 && stats.successCount === 0) {
+    console.error(`✗ All ${stats.attempted} enrichment attempts in this run failed — exiting 1`);
+    process.exit(1);
+  }
 }
 
 main().catch(error => {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
+import { requeueFailedArticles } from '@/lib/enrichment/requeueFailed'
 
 async function sendSlackNotification(count: number) {
   const webhookUrl = process.env.SLACK_WEBHOOK_URL
@@ -79,66 +80,19 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Fetch all articles where enrichment_attempts >= 3 (using admin client to bypass RLS)
-    const { data: failedArticles, error: fetchError } = await supabaseAdmin
-      .from('articles')
-      .select('id')
-      .gte('enrichment_attempts', 3)
-
-    if (fetchError) {
-      console.error('Error fetching failed articles:', fetchError)
-      return NextResponse.json(
-        { error: 'Failed to fetch articles' },
-        { status: 500 }
-      )
+    // Only failed, unpublished articles (lib/enrichment/requeueFailed.ts — shared with Article Health)
+    let requeued = 0
+    let released = 0
+    try {
+      ({ requeued, released } = await requeueFailedArticles(supabaseAdmin))
+    } catch (e) {
+      console.error('[enrich-failed] requeue failed:', e)
+      return NextResponse.json({ error: 'Failed to re-queue articles' }, { status: 500 })
     }
-
-    if (!failedArticles || failedArticles.length === 0) {
-      console.log('[DEBUG] No failed articles found with enrichment_attempts >= 3')
-      return NextResponse.json(
-        { message: 'No failed articles to re-enrich', count: 0 },
-        { status: 200 }
-      )
+    if (requeued === 0) {
+      return NextResponse.json({ message: 'No failed articles to re-enrich', count: 0 }, { status: 200 })
     }
-
-    const articleIds = failedArticles.map(a => a.id)
-
-    console.log('[DEBUG] Found failed articles:', {
-      count: failedArticles.length,
-      articleIds: articleIds
-    })
-
-    // Set needs_enrichment = true AND force_retry = true for manual retry
-    // Do NOT reset enrichment_attempts - let them accumulate
-    console.log('[DEBUG] Running Supabase update query:', {
-      table: 'articles',
-      update: { needs_enrichment: true, force_retry: true },
-      where: `id IN [${articleIds.join(', ')}]`
-    })
-
-    const { data: updateData, error: updateError } = await supabaseAdmin
-      .from('articles')
-      .update({
-        needs_enrichment: true,
-        force_retry: true
-      })
-      .in('id', articleIds)
-      .select()
-
-    console.log('[DEBUG] Update result:', {
-      success: !updateError,
-      error: updateError,
-      rowsAffected: updateData?.length || 0,
-      updatedIds: updateData?.map(a => a.id) || []
-    })
-
-    if (updateError) {
-      console.error('[ERROR] Failed to update articles:', updateError)
-      return NextResponse.json(
-        { error: 'Failed to update articles', details: updateError },
-        { status: 500 }
-      )
-    }
+    console.log(`[enrich-failed] re-queued ${requeued} (${released} un-hidden for retry)`)
 
     // Trigger GitHub Actions workflow
     const githubPat = process.env.GITHUB_PAT
@@ -174,13 +128,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Send Slack notification
-    await sendSlackNotification(failedArticles.length)
+    await sendSlackNotification(requeued)
 
     const response = {
       success: true,
-      message: `${failedArticles.length} articles queued for enrichment retry`,
-      count: failedArticles.length,
-      articleIds: articleIds
+      message: `${requeued} articles queued for enrichment retry`,
+      count: requeued
     }
 
     console.log('[DEBUG] Sending success response:', response)

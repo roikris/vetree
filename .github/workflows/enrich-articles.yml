@@ -5,6 +5,11 @@ on:
     - cron: '0 7 * * *'
   workflow_dispatch:
 
+# Never two enrichment runs at once: overlapping workers would write stale attempt counts
+concurrency:
+  group: enrich-articles
+  cancel-in-progress: false
+
 jobs:
   enrich:
     runs-on: ubuntu-latest
