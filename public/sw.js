@@ -10,7 +10,8 @@
 //     activate;
 //   - the app also clears these caches on sign-out (lib/hooks/useAuth) and can ask this worker
 //     to via postMessage({ type: 'CLEAR_CACHES' }).
-const CACHE_NAME = 'vetree-static-v2'
+// Bump on any change to precached/static assets: activation deletes the old cache (v3: re-centred icons, 2026-10-04)
+const CACHE_NAME = 'vetree-static-v3'
 
 const PRECACHE = [
   '/manifest.json',
