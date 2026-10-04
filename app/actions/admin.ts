@@ -680,6 +680,7 @@ export async function getFailedArticles(limit: number = 20) {
     .select('id, title, enrichment_attempts, last_enrichment_error, last_enrichment_at, labels, article_url, doi')
     .not('abstract', 'is', null)
     .or(FAILED_UNPUBLISHED_OR)
+    .not('force_retry', 'is', true)   // already queued for retry: not "failed" any more
     .order('last_enrichment_at', { ascending: false, nullsFirst: false })
     .limit(limit)
 

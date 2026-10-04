@@ -129,6 +129,12 @@ Return ONLY valid JSON, no markdown formatting.`;
 
     if (error) {
       console.error(`  Error updating article ${article.id}:`, error.message);
+      // Count the attempt, so a payload the database keeps rejecting can't burn AI calls forever
+      const { data: outcome, error: rpcError } = await client.rpc('record_enrichment_failure', {
+        p_id: article.id,
+        p_error: `save failed: ${error.message}`
+      });
+      if (!rpcError && outcome === 'hidden') failedOutHidden++;
       return false;
     }
 
