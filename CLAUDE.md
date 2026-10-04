@@ -387,12 +387,12 @@ if (!success) return NextResponse.json({ error: 'Too many requests' }, { status:
 
 ## Enrichment Rules
 - Cap: enrichment_attempts < 3 (normal) OR force_retry = true
-- **Third failed attempt = hidden, not published:** `quarantined = true`, `last_enrichment_error = 'enrichment_failed_3x: …'`
+- **Third failed attempt = hidden, not published:** `quarantined = true`, `last_enrichment_error = 'enrichment-failed-3x: …'`
   (it used to set `needs_enrichment = false`, which the visibility rule reads as done). An article already
   quarantined (admin, no abstract) keeps its quarantine and reason — never re-stamped with that marker.
 - Both "retry failed" controls (`/api/enrich-failed`, Article Health "Force Retry Failed") share
   `lib/enrichment/requeueFailed.ts`: only unpublished 3+-attempt articles with a source abstract (never live ones that
-  succeeded later), and only those carrying the `enrichment_failed_3x` marker are un-quarantined — at that moment,
+  succeeded later), and only those carrying the `enrichment-failed-3x` marker are un-quarantined — at that moment,
   while the marker is intact. A successful enrichment never lifts a quarantine by itself.
 - An incomplete result counts as a failure. The job exits 1 when ≥ 3 real AI attempts in a run all failed
   (systemic: key, model, database), so the workflow goes red

@@ -1,7 +1,7 @@
 'use server'
 
 import { createClient, createAdminClient } from '@/lib/supabase/server'
-import { requeueFailedArticles, ENRICHMENT_FAILED_3X } from '@/lib/enrichment/requeueFailed'
+import { requeueFailedArticles, FAILED_UNPUBLISHED_OR, MARKER_LIKE } from '@/lib/enrichment/requeueFailed'
 
 export async function getAdminStats() {
   const supabase = await createClient()
@@ -243,7 +243,8 @@ export async function getPipelineStats() {
     .from('articles')
     .select('*', { count: 'exact', head: true })
     .gte('enrichment_attempts', 3)
-    .eq('needs_enrichment', true)
+    .not('abstract', 'is', null)
+    .or(FAILED_UNPUBLISHED_OR)
     .neq('force_retry', true)
 
   // Get most recent article (proxy for last sync)
@@ -509,11 +510,13 @@ export async function getArticleHealthDiagnostics() {
     .eq('needs_enrichment', false)
     .is('summary', null)
 
-  // Query 5: Permanently failed (enrichment_attempts >= 3 AND force_retry = false)
+  // Query 5: Permanently failed — the same set "Force Retry Failed" retries (lib/enrichment/requeueFailed.ts)
   const { count: permanentlyFailed } = await supabase
     .from('articles')
     .select('*', { count: 'exact', head: true })
     .gte('enrichment_attempts', 3)
+    .not('abstract', 'is', null)
+    .or(FAILED_UNPUBLISHED_OR)
     .eq('force_retry', false)
 
   // Query 6: Never attempted (enrichment_attempts = 0)
@@ -678,7 +681,7 @@ export async function getFailedArticles(limit: number = 20) {
     .from('articles')
     .select('id, title, enrichment_attempts, last_enrichment_error, last_enrichment_at, labels, article_url, doi')
     .gte('enrichment_attempts', 3)
-    .or(`needs_enrichment.eq.true,last_enrichment_error.like.${ENRICHMENT_FAILED_3X}*`)
+    .or(`needs_enrichment.eq.true,last_enrichment_error.like.${MARKER_LIKE}`)
     .order('last_enrichment_at', { ascending: false, nullsFirst: false })
     .limit(limit)
 

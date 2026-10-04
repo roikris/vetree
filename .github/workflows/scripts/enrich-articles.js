@@ -27,7 +27,7 @@ const PROMPT_VERSION = 'v2-context-framing';
 // abstract are not enriched (see the queue query and releaseSourcelessRequeues below).
 
 // Marker for articles hidden after 3 failed attempts (a retry that succeeds makes them public again)
-const FAILED_3X = 'enrichment_failed_3x';
+const FAILED_3X = 'enrichment-failed-3x';  // hyphens: '_' is a SQL LIKE wildcard. Keep in step with lib/enrichment/requeueFailed.ts
 let failedOutHidden = 0;
 
 async function enrichArticle(client, anthropic, article) {
@@ -145,26 +145,43 @@ Return ONLY valid JSON, no markdown formatting.`;
     // Increment attempt counter, log error, and reset force_retry. The last attempt HIDES the
     // article (quarantined) for admin review — it used to set needs_enrichment = false, which the
     // visibility rule reads as "done": anything already carrying text went public unenriched.
-    // An article that is already quarantined keeps its quarantine AND its reason: only one this
-    // job hid itself carries the FAILED_3X marker, which "Retry failed" may lift
-    // (lib/enrichment/requeueFailed.ts). An admin's or a no-abstract quarantine is never re-stamped.
+    // Ownership is checked by each UPDATE's own conditions (not the snapshot fetched earlier), so a
+    // quarantine an admin sets meanwhile is never re-stamped with the job's marker — which
+    // "Retry failed" may lift (lib/enrichment/requeueFailed.ts).
     const attempts = (article.enrichment_attempts || 0) + 1;
     const exhausted = attempts >= 3;
-    const alreadyHidden = article.quarantined === true;
-    const hadMarker = String(article.last_enrichment_error || '').startsWith(FAILED_3X);
-    const hideNow = exhausted && !alreadyHidden;
-    const { error: updateError } = await client
-      .from('articles')
-      .update({
-        enrichment_attempts: attempts,
-        needs_enrichment: !exhausted,
-        ...(hideNow ? { quarantined: true } : {}),
-        force_retry: false,  // Reset force_retry flag even on failure
-        last_enrichment_error: hideNow || (alreadyHidden && hadMarker) ? `${FAILED_3X}: ${error.message}` : error.message,
-        last_enrichment_at: new Date().toISOString()
-      })
-      .eq('id', article.id);
-    if (hideNow && !updateError) failedOutHidden++;
+    const base = {
+      enrichment_attempts: attempts,
+      needs_enrichment: !exhausted,
+      force_retry: false,  // Reset force_retry flag even on failure
+      last_enrichment_at: new Date().toISOString()
+    };
+    const marked = `${FAILED_3X}: ${error.message}`;
+    let updateError = null;
+    let done = false;
+    if (exhausted) {
+      // a. not quarantined right now → hide it, with the marker
+      const hide = await client.from('articles')
+        .update({ ...base, quarantined: true, last_enrichment_error: marked })
+        .eq('id', article.id).or('quarantined.is.null,quarantined.eq.false').select('id');
+      updateError = hide.error;
+      if (!hide.error && hide.data && hide.data.length > 0) { failedOutHidden++; done = true; }
+      // b. already hidden by this job (marker present) → keep the marker
+      if (!done && !updateError) {
+        const keep = await client.from('articles')
+          .update({ ...base, last_enrichment_error: marked })
+          .eq('id', article.id).eq('quarantined', true).like('last_enrichment_error', `${FAILED_3X}%`).select('id');
+        updateError = keep.error;
+        if (!keep.error && keep.data && keep.data.length > 0) done = true;
+      }
+    }
+    // c. anything else (not exhausted, or someone else's quarantine): plain error, quarantine untouched
+    if (!done && !updateError) {
+      const plain = await client.from('articles')
+        .update({ ...base, last_enrichment_error: error.message })
+        .eq('id', article.id);
+      updateError = plain.error;
+    }
 
     if (updateError) {
       console.error(`  Error updating attempt counter:`, updateError.message);
@@ -393,7 +410,8 @@ async function main() {
     .from('articles')
     .select('*', { count: 'exact', head: true })
     .gte('enrichment_attempts', 3)
-    .or(`needs_enrichment.eq.true,last_enrichment_error.like.${FAILED_3X}*`)
+    .not('abstract', 'is', null)
+    .or(`needs_enrichment.eq.true,summary.is.null,clinical_bottom_line.is.null,last_enrichment_error.like.${FAILED_3X}*`)
     .neq('force_retry', true);
 
   stats.failedArticles = failedCount || 0;
