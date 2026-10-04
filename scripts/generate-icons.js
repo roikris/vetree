@@ -11,8 +11,9 @@ if (!fs.existsSync(outputDir)) {
 }
 
 // Base SVG: sage green rounded square with the app's white leaf, centred. The leaf path is drawn in a
-// 24×24 box (centre ≈ 12, 12.5); scale 13 makes it ~60% of the icon. (Until 2026-10-04 the transform
-// translated to the centre BEFORE scaling, which pushed the leaf into the bottom-right corner.)
+// 24×24 box (centre ≈ 12, 12.5); scale 13 makes it ~60% of the icon, and the translation subtracts the
+// scaled centre. (Until 2026-10-04 it translated by 256 without subtracting the scaled leaf centre,
+// which pushed the leaf into the bottom-right corner.)
 const LEAF = 'M17,8C8,10 5.9,16.17 3.82,21.34L5.71,22L6.66,19.7C7.14,19.87 7.64,20 8,20C19,20 22,3 22,3C21,5 14,5.25 9,6.25C4,7.25 2,11.5 2,13.5C2,15.5 3.75,17.25 3.75,17.25C7,8 17,8 17,8Z'
 const S = 13
 const baseSVG = `<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
@@ -23,6 +24,7 @@ const baseSVG = `<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http
 
 // A .ico holding PNG images (valid for every current browser): 6-byte header + 16-byte entry each
 function buildIco(pngs) {
+  if (pngs.some(p => p.size > 256)) throw new Error('ICO entries can be at most 256 px')
   const header = Buffer.alloc(6)
   header.writeUInt16LE(0, 0); header.writeUInt16LE(1, 2); header.writeUInt16LE(pngs.length, 4)
   let offset = 6 + 16 * pngs.length
