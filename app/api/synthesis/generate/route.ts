@@ -44,13 +44,26 @@ async function reserveGeneration(redis: Redis | null, supabase: any): Promise<bo
   return (count ?? 0) < DAILY_CAP
 }
 
+// Day (UTC) the daily-cap warning was last sent to Sentry from this instance
+let capReportedOn: string | null = null
+
 export async function POST(request: NextRequest) {
   const startTime = Date.now()
   // Assigned once the request is identified; used by the catch to record a failed attempt
   let recordFailure: (() => Promise<boolean>) | null = null
 
   try {
-    const body = await request.json()
+    // A body that isn't JSON is the caller's error (400), never a captured exception: JSON.parse
+    // errors quote the raw input, which would carry whatever was sent into Sentry
+    let body: { query?: unknown }
+    try {
+      body = await request.json()
+    } catch {
+      return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
+    }
+    if (!body || typeof body !== 'object') {
+      return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
+    }
     const { query } = body
 
     if (typeof query !== 'string' || query.trim().length < 3 || query.trim().length > 200) {
@@ -203,7 +216,7 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-    console.log('[synthesis] Cache miss, generating new synthesis for:', queryOriginal)
+    console.log('[synthesis] Cache miss, generating new synthesis')  // never log the reader's query
 
     const LARGE_ANIMAL_LABELS = [
       'Equine', 'equine', 'Large Animal', 'large animal',
@@ -263,7 +276,12 @@ export async function POST(request: NextRequest) {
     }
     if (!(await reserveGeneration(redis, supabase))) {
       await trackOutcome('synthesis_blocked')
-      Sentry.captureMessage(`[synthesis] daily cap of ${DAILY_CAP} reached`, 'warning')
+      // Expected once the cap is hit: report it once per day per server instance, not per request
+      const today = new Date().toISOString().slice(0, 10)
+      if (capReportedOn !== today) {
+        capReportedOn = today
+        Sentry.captureMessage(`[synthesis] daily cap of ${DAILY_CAP} reached`, 'warning')
+      }
       return NextResponse.json({ error: 'Topic synthesis has reached its daily limit — please try again tomorrow.', retryable: false }, { status: 503 })
     }
 

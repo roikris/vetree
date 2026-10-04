@@ -68,6 +68,13 @@ export function AvatarUpload({ userId, currentAvatarUrl, initials, onAvatarUpdat
 
       // Fetch a fresh signed URL to hand back to the parent for immediate display
       const signedRes = await fetch(`/api/avatars/${userId}`)
+      if (!signedRes.ok) {
+        // The photo itself uploaded; only showing it back was refused (403 = email not verified)
+        setError(signedRes.status === 403
+          ? 'Verify your email address to show your profile photo.'
+          : 'Photo uploaded, but it could not be displayed. Please refresh the page.')
+        return
+      }
       const signedData = await signedRes.json()
       const displayUrl = signedData.url ?? ''
 

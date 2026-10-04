@@ -20,9 +20,7 @@ export function AuthButton() {
       .then(r => r.json())
       .then(d => { if (d.url) setSignedAvatarUrl(d.url) })
       .catch(() => {})
-  }, [user?.id, user?.user_metadata?.avatar_url])
-
-  console.log('[AuthButton] user:', user?.email, 'isAdmin:', isAdmin, 'adminLoading:', adminLoading)
+  }, [user?.id, user?.user_metadata?.avatar_url, user?.email_confirmed_at])
 
   const handleSignOut = async () => {
     await supabase.auth.signOut()
