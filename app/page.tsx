@@ -187,7 +187,7 @@ export default async function Home({ searchParams }: HomeProps) {
         <div id="articles">
           {/* Constrain disclaimer + results count to feed width */}
           <div style={{ maxWidth: filters.view === 'list' ? 844 : 704, margin: '0 auto', padding: '0 32px' }}>
-            {showPersonalizeCard && <PersonalizeCard />}
+            {showPersonalizeCard && user && <PersonalizeCard userId={user.id} />}
 
             <DisclaimerBanner />
 

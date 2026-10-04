@@ -3,11 +3,13 @@
 // "Personalize later" (Batch B, 2026-10-03). Signup no longer asks for specialties — they were
 // saved to localStorage before verification and never read. Instead, signed-in, verified readers
 // who follow nothing see this card at the top of their Stream (app/page.tsx decides who):
-// pick specialties → Save follows them (/api/tags/follow) and the feed personalizes.
-// "Not now" hides it for 14 days; after the second "Not now" it never comes back.
-// Never blocks the page. Events: personalize_card_shown / _saved / _snoozed (analytics_events).
+// pick specialties → Follow saves them (/api/tags/follow) and the feed personalizes.
+// "Not now" hides it for 14 days; after the second "Not now" it never comes back. The choice is
+// kept per account (one browser, several accounts) and still applies for this visit when the
+// browser refuses storage (private mode, quota). Never blocks the page.
+// Events: personalize_card_shown (once per session) / _saved / _save_failed / _snoozed.
 
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
 import { useRouter } from 'next/navigation'
 
 const SPECIALTIES = [
@@ -17,23 +19,38 @@ const SPECIALTIES = [
   'Pharmacology', 'Radiology', 'Reproduction', 'Soft Tissue Surgery',
 ]
 
-const STORAGE_KEY = 'vetree_personalize_card'   // { until: epoch ms, snoozes: number }
 const SNOOZE_MS = 14 * 24 * 60 * 60 * 1000
 const MAX_SNOOZES = 2
 const CHANGE_EVENT = 'vetree:personalize-card'
 
 type Stored = { until: number; snoozes: number }
+const EMPTY: Stored = { until: 0, snoozes: 0 }
 
-function read(): Stored {
+// Dismissals made while storage was unavailable — honoured for the rest of this page's life
+const memory = new Map<string, Stored>()
+
+const storageKey = (userId: string) => `vetree_personalize_card:${userId}`
+
+function read(key: string): Stored {
+  const remembered = memory.get(key)
+  if (remembered) return remembered
   try {
-    const v = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null')
-    if (v && typeof v.until === 'number' && typeof v.snoozes === 'number') return v
-  } catch { /* unavailable or corrupt: show the card */ }
-  return { until: 0, snoozes: 0 }
+    const v = JSON.parse(localStorage.getItem(key) || 'null')
+    if (v && Number.isFinite(v.until) && Number.isInteger(v.snoozes) && v.snoozes >= 0) return v
+  } catch { /* unavailable or corrupt: treat as never dismissed */ }
+  return EMPTY
 }
 
-// 'ssr' on the server and before hydration (render nothing — no flash), then 'show' / 'hide'
-type Snapshot = 'ssr' | 'show' | 'hide'
+function write(key: string, value: Stored) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value))
+    memory.delete(key)
+  } catch {
+    memory.set(key, value)   // storage refused: still dismissed for this visit
+  }
+  window.dispatchEvent(new Event(CHANGE_EVENT))
+}
+
 function subscribe(onChange: () => void) {
   window.addEventListener(CHANGE_EVENT, onChange)
   window.addEventListener('storage', onChange)
@@ -42,11 +59,6 @@ function subscribe(onChange: () => void) {
     window.removeEventListener('storage', onChange)
   }
 }
-const getSnapshot = (): Snapshot => {
-  const s = read()
-  return s.snoozes >= MAX_SNOOZES || Date.now() < s.until ? 'hide' : 'show'
-}
-const getServerSnapshot = (): Snapshot => 'ssr'
 
 function trackEvent(eventName: string, detail?: Record<string, unknown>) {
   fetch('/api/analytics/event', {
@@ -56,51 +68,76 @@ function trackEvent(eventName: string, detail?: Record<string, unknown>) {
   }).catch(() => {})
 }
 
-export function PersonalizeCard() {
+export function PersonalizeCard({ userId }: { userId: string }) {
   const router = useRouter()
-  const visibility = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot)
-  const [selected, setSelected] = useState<string[]>([])
-  const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
-  const [followed, setFollowed] = useState({ ok: 0, of: 0 })
+  const key = storageKey(userId)
+  // 'ssr' on the server and before hydration (render nothing — no flash), then 'show' / 'hide'
+  const getSnapshot = useCallback(() => {
+    const s = read(key)
+    return s.snoozes >= MAX_SNOOZES || Date.now() < s.until ? 'hide' : 'show'
+  }, [key])
+  const visibility = useSyncExternalStore(subscribe, getSnapshot, () => 'ssr' as const)
 
-  const tracked = useRef(false)
+  const [selected, setSelected] = useState<string[]>([])
+  const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'partial' | 'error'>('idle')
+  const [result, setResult] = useState({ ok: 0, of: 0 })
+
+  // "Shown" once per browser session, not on every page view
   useEffect(() => {
-    if (visibility === 'show' && !tracked.current) {
-      tracked.current = true
-      trackEvent('personalize_card_shown', { snoozes: read().snoozes })
-    }
-  }, [visibility])
+    if (visibility !== 'show') return
+    try {
+      const flag = `vetree_personalize_shown:${userId}`
+      if (sessionStorage.getItem(flag)) return
+      sessionStorage.setItem(flag, '1')
+    } catch { /* no session storage: still record */ }
+    trackEvent('personalize_card_shown', { snoozes: read(key).snoozes })
+  }, [visibility, key, userId])
 
   if (visibility !== 'show' && status !== 'saved') return null
 
-  const toggle = (spec: string) =>
+  const saving = status === 'saving'
+  const toggle = (spec: string) => {
+    if (saving) return
     setSelected(prev => (prev.includes(spec) ? prev.filter(s => s !== spec) : [...prev, spec]))
+  }
 
   const save = async () => {
-    if (selected.length === 0 || status === 'saving') return
+    if (selected.length === 0 || saving) return
+    const batch = selected
     setStatus('saving')
-    const results = await Promise.allSettled(selected.map(tag =>
+    const results = await Promise.allSettled(batch.map(tag =>
       fetch('/api/tags/follow', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tag }),
       }).then(r => { if (!r.ok) throw new Error(String(r.status)) })
     ))
-    const ok = results.filter(r => r.status === 'fulfilled').length
-    trackEvent('personalize_card_saved', { selected: selected.length, followed: ok })
-    if (ok === 0) { setStatus('error'); return }
-    setFollowed({ ok, of: selected.length })
+    const failed = batch.filter((_, i) => results[i].status === 'rejected')
+    const ok = batch.length - failed.length
+    setResult({ ok, of: batch.length })
+    if (ok === 0) {
+      trackEvent('personalize_card_save_failed', { selected: batch.length })
+      setStatus('error')
+      return
+    }
+    trackEvent('personalize_card_saved', { selected: batch.length, followed: ok })
+    if (failed.length > 0) {
+      // Keep the picker with only the failed ones selected, so they can be retried
+      setSelected(failed)
+      setStatus('partial')
+      return
+    }
     setStatus('saved')
     // The server now sees followed tags: the personalized feed appears and this card goes away
     setTimeout(() => router.refresh(), 1500)
   }
 
   const notNow = () => {
-    const s = read()
+    if (saving) return
+    const s = read(key)
     const next: Stored = { until: Date.now() + SNOOZE_MS, snoozes: s.snoozes + 1 }
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)) } catch { /* hides for this page view only */ }
     trackEvent('personalize_card_snoozed', { snoozes: next.snoozes })
-    window.dispatchEvent(new Event(CHANGE_EVENT))
+    write(key, next)
   }
 
   return (
@@ -114,7 +151,7 @@ export function PersonalizeCard() {
     >
       {status === 'saved' ? (
         <p role="status" style={{ margin: 0, font: "500 15px/1.5 var(--font-instrument, sans-serif)", color: 'var(--al-ink3)' }}>
-          ✓ Following {followed.ok}{followed.ok < followed.of ? ` of ${followed.of}` : ''} {followed.of === 1 ? 'specialty' : 'specialties'} — your Stream is updating.
+          ✓ Following {result.ok} {result.ok === 1 ? 'specialty' : 'specialties'} — your Stream is updating.
         </p>
       ) : (
         <>
@@ -132,9 +169,10 @@ export function PersonalizeCard() {
                   key={spec}
                   type="button"
                   aria-pressed={on}
+                  disabled={saving}
                   onClick={() => toggle(spec)}
                   style={{
-                    padding: '7px 13px', borderRadius: 999, cursor: 'pointer',
+                    padding: '7px 13px', borderRadius: 999, cursor: saving ? 'default' : 'pointer',
                     font: "500 13px/1 var(--font-instrument, sans-serif)",
                     background: on ? 'var(--al-accent)' : 'transparent',
                     color: on ? 'var(--al-on-accent)' : 'var(--al-body)',
@@ -150,26 +188,32 @@ export function PersonalizeCard() {
             <button
               type="button"
               onClick={save}
-              disabled={selected.length === 0 || status === 'saving'}
+              disabled={selected.length === 0 || saving}
               data-testid="personalize-save"
               style={{
                 padding: '10px 18px', borderRadius: 10, border: 0,
-                cursor: selected.length === 0 ? 'not-allowed' : 'pointer',
+                cursor: selected.length === 0 || saving ? 'not-allowed' : 'pointer',
                 opacity: selected.length === 0 ? 0.5 : 1,
                 background: 'var(--al-accent)', color: 'var(--al-on-accent)',
                 font: "600 14px/1 var(--font-instrument, sans-serif)",
               }}
             >
-              {status === 'saving' ? 'Saving…' : selected.length > 0 ? `Follow ${selected.length}` : 'Follow'}
+              {saving ? 'Saving…' : status === 'partial' ? `Retry ${selected.length}` : selected.length > 0 ? `Follow ${selected.length}` : 'Follow'}
             </button>
             <button
               type="button"
               onClick={notNow}
+              disabled={saving}
               data-testid="personalize-not-now"
-              style={{ background: 'none', border: 0, cursor: 'pointer', padding: '10px 4px', font: "500 14px/1 var(--font-instrument, sans-serif)", color: 'var(--al-mut3)' }}
+              style={{ background: 'none', border: 0, cursor: saving ? 'default' : 'pointer', padding: '10px 4px', font: "500 14px/1 var(--font-instrument, sans-serif)", color: 'var(--al-mut3)' }}
             >
               Not now
             </button>
+            {status === 'partial' && (
+              <span role="status" style={{ font: "400 13px/1.4 var(--font-instrument, sans-serif)", color: 'var(--al-sub)' }}>
+                Following {result.ok} of {result.of}. The rest didn&apos;t save — retry them, or leave it for now.
+              </span>
+            )}
             {status === 'error' && (
               <span role="alert" style={{ font: "400 13px/1.4 var(--font-instrument, sans-serif)", color: '#D9534F' }}>
                 Couldn&apos;t save — please try again.
@@ -181,3 +225,6 @@ export function PersonalizeCard() {
     </section>
   )
 }
+
+/** Exported for scripts/test-personalize-card.mts only */
+export const _storageForTests = { read, write, storageKey, SNOOZE_MS, MAX_SNOOZES }

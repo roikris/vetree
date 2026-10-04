@@ -4,6 +4,13 @@ import { createClient } from '@/lib/supabase/server'
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
+const FOLLOWABLE_TAGS = new Set([
+  'Cardiology', 'Oncology', 'Soft Tissue Surgery', 'Orthopedics', 'Dermatology', 'Neurology',
+  'Internal Medicine', 'Small Animal', 'Large Animal', 'Equine', 'Exotic', 'Emergency', 'Anesthesia',
+  'Radiology', 'Pathology', 'Pharmacology', 'Nutrition', 'Behavior', 'Reproduction', 'Ophthalmology',
+  'Dentistry',
+])
+
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient()
@@ -20,8 +27,10 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { tag } = body
 
-    if (!tag) {
-      return NextResponse.json({ error: 'Tag is required' }, { status: 400 })
+    // Only Vetree's article label vocabulary (the enrichment label list) can be followed — an
+    // arbitrary string would land in followed_tags, digest matching and the digest's text
+    if (typeof tag !== 'string' || !FOLLOWABLE_TAGS.has(tag)) {
+      return NextResponse.json({ error: 'Unknown tag' }, { status: 400 })
     }
 
     // Upsert followed tag

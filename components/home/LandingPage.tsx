@@ -156,7 +156,7 @@ export function LandingPage({ exampleArticle, articleCountLabel }: LandingPagePr
             <p style={{ margin: '0 0 26px', font: "400 13.5px/1 var(--font-instrument, sans-serif)", color: 'var(--al-mut4)' }}>Free forever · No credit card · Built by a DVM</p>
             {/* Search straight from the landing page — a plain GET form, so it works without JS and
                 runs on submit (Enter / button), same as the Stream's search; the feed logs it. */}
-            <form action="/" method="get" role="search" data-testid="landing-search" style={{ display: 'flex', alignItems: 'center', gap: 8, maxWidth: 500, marginBottom: 14, padding: '6px 6px 6px 16px', borderRadius: 12, background: 'var(--al-card3)', border: '1px solid rgba(var(--al-line), .18)' }}>
+            <form action="/" method="get" role="search" data-testid="landing-search" className="focus-within:ring-2 focus-within:ring-[var(--al-accent)]" style={{ display: 'flex', alignItems: 'center', gap: 8, maxWidth: 500, marginBottom: 14, padding: '6px 6px 6px 16px', borderRadius: 12, background: 'var(--al-card3)', border: '1px solid rgba(var(--al-line), .18)' }}>
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--al-mut4)" strokeWidth="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path strokeLinecap="round" d="M20 20l-3.5-3.5"/></svg>
               <input
                 type="search"
@@ -164,6 +164,8 @@ export function LandingPage({ exampleArticle, articleCountLabel }: LandingPagePr
                 required
                 minLength={2}
                 maxLength={200}
+                pattern=".*\S.*\S.*"
+                title="Type at least two characters to search"
                 placeholder="Search the evidence — e.g. feline hypertension"
                 aria-label="Search veterinary research"
                 data-testid="landing-search-input"
