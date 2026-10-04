@@ -56,14 +56,26 @@ jobs:
     if: ${{ !cancelled() && needs.scope.outputs.code != 'false' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    permissions:
+      contents: read
+      pull-requests: read
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
+      # The PR's CURRENT draft state, not the event's: a push and "ready for review" seconds apart start
+      # two runs, the concurrency group cancels the older (the ready one), and the push event still
+      # says draft — trusting it failed the gate with no suite run (2026-10-04, PR #107).
       - name: Draft gate
-        if: github.event.pull_request.draft == true
+        id: draft
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          echo "Draft PR: smoke not run (saves Vercel CPU). Mark the PR ready for review to run it once."
-          exit 1
+          DRAFT=$(gh api "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}" --jq .draft)
+          if [ "$DRAFT" = "true" ]; then
+            echo "Draft PR: smoke not run (saves Vercel CPU). Mark the PR ready for review to run it once."
+            exit 1
+          fi
+          echo "Ready for review: running the suite"
 
       - uses: actions/checkout@v4
 
@@ -149,7 +161,7 @@ jobs:
           TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
 
       - name: Triage + Slack
-        if: always()
+        if: always() && steps.draft.outcome == 'success'
         run: node scripts/qa-triage.mjs
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -160,7 +172,7 @@ jobs:
           TRIGGER: pull_request
 
       - name: Upload Playwright report
-        if: always()
+        if: always() && steps.draft.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report-pr-${{ github.event.pull_request.number }}
