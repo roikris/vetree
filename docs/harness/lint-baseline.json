@@ -1,0 +1,361 @@
+{
+  "note": "Known lint errors (D9 ratchet). Only errors above these counts fail. Shrink, never grow.",
+  "total_errors": 178,
+  "entries": [
+    {
+      "file": ".github/workflows/scripts/backfill-articles-2025-2026.js",
+      "rule": "@typescript-eslint/no-require-imports",
+      "count": 5
+    },
+    {
+      "file": ".github/workflows/scripts/backfill-articles.js",
+      "rule": "@typescript-eslint/no-require-imports",
+      "count": 5
+    },
+    {
+      "file": ".github/workflows/scripts/daily-sync.js",
+      "rule": "@typescript-eslint/no-require-imports",
+      "count": 5
+    },
+    {
+      "file": ".github/workflows/scripts/enrich-articles.js",
+      "rule": "@typescript-eslint/no-require-imports",
+      "count": 3
+    },
+    {
+      "file": ".github/workflows/scripts/fetch-truncated-journal.js",
+      "rule": "@typescript-eslint/no-require-imports",
+      "count": 5
+    },
+    {
+      "file": ".github/workflows/scripts/fix-encoding.js",
+      "rule": "@typescript-eslint/no-require-imports",
+      "count": 2
+    },
+    {
+      "file": ".github/workflows/scripts/growth-daily-reminder.js",
+      "rule": "@typescript-eslint/no-require-imports",
+      "count": 2
+    },
+    {
+      "file": ".github/workflows/scripts/reset-enrichment.js",
+      "rule": "@typescript-eslint/no-require-imports",
+      "count": 2
+    },
+    {
+      "file": "app/actions/admin.ts",
+      "rule": "@typescript-eslint/no-explicit-any",
+      "count": 3
+    },
+    {
+      "file": "app/actions/profile.ts",
+      "rule": "@typescript-eslint/no-explicit-any",
+      "count": 1
+    },
+    {
+      "file": "app/actions/reports.ts",
+      "rule": "@typescript-eslint/no-explicit-any",
+      "count": 1
+    },
+    {
+      "file": "app/actions/saved-articles.ts",
+      "rule": "@typescript-eslint/no-explicit-any",
+      "count": 2
+    },
+    {
+      "file": "app/admin/analytics/AnalysisAgent.tsx",
+      "rule": "react/no-unescaped-entities",
+      "count": 3
+    },
+    {
+      "file": "app/admin/analytics/AnalyticsClient.tsx",
+      "rule": "@typescript-eslint/no-explicit-any",
+      "count": 10
+    },
+    {
+      "file": "app/admin/growth/CampaignCalendar.tsx",
+      "rule": "@typescript-eslint/no-explicit-any",
+      "count": 10
+    },
+    {
+      "file": "app/admin/growth/CampaignCalendar.tsx",
+      "rule": "react/no-unescaped-entities",
+      "count": 1
+    },
+    {
+      "file": "app/admin/growth/GrowthClient.tsx",
+      "rule": "@typescript-eslint/no-explicit-any",
+      "count": 2
+    },
+    {
+      "file": "app/admin/growth/TodaysTasks.tsx",
+      "rule": "react/no-unescaped-entities",
+      "count": 2
+    },
+    {
+      "file": "app/admin/growth/WeeklyCalendar.tsx",
+      "rule": "react/no-unescaped-entities",
+      "count": 1
+    },
+    {
+      "file": "app/admin/pipeline/ArticleHealth.tsx",
+      "rule": "@typescript-eslint/no-explicit-any",
+      "count": 1
+    },
+    {
+      "file": "app/admin/pipeline/SyncSkippedArticles.tsx",
+      "rule": "react-hooks/set-state-in-effect",
+      "count": 1
+    },
+    {
+      "file": "app/admin/pipeline/diagnostics/page.tsx",
+      "rule": "@typescript-eslint/no-explicit-any",
+      "count": 1
+    },
+    {
+      "file": "app/api/admin/analytics/insights/route.ts",
+      "rule": "@typescript-eslint/no-explicit-any",
+      "count": 5
+    },
+    {
+      "file": "app/api/admin/analytics/signals/route.ts",
+      "rule": "@typescript-eslint/no-explicit-any",
+      "count": 1
+    },
+    {
+      "file": "app/api/admin/growth/recommendations/route.ts",
+      "rule": "@typescript-eslint/no-explicit-any",
+      "count": 2
+    },
+    {
+      "file": "app/api/admin/security/scan/route.ts",
+      "rule": "@typescript-eslint/no-explicit-any",
+      "count": 4
+    },
+    {
+      "file": "app/api/digest/send/route.ts",
+      "rule": "@typescript-eslint/no-explicit-any",
+      "count": 5
+    },
+    {
+      "file": "app/api/growth/feedback/route.ts",
+      "rule": "@typescript-eslint/no-explicit-any",
+      "count": 1
+    },
+    {
+      "file": "app/api/growth/generate-image/route.ts",
+      "rule": "@typescript-eslint/no-explicit-any",
+      "count": 4
+    },
+    {
+      "file": "app/api/growth/generate-post/route.ts",
+      "rule": "@typescript-eslint/no-explicit-any",
+      "count": 1
+    },
+    {
+      "file": "app/api/growth/generate-post/route.ts",
+      "rule": "prefer-const",
+      "count": 1
+    },
+    {
+      "file": "app/api/synthesis/generate/route.ts",
+      "rule": "@typescript-eslint/no-explicit-any",
+      "count": 12
+    },
+    {
+      "file": "app/article/[id]/not-found.tsx",
+      "rule": "react/no-unescaped-entities",
+      "count": 2
+    },
+    {
+      "file": "app/library/page.tsx",
+      "rule": "@typescript-eslint/no-explicit-any",
+      "count": 2
+    },
+    {
+      "file": "app/page.tsx",
+      "rule": "@typescript-eslint/no-explicit-any",
+      "count": 1
+    },
+    {
+      "file": "app/page.tsx",
+      "rule": "react-hooks/purity",
+      "count": 1
+    },
+    {
+      "file": "app/reset-password/page.tsx",
+      "rule": "react-hooks/set-state-in-effect",
+      "count": 1
+    },
+    {
+      "file": "app/verify-email/page.tsx",
+      "rule": "react/no-unescaped-entities",
+      "count": 3
+    },
+    {
+      "file": "components/articles/SaveIntentHandler.tsx",
+      "rule": "react-hooks/set-state-in-effect",
+      "count": 2
+    },
+    {
+      "file": "components/articles/SoftRegistrationPrompt.tsx",
+      "rule": "react-hooks/set-state-in-effect",
+      "count": 1
+    },
+    {
+      "file": "components/home/LandingPage.tsx",
+      "rule": "@typescript-eslint/no-explicit-any",
+      "count": 1
+    },
+    {
+      "file": "components/home/LandingPage.tsx",
+      "rule": "react/no-unescaped-entities",
+      "count": 2
+    },
+    {
+      "file": "components/onboarding/Onboarding.tsx",
+      "rule": "react-hooks/set-state-in-effect",
+      "count": 1
+    },
+    {
+      "file": "components/onboarding/Onboarding.tsx",
+      "rule": "react-hooks/static-components",
+      "count": 1
+    },
+    {
+      "file": "components/search/SearchControls.tsx",
+      "rule": "react-hooks/set-state-in-effect",
+      "count": 1
+    },
+    {
+      "file": "components/synthesis/SynthesisPanel.tsx",
+      "rule": "@typescript-eslint/no-explicit-any",
+      "count": 1
+    },
+    {
+      "file": "components/synthesis/SynthesisWrapper.tsx",
+      "rule": "react-hooks/set-state-in-effect",
+      "count": 1
+    },
+    {
+      "file": "components/ui/PWAInstallPrompt.tsx",
+      "rule": "@typescript-eslint/no-explicit-any",
+      "count": 3
+    },
+    {
+      "file": "components/ui/RegistrationWall.tsx",
+      "rule": "react-hooks/set-state-in-effect",
+      "count": 1
+    },
+    {
+      "file": "components/ui/RegistrationWall.tsx",
+      "rule": "react/no-unescaped-entities",
+      "count": 1
+    },
+    {
+      "file": "components/ui/ReportModal.tsx",
+      "rule": "@typescript-eslint/no-explicit-any",
+      "count": 1
+    },
+    {
+      "file": "components/ui/ReportModal.tsx",
+      "rule": "react/no-unescaped-entities",
+      "count": 2
+    },
+    {
+      "file": "docs/design_handoff_vetree_redesign/designs/ios-frame.jsx",
+      "rule": "react/jsx-no-undef",
+      "count": 1
+    },
+    {
+      "file": "docs/design_handoff_vetree_redesign/designs/support.js",
+      "rule": "@next/next/no-assign-module-variable",
+      "count": 1
+    },
+    {
+      "file": "docs/design_handoff_vetree_redesign/designs/support.js",
+      "rule": "react/no-deprecated",
+      "count": 1
+    },
+    {
+      "file": "e2e/digest-recency-and-memory.spec.ts",
+      "rule": "@typescript-eslint/no-explicit-any",
+      "count": 8
+    },
+    {
+      "file": "lib/hooks/useAdmin.ts",
+      "rule": "react-hooks/set-state-in-effect",
+      "count": 1
+    },
+    {
+      "file": "lib/hooks/useCSRF.ts",
+      "rule": "react-hooks/set-state-in-effect",
+      "count": 1
+    },
+    {
+      "file": "lib/hooks/useDarkMode.ts",
+      "rule": "react-hooks/set-state-in-effect",
+      "count": 1
+    },
+    {
+      "file": "lib/hooks/useFollowedTags.ts",
+      "rule": "react-hooks/immutability",
+      "count": 1
+    },
+    {
+      "file": "lib/hooks/useOnboarding.ts",
+      "rule": "react-hooks/set-state-in-effect",
+      "count": 1
+    },
+    {
+      "file": "lib/queries/articles.ts",
+      "rule": "@typescript-eslint/no-explicit-any",
+      "count": 8
+    },
+    {
+      "file": "lib/search/progressive.ts",
+      "rule": "@typescript-eslint/no-explicit-any",
+      "count": 1
+    },
+    {
+      "file": "lib/sitemap.ts",
+      "rule": "@typescript-eslint/no-explicit-any",
+      "count": 3
+    },
+    {
+      "file": "lib/synthesis/generateSynthesis.ts",
+      "rule": "@typescript-eslint/no-explicit-any",
+      "count": 6
+    },
+    {
+      "file": "lib/utils/species.ts",
+      "rule": "@typescript-eslint/no-explicit-any",
+      "count": 1
+    },
+    {
+      "file": "scripts/backfill-abstracts.cjs",
+      "rule": "@typescript-eslint/no-require-imports",
+      "count": 2
+    },
+    {
+      "file": "scripts/backfill-publication-dates.cjs",
+      "rule": "@typescript-eslint/no-require-imports",
+      "count": 3
+    },
+    {
+      "file": "scripts/fix-labels.ts",
+      "rule": "@typescript-eslint/no-explicit-any",
+      "count": 1
+    },
+    {
+      "file": "scripts/fix-labels.ts",
+      "rule": "prefer-const",
+      "count": 1
+    },
+    {
+      "file": "scripts/generate-icons.js",
+      "rule": "@typescript-eslint/no-require-imports",
+      "count": 3
+    }
+  ]
+}
