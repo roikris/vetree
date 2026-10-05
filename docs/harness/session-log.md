@@ -29,3 +29,17 @@ Newest at the bottom. The same entries (latest few) appear in primer.md → Rece
 - Pending Roi approvals: none.
 - Known risks / unresolved: item parked as blocked until the dry runs finish.
 - Next best step: dry run (b) — WIP carry-over on a local-only branch.
+
+### Session 20261005-0849-claude-f6ca · 2026-10-05 · Claude Code · harness-dryrun-002
+- Goal / Completed: dry run (b) part 1 — left a deliberately red WIP for the next session.
+  Found and fixed a harness bug on the way: Next 16 build type errors were UNPARSED (d4242f0).
+- Start state: chore/agent-harness @ f5f01b7, clean; state lock free.
+- Verification: WIP 4e4a2e1 on LOCAL-ONLY chore/harness-dryrun (Article.strength_of_evidence →
+  number); `init.sh check` RED as intended: 5 tsc + 6 build signatures, all in files the WIP did
+  not touch → recorded as wip_sha + expected_failures. Rules branch check GREEN @ d4242f0.
+- Review: pending (rules diff review at step 9).
+- Commits / PR: rules d4242f0 (local); WIP 4e4a2e1 (local only, never pushed); state: this entry.
+- Pending Roi approvals: none.
+- Known risks / unresolved: internet paused — this handoff is committed locally and pushed when
+  the connection returns.
+- Next best step: dry run (b) part 2 — a new session must resume via EXPECTED-WIP.
