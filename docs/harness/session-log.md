@@ -149,3 +149,10 @@ Newest at the bottom. The same entries (latest few) appear in primer.md → Rece
   uncommitted edit → exit 2 STOP. Tree verified clean afterwards; branch + item removed.
 - Also: corrected the entry of 20261005-1522-claude-bc31, whose test was invalid (see the correction in session-log).
 - Next best step: short Codex look at efd10fe, then Roi's OK for push + draft PR.
+
+### Session 20261005-1545-claude-0ccc · 2026-10-05 · Claude Code · rollout step 9
+- Goal / Completed: rules branch pushed; draft PR #110 opened on Roi's OK. Checks: scope pass
+  (docs-only), smoke skipped (run success), Vercel preview ready. Codex review of the full rules
+  diff: 6 rounds, 6 blocking fixed, BLOCKING: none (DESIGN.md step 9).
+- Pending Roi approvals: merge of #110.
+- Next best step: after Roi merges #110 — Session 001: build the backlog with Roi.

@@ -8,7 +8,7 @@ Routine: `docs/harness/README.md` on `main`. Pre-harness primer (frozen): root `
 ---
 
 ## 1. Current Verified State
-*Updated 2026-10-05 — Session 20261005-1055-claude-93a0 (rollout step 8 cleanup)*
+*Updated 2026-10-05 — Session 20261005-1545-claude-0ccc (rollout step 9)*
 
 - **Repo root:** `~/dev/vetree` · state worktree: `.harness-state/` (branch `harness-state`)
 - **main:** `60e658d` (PR #109, 2026-10-04) — last verified: `init.sh check` GREEN on
@@ -18,10 +18,9 @@ Routine: `docs/harness/README.md` on `main`. Pre-harness primer (frozen): root `
   Supabase (read-only); never Playwright as a baseline
 - **Highest-priority unfinished item:** none — `feature_list.json` is empty (dry-run items
   removed after rollout step 8); **Session 001 builds the backlog with Roi** (D1)
-- **Current blocker:** rollout step 9 — rules on `chore/agent-harness` (local, not pushed yet):
-  Codex review of the full diff, then a draft PR; merged only on Roi's word. No ordinary item
-  sessions until then. Steps 0–8 done (DESIGN.md).
-- **Open PRs awaiting Roi:** none (checked 2026-10-05)
+- **Current blocker:** rules PR **#110** (draft) awaits Roi's word to merge — no ordinary item
+  sessions until it is merged. Steps 0–9 done (DESIGN.md); then Session 001 builds the backlog.
+- **Open PRs awaiting Roi:** #110 chore(harness) — draft; checks pass, smoke skipped (docs-only)
 
 ## 2. Open Issues & Known Risks
 - **Lint is red on main:** 178 errors / 75 warnings, never run in CI. Handled by the lint ratchet
@@ -185,6 +184,13 @@ works today was spot-checked in the code on 2026-10-05.
 
 ## 7. Recent Sessions
 (Newest first. Every entry is also in `session-log.md`, which is never trimmed.)
+
+### Session 20261005-1545-claude-0ccc · 2026-10-05 · Claude Code · rollout step 9
+- Goal / Completed: rules branch pushed; draft PR #110 opened on Roi's OK. Checks: scope pass
+  (docs-only), smoke skipped (run success), Vercel preview ready. Codex review of the full rules
+  diff: 6 rounds, 6 blocking fixed, BLOCKING: none (DESIGN.md step 9).
+- Pending Roi approvals: merge of #110.
+- Next best step: after Roi merges #110 — Session 001: build the backlog with Roi.
 
 ### Session 20261005-1525-claude-07f1 · 2026-10-05 · Claude Code · harness-dryrun-006
 - Goal / Completed: proper re-run of the efd10fe clean-tree test, with a guard that the WIP commit
