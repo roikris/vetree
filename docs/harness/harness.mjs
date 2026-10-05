@@ -87,52 +87,45 @@ function lintCompare(eslintJson, root, baselinePath, sigsOut) {
   process.exit(over.length ? 1 : 0)
 }
 
-// tsc:   app/x.tsx(12,5): error TS2322: message
-// build: Next 16 prints the same tsc lines (then "Failed to type check."); Turbopack prints each
-//        issue as a path line (optionally :line:col) followed by "Error: <title>" or
-//        "Warning: <title>"; older Next printed a path line followed by "Type error: <message>".
-// Fail-closed: warnings and known summary lines are skipped; any OTHER error-looking line makes
-// the whole log unparsed, so a generic line can never stand in for a real diagnostic. Global
-// TypeScript errors (no file) are signatures too; in a tsc log every line must be a diagnostic, an
-// indented continuation or blank; in a build log any unparsed error-like line (TypeError, panic,
-// error TS…, …) marks it unparsed even when other diagnostics were recognised.
-// Colour codes are stripped first. Line/column numbers are never part of a signature.
+// tsc — the only log that can EXPLAIN a WIP failure. Strict, fail-closed: a line is a diagnostic
+// (`file(l,c): error TSxxxx: msg` or global `error TSxxxx: msg`) or an indented continuation,
+// which is APPENDED to the diagnostic above it — extra indented text changes that signature, so it
+// can never be accepted silently. Anything else (a stray line, a continuation with nothing above it,
+// a stack trace start) → unparsed.
+//
+// build — INFORMATIONAL only (D8 design, Codex step-9 rounds 1–3): build logs are open-ended, so a
+// build failure is never matched against expected_failures. Its signatures are for the report;
+// `classify` rejects any failed build. Line/column numbers are never part of a signature.
 function signatures(check, log, out) {
   // Strip ANSI colour codes.
   const raw = existsSync(log) ? readFileSync(log, 'utf8').replace(/\x1b\[[0-9;]*m/g, '') : ''
   const lines = raw.split('\n')
   const failures = []
   let unknown = false
-  const PATH = /^\.?\/?((?:[\w@[\]().-]+\/)*[\w@[\]().-]+\.[A-Za-z]+)(?::\d+:\d+)?\s*$/
-  const SUMMARY = /^(>\s*)?(Failed to type check\.?|Failed to compile\.?|Build error occurred|Error: Turbopack build failed with \d+ errors?:)\s*$/
-  for (let i = 0; i < lines.length; i++) {
-    const l = lines[i].trimEnd()
-    const ts = l.match(/^(.+?)\(\d+,\d+\): error (TS\d+): (.*)$/)
-    if (ts) { failures.push({ check, file: ts[1], code: ts[2], message: norm(ts[3]) }); continue }
-    const gts = l.match(/^\s*error (TS\d+): (.*)$/)
-    if (gts) { failures.push({ check, file: null, code: gts[1], message: norm(gts[2]) }); continue }
-    // tsc log: every line must be a diagnostic, an indented continuation, or blank.
-    if (check === 'tsc') { if (l.trim() && !/^\s/.test(l)) unknown = true; continue }
-    // build log: anything error-like that is not a parsed diagnostic → unparsed.
-    if (/\berror TS\d+|\b(TypeError|ReferenceError|SyntaxError|RangeError|ERR!|panic|fatal|Killed|uncaught|unhandled)\b/i.test(l)) {
-      unknown = true; continue
-    }
-    const loc = l.match(PATH)
-    const next = (lines[i + 1] ?? '').trim()
-    if (loc && /^Type error:/.test(next)) {
-      failures.push({ check, file: loc[1], code: 'type-error', message: norm(next.replace(/^Type error:/, '')) }); i++
-    } else if (loc && /^Error:/.test(next)) {
-      failures.push({ check, file: loc[1], code: 'turbopack', message: norm(next.replace(/^Error:/, '')) }); i++
-    } else if (loc && /^Warning:/.test(next)) {
-      i++
-    } else if (SUMMARY.test(l.trim())) {
-      continue
-    } else if (/^\s*(Error|Failed|Build error)\b/.test(l)) {
-      unknown = true
+  let cur = null
+  for (const line of lines) {
+    const l = line.trimEnd()
+    const ts = l.match(/^(\S.*?)\(\d+,\d+\): error (TS\d+): (.*)$/)
+    const gts = l.match(/^error (TS\d+): (.*)$/)
+    if (ts || gts) {
+      cur = ts ? { check, file: ts[1], code: ts[2], message: norm(ts[3]) }
+               : { check, file: null, code: gts[1], message: norm(gts[2]) }
+      failures.push(cur)
+    } else if (check === 'tsc') {
+      if (!l.trim()) cur = null
+      else if (/^\s/.test(l) && cur) cur.message = norm(cur.message + ' ' + l)
+      else unknown = true
+    } else {
+      const m = l.match(/^\.?\/?((?:[\w@[\]().-]+\/)*[\w@[\]().-]+\.[A-Za-z]+):\d+:\d+\s*$/)
+      if (m) cur = { check, file: m[1], code: 'build', message: '' }
+      else if (cur && !cur.message && /^(Error|Type error):/.test(l.trim())) {
+        cur.message = norm(l.trim()); failures.push(cur); cur = null
+      }
     }
   }
-  writeJson(out, { check, unparsed: unknown || failures.length === 0, failures })
-  console.log(`${check}: ${failures.length} failure signature(s)${unknown || !failures.length ? ' — UNPARSED' : ''}`)
+  const unparsed = check === 'tsc' ? unknown || failures.length === 0 : true
+  writeJson(out, { check, unparsed, failures })
+  console.log(`${check}: ${failures.length} failure signature(s)${unparsed ? (check === 'tsc' ? ' — UNPARSED' : ' (build: informational only)') : ''}`)
 }
 
 const same = (a, b) => a.check === b.check && (a.file ?? null) === (b.file ?? null) &&
@@ -146,6 +139,11 @@ function classify(sigsDir, featureList, itemId, headSha) {
   const failed = existsSync(failedPath) ? readFileSync(failedPath, 'utf8').split('\n').filter(Boolean) : []
   if (!failed.length) { console.log('REGRESSION: no record of which checks failed — no evidence to match'); process.exit(1) }
   const results = []
+  if (failed.includes('build')) {
+    console.log('REGRESSION: the build failed — a build failure is never an expected WIP failure ' +
+      '(on the recorded WIP commit the build is skipped; tsc + lint decide)')
+    process.exit(1)
+  }
   for (const check of failed) {
     const p = join(sigsDir, check + '.sigs.json')
     let r = null

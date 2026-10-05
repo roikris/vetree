@@ -155,6 +155,14 @@ cmd_check() {
     esac
     shift
   done
+  # On the item's recorded WIP commit the build is skipped: it is red by design, and a build failure
+  # can never be an expected one — tsc + lint decide (DESIGN.md, step 9). The next normal commit
+  # still needs a GREEN build.
+  local wipmode=0
+  if [ -n "$item" ] && [ -f "$WT/$H/feature_list.json" ]; then
+    local wsha; wsha="$(node -e 'const f=require(process.argv[1]).features||[];const it=f.find(x=>x.id===process.argv[2]);process.stdout.write((it&&it.wip_sha)||"")' "$WT/$H/feature_list.json" "$item")"
+    [ -n "$wsha" ] && [ "$wsha" = "$(git rev-parse HEAD)" ] && wipmode=1
+  fi
   deps
   head_ "Checks on $(git branch --show-current || echo detached) @ $(git rev-parse --short HEAD)"
   [ $quick = 1 ] || say "effects: next build READS production Supabase (sitemap, static article pages) — it writes nothing"
@@ -168,7 +176,12 @@ cmd_check() {
       || printf '{"check":"%s","unparsed":true,"failures":[]}\n' "$1" > "$LOGDIR/$1.sigs.json"
   }
 
-  if ! run_timed tsc npx tsc --noEmit; then red=1; tsc_red=1; sigs tsc; fi
+  local trc=0; run_timed tsc npx tsc --noEmit || trc=$?
+  if [ $trc != 0 ]; then
+    red=1; tsc_red=1; sigs tsc
+    # tsc exits 1 or 2 when it reports diagnostics; anything else (a crash, a signal) is unparsed.
+    case $trc in 1|2) ;; *) printf '{"check":"tsc","unparsed":true,"failures":[]}\n' > "$LOGDIR/tsc.sigs.json" ;; esac
+  fi
 
   # eslint exits 1 on main because of the known errors (D9): 0/1 are normal, >=2 = eslint failed.
   local t0 erc=0; t0=$(date +%s)
@@ -188,12 +201,14 @@ cmd_check() {
        [ -s "$LOGDIR/lint.sigs.json" ] || printf '{"check":"lint","unparsed":true,"failures":[]}\n' > "$LOGDIR/lint.sigs.json" ;;
   esac
 
-  if [ $quick = 0 ]; then
+  if [ $wipmode = 1 ]; then
+    say "build: skipped — HEAD is $item's recorded WIP commit (tsc + lint decide; build must be GREEN before the next normal commit)"
+  elif [ $quick = 0 ]; then
     if ! run_timed build npm run build; then
       red=1; sigs build
       # Only the known Supabase/network blip counts as transient, and only when tsc + lint passed.
       if [ $tsc_red = 0 ] && [ $lint_red = 0 ] && \
-         grep -qE '^[[:space:]]*(\[?[A-Za-z]*Error\]?:? )?(sitemap: .* failed after [0-9]+ attempts|fetch failed)|getaddrinfo ENOTFOUND|connect ETIMEDOUT|read ECONNRESET|socket hang up' "$LOGDIR/build.log"; then
+         grep -qE '^[[:space:]]*\[?[A-Za-z]*Error\]?:? .*(sitemap: .* failed after [0-9]+ attempts|fetch failed|getaddrinfo ENOTFOUND|connect ETIMEDOUT|read ECONNRESET|socket hang up)' "$LOGDIR/build.log"; then
         transient=1
         say "build failure matches the known Supabase/network blip — possible transient: re-run once"
       fi
@@ -203,7 +218,12 @@ cmd_check() {
   fi
 
   head_ "Result"
-  if [ $red = 0 ]; then [ $quick = 1 ] && say "GREEN (quick — build not run)" || say "GREEN"; return 0; fi
+  if [ $red = 0 ]; then
+    if [ $wipmode = 1 ]; then say "GREEN on tsc + lint (recorded WIP — build not run)"
+    elif [ $quick = 1 ]; then say "GREEN (quick — build not run)"
+    else say "GREEN"; fi
+    return 0
+  fi
   if [ $transient = 1 ]; then say "POSSIBLE TRANSIENT — re-run once; a second exit 3 in a row = treat as a regression (controlled stop, tell Roi)"; return 3; fi
   if [ -n "$item" ]; then
     local fl="$WT/$H/feature_list.json"
