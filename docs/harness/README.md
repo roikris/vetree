@@ -29,8 +29,15 @@ The old root `primer.md` is frozen and superseded. History before the harness: `
 3. **Codex only:** `docs/harness/init.sh --check-git`. Fails → stop, tell Roi.
 4. `docs/harness/init.sh state`. Then read `.harness-state/docs/harness/primer.md` (Current State
    + the latest session) and `.harness-state/docs/harness/feature_list.json`.
-5. **Take the lock:** write `.harness-state/docs/harness/session.lock` (session id
-   `YYYYMMDD-HHMM-<agent>-<4 random hex>`, agent, start time, item), commit, push.
+5. **Take the lock:** write `.harness-state/docs/harness/session.lock` in exactly this format —
+   `init.sh` reads the owner from the unindented `session: ` line:
+   ```
+   session: 20261005-0846-claude-b18d
+   agent: Claude Code
+   started: 2026-10-05T08:46:44Z
+   item: <item id>
+   ```
+   (id = `YYYYMMDD-HHMM-<agent>-<4 random hex>`), then commit and push.
    Then `export HARNESS_SESSION=<id>` so later `init.sh` runs recognise the lock as yours.
    `init.sh state` stops (exit 2) on any lock that isn't yours → tell Roi. Push fails → stop; no
    product work.
@@ -111,7 +118,7 @@ and releases the lock. Only a crash leaves a lock behind; a stale lock is remove
 - Goal / Completed:
 - Start state: branch, base SHA, dirty files
 - Verification: exact commands + target + outcome; tested SHA
-- Review: Codex result
+- Review: the other agent's result (BLOCKING: none / open items)
 - Commits / PR / WIP commit:
 - Pending Roi approvals:
 - Known risks / unresolved:
@@ -133,5 +140,19 @@ Node 24.x / npm 11.x · `gh auth login` · `.env.local` (see `ENV_SETUP.md`; the
 is the source of truth) · then `docs/harness/init.sh` (it runs `npm ci` when needed and never
 approves npm install scripts — that is Roi's call).
 
-**Codex working sessions:** invocation not yet tested — recorded here after the rollout dry run.
-Until then Codex is reviewer-only.
+**Codex working sessions** — tested in rollout dry run 8e (2026-10-05), from the repo root:
+
+```
+codex exec --sandbox workspace-write \
+  -c sandbox_workspace_write.network_access=true \
+  -c 'sandbox_workspace_write.writable_roots=["<absolute repo path>/.git"]' "<task>"
+```
+
+Still sandboxed: writes only inside the repo (incl. its `.git`, needed to commit) plus network for
+fetch/push. Plain `workspace-write` keeps `.git` read-only — `--check-git` then stops, correctly.
+Never use `danger-full-access` / `--dangerously-bypass-approvals-and-sandbox` for a working session.
+Codex receives the root `AGENTS.md` automatically (from the root and from subfolders) but not
+CLAUDE.md, which `AGENTS.md` tells it to read. Its work is then reviewed by Claude Code (D10).
+
+**Codex reviews** (Claude Code worked): `codex exec --sandbox read-only "<review task>"` in its own
+Terminal.app window — tested in dry run 8f: it reviewed without running the routine.

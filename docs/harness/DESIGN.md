@@ -16,7 +16,7 @@ history. The routine itself is in [README.md](README.md). Decisions D1–D9 and 
 | 5 | Build the orphan `harness-state` branch locally; 5b re-check isolation | ✅ 2026-10-05 — `harness-state` @ 5514fc0 (local only; git 2.39 → `worktree add --detach` + `switch --orphan`); 5b: check GREEN with the folder populated, eslint 0 files from it, tsc/build never mention it |
 | 6 | First push of `harness-state` — **asks Roi** | ✅ 2026-10-05 08:02:31Z on Roi's OK — `harness-state` @ 5514fc0 on GitHub; `init.sh state` against it: all checks pass |
 | 7 | Prove Vercel does not deploy `harness-state` | ✅ 2026-10-05 — 10 polls 08:02–08:13Z, every query valid, 0 deployments by SHA or branch; 0 GitHub runs, 0 GitHub deployments. Note: the API's `meta-githubCommitSha` filter is ignored when nothing matches (returns unrelated deployments) → the check filters the latest 100 locally, validated on a known main deployment and an impossible SHA |
-| 8 | Dry runs a–f (Claude Code, then Codex) | 🔄 in progress — (a) ✅ (b) ✅ (c) in progress. Findings fixed so far: Next 16 build type errors were UNPARSED (fixed d4242f0); `init.sh state` exited 0 on a foreign lock (now exit 2 unless `HARNESS_SESSION` matches) |
+| 8 | Dry runs a–f (Claude Code, then Codex) | ✅ 2026-10-05 — all passed after 2 fixes. (a) full routine. (b) WIP carried over: EXPECTED-WIP incl. untouched consumers; missing record / moved HEAD / unparsed build (synthetic) all stop. (c) controlled stop, crash (lock now hard-stops), failed push + README recovery, lost-branch recovery. (d) fresh clone: GREEN, worktree tracks origin. (e) Codex worker: default sandbox can't write `.git` → probe stopped it (correct); with `.git` as a writable root it ran the routine, a real network outage failed its claim push → it stopped, then resumed and recovered per README; Claude review BLOCKING: none. (f) Codex reviewer: reviewed 95f3413 read-only, never ran the routine; BLOCKING: none, 2 non-blocking fixed. Fixes: build parser for Next 16 (d4242f0); foreign lock exits 2 (95f3413) |
 | 9 | Record rollout outcomes in README.md; Codex review of the diff; draft PR; merge on Roi's word | ⬜ |
 | 10 | Session 001: build the backlog with Roi | ⬜ |
 
@@ -71,7 +71,7 @@ failed state pushes and lost branches; fresh-clone + dry-run retirement in rollo
 ## Constraints the harness must respect (from CLAUDE.md)
 Unchanged for product and rules changes: never commit to main; feat/ fix/ chore/ branches; draft
 PRs; push freely to drafts; mark ready once, when done; batch related changes into one PR
-(CLAUDE.md:29) — one backlog item may cover several related fixes; Codex adversarial review loop
+(CLAUDE.md:29) — one backlog item may cover several related fixes; adversarial review loop by the other agent (D10)
 until `BLOCKING: none`; merge only on Roi's explicit word; Vercel CPU budget; rules 14–16; read the
 three CLAUDE.md files before every task.
 The ONE exception (D4/D5), written into CLAUDE.md: commits on `harness-state` that touch only
@@ -228,7 +228,7 @@ Work:
 - Draft PR; push freely.
 - Verification steps run as written; any step with `db_writes: prod` or `paid_calls: true` needs
   Roi's OK for that item first; the approval and its scope are recorded in evidence.
-- Codex review loop until `BLOCKING: none`; mark PR ready once, when done.
+- Review loop by the other agent (D10) until `BLOCKING: none`; mark PR ready once, when done.
 Before you stop (clean-state checklist; each line is done, or N/A with the reason):
 - [ ] product branch: `npm run build` green before its last commit, committed, pushed to the
       draft PR. Red build from unfinished code → D8 WIP commit: confirm the PR is a draft
@@ -344,7 +344,7 @@ Session <id> · date · agent (Claude Code / Codex) · item id
 - Goal / Completed
 - Start state: branch, base SHA, dirty files
 - Verification: exact commands + target + outcome; tested SHA
-- Review: Codex result
+- Review: the other agent's result
 - Commits / PR / WIP commit (if any)
 - Pending Roi approvals
 - Known risks / unresolved

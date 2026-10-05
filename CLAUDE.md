@@ -11,7 +11,7 @@
 ## SESSION HARNESS
 - Every **working** session (Claude Code or Codex) follows `docs/harness/README.md`: read where
   things stand, take the session lock, work on ONE backlog item, verify it with evidence, write the
-  session entry, release the lock. Reviewers (e.g. the Codex review loop) never run the routine.
+  session entry, release the lock. Reviewers (the other agent's review loop) never run the routine.
 - Progress state (current state, backlog, session log, lock) lives on the branch `harness-state`,
   worked in the git-ignored folder `.harness-state/` (set up by `docs/harness/init.sh`).
   **Never merge `harness-state` into `main`.**
@@ -22,12 +22,12 @@
 ## BRANCH & PR POLICY (non-negotiable)
 - **Never commit directly to `main`** — all work goes on a feature branch
 - Open a PR; the smoke suite must be green before merging
-- **Codex adversarial review before merge** — every change (and every non-trivial plan, before
-  building it) goes through a Codex review loop: run `codex exec --sandbox read-only` in its **own
-  Terminal.app window** so Roi can watch it live (never as a silent background job); fix and
-  re-run until it reports `BLOCKING: none`. Verify Codex's claims before acting on them.
-  **The reviewer is always the other agent (Roi, 2026-10-05):** when Codex did the work, Claude
-  Code reviews it, the same way, until `BLOCKING: none`. Nobody reviews its own work.
+- **Adversarial review by the other agent before merge** — every change (and every non-trivial
+  plan, before building it) goes through a review loop run by the agent that did NOT do the work
+  (Roi, 2026-10-05): Claude Code worked → Codex reviews (`codex exec --sandbox read-only` in its
+  **own Terminal.app window** so Roi can watch it live, never as a silent background job); Codex
+  worked → Claude Code reviews, the same way. Fix and re-run until the reviewer reports
+  `BLOCKING: none`. Verify the reviewer's claims before acting on them. Nobody reviews its own work.
 - **Merge only on Roi's explicit word for that specific PR.** A green smoke run, a finished review,
   or a request to fix the PR is not permission to merge.
 - Branch naming: `feat/`, `fix/`, `chore/` prefix
