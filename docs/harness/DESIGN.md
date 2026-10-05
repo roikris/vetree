@@ -16,7 +16,7 @@ history. The routine itself is in [README.md](README.md). Decisions D1–D9 and 
 | 5 | Build the orphan `harness-state` branch locally; 5b re-check isolation | ✅ 2026-10-05 — `harness-state` @ 5514fc0 (local only; git 2.39 → `worktree add --detach` + `switch --orphan`); 5b: check GREEN with the folder populated, eslint 0 files from it, tsc/build never mention it |
 | 6 | First push of `harness-state` — **asks Roi** | ✅ 2026-10-05 08:02:31Z on Roi's OK — `harness-state` @ 5514fc0 on GitHub; `init.sh state` against it: all checks pass |
 | 7 | Prove Vercel does not deploy `harness-state` | ✅ 2026-10-05 — 10 polls 08:02–08:13Z, every query valid, 0 deployments by SHA or branch; 0 GitHub runs, 0 GitHub deployments. Note: the API's `meta-githubCommitSha` filter is ignored when nothing matches (returns unrelated deployments) → the check filters the latest 100 locally, validated on a known main deployment and an impossible SHA |
-| 8 | Dry runs a–d (Claude Code, then Codex) | ⬜ |
+| 8 | Dry runs a–f (Claude Code, then Codex) | 🔄 in progress — (a) ✅ (b) ✅ (c) in progress. Findings fixed so far: Next 16 build type errors were UNPARSED (fixed d4242f0); `init.sh state` exited 0 on a foreign lock (now exit 2 unless `HARNESS_SESSION` matches) |
 | 9 | Record rollout outcomes in README.md; Codex review of the diff; draft PR; merge on Roi's word | ⬜ |
 | 10 | Session 001: build the backlog with Roi | ⬜ |
 
@@ -61,6 +61,9 @@ failed state pushes and lost branches; fresh-clone + dry-run retirement in rollo
   it in the same PR). Entry = {file, rule, count}; a file+rule count above its baseline, or a new
   file+rule, fails; fewer is fine (init.sh suggests shrinking the file). Lint cleanup → backlog
   candidate for session 001.
+- D10 (Roi, 2026-10-05) The reviewer is always the OTHER agent: Claude Code works → Codex reviews
+  (the existing loop); Codex works → Claude Code reviews, until `BLOCKING: none`. Nobody reviews
+  its own work. Applied in CLAUDE.md (review bullet), AGENTS.md, README.md (Work).
 - D8 Unfinished code at session end → a `WIP (build red): …` commit pushed to the item's draft
   branch. Only that commit is exempt from "build before commit". A PR whose head is a WIP commit
   is never marked ready. (Replaces v4's patch-file idea, which was lossy.)

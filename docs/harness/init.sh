@@ -101,12 +101,20 @@ EOF
   (they could leak into tsc / eslint / next build — tsconfig.json and eslint.config.mjs don't exclude the folder)"
   node "$H/harness.mjs" vercel-ok "$WT/vercel.json" || stop "vercel.json on $STATE_BRANCH must disable deployments"
 
+  say "state synced: $(git -C "$WT" log -1 --format='%h %s')"
+  # A held lock stops the run (exit 2) unless it is this session's own: export HARNESS_SESSION=<id>
+  # right after taking the lock, so re-running `state` mid-session still works.
   if [ -f "$WT/$H/session.lock" ]; then
-    say "LOCK HELD:"; sed 's/^/  /' "$WT/$H/session.lock"
+    local owner; owner="$(awk '/^session:/{print $2}' "$WT/$H/session.lock")"
+    if [ -n "$owner" ] && [ "${HARNESS_SESSION:-}" = "$owner" ]; then
+      say "lock: held by this session ($owner)"
+    else
+      say "LOCK HELD:"; sed 's/^/  /' "$WT/$H/session.lock"
+      stop "another session holds the lock (active, or crashed). Do not work; tell Roi. A stale lock is removed only on Roi's word."
+    fi
   else
     say "lock: free"
   fi
-  say "state synced: $(git -C "$WT" log -1 --format='%h %s')"
 }
 
 # ---------------------------------------------------------------- check

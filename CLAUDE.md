@@ -26,6 +26,8 @@
   building it) goes through a Codex review loop: run `codex exec --sandbox read-only` in its **own
   Terminal.app window** so Roi can watch it live (never as a silent background job); fix and
   re-run until it reports `BLOCKING: none`. Verify Codex's claims before acting on them.
+  **The reviewer is always the other agent (Roi, 2026-10-05):** when Codex did the work, Claude
+  Code reviews it, the same way, until `BLOCKING: none`. Nobody reviews its own work.
 - **Merge only on Roi's explicit word for that specific PR.** A green smoke run, a finished review,
   or a request to fix the PR is not permission to merge.
 - Branch naming: `feat/`, `fix/`, `chore/` prefix

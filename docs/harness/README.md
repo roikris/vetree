@@ -31,7 +31,9 @@ The old root `primer.md` is frozen and superseded. History before the harness: `
    + the latest session) and `.harness-state/docs/harness/feature_list.json`.
 5. **Take the lock:** write `.harness-state/docs/harness/session.lock` (session id
    `YYYYMMDD-HHMM-<agent>-<4 random hex>`, agent, start time, item), commit, push.
-   `init.sh state` said LOCK HELD → stop, tell Roi. Push fails → stop; no product work.
+   Then `export HARNESS_SESSION=<id>` so later `init.sh` runs recognise the lock as yours.
+   `init.sh state` stops (exit 2) on any lock that isn't yours → tell Roi. Push fails → stop; no
+   product work.
 6. **Reconcile with GitHub**, for every item with a `pr`: merged → `merged`; closed unmerged →
    `in_progress` or `blocked` with a note; open and `passing` but the PR head ≠ the evidence SHA →
    `in_progress` ("head changed after verification"). GitHub unreachable → note it, change nothing.
@@ -80,7 +82,8 @@ so "local" is never isolated.
 - Run the item's `verification` steps as written. A step with `db_writes: prod` or
   `paid_calls: true` needs Roi's OK **for that item** first; record the approval and its scope in
   the evidence. Never run Playwright as a baseline check.
-- Codex review loop until `BLOCKING: none` (CLAUDE.md). Mark the PR ready once, when done.
+- Review loop by the **other** agent until `BLOCKING: none` (CLAUDE.md): Claude Code worked →
+  Codex reviews; Codex worked → Claude Code reviews. Mark the PR ready once, when done.
 - `passing` = verified on the PR head, evidence recorded (with that SHA). Only Roi merges.
 - After every successful push: update the item's `head_sha`.
 
