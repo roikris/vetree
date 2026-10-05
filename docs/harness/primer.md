@@ -8,7 +8,7 @@ Routine: `docs/harness/README.md` on `main`. Pre-harness primer (frozen): root `
 ---
 
 ## 1. Current Verified State
-*Updated 2026-10-05 — Session 20261005-1625-claude-ea54 (backlog session 001 paused by Roi)*
+*Updated 2026-10-05 — Session 20261005-1638-claude-3439 (harness-002)*
 
 - **Repo root:** `~/dev/vetree` · state worktree: `.harness-state/` (branch `harness-state`)
 - **main:** `5ae7d29` (PR #110 harness rules, merged by Roi 2026-10-05) — last verified: `init.sh check`
@@ -16,10 +16,10 @@ Routine: `docs/harness/README.md` on `main`. Pre-harness primer (frozen): root `
 - **Standard startup:** `docs/harness/init.sh` (state, then check) — see README for exit codes
 - **Standard verification:** `docs/harness/init.sh check [--item <id>]`; build reads production
   Supabase (read-only); never Playwright as a baseline
-- **Highest-priority unfinished item:** none — backlog empty; **Session 001 (backlog with Roi) started, paused by Roi
-  before decisions** — resume it: candidates in §2
+- **Highest-priority unfinished item:** backlog session 001 (paused by Roi) — resume it; harness-002 is
+  `passing` (PR #111 awaits Roi). Candidate B has a deadline: Supabase explicit GRANTs by 2026-10-30.
 - **Current blocker:** none — rollout steps 0–9 done; the harness is live on main
-- **Open PRs awaiting Roi:** none
+- **Open PRs awaiting Roi:** #111 chore(harness) review token budget — draft; checks pass, smoke skipped
 
 ## 2. Open Issues & Known Risks
 - **Lint is red on main:** 178 errors / 75 warnings, never run in CI. Handled by the lint ratchet
@@ -195,6 +195,18 @@ works today was spot-checked in the code on 2026-10-05.
 (Newest first — only the latest 5 are kept here (D11); every entry, older ones included, is in
 `session-log.md`, which is never trimmed.)
 
+### Session 20261005-1638-claude-3439 · 2026-10-05 · Claude Code · harness-002
+- Goal / Completed: Roi's eight review-budget measures (D11): risk tiers + sensitive list, delta
+  rounds, 3-round cap, lean reviewer context (new docs/harness/review-checklist.md), BLOCKING /
+  NON-BLOCKING output, effort levels, primer keeps latest 5 (done: 363 → 234 lines), cost line.
+- Start state: main @ 5ae7d29, clean; state lock free (session 001 paused). An earlier start
+  (20261005-1630-claude-2221) wrongly overwrote session 001's lock and was reverted (a5…/revert commit).
+- Verification: init.sh check GREEN before each commit; PR #111 checks pass (smoke skipped).
+- Review: Codex · tier 2 · 3 rounds · 28.6k / 12.2k / 22.0k tokens · BLOCKING: none (2 blocking fixed).
+- Commits / PR: 3a72897, 93fcf93, 45b510f on chore/harness-review-budget → draft PR #111.
+- Pending Roi approvals: merge of #111; whether to add `init.sh lock`/`unlock` (proposed).
+- Next best step: resume backlog session 001 with Roi.
+
 ### Session 20261005-1625-claude-ea54 · 2026-10-05 · Claude Code · backlog session 001 (paused by Roi)
 - Goal / Completed: started the backlog session with Roi (no product code). Baseline `init.sh check --quick`
   GREEN (quick — build not run) on main @ 5ae7d29. No open PRs or issues; nothing to reconcile.
@@ -226,9 +238,3 @@ works today was spot-checked in the code on 2026-10-05.
   uncommitted edit → exit 2 STOP. Tree verified clean afterwards; branch + item removed.
 - Also: corrected the entry of 20261005-1522-claude-bc31, whose test was invalid (see the correction in session-log).
 - Next best step: short Codex look at efd10fe, then Roi's OK for push + draft PR.
-
-### Session 20261005-1522-claude-bc31 · 2026-10-05 · Claude Code · harness-dryrun-006 — INVALID TEST (corrected)
-- CORRECTION (by 20261005-1525-claude-07f1): this session's test never ran in WIP mode. The edit went to a file that
-  does not exist (lib/utils.ts was created untracked), so no WIP commit was made, wip_sha stayed
-  empty, and both runs were ordinary checks (exit 0 GREEN). The results first written here
-  ("10" and "2") were false. The stray file was removed; the test was re-run properly by 20261005-1525-claude-07f1.

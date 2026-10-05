@@ -66,7 +66,7 @@
       "type": "chore",
       "title": "Review token budget: risk-tiered reviews, delta rounds, 3-round cap, lean reviewer context, concise output, effort levels, primer trim, cost tracking",
       "user_visible_behavior": "none (agent process only)",
-      "status": "in_progress",
+      "status": "passing",
       "verification": [
         {
           "step": "init.sh check GREEN on the branch head",
@@ -83,13 +83,44 @@
           "paid_calls": false
         }
       ],
-      "evidence": [],
+      "evidence": [
+        {
+          "date": "2026-10-05",
+          "session": "20261005-1638-claude-3439",
+          "sha": "45b510f",
+          "command": "docs/harness/init.sh check (before each commit)",
+          "target": "local",
+          "outcome": "pass",
+          "approval": "n/a (build reads prod Supabase, read-only)",
+          "link": "PR #111"
+        },
+        {
+          "date": "2026-10-05",
+          "session": "20261005-1638-claude-3439",
+          "sha": "45b510f",
+          "command": "Codex review tier 2, high effort: r1 full 28.6k (1 blocking) → r2 delta 12.2k (1 blocking) → r3 delta 22.0k BLOCKING: none",
+          "target": "none",
+          "outcome": "pass",
+          "approval": "n/a",
+          "link": "PR #111"
+        },
+        {
+          "date": "2026-10-05",
+          "session": "20261005-1638-claude-3439",
+          "sha": "45b510f",
+          "command": "PR #111 checks: scope pass (docs-only), smoke skipped (run success), Vercel preview ready",
+          "target": "preview",
+          "outcome": "pass",
+          "approval": "n/a",
+          "link": "https://github.com/roikris/vetree/pull/111"
+        }
+      ],
       "branch": "chore/harness-review-budget",
-      "pr": null,
-      "head_sha": null,
+      "pr": 111,
+      "head_sha": "45b510f",
       "wip_sha": null,
       "expected_failures": [],
-      "notes": "Named by Roi 2026-10-05: all 8 measures; sensitive list = auth/session, Supabase writes + migrations, security + secrets, paid AI calls, email sending, harness scripts. Backlog session 001 is paused and still pending. Claimed by 20261005-1638-claude-3439"
+      "notes": "Named by Roi 2026-10-05: all 8 measures; sensitive list = auth/session, Supabase writes + migrations, security + secrets, paid AI calls, email sending, harness scripts. Backlog session 001 is paused and still pending. Claimed by 20261005-1638-claude-3439 · passing on PR head 45b510f; awaits Roi's merge"
     }
   ]
 }

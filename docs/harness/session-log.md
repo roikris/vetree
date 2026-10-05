@@ -174,3 +174,15 @@ Newest at the bottom. The same entries (latest few) appear in primer.md → Rece
 - Known risks / unresolved: candidate B has a deadline (Supabase explicit GRANTs, 2026-10-30).
 - Next best step: resume backlog session 001 with Roi — ask his priorities first, then candidates
   (suggested order B, A, E-proxy, D, F; G parked).
+
+### Session 20261005-1638-claude-3439 · 2026-10-05 · Claude Code · harness-002
+- Goal / Completed: Roi's eight review-budget measures (D11): risk tiers + sensitive list, delta
+  rounds, 3-round cap, lean reviewer context (new docs/harness/review-checklist.md), BLOCKING /
+  NON-BLOCKING output, effort levels, primer keeps latest 5 (done: 363 → 234 lines), cost line.
+- Start state: main @ 5ae7d29, clean; state lock free (session 001 paused). An earlier start
+  (20261005-1630-claude-2221) wrongly overwrote session 001's lock and was reverted (a5…/revert commit).
+- Verification: init.sh check GREEN before each commit; PR #111 checks pass (smoke skipped).
+- Review: Codex · tier 2 · 3 rounds · 28.6k / 12.2k / 22.0k tokens · BLOCKING: none (2 blocking fixed).
+- Commits / PR: 3a72897, 93fcf93, 45b510f on chore/harness-review-budget → draft PR #111.
+- Pending Roi approvals: merge of #111; whether to add `init.sh lock`/`unlock` (proposed).
+- Next best step: resume backlog session 001 with Roi.
