@@ -18,8 +18,8 @@ Routine: `docs/harness/README.md` on `main`. Pre-harness primer (frozen): root `
   Supabase (read-only); never Playwright as a baseline
 - **Highest-priority unfinished item:** none — `feature_list.json` is empty; **Session 001 builds
   the backlog with Roi** (D1)
-- **Current blocker:** harness rollout not finished — steps 6–9 (first push of this branch, Vercel
-  check, dry runs, rules PR) — no ordinary item sessions until the rules PR is merged
+- **Current blocker:** harness rollout not finished — steps 8–9 (dry runs in progress, rules PR);
+  steps 6–7 done 2026-10-05 (branch pushed, Vercel does not deploy it) — no ordinary item sessions until the rules PR is merged
 - **Open PRs awaiting Roi:** none (checked 2026-10-05)
 
 ## 2. Open Issues & Known Risks
@@ -184,6 +184,18 @@ works today was spot-checked in the code on 2026-10-05.
 
 ## 7. Recent Sessions
 (Newest first. Every entry is also in `session-log.md`, which is never trimmed.)
+
+### Session 20261005-0846-claude-b18d · 2026-10-05 · Claude Code · harness-dryrun-001
+- Goal / Completed: rollout dry run (a) — one full routine on a throwaway item: start, lock, claim,
+  quick baseline, evidence, entry, release. All steps worked as written in README.md.
+- Start state: chore/agent-harness @ f5f01b7, clean; state @ 5514fc0, lock free.
+- Verification: `init.sh state` exit 0; `init.sh check --quick --item harness-dryrun-001` GREEN
+  (tsc pass, lint ratchet pass) on f5f01b7.
+- Review: n/a (state-only).
+- Commits / PR: state commits lock → claim → this handoff; no product branch.
+- Pending Roi approvals: none.
+- Known risks / unresolved: item parked as blocked until the dry runs finish.
+- Next best step: dry run (b) — WIP carry-over on a local-only branch.
 
 ### Session 000 · 2026-10-04 → 2026-10-05 · Claude Code · harness rollout (pre-harness)
 - Goal / Completed: designed and built the session harness with Roi. Plan v9 (6 Codex review

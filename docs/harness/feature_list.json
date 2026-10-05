@@ -66,7 +66,7 @@
       "type": "chore",
       "title": "DRY RUN (rollout step 8a) — throwaway, removed after step 8",
       "user_visible_behavior": "none — exercises the session routine only",
-      "status": "in_progress",
+      "status": "blocked",
       "verification": [
         {
           "step": "init.sh state + check --quick pass; lock, claim, entry, release all pushed",
@@ -76,13 +76,24 @@
           "paid_calls": false
         }
       ],
-      "evidence": [],
+      "evidence": [
+        {
+          "date": "2026-10-05",
+          "session": "20261005-0846-claude-b18d",
+          "sha": "f5f01b7",
+          "command": "docs/harness/init.sh state; docs/harness/init.sh check --quick --item harness-dryrun-001",
+          "target": "local",
+          "outcome": "pass",
+          "approval": "n/a (no prod writes, no paid calls)",
+          "link": "session-log.md"
+        }
+      ],
       "branch": "",
       "pr": null,
       "head_sha": null,
       "wip_sha": null,
       "expected_failures": [],
-      "notes": "claimed by 20261005-0846-claude-b18d"
+      "notes": "claimed by 20261005-0846-claude-b18d · dry run done; parked so RESUME FIRST cannot pick it; removed after step 8"
     }
   ]
 }

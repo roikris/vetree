@@ -17,3 +17,15 @@ Newest at the bottom. The same entries (latest few) appear in primer.md → Rece
   access in its sandbox untested (step 8); /tmp was wiped by a reboot on 2026-10-05 — work files
   now in ~/dev/vetree-harness-work/.
 - Next best step: rollout step 5b (isolation re-check), then step 6 with Roi's OK.
+
+### Session 20261005-0846-claude-b18d · 2026-10-05 · Claude Code · harness-dryrun-001
+- Goal / Completed: rollout dry run (a) — one full routine on a throwaway item: start, lock, claim,
+  quick baseline, evidence, entry, release. All steps worked as written in README.md.
+- Start state: chore/agent-harness @ f5f01b7, clean; state @ 5514fc0, lock free.
+- Verification: `init.sh state` exit 0; `init.sh check --quick --item harness-dryrun-001` GREEN
+  (tsc pass, lint ratchet pass) on f5f01b7.
+- Review: n/a (state-only).
+- Commits / PR: state commits lock → claim → this handoff; no product branch.
+- Pending Roi approvals: none.
+- Known risks / unresolved: item parked as blocked until the dry runs finish.
+- Next best step: dry run (b) — WIP carry-over on a local-only branch.
