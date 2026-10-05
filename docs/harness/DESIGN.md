@@ -13,7 +13,7 @@ history. The routine itself is in [README.md](README.md). Decisions D1–D9 and 
 | 2 | Measure baseline (tsc / lint / build, clean checkout) | ✅ 2026-10-04 at 16c25da (Appendix A) → D9 |
 | 3 | Primer fact inventory + history draft, approved by Roi | ✅ 2026-10-05 (POINTERS chosen) |
 | 4 | Rules files on `chore/agent-harness` (this commit) | ✅ 2026-10-05, branch rebased on 60e658d (#109); lint baseline 178 errors / 71 entries unchanged |
-| 5 | Build the orphan `harness-state` branch locally; 5b re-check isolation | ⬜ |
+| 5 | Build the orphan `harness-state` branch locally; 5b re-check isolation | ✅ 2026-10-05 — `harness-state` @ 5514fc0 (local only; git 2.39 → `worktree add --detach` + `switch --orphan`); 5b: check GREEN with the folder populated, eslint 0 files from it, tsc/build never mention it |
 | 6 | First push of `harness-state` — **asks Roi** | ⬜ |
 | 7 | Prove Vercel does not deploy `harness-state` | ⬜ |
 | 8 | Dry runs a–d (Claude Code, then Codex) | ⬜ |
