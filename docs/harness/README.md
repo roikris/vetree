@@ -72,9 +72,14 @@ current HEAD counts.
 |---|---|---|
 | GREEN (0) | tsc, lint ratchet and build pass (`GREEN (quick — build not run)` with `--quick`: say so in evidence) | work |
 | POSSIBLE TRANSIENT (3) | tsc + lint passed and the build failed with the known Supabase/network signature | re-run once; exit 3 again → treat as RED |
-| EXPECTED-WIP (10) | HEAD is the item's `wip_sha` (the build is then skipped), every failed check — tsc or lint only — left parsed signatures, and every failure matches its `expected_failures`. A failed **build** is never expected. | continue the item |
+| EXPECTED-WIP (10) | WIP mode — HEAD is the item's `wip_sha`, a `WIP (build red):` commit, on the item's branch (anything inconsistent → STOP). The build is skipped; tsc + lint are clean, or every failure they report left parsed signatures matching `expected_failures`. **Never GREEN:** the build did not run. A failed build is never expected. | continue the item; a normal commit still needs GREEN |
 | RED / REGRESSION (1) | anything else — a failure this session didn't cause | record it, release the lock, tell Roi; fixing it becomes an item only with Roi's OK |
 | STOP (2) | needs a human (lock, unpushed state, wrong worktree…) | read the message, tell Roi |
+
+How failures are compared: a tsc continuation line is appended to the diagnostic above it, so
+extra text (e.g. an indented stack frame) changes that signature and no longer matches; a line
+that can't be attached (stray text, a continuation with nothing above it), or an unusual tsc exit
+code, makes the whole tsc result unparsed — which never matches either.
 
 Lint is a **ratchet** (D9): `lint-baseline.json` lists the known errors per file + rule; only
 errors above those counts fail. A PR that fixes lint errors shrinks the file in the same PR

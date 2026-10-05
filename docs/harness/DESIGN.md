@@ -4,6 +4,21 @@ This is the reviewed plan the harness was built from (plan v9: six Codex review 
 `BLOCKING: none`), kept in the repo so the rollout and every decision survive without chat
 history. The routine itself is in [README.md](README.md). Decisions D1–D9 and Q1–Q3 are Roi's.
 
+## Changed during step 9 (supersedes the plan text below where they differ)
+- **A failed build is never an expected WIP failure** (Codex diff review rounds 1–3: build logs are
+  open-ended, keyword parsing kept leaking). `classify` rejects any failed build; build signatures
+  are informational only.
+- **WIP mode** (`check --item`): only when HEAD == the item's `wip_sha` AND HEAD is a
+  `WIP (build red):` commit AND the current branch is the item's branch; a matching SHA with
+  anything else inconsistent stops (exit 2) (round 4). The build is skipped; tsc + lint decide; the
+  result is EXPECTED-WIP (10), never GREEN. The next normal commit still needs a GREEN build.
+- **WIP handoff** records tsc + lint signatures with `init.sh check --quick` (not the full check).
+- **tsc parsing is strict:** continuation lines are appended to the diagnostic above; stray lines,
+  orphan continuations or an unusual tsc exit code → unparsed.
+- **Fail-closed evidence:** every failed check must leave parsed, non-empty signatures; ESLint exit ≥ 2
+  or missing JSON → unparsed; transient (exit 3) only for the real sitemap/network error lines and
+  only when tsc + lint passed; a second exit 3 = RED.
+
 ## Rollout checklist
 
 | Step | What | Status |

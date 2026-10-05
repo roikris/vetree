@@ -158,10 +158,22 @@ cmd_check() {
   # On the item's recorded WIP commit the build is skipped: it is red by design, and a build failure
   # can never be an expected one — tsc + lint decide (DESIGN.md, step 9). The next normal commit
   # still needs a GREEN build.
+  # WIP mode needs ALL of: HEAD == the item's wip_sha, HEAD's subject starts "WIP (build red):",
+  # and the current branch is the item's branch. A matching SHA with anything else inconsistent
+  # stops (exit 2) — a wrong or hand-set wip_sha must never skip the build on an ordinary commit.
   local wipmode=0
   if [ -n "$item" ] && [ -f "$WT/$H/feature_list.json" ]; then
-    local wsha; wsha="$(node -e 'const f=require(process.argv[1]).features||[];const it=f.find(x=>x.id===process.argv[2]);process.stdout.write((it&&it.wip_sha)||"")' "$WT/$H/feature_list.json" "$item")"
-    [ -n "$wsha" ] && [ "$wsha" = "$(git rev-parse HEAD)" ] && wipmode=1
+    local wsha wbranch; wsha="$(node -e 'const f=require(process.argv[1]).features||[];const it=f.find(x=>x.id===process.argv[2]);process.stdout.write((it&&it.wip_sha)||"")' "$WT/$H/feature_list.json" "$item")"
+    wbranch="$(node -e 'const f=require(process.argv[1]).features||[];const it=f.find(x=>x.id===process.argv[2]);process.stdout.write((it&&it.branch)||"")' "$WT/$H/feature_list.json" "$item")"
+    if [ -n "$wsha" ] && [ "$wsha" = "$(git rev-parse HEAD)" ]; then
+      case "$(git log -1 --format=%s HEAD)" in
+        "WIP (build red):"*) ;;
+        *) stop "$item's wip_sha is HEAD, but HEAD is not a 'WIP (build red): …' commit — inconsistent WIP record; tell Roi" ;;
+      esac
+      [ -n "$wbranch" ] && [ "$wbranch" = "$(git branch --show-current)" ] \
+        || stop "$item's wip_sha is HEAD, but the current branch '$(git branch --show-current)' is not the item's branch '$wbranch' — inconsistent WIP record; tell Roi"
+      wipmode=1
+    fi
   fi
   deps
   head_ "Checks on $(git branch --show-current || echo detached) @ $(git rev-parse --short HEAD)"
@@ -218,9 +230,12 @@ cmd_check() {
   fi
 
   head_ "Result"
+  if [ $red = 0 ] && [ $wipmode = 1 ]; then
+    say "EXPECTED-WIP: tsc + lint clean on $item's recorded WIP commit — build NOT run (this is never GREEN)"
+    return 10
+  fi
   if [ $red = 0 ]; then
-    if [ $wipmode = 1 ]; then say "GREEN on tsc + lint (recorded WIP — build not run)"
-    elif [ $quick = 1 ]; then say "GREEN (quick — build not run)"
+    if [ $quick = 1 ]; then say "GREEN (quick — build not run)"
     else say "GREEN"; fi
     return 0
   fi
