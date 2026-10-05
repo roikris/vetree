@@ -9,16 +9,18 @@ full-diff round cost 85k–190k during the rollout, so fewer, better-aimed round
 
 | Tier | When | Review |
 |---|---|---|
-| **0 — none** | `harness-state` commits (CLAUDE.md exception 1); typo / wording-only doc edits | none |
+| **0 — none** | `harness-state` commits (CLAUDE.md exception 1); typo / formatting fixes that cannot change meaning, **never in a sensitive file** | none |
 | **1 — light** | small change (≈ under 150 changed lines) touching **no** sensitive area | **one** focused round, `model_reasoning_effort="medium"`; a second round only if round 1 reports BLOCKING |
 | **2 — full** | **any** sensitive area (list below), whatever the size | loop until `BLOCKING: none`, `model_reasoning_effort="high"`, **max 3 rounds** |
+| **2 — full, medium effort** | a large change (≈ 150+ changed lines) touching **no** sensitive area | loop until `BLOCKING: none`, `model_reasoning_effort="medium"`, **max 3 rounds** |
 
 **Sensitive areas** (Roi, 2026-10-05): auth / sessions · Supabase writes and migrations
 (`supabase/migrations/**`, `.insert/.update/.upsert/.delete`, RPCs that write) · security and
 secrets (env vars, `security-acknowledged.json`, headers, rate limits) · paid AI calls (anything
 calling Claude or another model) · email sending (Resend, digest) · the harness itself
-(`docs/harness/init.sh`, `harness.mjs`, `AGENTS.md`, the harness parts of CLAUDE.md).
-Unsure → treat it as sensitive.
+and every rule or policy document: `CLAUDE.md`, `app/api/CLAUDE.md`, `supabase/CLAUDE.md`,
+`AGENTS.md`, and everything under `docs/harness/` (scripts, README, this checklist, DESIGN).
+**A sensitive area always overrides tiers 0 and 1.** Unsure → treat it as sensitive.
 
 ## 2. Rounds
 
@@ -38,7 +40,8 @@ touches** (by heading). Do not ask a reviewer to read all three CLAUDE.md files 
 
 The critical rules in one line each — the full text is in CLAUDE.md under the same number:
 
-0. Every Claude call uses `CLAUDE_MODEL` from `lib/ai/model.ts` (Sonnet 4.6); never Haiku.
+0. Every Claude call uses `CLAUDE_MODEL` from `lib/ai/model.ts` (Sonnet 4.6); never Haiku. Exception:
+   `scripts/*.mjs` and `.github/workflows/scripts/*.js` can't import TS and repeat the same model ID.
 1. API routes export `runtime = 'nodejs'`, `dynamic = 'force-dynamic'`, `maxDuration` for heavy work.
 2. SDK / Supabase clients are created **inside** the handler, never at module level.
 3. Admin routes use the service-role key.
@@ -53,7 +56,8 @@ The critical rules in one line each — the full text is in CLAUDE.md under the 
 11. Server code never imports `@/lib/supabase/client`.
 12. Save / unsave goes through `fetch('/api/save-article')`, not a server action.
 13. Rate limiting is a no-op outside production only; production fails loud.
-14. 3 fixes to one area in 7 days → rebuild-vs-patch assessment for Roi first.
+14. 3 fixes to one area in 7 days → before a 4th patch, present the rebuild-vs-patch assessment and
+    get Roi's explicit go-ahead on the chosen path.
 15. Schema changes only as migration files; `db push` needs Roi's yes.
 16. `security-acknowledged.json` changes only with Roi's sign-off.
 Also: never log emails or pass user text / request bodies to Sentry; the CLAUDE.md branch / PR /

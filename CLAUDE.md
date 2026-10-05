@@ -29,10 +29,10 @@
   worked → Claude Code reviews, the same way. Fix and re-run until the reviewer reports
   `BLOCKING: none`. Verify the reviewer's claims before acting on them. Nobody reviews its own work.
   **Review depth follows risk (D11, Roi 2026-10-05) — `docs/harness/review-checklist.md`:** tier 0
-  (state commits, typo-only docs) none; tier 1 (small, no sensitive area) one focused round at
+  (state commits; typo/formatting fixes that can't change meaning, never in a sensitive file) none; tier 1 (small, no sensitive area) one focused round at
   medium effort; tier 2 (auth/sessions, Supabase writes + migrations, security + secrets, paid AI
-  calls, email sending, the harness) full loop at high effort, **max 3 rounds** — then stop and ask
-  Roi. Round 2+ reviews only the delta since the last reviewed commit. Reviewers get the diff, the
+  calls, email sending, the harness and every rule/policy document) full loop at high effort, **max
+  3 rounds** — then stop and ask Roi; a sensitive area always overrides tiers 0 and 1. Round 2+ reviews only the delta since the last reviewed commit. Reviewers get the diff, the
   checklist and only the relevant CLAUDE.md sections; output is BLOCKING / NON-BLOCKING only.
 - **Merge only on Roi's explicit word for that specific PR.** A green smoke run, a finished review,
   or a request to fix the PR is not permission to merge.
