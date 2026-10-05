@@ -185,6 +185,13 @@ works today was spot-checked in the code on 2026-10-05.
 ## 7. Recent Sessions
 (Newest first. Every entry is also in `session-log.md`, which is never trimmed.)
 
+### Session 20261005-0939-claude-c7de · 2026-10-05 · Claude Code · (none)
+- Goal / Completed: dry run (c1) — controlled stop. Nothing pickable (only parked dry-run items,
+  all blocked) → per README: ask Roi; short entry + lock released.
+- Start state: state @ 70981e8, lock free before this session.
+- Verification: n/a · Review: n/a · Commits / PR: state only · Pending Roi approvals: none.
+- Next best step: dry run (c2) — crash with the lock held.
+
 ### Session 20261005-0857-claude-7453 · 2026-10-05 · Claude Code · harness-dryrun-002
 - Goal / Completed: dry run (b) part 2 — a NEW session resumed the red WIP. RESUME FIRST picked
   the item; `init.sh check --item` (full) → EXPECTED-WIP (exit 10), incl. failures in files the WIP
