@@ -186,3 +186,5 @@ Newest at the bottom. The same entries (latest few) appear in primer.md → Rece
 - Commits / PR: 3a72897, 93fcf93, 45b510f on chore/harness-review-budget → draft PR #111.
 - Pending Roi approvals: merge of #111; whether to add `init.sh lock`/`unlock` (proposed).
 - Next best step: resume backlog session 001 with Roi.
+
+- CORRECTION to the entry above (session 20261005-1638-claude-3439): "(a5…/revert commit)" means revert commit 52fed24.

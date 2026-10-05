@@ -200,7 +200,7 @@ works today was spot-checked in the code on 2026-10-05.
   rounds, 3-round cap, lean reviewer context (new docs/harness/review-checklist.md), BLOCKING /
   NON-BLOCKING output, effort levels, primer keeps latest 5 (done: 363 → 234 lines), cost line.
 - Start state: main @ 5ae7d29, clean; state lock free (session 001 paused). An earlier start
-  (20261005-1630-claude-2221) wrongly overwrote session 001's lock and was reverted (a5…/revert commit).
+  (20261005-1630-claude-2221) wrongly overwrote session 001's lock and was reverted (revert commit 52fed24).
 - Verification: init.sh check GREEN before each commit; PR #111 checks pass (smoke skipped).
 - Review: Codex · tier 2 · 3 rounds · 28.6k / 12.2k / 22.0k tokens · BLOCKING: none (2 blocking fixed).
 - Commits / PR: 3a72897, 93fcf93, 45b510f on chore/harness-review-budget → draft PR #111.
