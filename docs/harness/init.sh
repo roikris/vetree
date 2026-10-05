@@ -165,7 +165,7 @@ cmd_check() {
   fi
   deps
   head_ "Checks on $(git branch --show-current || echo detached) @ $(git rev-parse --short HEAD)"
-  [ $quick = 1 ] || say "effects: next build READS production Supabase (sitemap, static article pages) — it writes nothing"
+  { [ $quick = 1 ] || [ $wipmode = 1 ]; } || say "effects: next build READS production Supabase (sitemap, static article pages) — it writes nothing"
   rm -f "$LOGDIR"/*.sigs.json "$LOGDIR/failed-checks" "$LOGDIR/lint.json"
   local red=0 transient=0 tsc_red=0 lint_red=0
 
