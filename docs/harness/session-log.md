@@ -132,3 +132,8 @@ Newest at the bottom. The same entries (latest few) appear in primer.md → Rece
   GREEN'; (3) wip_sha on a normal commit → STOP 2; (4) right WIP commit on the wrong branch → STOP 2.
   Local-only branches deleted; item removed.
 - Next best step: Codex review round 5 of the rules diff.
+
+### Session 20261005-1522-claude-bc31 · 2026-10-05 · Claude Code · harness-dryrun-006
+- Goal / Completed: step 9 test of efd10fe (Codex round 5, non-blocking): clean WIP commit →
+  EXPECTED-WIP (10); the same WIP with an uncommitted edit → STOP (2). Branch + item removed.
+- Next best step: short Codex look at efd10fe, then Roi's OK for push + draft PR.

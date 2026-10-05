@@ -186,6 +186,11 @@ works today was spot-checked in the code on 2026-10-05.
 ## 7. Recent Sessions
 (Newest first. Every entry is also in `session-log.md`, which is never trimmed.)
 
+### Session 20261005-1522-claude-bc31 · 2026-10-05 · Claude Code · harness-dryrun-006
+- Goal / Completed: step 9 test of efd10fe (Codex round 5, non-blocking): clean WIP commit →
+  EXPECTED-WIP (10); the same WIP with an uncommitted edit → STOP (2). Branch + item removed.
+- Next best step: short Codex look at efd10fe, then Roi's OK for push + draft PR.
+
 ### Session 20261005-1509-claude-a914 · 2026-10-05 · Claude Code · harness-dryrun-005
 - Goal / Completed: step 9 test of the WIP-mode gate (Codex diff review round 4): (1) real WIP with
   recorded tsc errors → EXPECTED-WIP 10; (2) WIP commit, tsc + lint clean → EXPECTED-WIP 10 'never
