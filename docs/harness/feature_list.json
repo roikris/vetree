@@ -237,6 +237,31 @@
         }
       ],
       "notes": "LOCAL-ONLY branch (never pushed: a push would trigger a Vercel preview). Claimed by 20261005-0849-claude-f6ca · WIP commit 4e4a2e1 (local only); expected_failures recorded by 20261005-0849-claude-f6ca · dry run (b) done by 20261005-0857-claude-7453; parked; removed after step 8 · 20261005-0943-claude-9a55: branch chore/harness-dryrun lost → recovered as chore/harness-dryrun-recovered-20261005 at head_sha (old name kept here)"
+    },
+    {
+      "id": "harness-dryrun-003",
+      "priority": 902,
+      "area": "harness",
+      "type": "chore",
+      "title": "DRY RUN (rollout step 8e) — Codex worker; throwaway, removed after step 8",
+      "user_visible_behavior": "",
+      "status": "in_progress",
+      "verification": [
+        {
+          "step": "init.sh check --quick --item harness-dryrun-003 GREEN",
+          "target": "local",
+          "db_reads": "none",
+          "db_writes": "none",
+          "paid_calls": false
+        }
+      ],
+      "evidence": [],
+      "branch": "",
+      "pr": null,
+      "head_sha": null,
+      "wip_sha": null,
+      "expected_failures": [],
+      "notes": "claimed by 20261005-1251-codex-23ce"
     }
   ]
 }
