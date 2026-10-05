@@ -185,6 +185,13 @@ works today was spot-checked in the code on 2026-10-05.
 ## 7. Recent Sessions
 (Newest first. Every entry is also in `session-log.md`, which is never trimmed.)
 
+### Session 20261005-0942-claude-3602 · 2026-10-05 · Claude Code · (failed push)
+- Goal / Completed: dry run (c3) — lock push sent to an unreachable URL failed (exit 128); the
+  local commit survived; the next `init.sh state` stopped (exit 2) listing the unpushed commit and
+  the remote lock (none). README recovery (fetch → inspect → remote lock check → pull --rebase →
+  push) recovered it. Then this controlled stop: entry + release.
+- Next best step: dry run (c4) — lost-branch recovery.
+
 ### Session 20261005-0940-claude-a6fa · 2026-10-05 · Claude Code · (simulated crash)
 - Goal / Completed: dry run (c2) — took the lock and 'crashed' (no handoff). The next start
   printed LOCK HELD but exited 0 → fixed (95f3413): `init.sh state` now exits 2 on a lock that

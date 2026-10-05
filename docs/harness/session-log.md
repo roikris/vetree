@@ -71,3 +71,10 @@ Newest at the bottom. The same entries (latest few) appear in primer.md → Rece
 - Stale lock removed after the test under Roi's approval of dry run (c) (2026-10-05) — a test lock,
   not a real session's.
 - Next best step: dry run (c3) — failed state push.
+
+### Session 20261005-0942-claude-3602 · 2026-10-05 · Claude Code · (failed push)
+- Goal / Completed: dry run (c3) — lock push sent to an unreachable URL failed (exit 128); the
+  local commit survived; the next `init.sh state` stopped (exit 2) listing the unpushed commit and
+  the remote lock (none). README recovery (fetch → inspect → remote lock check → pull --rebase →
+  push) recovered it. Then this controlled stop: entry + release.
+- Next best step: dry run (c4) — lost-branch recovery.
