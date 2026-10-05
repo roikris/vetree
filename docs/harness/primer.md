@@ -8,7 +8,7 @@ Routine: `docs/harness/README.md` on `main`. Pre-harness primer (frozen): root `
 ---
 
 ## 1. Current Verified State
-*Updated 2026-10-05 — Session 20261005-1621-claude-4de2 (rules PR #110 merged)*
+*Updated 2026-10-05 — Session 20261005-1625-claude-ea54 (backlog session 001 paused by Roi)*
 
 - **Repo root:** `~/dev/vetree` · state worktree: `.harness-state/` (branch `harness-state`)
 - **main:** `5ae7d29` (PR #110 harness rules, merged by Roi 2026-10-05) — last verified: `init.sh check`
@@ -16,7 +16,8 @@ Routine: `docs/harness/README.md` on `main`. Pre-harness primer (frozen): root `
 - **Standard startup:** `docs/harness/init.sh` (state, then check) — see README for exit codes
 - **Standard verification:** `docs/harness/init.sh check [--item <id>]`; build reads production
   Supabase (read-only); never Playwright as a baseline
-- **Highest-priority unfinished item:** none — backlog empty; **Session 001 builds the backlog with Roi** (D1)
+- **Highest-priority unfinished item:** none — backlog empty; **Session 001 (backlog with Roi) started, paused by Roi
+  before decisions** — resume it: candidates in §2
 - **Current blocker:** none — rollout steps 0–9 done; the harness is live on main
 - **Open PRs awaiting Roi:** none
 
@@ -37,8 +38,18 @@ Routine: `docs/harness/README.md` on `main`. Pre-harness primer (frozen): root `
 - **AI model revisit ~2026-11-01:** Sonnet 4.6 for every call; Sonnet 5.5 was reverted (~1.46x
   tokens). One line in `lib/ai/model.ts` + the three scripts.
 
-### Backlog candidates for Session 001 (not items yet — Roi decides)
-Lint cleanup (incl. the three possible bugs above; narrow lint scope) · build warnings above.
+### Backlog candidates for Session 001 (not items yet — Roi decides; presented 2026-10-05, paused)
+- **A (fix)** Feed header "new this week" count (`app/page.tsx:91`): no quarantine/summary filter (counts hidden
+  articles), no upper bound (future-dated preprints count forever), uses `publication_date` not `created_at`.
+- **B (investigation, deadline 2026-10-30)** Supabase explicit-GRANT enforcement (supabase/CLAUDE.md): only 22 of 72
+  migrations contain a GRANT — check whether existing tables are affected. Suggested priority 1.
+- **C** the three "possible bugs" in lint look benign (hoisting; Onboarding arrow remounts each render;
+  `Date.now()` in a server component) → fold into D.
+- **D (chore)** lint cleanup: narrow scope, shrink the baseline.
+- **E (chore)** build warnings — `middleware` → `proxy` is the one that matters.
+- **F (docs)** tick DESIGN.md step 9 in the next rules PR.
+- **G** AI model revisit ~2026-11-01 — park with the date.
+Suggested order: B, A, E (proxy), D, F; G parked. Roi's own product priorities come first.
 
 ## 3. Hard-Won Lessons (only recorded here)
 - **Navigation after an unsave must wait for the API response:**
@@ -182,6 +193,18 @@ works today was spot-checked in the code on 2026-10-05.
 
 ## 7. Recent Sessions
 (Newest first. Every entry is also in `session-log.md`, which is never trimmed.)
+
+### Session 20261005-1625-claude-ea54 · 2026-10-05 · Claude Code · backlog session 001 (paused by Roi)
+- Goal / Completed: started the backlog session with Roi (no product code). Baseline `init.sh check --quick`
+  GREEN (quick — build not run) on main @ 5ae7d29. No open PRs or issues; nothing to reconcile.
+  Presented candidates A–G (see primer §2, "Backlog candidates"); Roi paused before deciding.
+- Start state: main @ 5ae7d29, clean; state @ 829f0cf, lock free.
+- Verification: n/a (no item) · Review: n/a (state only) · Commits / PR: state only.
+- Pending Roi approvals: his own product priorities; which candidates become items + order;
+  per item, whether prod DB writes / paid calls are allowed.
+- Known risks / unresolved: candidate B has a deadline (Supabase explicit GRANTs, 2026-10-30).
+- Next best step: resume backlog session 001 with Roi — ask his priorities first, then candidates
+  (suggested order B, A, E-proxy, D, F; G parked).
 
 ### Session 20261005-1621-claude-4de2 · 2026-10-05 · Claude Code · rollout step 9 (merge)
 - Goal / Completed: Roi approved the merge; #110 marked ready (smoke skipped, docs-only; run

@@ -162,3 +162,15 @@ Newest at the bottom. The same entries (latest few) appear in primer.md → Rece
   success on b899862), squash-merged as 5ae7d29. Local checkout on main @ 5ae7d29.
 - Note: DESIGN.md's step-9 row still says "Merge: on Roi's word" — tick it in the next rules PR.
 - Next best step: Session 001 — build the backlog with Roi (init.sh check --quick; no product code).
+
+### Session 20261005-1625-claude-ea54 · 2026-10-05 · Claude Code · backlog session 001 (paused by Roi)
+- Goal / Completed: started the backlog session with Roi (no product code). Baseline `init.sh check --quick`
+  GREEN (quick — build not run) on main @ 5ae7d29. No open PRs or issues; nothing to reconcile.
+  Presented candidates A–G (see primer §2, "Backlog candidates"); Roi paused before deciding.
+- Start state: main @ 5ae7d29, clean; state @ 829f0cf, lock free.
+- Verification: n/a (no item) · Review: n/a (state only) · Commits / PR: state only.
+- Pending Roi approvals: his own product priorities; which candidates become items + order;
+  per item, whether prod DB writes / paid calls are allowed.
+- Known risks / unresolved: candidate B has a deadline (Supabase explicit GRANTs, 2026-10-30).
+- Next best step: resume backlog session 001 with Roi — ask his priorities first, then candidates
+  (suggested order B, A, E-proxy, D, F; G parked).
