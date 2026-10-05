@@ -43,3 +43,16 @@ Newest at the bottom. The same entries (latest few) appear in primer.md → Rece
 - Known risks / unresolved: internet paused — this handoff is committed locally and pushed when
   the connection returns.
 - Next best step: dry run (b) part 2 — a new session must resume via EXPECTED-WIP.
+
+### Session 20261005-0857-claude-7453 · 2026-10-05 · Claude Code · harness-dryrun-002
+- Goal / Completed: dry run (b) part 2 — a NEW session resumed the red WIP. RESUME FIRST picked
+  the item; `init.sh check --item` (full) → EXPECTED-WIP (exit 10), incl. failures in files the WIP
+  never touched. Must-stop cases all stopped (exit 1): (i) one failure missing from the record,
+  (ii) HEAD moved past wip_sha, (iii) unparseable build log (synthetic).
+- Start state: chore/agent-harness @ d4242f0; state @ e472823, lock free.
+- Verification: as above, on WIP 4e4a2e1 (local-only branch).
+- Review: n/a (state-only).
+- Commits / PR: state only.
+- Pending Roi approvals: none.
+- Known risks / unresolved: (iii) used a synthetic log — a real unparseable build can't be forced.
+- Next best step: dry run (c) — controlled stop, crash, failed push, lost branch.

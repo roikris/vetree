@@ -102,7 +102,7 @@
       "type": "chore",
       "title": "DRY RUN (rollout step 8b) — WIP carry-over; throwaway, removed after step 8",
       "user_visible_behavior": "none",
-      "status": "in_progress",
+      "status": "blocked",
       "verification": [
         {
           "step": "resume via EXPECTED-WIP; unrecorded error / wrong SHA / unparsed failure must stop",
@@ -112,7 +112,48 @@
           "paid_calls": false
         }
       ],
-      "evidence": [],
+      "evidence": [
+        {
+          "date": "2026-10-05",
+          "session": "20261005-0857-claude-7453",
+          "sha": "4e4a2e1",
+          "command": "init.sh check --item harness-dryrun-002 (full) → exit 10 EXPECTED-WIP",
+          "target": "local",
+          "outcome": "pass",
+          "approval": "n/a",
+          "link": "session-log.md"
+        },
+        {
+          "date": "2026-10-05",
+          "session": "20261005-0857-claude-7453",
+          "sha": "4e4a2e1",
+          "command": "(i) one recorded failure removed → exit 1 REGRESSION",
+          "target": "local",
+          "outcome": "pass",
+          "approval": "n/a",
+          "link": "session-log.md"
+        },
+        {
+          "date": "2026-10-05",
+          "session": "20261005-0857-claude-7453",
+          "sha": "4e4a2e1",
+          "command": "(ii) HEAD moved past wip_sha → exit 1 REGRESSION",
+          "target": "local",
+          "outcome": "pass",
+          "approval": "n/a",
+          "link": "session-log.md"
+        },
+        {
+          "date": "2026-10-05",
+          "session": "20261005-0857-claude-7453",
+          "sha": "4e4a2e1",
+          "command": "(iii) synthetic unparseable build log → exit 1 REGRESSION",
+          "target": "local",
+          "outcome": "pass",
+          "approval": "n/a",
+          "link": "session-log.md"
+        }
+      ],
       "branch": "chore/harness-dryrun",
       "pr": null,
       "head_sha": "4e4a2e18ec73d4d50a359dc0d3ab085f0627af2f",
@@ -185,7 +226,7 @@
           "message": "Argument of type 'number' is not assignable to parameter of type 'string'."
         }
       ],
-      "notes": "LOCAL-ONLY branch (never pushed: a push would trigger a Vercel preview). Claimed by 20261005-0849-claude-f6ca · WIP commit 4e4a2e1 (local only); expected_failures recorded by 20261005-0849-claude-f6ca"
+      "notes": "LOCAL-ONLY branch (never pushed: a push would trigger a Vercel preview). Claimed by 20261005-0849-claude-f6ca · WIP commit 4e4a2e1 (local only); expected_failures recorded by 20261005-0849-claude-f6ca · dry run (b) done by 20261005-0857-claude-7453; parked; removed after step 8"
     }
   ]
 }
