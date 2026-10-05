@@ -1,0 +1,42 @@
+{
+  "project": "vetree",
+  "last_updated": "2026-10-05",
+  "rules": {
+    "single_active_feature": true,
+    "passing_requires_evidence": true,
+    "passing_evidence_carries_pr_head_sha": true,
+    "never_edit_to_hide_unfinished_work": true,
+    "prod_writes_or_paid_calls_need_roi_ok_per_item": true
+  },
+  "status_legend": {
+    "not_started": "In the backlog, untouched.",
+    "in_progress": "The one item being worked on (claimed in this file before any product work).",
+    "blocked": "Cannot continue; the reason is in notes (incl. 'paused by Roi for <id>').",
+    "passing": "Verified on the PR head; evidence recorded with that SHA; PR awaits Roi.",
+    "merged": "Roi merged the PR (detected at session start)."
+  },
+  "item_template": {
+    "id": "area-001",
+    "priority": 1,
+    "area": "",
+    "type": "feature | fix | chore | investigation",
+    "title": "",
+    "user_visible_behavior": "",
+    "status": "not_started",
+    "verification": [
+      { "step": "", "target": "local | preview | production | none", "db_reads": "none | prod", "db_writes": "none | prod", "paid_calls": false }
+    ],
+    "evidence": [
+      { "date": "", "session": "", "sha": "", "command": "", "target": "", "outcome": "pass | fail", "approval": "", "link": "" }
+    ],
+    "branch": "",
+    "pr": null,
+    "head_sha": null,
+    "wip_sha": null,
+    "expected_failures": [
+      { "check": "tsc | lint | build", "file": null, "code": null, "message": null }
+    ],
+    "notes": ""
+  },
+  "features": []
+}
