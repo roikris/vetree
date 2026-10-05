@@ -82,24 +82,25 @@ function lintCompare(eslintJson, root, baselinePath, sigsOut) {
 }
 
 // tsc:   app/x.tsx(12,5): error TS2322: message
-// build: ./app/x.tsx:12:5  followed by  Type error: message   — or a bare "Error: ..." line.
+// build: Next 16 prints the same tsc lines (then "Failed to type check."); older Next printed
+//        ./app/x.tsx:12:5 followed by "Type error: message"; plus bare "Error: ..." lines.
+// Colour codes are stripped first. Line/column numbers are never part of a signature.
 function signatures(check, log, out) {
-  const lines = existsSync(log) ? readFileSync(log, 'utf8').split('\n') : []
+  // Strip ANSI colour codes.
+  const raw = existsSync(log) ? readFileSync(log, 'utf8').replace(/\x1b\[[0-9;]*m/g, '') : ''
+  const lines = raw.split('\n')
   const failures = []
-  if (check === 'tsc') {
-    for (const l of lines) {
-      const m = l.match(/^(.+?)\(\d+,\d+\): error (TS\d+): (.*)$/)
-      if (m) failures.push({ check, file: m[1], code: m[2], message: norm(m[3]) })
-    }
-  } else {
-    for (let i = 0; i < lines.length; i++) {
-      const loc = lines[i].match(/^\.\/(\S+?):\d+:\d+\s*$/)
-      const next = lines[i + 1] ?? ''
-      if (loc && /^Type error:/.test(next)) {
-        failures.push({ check, file: loc[1], code: 'type-error', message: norm(next.replace(/^Type error:/, '')) })
-      } else if (/^(Error|Failed to compile|Build error occurred)\b/.test(lines[i])) {
-        failures.push({ check, file: null, code: null, message: norm(lines[i]) })
-      }
+  for (let i = 0; i < lines.length; i++) {
+    const l = lines[i]
+    const ts = l.match(/^(.+?)\(\d+,\d+\): error (TS\d+): (.*)$/)
+    if (ts) { failures.push({ check, file: ts[1], code: ts[2], message: norm(ts[3]) }); continue }
+    if (check === 'tsc') continue
+    const loc = l.match(/^\.\/(\S+?):\d+:\d+\s*$/)
+    const next = lines[i + 1] ?? ''
+    if (loc && /^Type error:/.test(next)) {
+      failures.push({ check, file: loc[1], code: 'type-error', message: norm(next.replace(/^Type error:/, '')) })
+    } else if (/^(Error|Failed to compile|Failed to type check|Build error occurred)\b/.test(l)) {
+      failures.push({ check, file: null, code: null, message: norm(l) })
     }
   }
   writeJson(out, { check, unparsed: failures.length === 0, failures })
