@@ -9,7 +9,7 @@
 //   node docs/harness/harness.mjs vercel-ok <vercel.json>
 import { createHash } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
-import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, relative } from 'node:path'
 
 const [cmd, ...args] = process.argv.slice(2)
@@ -60,8 +60,14 @@ function lintBaseline(eslintJson, root, out) {
 }
 
 // Fails on any file+rule above its baseline count; reports entries that shrank.
+// Exit 0 = no new errors, 1 = new errors (signatures written), 2 = could not compare (unparsed).
 function lintCompare(eslintJson, root, baselinePath, sigsOut) {
-  const now = lintCounts(eslintJson, root)
+  let now
+  try { now = lintCounts(eslintJson, root) } catch (e) {
+    writeJson(sigsOut, { check: 'lint', unparsed: true, failures: [] })
+    console.log(`  lint: could not read ESLint JSON (${e.message}) — UNPARSED`)
+    process.exit(2)
+  }
   const base = {}
   for (const e of readJson(baselinePath).entries) base[e.file + '\t' + e.rule] = e.count
   const over = []
@@ -82,29 +88,41 @@ function lintCompare(eslintJson, root, baselinePath, sigsOut) {
 }
 
 // tsc:   app/x.tsx(12,5): error TS2322: message
-// build: Next 16 prints the same tsc lines (then "Failed to type check."); older Next printed
-//        ./app/x.tsx:12:5 followed by "Type error: message"; plus bare "Error: ..." lines.
+// build: Next 16 prints the same tsc lines (then "Failed to type check."); Turbopack prints each
+//        issue as a path line (optionally :line:col) followed by "Error: <title>" or
+//        "Warning: <title>"; older Next printed a path line followed by "Type error: <message>".
+// Fail-closed: warnings and known summary lines are skipped; any OTHER error-looking line makes
+// the whole log unparsed, so a generic line can never stand in for a real diagnostic.
 // Colour codes are stripped first. Line/column numbers are never part of a signature.
 function signatures(check, log, out) {
   // Strip ANSI colour codes.
   const raw = existsSync(log) ? readFileSync(log, 'utf8').replace(/\x1b\[[0-9;]*m/g, '') : ''
   const lines = raw.split('\n')
   const failures = []
+  let unknown = false
+  const PATH = /^\.?\/?((?:[\w@[\]().-]+\/)*[\w@[\]().-]+\.[A-Za-z]+)(?::\d+:\d+)?\s*$/
+  const SUMMARY = /^(>\s*)?(Failed to type check\.?|Failed to compile\.?|Build error occurred|Error: Turbopack build failed with \d+ errors?:)\s*$/
   for (let i = 0; i < lines.length; i++) {
-    const l = lines[i]
+    const l = lines[i].trimEnd()
     const ts = l.match(/^(.+?)\(\d+,\d+\): error (TS\d+): (.*)$/)
     if (ts) { failures.push({ check, file: ts[1], code: ts[2], message: norm(ts[3]) }); continue }
     if (check === 'tsc') continue
-    const loc = l.match(/^\.\/(\S+?):\d+:\d+\s*$/)
-    const next = lines[i + 1] ?? ''
+    const loc = l.match(PATH)
+    const next = (lines[i + 1] ?? '').trim()
     if (loc && /^Type error:/.test(next)) {
-      failures.push({ check, file: loc[1], code: 'type-error', message: norm(next.replace(/^Type error:/, '')) })
-    } else if (/^(Error|Failed to compile|Failed to type check|Build error occurred)\b/.test(l)) {
-      failures.push({ check, file: null, code: null, message: norm(l) })
+      failures.push({ check, file: loc[1], code: 'type-error', message: norm(next.replace(/^Type error:/, '')) }); i++
+    } else if (loc && /^Error:/.test(next)) {
+      failures.push({ check, file: loc[1], code: 'turbopack', message: norm(next.replace(/^Error:/, '')) }); i++
+    } else if (loc && /^Warning:/.test(next)) {
+      i++
+    } else if (SUMMARY.test(l.trim())) {
+      continue
+    } else if (/^\s*(Error|Failed|Build error)\b/.test(l)) {
+      unknown = true
     }
   }
-  writeJson(out, { check, unparsed: failures.length === 0, failures })
-  console.log(`${check}: ${failures.length} failure signature(s)${failures.length ? '' : ' — UNPARSED'}`)
+  writeJson(out, { check, unparsed: unknown || failures.length === 0, failures })
+  console.log(`${check}: ${failures.length} failure signature(s)${unknown || !failures.length ? ' — UNPARSED' : ''}`)
 }
 
 const same = (a, b) => a.check === b.check && (a.file ?? null) === (b.file ?? null) &&
@@ -112,12 +130,21 @@ const same = (a, b) => a.check === b.check && (a.file ?? null) === (b.file ?? nu
   (a.check === 'lint' || norm(a.message) === norm(b.message))
 
 // Exit 0: every failure matches the item's recorded WIP (HEAD == wip_sha). Exit 1: anything else.
+// Fail-closed: every check listed in failed-checks must have a parsed, non-empty signature file.
 function classify(sigsDir, featureList, itemId, headSha) {
-  const files = readdirSync(sigsDir).filter((f) => f.endsWith('.sigs.json'))
-  const results = files.map((f) => readJson(join(sigsDir, f)))
-  if (results.some((r) => r.unparsed)) {
-    console.log('REGRESSION: a failure could not be parsed into signatures — never counts as expected')
-    process.exit(1)
+  const failedPath = join(sigsDir, 'failed-checks')
+  const failed = existsSync(failedPath) ? readFileSync(failedPath, 'utf8').split('\n').filter(Boolean) : []
+  if (!failed.length) { console.log('REGRESSION: no record of which checks failed — no evidence to match'); process.exit(1) }
+  const results = []
+  for (const check of failed) {
+    const p = join(sigsDir, check + '.sigs.json')
+    let r = null
+    try { r = existsSync(p) ? readJson(p) : null } catch { r = null }
+    if (!r || r.unparsed || !Array.isArray(r.failures) || !r.failures.length) {
+      console.log(`REGRESSION: ${check} failed but left no parsed failure signatures — never counts as expected`)
+      process.exit(1)
+    }
+    results.push(r)
   }
   const item = (readJson(featureList).features ?? []).find((f) => f.id === itemId)
   if (!item) { console.log(`REGRESSION: item ${itemId} not in feature_list.json`); process.exit(1) }

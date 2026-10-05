@@ -70,9 +70,9 @@ current HEAD counts.
 
 | Result (exit) | Meaning | Do |
 |---|---|---|
-| GREEN (0) | tsc, lint ratchet and build pass | work |
-| POSSIBLE TRANSIENT (3) | build failed with the known Supabase/network signature | re-run once |
-| EXPECTED-WIP (10) | HEAD is the item's `wip_sha` and every failure matches its `expected_failures` | continue the item |
+| GREEN (0) | tsc, lint ratchet and build pass (`GREEN (quick — build not run)` with `--quick`: say so in evidence) | work |
+| POSSIBLE TRANSIENT (3) | tsc + lint passed and the build failed with the known Supabase/network signature | re-run once; exit 3 again → treat as RED |
+| EXPECTED-WIP (10) | HEAD is the item's `wip_sha`, every failed check left parsed signatures, and every failure matches its `expected_failures` | continue the item |
 | RED / REGRESSION (1) | anything else — a failure this session didn't cause | record it, release the lock, tell Roi; fixing it becomes an item only with Roi's OK |
 | STOP (2) | needs a human (lock, unpushed state, wrong worktree…) | read the message, tell Roi |
 
@@ -101,7 +101,7 @@ so "local" is never isolated.
       (`gh pr view --json isDraft`), stage only this session's own changes (review
       `git diff --staged`, not just file names), commit `WIP (build red): <what's unfinished>`,
       push, run `init.sh check`, and record `wip_sha` + `expected_failures` (the signatures from
-      `.git/harness/*.sigs.json`) in the item. The first normal, built commit after it clears both.
+      `$(git rev-parse --git-path harness)/*.sigs.json`) in the item. The first normal, built commit after it clears both.
 - [ ] Item status + evidence honest — no `passing` without proof.
 - [ ] Session entry in `primer.md` (Recent Sessions) **and** appended to `session-log.md`.
 - [ ] `primer.md` Current State updated; next step written down.

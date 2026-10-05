@@ -158,33 +158,44 @@ cmd_check() {
   deps
   head_ "Checks on $(git branch --show-current || echo detached) @ $(git rev-parse --short HEAD)"
   [ $quick = 1 ] || say "effects: next build READS production Supabase (sitemap, static article pages) — it writes nothing"
-  rm -f "$LOGDIR"/*.sigs.json
-  local red=0 transient=0
+  rm -f "$LOGDIR"/*.sigs.json "$LOGDIR/failed-checks" "$LOGDIR/lint.json"
+  local red=0 transient=0 tsc_red=0 lint_red=0
 
-  if ! run_timed tsc npx tsc --noEmit; then red=1; fi
-  node "$H/harness.mjs" signatures tsc "$LOGDIR/tsc.log" "$LOGDIR/tsc.sigs.json" >/dev/null
-  [ $red = 1 ] || rm -f "$LOGDIR/tsc.sigs.json"
+  # sigs <check> — record a failed check and its signatures; a crash in the parser = unparsed.
+  sigs() {
+    printf '%s\n' "$1" >> "$LOGDIR/failed-checks"
+    node "$H/harness.mjs" signatures "$1" "$LOGDIR/$1.log" "$LOGDIR/$1.sigs.json" >/dev/null \
+      || printf '{"check":"%s","unparsed":true,"failures":[]}\n' "$1" > "$LOGDIR/$1.sigs.json"
+  }
 
-  # eslint exits 1 on main because of the known errors (D9), so its own exit code is not the verdict.
-  local t0; t0=$(date +%s)
-  npx eslint --format json --output-file "$LOGDIR/lint.json" > "$LOGDIR/lint.log" 2>&1
-  say "lint: ran  $(( $(date +%s) - t0 ))s  (verdict = ratchet below; raw JSON: $LOGDIR/lint.json)"
-  if [ ! -s "$LOGDIR/lint.json" ]; then
-    say "lint: eslint produced no JSON — see $LOGDIR/lint.log"; red=1
+  if ! run_timed tsc npx tsc --noEmit; then red=1; tsc_red=1; sigs tsc; fi
+
+  # eslint exits 1 on main because of the known errors (D9): 0/1 are normal, >=2 = eslint failed.
+  local t0 erc=0; t0=$(date +%s)
+  npx eslint --format json --output-file "$LOGDIR/lint.json" > "$LOGDIR/lint.log" 2>&1 || erc=$?
+  say "lint: ran  $(( $(date +%s) - t0 ))s  eslint exit $erc  (verdict = ratchet below; raw JSON: $LOGDIR/lint.json)"
+  local lrc=0
+  if [ "$erc" -gt 1 ] || [ ! -s "$LOGDIR/lint.json" ]; then
+    say "lint: eslint did not run successfully — see $LOGDIR/lint.log"; lrc=2
     printf '{"check":"lint","unparsed":true,"failures":[]}\n' > "$LOGDIR/lint.sigs.json"
-  elif node "$H/harness.mjs" lint-compare "$LOGDIR/lint.json" "$ROOT" "$H/lint-baseline.json" "$LOGDIR/lint.sigs.json"; then
-    say "lint ratchet: PASS (no errors beyond docs/harness/lint-baseline.json)"; rm -f "$LOGDIR/lint.sigs.json"
   else
-    say "lint ratchet: FAIL (new lint errors)"; red=1
+    node "$H/harness.mjs" lint-compare "$LOGDIR/lint.json" "$ROOT" "$H/lint-baseline.json" "$LOGDIR/lint.sigs.json" || lrc=$?
   fi
+  case "$lrc" in
+    0) say "lint ratchet: PASS (no errors beyond docs/harness/lint-baseline.json)" ;;
+    1) say "lint ratchet: FAIL (new lint errors)"; red=1; lint_red=1; printf 'lint\n' >> "$LOGDIR/failed-checks" ;;
+    *) say "lint ratchet: COULD NOT COMPARE (unparsed)"; red=1; lint_red=1; printf 'lint\n' >> "$LOGDIR/failed-checks"
+       [ -s "$LOGDIR/lint.sigs.json" ] || printf '{"check":"lint","unparsed":true,"failures":[]}\n' > "$LOGDIR/lint.sigs.json" ;;
+  esac
 
   if [ $quick = 0 ]; then
     if ! run_timed build npm run build; then
-      red=1
-      node "$H/harness.mjs" signatures build "$LOGDIR/build.log" "$LOGDIR/build.sigs.json" >/dev/null
-      if grep -qiE 'sitemap|getShardCount|fetch failed|ECONNRESET|ETIMEDOUT|ENOTFOUND|socket hang up' "$LOGDIR/build.log"; then
+      red=1; sigs build
+      # Only the known Supabase/network blip counts as transient, and only when tsc + lint passed.
+      if [ $tsc_red = 0 ] && [ $lint_red = 0 ] && \
+         grep -qE 'sitemap: .* failed after [0-9]+ attempts|fetch failed|ECONNRESET|ETIMEDOUT|ENOTFOUND|socket hang up' "$LOGDIR/build.log"; then
         transient=1
-        say "build failure looks like the known Supabase/network blip — possible transient: re-run once"
+        say "build failure matches the known Supabase/network blip — possible transient: re-run once"
       fi
     fi
   else
@@ -192,8 +203,8 @@ cmd_check() {
   fi
 
   head_ "Result"
-  if [ $red = 0 ]; then say "GREEN"; return 0; fi
-  if [ $transient = 1 ]; then say "POSSIBLE TRANSIENT — re-run once before classifying"; return 3; fi
+  if [ $red = 0 ]; then [ $quick = 1 ] && say "GREEN (quick — build not run)" || say "GREEN"; return 0; fi
+  if [ $transient = 1 ]; then say "POSSIBLE TRANSIENT — re-run once; a second exit 3 in a row = treat as a regression (controlled stop, tell Roi)"; return 3; fi
   if [ -n "$item" ]; then
     local fl="$WT/$H/feature_list.json"
     [ -f "$fl" ] || stop "--item given but $fl not found (run init.sh state first)"
@@ -217,8 +228,9 @@ cmd_check_git() {
 
 cmd_write_lint_baseline() {
   head_ "Regenerating $H/lint-baseline.json"
-  npx eslint --format json --output-file "$LOGDIR/lint.json" > "$LOGDIR/lint.log" 2>&1
-  [ -s "$LOGDIR/lint.json" ] || stop "eslint produced no JSON — see $LOGDIR/lint.log"
+  rm -f "$LOGDIR/lint.json"
+  local erc=0; npx eslint --format json --output-file "$LOGDIR/lint.json" > "$LOGDIR/lint.log" 2>&1 || erc=$?
+  { [ "$erc" -le 1 ] && [ -s "$LOGDIR/lint.json" ]; } || stop "eslint did not run successfully (exit $erc) — see $LOGDIR/lint.log"
   node "$H/harness.mjs" lint-baseline "$LOGDIR/lint.json" "$ROOT" "$H/lint-baseline.json"
 }
 
