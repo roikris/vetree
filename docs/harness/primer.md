@@ -185,6 +185,14 @@ works today was spot-checked in the code on 2026-10-05.
 ## 7. Recent Sessions
 (Newest first. Every entry is also in `session-log.md`, which is never trimmed.)
 
+### Session 20261005-0940-claude-a6fa · 2026-10-05 · Claude Code · (simulated crash)
+- Goal / Completed: dry run (c2) — took the lock and 'crashed' (no handoff). The next start
+  printed LOCK HELD but exited 0 → fixed (95f3413): `init.sh state` now exits 2 on a lock that
+  isn't the caller's (HARNESS_SESSION). Re-test: exit 2 for a new session, exit 0 for the owner.
+- Stale lock removed after the test under Roi's approval of dry run (c) (2026-10-05) — a test lock,
+  not a real session's.
+- Next best step: dry run (c3) — failed state push.
+
 ### Session 20261005-0939-claude-c7de · 2026-10-05 · Claude Code · (none)
 - Goal / Completed: dry run (c1) — controlled stop. Nothing pickable (only parked dry-run items,
   all blocked) → per README: ask Roi; short entry + lock released.

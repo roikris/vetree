@@ -63,3 +63,11 @@ Newest at the bottom. The same entries (latest few) appear in primer.md → Rece
 - Start state: state @ 70981e8, lock free before this session.
 - Verification: n/a · Review: n/a · Commits / PR: state only · Pending Roi approvals: none.
 - Next best step: dry run (c2) — crash with the lock held.
+
+### Session 20261005-0940-claude-a6fa · 2026-10-05 · Claude Code · (simulated crash)
+- Goal / Completed: dry run (c2) — took the lock and 'crashed' (no handoff). The next start
+  printed LOCK HELD but exited 0 → fixed (95f3413): `init.sh state` now exits 2 on a lock that
+  isn't the caller's (HARNESS_SESSION). Re-test: exit 2 for a new session, exit 0 for the owner.
+- Stale lock removed after the test under Roi's approval of dry run (c) (2026-10-05) — a test lock,
+  not a real session's.
+- Next best step: dry run (c3) — failed state push.
