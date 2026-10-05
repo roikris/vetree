@@ -117,3 +117,11 @@ Newest at the bottom. The same entries (latest few) appear in primer.md → Rece
 - Verification: n/a (state only) · Review: n/a (CLAUDE.md exception 1) · Commits / PR: state only.
 - Pending Roi approvals: push of chore/agent-harness + draft PR (step 9); merge (Roi's word).
 - Next best step: step 9 — Codex review of the full rules diff (60e658d..4c81fcc), then draft PR.
+
+### Session 20261005-1459-claude-2e52 · 2026-10-05 · Claude Code · harness-dryrun-004
+- Goal / Completed: step 9 end-to-end test of the 'a failed build is never expected' change
+  (38c668c). Local-only WIP 8860f19 (Article.strength_of_evidence → number); handoff recorded with
+  `check --quick` (5 tsc signatures); resume `check --item` skipped the build on the recorded WIP
+  commit and returned EXPECTED-WIP (exit 10). Item removed afterwards; branch deleted.
+- Review: step-9 Codex diff review continues (round 4 next).
+- Next best step: Codex review round 4 of the rules diff.

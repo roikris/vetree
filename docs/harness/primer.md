@@ -186,6 +186,14 @@ works today was spot-checked in the code on 2026-10-05.
 ## 7. Recent Sessions
 (Newest first. Every entry is also in `session-log.md`, which is never trimmed.)
 
+### Session 20261005-1459-claude-2e52 · 2026-10-05 · Claude Code · harness-dryrun-004
+- Goal / Completed: step 9 end-to-end test of the 'a failed build is never expected' change
+  (38c668c). Local-only WIP 8860f19 (Article.strength_of_evidence → number); handoff recorded with
+  `check --quick` (5 tsc signatures); resume `check --item` skipped the build on the recorded WIP
+  commit and returned EXPECTED-WIP (exit 10). Item removed afterwards; branch deleted.
+- Review: step-9 Codex diff review continues (round 4 next).
+- Next best step: Codex review round 4 of the rules diff.
+
 ### Session 20261005-1055-claude-93a0 · 2026-10-05 · Claude Code · rollout step 8 cleanup
 - Goal / Completed: removed the three dry-run items (harness-dryrun-001/002/003) from
   feature_list.json — their full records stay in this log — and reset Current State.
