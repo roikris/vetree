@@ -19,8 +19,10 @@ full-diff round cost 85k–190k during the rollout, so fewer, better-aimed round
 secrets (env vars, `security-acknowledged.json`, headers, rate limits) · paid AI calls (anything
 calling Claude or another model) · email sending (Resend, digest) · the harness itself
 and every rule or policy document: `CLAUDE.md`, `app/api/CLAUDE.md`, `supabase/CLAUDE.md`,
-`AGENTS.md`, and everything under `docs/harness/` (scripts, README, this checklist, DESIGN).
-**A sensitive area always overrides tiers 0 and 1.** Unsure → treat it as sensitive.
+`AGENTS.md`, and the harness rules under `docs/harness/` on `main` (scripts, README, this
+checklist, DESIGN). **A sensitive area always overrides tiers 0 and 1** — except the state files
+on the `harness-state` branch (primer.md, feature_list.json, session-log.md, session.lock), which
+keep CLAUDE.md exception 1 (no review). Unsure → treat it as sensitive.
 
 ## 2. Rounds
 
