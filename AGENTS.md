@@ -13,4 +13,6 @@ Code; then read `app/api/CLAUDE.md` and `supabase/CLAUDE.md`.
 
 **Started as a REVIEWER** (e.g. `codex exec --sandbox read-only` in the review loop) → do NOT run
 the session routine or `init.sh`, do not take the session lock, and do not edit any file (the
-`harness-state` branch included). Review only what you were asked to review.
+`harness-state` branch included). Review only what you were asked to review, using
+`docs/harness/review-checklist.md` and the CLAUDE.md sections you were pointed to — not all three
+CLAUDE.md files. Output only BLOCKING / NON-BLOCKING.

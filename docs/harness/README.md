@@ -11,7 +11,7 @@ routine: no `init.sh`, no lock, no edits.
 
 | What | Where | Changed by |
 |---|---|---|
-| Rules (this file, `init.sh`, `harness.mjs`, `lint-baseline.json`, `DESIGN.md`, `AGENTS.md`, `CLAUDE.md`) | `main` | normal draft PR (docs-only → smoke skipped) |
+| Rules (this file, `review-checklist.md`, `init.sh`, `harness.mjs`, `lint-baseline.json`, `DESIGN.md`, `AGENTS.md`, `CLAUDE.md`) | `main` | normal draft PR (docs-only → smoke skipped) |
 | State: `primer.md` (current state, lessons, recent sessions), `feature_list.json` (backlog), `session-log.md` (every session, never trimmed), `session.lock` | branch `harness-state`, under `docs/harness/` | sessions, committed + pushed **directly** (CLAUDE.md exception 1) |
 
 Locally the state branch is a git worktree at `.harness-state/` inside the repo, created by
@@ -94,8 +94,10 @@ so "local" is never isolated.
 - Run the item's `verification` steps as written. A step with `db_writes: prod` or
   `paid_calls: true` needs Roi's OK **for that item** first; record the approval and its scope in
   the evidence. Never run Playwright as a baseline check.
-- Review loop by the **other** agent until `BLOCKING: none` (CLAUDE.md): Claude Code worked →
-  Codex reviews; Codex worked → Claude Code reviews. Mark the PR ready once, when done.
+- Review by the **other** agent (CLAUDE.md): Claude Code worked → Codex reviews; Codex worked →
+  Claude Code reviews. **Tier, rounds, context, output and prompts: [`review-checklist.md`](review-checklist.md)**
+  — tier 1 one focused round, tier 2 (sensitive areas) up to 3 rounds, round 2+ on the delta only.
+  Mark the PR ready once, when done.
 - `passing` = verified on the PR head, evidence recorded (with that SHA). Only Roi merges.
 - After every successful push: update the item's `head_sha`.
 
@@ -108,7 +110,8 @@ so "local" is never isolated.
       push, run `init.sh check --quick` on it, and record `wip_sha` + `expected_failures` (the tsc
       and lint signatures from `$(git rev-parse --git-path harness)/*.sigs.json`) in the item. The first normal, built commit after it clears both.
 - [ ] Item status + evidence honest — no `passing` without proof.
-- [ ] Session entry in `primer.md` (Recent Sessions) **and** appended to `session-log.md`.
+- [ ] Session entry in `primer.md` (Recent Sessions) **and** appended to `session-log.md`. Keep only
+      the **latest 5** entries in `primer.md` (every session reads it); older ones stay in `session-log.md`.
 - [ ] `primer.md` Current State updated; next step written down.
 - [ ] Lock released (delete `session.lock`) and the state committed + pushed. A release counts
       only once its push succeeds.
@@ -123,7 +126,7 @@ and releases the lock. Only a crash leaves a lock behind; a stale lock is remove
 - Goal / Completed:
 - Start state: branch, base SHA, dirty files
 - Verification: exact commands + target + outcome; tested SHA
-- Review: the other agent's result (BLOCKING: none / open items)
+- Review: <reviewer> · tier <0|1|2> · <n> rounds · <tokens per round> · BLOCKING: none / open items
 - Commits / PR / WIP commit:
 - Pending Roi approvals:
 - Known risks / unresolved:

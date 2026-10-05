@@ -33,7 +33,7 @@ history. The routine itself is in [README.md](README.md). Decisions D1–D9 and 
 | 6 | First push of `harness-state` — **asks Roi** | ✅ 2026-10-05 08:02:31Z on Roi's OK — `harness-state` @ 5514fc0 on GitHub; `init.sh state` against it: all checks pass |
 | 7 | Prove Vercel does not deploy `harness-state` | ✅ 2026-10-05 — 10 polls 08:02–08:13Z, every query valid, 0 deployments by SHA or branch; 0 GitHub runs, 0 GitHub deployments. Note: the API's `meta-githubCommitSha` filter is ignored when nothing matches (returns unrelated deployments) → the check filters the latest 100 locally, validated on a known main deployment and an impossible SHA |
 | 8 | Dry runs a–f (Claude Code, then Codex) | ✅ 2026-10-05 — all passed after 2 fixes. (a) full routine. (b) WIP carried over: EXPECTED-WIP incl. untouched consumers; missing record / moved HEAD / unparsed build (synthetic) all stop. (c) controlled stop, crash (lock now hard-stops), failed push + README recovery, lost-branch recovery. (d) fresh clone: GREEN, worktree tracks origin. (e) Codex worker: default sandbox can't write `.git` → probe stopped it (correct); with `.git` as a writable root it ran the routine, a real network outage failed its claim push → it stopped, then resumed and recovered per README; Claude review BLOCKING: none. (f) Codex reviewer: reviewed 95f3413 read-only, never ran the routine; BLOCKING: none, 2 non-blocking fixed. Fixes: build parser for Next 16 (d4242f0); foreign lock exits 2 (95f3413) |
-| 9 | Record rollout outcomes in README.md; Codex review of the diff; draft PR; merge on Roi's word | 🔄 — outcomes recorded (README: tested Codex worker + reviewer commands). Codex review of the full rules diff: 6 rounds, 6 blocking issues found and fixed (stale ESLint GREEN; missing evidence; generic Turbopack signature; unrecognised errors beside known ones; keyword parsing leaks → a failed build is never expected; WIP mode by SHA alone), round 5 `BLOCKING: none`, round 6 (efd10fe) `BLOCKING: none`; its non-blocking points fixed (a60926f). **Draft PR #110** opened 2026-10-05 on Roi's OK; checks: `scope` pass (docs-only), `smoke` skipped (run success, no Playwright), Vercel preview ready. Merge: on Roi's word |
+| 9 | Record rollout outcomes in README.md; Codex review of the diff; draft PR; merge on Roi's word | 🔄 — outcomes recorded (README: tested Codex worker + reviewer commands). Codex review of the full rules diff: 6 rounds, 6 blocking issues found and fixed (stale ESLint GREEN; missing evidence; generic Turbopack signature; unrecognised errors beside known ones; keyword parsing leaks → a failed build is never expected; WIP mode by SHA alone), round 5 `BLOCKING: none`, round 6 (efd10fe) `BLOCKING: none`; its non-blocking points fixed (a60926f). **Draft PR #110** opened 2026-10-05 on Roi's OK; checks: `scope` pass (docs-only), `smoke` skipped (run success, no Playwright), Vercel preview ready. ✅ **Merged by Roi 2026-10-05 as 5ae7d29**; post-merge health check passed |
 | 10 | Session 001: build the backlog with Roi | ⬜ |
 
 Each step is ticked here, with its artifact SHA, in the commit that completes it.
@@ -77,6 +77,13 @@ failed state pushes and lost branches; fresh-clone + dry-run retirement in rollo
   it in the same PR). Entry = {file, rule, count}; a file+rule count above its baseline, or a new
   file+rule, fails; fewer is fine (init.sh suggests shrinking the file). Lint cleanup → backlog
   candidate for session 001.
+- D11 (Roi, 2026-10-05) Review token budget — all of: risk tiers (0 none / 1 one focused round at
+  medium effort / 2 full loop at high effort for the sensitive areas: auth/sessions, Supabase writes
+  + migrations, security + secrets, paid AI calls, email sending, the harness); round 2+ reviews
+  the delta only; max 3 rounds, then stop and ask Roi; lean reviewer context
+  (`review-checklist.md` + relevant CLAUDE.md sections); BLOCKING / NON-BLOCKING output only;
+  primer keeps the latest 5 sessions; review cost recorded per session. Evidence: rollout full-diff
+  rounds cost 85k–190k tokens, a delta round 36k; any Codex run ~15k before reading anything.
 - D10 (Roi, 2026-10-05) The reviewer is always the OTHER agent: Claude Code works → Codex reviews
   (the existing loop); Codex works → Claude Code reviews, until `BLOCKING: none`. Nobody reviews
   its own work. Applied in CLAUDE.md (review bullet), AGENTS.md, README.md (Work).
