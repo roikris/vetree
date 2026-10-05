@@ -5,16 +5,29 @@
 - Show only changed code, never entire files
 - After committing, explain what changed and why — this helps catch mismatches
 - Keep explanations focused: what changed, what it affects, what to watch for
-- Always run `npm run build` before committing
+- Always run `npm run build` before committing (two exceptions — see BRANCH & PR POLICY)
 - Do NOT explore files freely — ask if blocked
+
+## SESSION HARNESS
+- Every **working** session (Claude Code or Codex) follows `docs/harness/README.md`: read where
+  things stand, take the session lock, work on ONE backlog item, verify it with evidence, write the
+  session entry, release the lock. Reviewers (the other agent's review loop) never run the routine.
+- Progress state (current state, backlog, session log, lock) lives on the branch `harness-state`,
+  worked in the git-ignored folder `.harness-state/` (set up by `docs/harness/init.sh`).
+  **Never merge `harness-state` into `main`.**
+- One working session at a time (Roi, 2026-10-04). Design and decisions: `docs/harness/DESIGN.md`.
+- `primer.md` at the repo root is frozen and superseded; the current one is
+  `docs/harness/primer.md` on `harness-state`.
 
 ## BRANCH & PR POLICY (non-negotiable)
 - **Never commit directly to `main`** — all work goes on a feature branch
 - Open a PR; the smoke suite must be green before merging
-- **Codex adversarial review before merge** — every change (and every non-trivial plan, before
-  building it) goes through a Codex review loop: run `codex exec --sandbox read-only` in its **own
-  Terminal.app window** so Roi can watch it live (never as a silent background job); fix and
-  re-run until it reports `BLOCKING: none`. Verify Codex's claims before acting on them.
+- **Adversarial review by the other agent before merge** — every change (and every non-trivial
+  plan, before building it) goes through a review loop run by the agent that did NOT do the work
+  (Roi, 2026-10-05): Claude Code worked → Codex reviews (`codex exec --sandbox read-only` in its
+  **own Terminal.app window** so Roi can watch it live, never as a silent background job); Codex
+  worked → Claude Code reviews, the same way. Fix and re-run until the reviewer reports
+  `BLOCKING: none`. Verify the reviewer's claims before acting on them. Nobody reviews its own work.
 - **Merge only on Roi's explicit word for that specific PR.** A green smoke run, a finished review,
   or a request to fix the PR is not permission to merge.
 - Branch naming: `feat/`, `fix/`, `chore/` prefix
@@ -35,6 +48,13 @@
   blocked, and **enforced for admins** — neither Roi nor a session using his credentials can push
   directly to `main` or merge a red PR. (The REST `/branches/main/protection` endpoint may still
   answer 404 for this rule; check `branchProtectionRules` via GraphQL.)
+- **Exception 1 — harness state (Roi, 2026-10-04):** commits on `harness-state` that change only
+  the state files under `docs/harness/` (primer.md, feature_list.json, session-log.md,
+  session.lock) go directly to that branch — no PR, no Codex review, no `npm run build`.
+- **Exception 2 — WIP commits (Roi, 2026-10-04):** unfinished code at the end of a session may be
+  committed as `WIP (build red): <what's unfinished>` on its **draft** branch without a build.
+  Never mark a PR ready while its head is a WIP commit.
+- Everything else in this section applies unchanged.
 
 ## Project Overview
 Vetree (vetree.app) is an evidence-based veterinary research platform.
