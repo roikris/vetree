@@ -156,3 +156,9 @@ Newest at the bottom. The same entries (latest few) appear in primer.md → Rece
   diff: 6 rounds, 6 blocking fixed, BLOCKING: none (DESIGN.md step 9).
 - Pending Roi approvals: merge of #110.
 - Next best step: after Roi merges #110 — Session 001: build the backlog with Roi.
+
+### Session 20261005-1621-claude-4de2 · 2026-10-05 · Claude Code · rollout step 9 (merge)
+- Goal / Completed: Roi approved the merge; #110 marked ready (smoke skipped, docs-only; run
+  success on b899862), squash-merged as 5ae7d29. Local checkout on main @ 5ae7d29.
+- Note: DESIGN.md's step-9 row still says "Merge: on Roi's word" — tick it in the next rules PR.
+- Next best step: Session 001 — build the backlog with Roi (init.sh check --quick; no product code).

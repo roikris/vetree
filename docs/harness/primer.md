@@ -8,19 +8,17 @@ Routine: `docs/harness/README.md` on `main`. Pre-harness primer (frozen): root `
 ---
 
 ## 1. Current Verified State
-*Updated 2026-10-05 — Session 20261005-1545-claude-0ccc (rollout step 9)*
+*Updated 2026-10-05 — Session 20261005-1621-claude-4de2 (rules PR #110 merged)*
 
 - **Repo root:** `~/dev/vetree` · state worktree: `.harness-state/` (branch `harness-state`)
-- **main:** `60e658d` (PR #109, 2026-10-04) — last verified: `init.sh check` GREEN on
-  `chore/agent-harness` @ `3d2f0b7` (= main + harness rules): tsc 18 s, lint ratchet pass, build 59 s
+- **main:** `5ae7d29` (PR #110 harness rules, merged by Roi 2026-10-05) — last verified: `init.sh check`
+  GREEN on the PR head b899862 (identical tree)
 - **Standard startup:** `docs/harness/init.sh` (state, then check) — see README for exit codes
 - **Standard verification:** `docs/harness/init.sh check [--item <id>]`; build reads production
   Supabase (read-only); never Playwright as a baseline
-- **Highest-priority unfinished item:** none — `feature_list.json` is empty (dry-run items
-  removed after rollout step 8); **Session 001 builds the backlog with Roi** (D1)
-- **Current blocker:** rules PR **#110** (draft) awaits Roi's word to merge — no ordinary item
-  sessions until it is merged. Steps 0–9 done (DESIGN.md); then Session 001 builds the backlog.
-- **Open PRs awaiting Roi:** #110 chore(harness) — draft; checks pass, smoke skipped (docs-only)
+- **Highest-priority unfinished item:** none — backlog empty; **Session 001 builds the backlog with Roi** (D1)
+- **Current blocker:** none — rollout steps 0–9 done; the harness is live on main
+- **Open PRs awaiting Roi:** none
 
 ## 2. Open Issues & Known Risks
 - **Lint is red on main:** 178 errors / 75 warnings, never run in CI. Handled by the lint ratchet
@@ -184,6 +182,12 @@ works today was spot-checked in the code on 2026-10-05.
 
 ## 7. Recent Sessions
 (Newest first. Every entry is also in `session-log.md`, which is never trimmed.)
+
+### Session 20261005-1621-claude-4de2 · 2026-10-05 · Claude Code · rollout step 9 (merge)
+- Goal / Completed: Roi approved the merge; #110 marked ready (smoke skipped, docs-only; run
+  success on b899862), squash-merged as 5ae7d29. Local checkout on main @ 5ae7d29.
+- Note: DESIGN.md's step-9 row still says "Merge: on Roi's word" — tick it in the next rules PR.
+- Next best step: Session 001 — build the backlog with Roi (init.sh check --quick; no product code).
 
 ### Session 20261005-1545-claude-0ccc · 2026-10-05 · Claude Code · rollout step 9
 - Goal / Completed: rules branch pushed; draft PR #110 opened on Roi's OK. Checks: scope pass
