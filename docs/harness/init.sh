@@ -172,6 +172,9 @@ cmd_check() {
       esac
       [ -n "$wbranch" ] && [ "$wbranch" = "$(git branch --show-current)" ] \
         || stop "$item's wip_sha is HEAD, but the current branch '$(git branch --show-current)' is not the item's branch '$wbranch' — inconsistent WIP record; tell Roi"
+      # The classification must describe the recorded WIP commit itself, not edits on top of it.
+      [ -z "$(git status --porcelain)" ] \
+        || stop "uncommitted changes on top of $item's WIP commit — WIP classification needs a clean tree (commit them, or run 'init.sh check' without --item)"
       wipmode=1
     fi
   fi

@@ -9,7 +9,8 @@ history. The routine itself is in [README.md](README.md). Decisions D1–D9 and 
   open-ended, keyword parsing kept leaking). `classify` rejects any failed build; build signatures
   are informational only.
 - **WIP mode** (`check --item`): only when HEAD == the item's `wip_sha` AND HEAD is a
-  `WIP (build red):` commit AND the current branch is the item's branch; a matching SHA with
+  `WIP (build red):` commit AND the current branch is the item's branch AND the working tree is
+  clean (round 5); a matching SHA with
   anything else inconsistent stops (exit 2) (round 4). The build is skipped; tsc + lint decide; the
   result is EXPECTED-WIP (10), never GREEN. The next normal commit still needs a GREEN build.
 - **WIP handoff** records tsc + lint signatures with `init.sh check --quick` (not the full check).
