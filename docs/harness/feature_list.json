@@ -58,5 +58,23 @@
     ],
     "notes": ""
   },
-  "features": []
+  "features": [
+    {
+      "id": "harness-dryrun-004",
+      "priority": 903,
+      "area": "harness",
+      "type": "chore",
+      "title": "DRY RUN (step 9) — end-to-end WIP resume after the build-never-expected change; throwaway",
+      "user_visible_behavior": "none",
+      "status": "in_progress",
+      "verification": [],
+      "evidence": [],
+      "branch": "tmp/harness-e2e",
+      "pr": null,
+      "head_sha": null,
+      "wip_sha": null,
+      "expected_failures": [],
+      "notes": "LOCAL-ONLY branch. Claimed by 20261005-1459-claude-2e52"
+    }
+  ]
 }
