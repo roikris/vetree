@@ -185,6 +185,12 @@ works today was spot-checked in the code on 2026-10-05.
 ## 7. Recent Sessions
 (Newest first. Every entry is also in `session-log.md`, which is never trimmed.)
 
+### Session 20261005-0943-claude-9a55 · 2026-10-05 · Claude Code · harness-dryrun-002
+- Goal / Completed: dry run (c4) — deleted the item's local branch; README recovery found
+  head_sha locally, created chore/harness-dryrun-recovered-20261005 at it, updated the item (old name kept in notes). Push -u skipped
+  (local-only dry-run branch, by design).
+- Next best step: dry run (d) — fresh clone.
+
 ### Session 20261005-0942-claude-3602 · 2026-10-05 · Claude Code · (failed push)
 - Goal / Completed: dry run (c3) — lock push sent to an unreachable URL failed (exit 128); the
   local commit survived; the next `init.sh state` stopped (exit 2) listing the unpushed commit and

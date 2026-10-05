@@ -78,3 +78,9 @@ Newest at the bottom. The same entries (latest few) appear in primer.md → Rece
   the remote lock (none). README recovery (fetch → inspect → remote lock check → pull --rebase →
   push) recovered it. Then this controlled stop: entry + release.
 - Next best step: dry run (c4) — lost-branch recovery.
+
+### Session 20261005-0943-claude-9a55 · 2026-10-05 · Claude Code · harness-dryrun-002
+- Goal / Completed: dry run (c4) — deleted the item's local branch; README recovery found
+  head_sha locally, created chore/harness-dryrun-recovered-20261005 at it, updated the item (old name kept in notes). Push -u skipped
+  (local-only dry-run branch, by design).
+- Next best step: dry run (d) — fresh clone.

@@ -152,9 +152,19 @@
           "outcome": "pass",
           "approval": "n/a",
           "link": "session-log.md"
+        },
+        {
+          "date": "2026-10-05",
+          "session": "20261005-0943-claude-9a55",
+          "sha": "4e4a2e1",
+          "command": "git branch -D (simulated loss); git cat-file -e <head_sha>; git branch <recovered> <head_sha>",
+          "target": "local",
+          "outcome": "pass",
+          "approval": "n/a",
+          "link": "session-log.md"
         }
       ],
-      "branch": "chore/harness-dryrun",
+      "branch": "chore/harness-dryrun-recovered-20261005",
       "pr": null,
       "head_sha": "4e4a2e18ec73d4d50a359dc0d3ab085f0627af2f",
       "wip_sha": "4e4a2e18ec73d4d50a359dc0d3ab085f0627af2f",
@@ -226,7 +236,7 @@
           "message": "Argument of type 'number' is not assignable to parameter of type 'string'."
         }
       ],
-      "notes": "LOCAL-ONLY branch (never pushed: a push would trigger a Vercel preview). Claimed by 20261005-0849-claude-f6ca · WIP commit 4e4a2e1 (local only); expected_failures recorded by 20261005-0849-claude-f6ca · dry run (b) done by 20261005-0857-claude-7453; parked; removed after step 8"
+      "notes": "LOCAL-ONLY branch (never pushed: a push would trigger a Vercel preview). Claimed by 20261005-0849-claude-f6ca · WIP commit 4e4a2e1 (local only); expected_failures recorded by 20261005-0849-claude-f6ca · dry run (b) done by 20261005-0857-claude-7453; parked; removed after step 8 · 20261005-0943-claude-9a55: branch chore/harness-dryrun lost → recovered as chore/harness-dryrun-recovered-20261005 at head_sha (old name kept here)"
     }
   ]
 }
