@@ -186,6 +186,13 @@ works today was spot-checked in the code on 2026-10-05.
 ## 7. Recent Sessions
 (Newest first. Every entry is also in `session-log.md`, which is never trimmed.)
 
+### Session 20261005-1509-claude-a914 · 2026-10-05 · Claude Code · harness-dryrun-005
+- Goal / Completed: step 9 test of the WIP-mode gate (Codex diff review round 4): (1) real WIP with
+  recorded tsc errors → EXPECTED-WIP 10; (2) WIP commit, tsc + lint clean → EXPECTED-WIP 10 'never
+  GREEN'; (3) wip_sha on a normal commit → STOP 2; (4) right WIP commit on the wrong branch → STOP 2.
+  Local-only branches deleted; item removed.
+- Next best step: Codex review round 5 of the rules diff.
+
 ### Session 20261005-1459-claude-2e52 · 2026-10-05 · Claude Code · harness-dryrun-004
 - Goal / Completed: step 9 end-to-end test of the 'a failed build is never expected' change
   (38c668c). Local-only WIP 8860f19 (Article.strength_of_evidence → number); handoff recorded with

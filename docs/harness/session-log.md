@@ -125,3 +125,10 @@ Newest at the bottom. The same entries (latest few) appear in primer.md → Rece
   commit and returned EXPECTED-WIP (exit 10). Item removed afterwards; branch deleted.
 - Review: step-9 Codex diff review continues (round 4 next).
 - Next best step: Codex review round 4 of the rules diff.
+
+### Session 20261005-1509-claude-a914 · 2026-10-05 · Claude Code · harness-dryrun-005
+- Goal / Completed: step 9 test of the WIP-mode gate (Codex diff review round 4): (1) real WIP with
+  recorded tsc errors → EXPECTED-WIP 10; (2) WIP commit, tsc + lint clean → EXPECTED-WIP 10 'never
+  GREEN'; (3) wip_sha on a normal commit → STOP 2; (4) right WIP commit on the wrong branch → STOP 2.
+  Local-only branches deleted; item removed.
+- Next best step: Codex review round 5 of the rules diff.
