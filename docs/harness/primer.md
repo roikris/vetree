@@ -8,18 +8,19 @@ Routine: `docs/harness/README.md` on `main`. Pre-harness primer (frozen): root `
 ---
 
 ## 1. Current Verified State
-*Updated 2026-10-05 — Session 20261005-1638-claude-3439 (harness-002)*
+*Updated 2026-10-05 — Session 20261005-1947-claude-9005 (backlog update)*
 
 - **Repo root:** `~/dev/vetree` · state worktree: `.harness-state/` (branch `harness-state`)
-- **main:** `5ae7d29` (PR #110 harness rules, merged by Roi 2026-10-05) — last verified: `init.sh check`
-  GREEN on the PR head b899862 (identical tree)
+- **main:** `b54393b` (PR #111 review token budget, merged by Roi 2026-10-05) — last verified:
+  `init.sh check` GREEN on the PR head 45b510f (identical tree)
 - **Standard startup:** `docs/harness/init.sh` (state, then check) — see README for exit codes
 - **Standard verification:** `docs/harness/init.sh check [--item <id>]`; build reads production
   Supabase (read-only); never Playwright as a baseline
-- **Highest-priority unfinished item:** backlog session 001 (paused by Roi) — resume it; harness-002 is
-  `passing` (PR #111 awaits Roi). Candidate B has a deadline: Supabase explicit GRANTs by 2026-10-30.
+- **Highest-priority unfinished item:** backlog session 001 (paused by Roi) — resume it and set the
+  order; queued so far: **harness-003** (`init.sh lock`/`unlock`, not_started). Candidate B has a
+  deadline: Supabase explicit GRANTs by 2026-10-30.
 - **Current blocker:** none — rollout steps 0–9 done; the harness is live on main
-- **Open PRs awaiting Roi:** #111 chore(harness) review token budget — draft; checks pass, smoke skipped
+- **Open PRs awaiting Roi:** none
 
 ## 2. Open Issues & Known Risks
 - **Lint is red on main:** 178 errors / 75 warnings, never run in CI. Handled by the lint ratchet
@@ -195,6 +196,14 @@ works today was spot-checked in the code on 2026-10-05.
 (Newest first — only the latest 5 are kept here (D11); every entry, older ones included, is in
 `session-log.md`, which is never trimmed.)
 
+### Session 20261005-1947-claude-9005 · 2026-10-05 · Claude Code · backlog update
+- Goal / Completed: Roi merged #111 (b54393b) → harness-002 `merged`. Added **harness-003** on Roi's
+  word: `init.sh lock <item>` / `init.sh unlock` (refuse when any lock is held; owner-only unlock;
+  failed-push handling; README updated) — tier 2 review. Its order vs the session-001 candidates
+  is Roi's call when the backlog session resumes.
+- Verification: n/a (state only) · Review: n/a (exception 1) · Commits / PR: state only.
+- Next best step: resume backlog session 001 with Roi.
+
 ### Session 20261005-1638-claude-3439 · 2026-10-05 · Claude Code · harness-002
 - Goal / Completed: Roi's eight review-budget measures (D11): risk tiers + sensitive list, delta
   rounds, 3-round cap, lean reviewer context (new docs/harness/review-checklist.md), BLOCKING /
@@ -231,10 +240,3 @@ works today was spot-checked in the code on 2026-10-05.
   diff: 6 rounds, 6 blocking fixed, BLOCKING: none (DESIGN.md step 9).
 - Pending Roi approvals: merge of #110.
 - Next best step: after Roi merges #110 — Session 001: build the backlog with Roi.
-
-### Session 20261005-1525-claude-07f1 · 2026-10-05 · Claude Code · harness-dryrun-006
-- Goal / Completed: proper re-run of the efd10fe clean-tree test, with a guard that the WIP commit
-  exists: (a) clean WIP → exit 10 EXPECTED-WIP, build not run, never GREEN; (b) same WIP + an
-  uncommitted edit → exit 2 STOP. Tree verified clean afterwards; branch + item removed.
-- Also: corrected the entry of 20261005-1522-claude-bc31, whose test was invalid (see the correction in session-log).
-- Next best step: short Codex look at efd10fe, then Roi's OK for push + draft PR.

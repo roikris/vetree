@@ -188,3 +188,11 @@ Newest at the bottom. The same entries (latest few) appear in primer.md → Rece
 - Next best step: resume backlog session 001 with Roi.
 
 - CORRECTION to the entry above (session 20261005-1638-claude-3439): "(a5…/revert commit)" means revert commit 52fed24.
+
+### Session 20261005-1947-claude-9005 · 2026-10-05 · Claude Code · backlog update
+- Goal / Completed: Roi merged #111 (b54393b) → harness-002 `merged`. Added **harness-003** on Roi's
+  word: `init.sh lock <item>` / `init.sh unlock` (refuse when any lock is held; owner-only unlock;
+  failed-push handling; README updated) — tier 2 review. Its order vs the session-001 candidates
+  is Roi's call when the backlog session resumes.
+- Verification: n/a (state only) · Review: n/a (exception 1) · Commits / PR: state only.
+- Next best step: resume backlog session 001 with Roi.

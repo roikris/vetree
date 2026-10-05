@@ -66,7 +66,7 @@
       "type": "chore",
       "title": "Review token budget: risk-tiered reviews, delta rounds, 3-round cap, lean reviewer context, concise output, effort levels, primer trim, cost tracking",
       "user_visible_behavior": "none (agent process only)",
-      "status": "passing",
+      "status": "merged",
       "verification": [
         {
           "step": "init.sh check GREEN on the branch head",
@@ -120,7 +120,67 @@
       "head_sha": "45b510f",
       "wip_sha": null,
       "expected_failures": [],
-      "notes": "Named by Roi 2026-10-05: all 8 measures; sensitive list = auth/session, Supabase writes + migrations, security + secrets, paid AI calls, email sending, harness scripts. Backlog session 001 is paused and still pending. Claimed by 20261005-1638-claude-3439 · passing on PR head 45b510f; awaits Roi's merge"
+      "notes": "Named by Roi 2026-10-05: all 8 measures; sensitive list = auth/session, Supabase writes + migrations, security + secrets, paid AI calls, email sending, harness scripts. Backlog session 001 is paused and still pending. Claimed by 20261005-1638-claude-3439 · passing on PR head 45b510f; awaits Roi's merge · merged by Roi 2026-10-05 as b54393b (#111)"
+    },
+    {
+      "id": "harness-003",
+      "priority": 2,
+      "area": "harness",
+      "type": "feature",
+      "title": "init.sh lock / unlock — take and release the session lock in one command that refuses when held",
+      "user_visible_behavior": "none (agent process): `docs/harness/init.sh lock <item>` and `init.sh unlock` replace hand-written session.lock files",
+      "status": "not_started",
+      "verification": [
+        {
+          "step": "`init.sh lock <item>` on a free lock: writes the canonical format (session/agent/started/item), commits, pushes, prints the session id + the export HARNESS_SESSION line; exit 0",
+          "target": "local",
+          "db_reads": "none",
+          "db_writes": "none",
+          "paid_calls": false
+        },
+        {
+          "step": "`init.sh lock` when ANY lock is held (local or remote, own or foreign) refuses with exit 2 and changes nothing",
+          "target": "local",
+          "db_reads": "none",
+          "db_writes": "none",
+          "paid_calls": false
+        },
+        {
+          "step": "`init.sh lock` with a failing push leaves the local commit and reports it (README \"Failed state push\"); never forces",
+          "target": "local",
+          "db_reads": "none",
+          "db_writes": "none",
+          "paid_calls": false
+        },
+        {
+          "step": "`init.sh unlock` only by the owner (HARNESS_SESSION matches the REMOTE lock); deletes, commits, pushes; refuses otherwise (exit 2)",
+          "target": "local",
+          "db_reads": "none",
+          "db_writes": "none",
+          "paid_calls": false
+        },
+        {
+          "step": "README Start step 5 + Before-you-stop use the commands; bash 3.2 compatible; init.sh check GREEN",
+          "target": "local",
+          "db_reads": "prod",
+          "db_writes": "none",
+          "paid_calls": false
+        },
+        {
+          "step": "Review: Codex, tier 2 (harness scripts), high effort, max 3 rounds → BLOCKING: none",
+          "target": "none",
+          "db_reads": "none",
+          "db_writes": "none",
+          "paid_calls": false
+        }
+      ],
+      "evidence": [],
+      "branch": "",
+      "pr": null,
+      "head_sha": null,
+      "wip_sha": null,
+      "expected_failures": [],
+      "notes": "Added by 20261005-1947-claude-9005 on Roi's word (2026-10-05). Origin: session 20261005-1630-claude-2221 overwrote a held lock because lock-taking was hand-written and chained after a STOP (reverted 52fed24). Order vs session-001 candidates: Roi decides when the backlog session resumes."
     }
   ]
 }
