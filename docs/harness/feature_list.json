@@ -94,6 +94,31 @@
       "wip_sha": null,
       "expected_failures": [],
       "notes": "claimed by 20261005-0846-claude-b18d · dry run done; parked so RESUME FIRST cannot pick it; removed after step 8"
+    },
+    {
+      "id": "harness-dryrun-002",
+      "priority": 901,
+      "area": "harness",
+      "type": "chore",
+      "title": "DRY RUN (rollout step 8b) — WIP carry-over; throwaway, removed after step 8",
+      "user_visible_behavior": "none",
+      "status": "in_progress",
+      "verification": [
+        {
+          "step": "resume via EXPECTED-WIP; unrecorded error / wrong SHA / unparsed failure must stop",
+          "target": "local",
+          "db_reads": "prod",
+          "db_writes": "none",
+          "paid_calls": false
+        }
+      ],
+      "evidence": [],
+      "branch": "chore/harness-dryrun",
+      "pr": null,
+      "head_sha": null,
+      "wip_sha": null,
+      "expected_failures": [],
+      "notes": "LOCAL-ONLY branch (never pushed: a push would trigger a Vercel preview). Claimed by 20261005-0849-claude-f6ca"
     }
   ]
 }
