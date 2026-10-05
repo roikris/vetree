@@ -193,7 +193,7 @@ cmd_check() {
       red=1; sigs build
       # Only the known Supabase/network blip counts as transient, and only when tsc + lint passed.
       if [ $tsc_red = 0 ] && [ $lint_red = 0 ] && \
-         grep -qE 'sitemap: .* failed after [0-9]+ attempts|fetch failed|ECONNRESET|ETIMEDOUT|ENOTFOUND|socket hang up' "$LOGDIR/build.log"; then
+         grep -qE '^[[:space:]]*(\[?[A-Za-z]*Error\]?:? )?(sitemap: .* failed after [0-9]+ attempts|fetch failed)|getaddrinfo ENOTFOUND|connect ETIMEDOUT|read ECONNRESET|socket hang up' "$LOGDIR/build.log"; then
         transient=1
         say "build failure matches the known Supabase/network blip — possible transient: re-run once"
       fi

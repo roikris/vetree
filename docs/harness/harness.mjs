@@ -92,7 +92,10 @@ function lintCompare(eslintJson, root, baselinePath, sigsOut) {
 //        issue as a path line (optionally :line:col) followed by "Error: <title>" or
 //        "Warning: <title>"; older Next printed a path line followed by "Type error: <message>".
 // Fail-closed: warnings and known summary lines are skipped; any OTHER error-looking line makes
-// the whole log unparsed, so a generic line can never stand in for a real diagnostic.
+// the whole log unparsed, so a generic line can never stand in for a real diagnostic. Global
+// TypeScript errors (no file) are signatures too; in a tsc log every line must be a diagnostic, an
+// indented continuation or blank; in a build log any unparsed error-like line (TypeError, panic,
+// error TS…, …) marks it unparsed even when other diagnostics were recognised.
 // Colour codes are stripped first. Line/column numbers are never part of a signature.
 function signatures(check, log, out) {
   // Strip ANSI colour codes.
@@ -106,7 +109,14 @@ function signatures(check, log, out) {
     const l = lines[i].trimEnd()
     const ts = l.match(/^(.+?)\(\d+,\d+\): error (TS\d+): (.*)$/)
     if (ts) { failures.push({ check, file: ts[1], code: ts[2], message: norm(ts[3]) }); continue }
-    if (check === 'tsc') continue
+    const gts = l.match(/^\s*error (TS\d+): (.*)$/)
+    if (gts) { failures.push({ check, file: null, code: gts[1], message: norm(gts[2]) }); continue }
+    // tsc log: every line must be a diagnostic, an indented continuation, or blank.
+    if (check === 'tsc') { if (l.trim() && !/^\s/.test(l)) unknown = true; continue }
+    // build log: anything error-like that is not a parsed diagnostic → unparsed.
+    if (/\berror TS\d+|\b(TypeError|ReferenceError|SyntaxError|RangeError|ERR!|panic|fatal|Killed|uncaught|unhandled)\b/i.test(l)) {
+      unknown = true; continue
+    }
     const loc = l.match(PATH)
     const next = (lines[i + 1] ?? '').trim()
     if (loc && /^Type error:/.test(next)) {
