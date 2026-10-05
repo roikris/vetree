@@ -108,3 +108,12 @@ Newest at the bottom. The same entries (latest few) appear in primer.md → Rece
   Rules README still needs the tested Codex invocation recorded by the rollout owner.
 - Next best step: Claude Code / Roi review dry run 8e, record the tested invocation in the rules,
   finish step 8 and remove parked dry-run items, then continue rollout step 9.
+
+### Session 20261005-1055-claude-93a0 · 2026-10-05 · Claude Code · rollout step 8 cleanup
+- Goal / Completed: removed the three dry-run items (harness-dryrun-001/002/003) from
+  feature_list.json — their full records stay in this log — and reset Current State.
+  Step 8 results (all passed after 2 fixes): DESIGN.md rollout checklist.
+- Start state: chore/agent-harness @ 4c81fcc, clean; state @ e6671c6, lock free.
+- Verification: n/a (state only) · Review: n/a (CLAUDE.md exception 1) · Commits / PR: state only.
+- Pending Roi approvals: push of chore/agent-harness + draft PR (step 9); merge (Roi's word).
+- Next best step: step 9 — Codex review of the full rules diff (60e658d..4c81fcc), then draft PR.

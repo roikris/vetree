@@ -8,7 +8,7 @@ Routine: `docs/harness/README.md` on `main`. Pre-harness primer (frozen): root `
 ---
 
 ## 1. Current Verified State
-*Updated 2026-10-05 — Session 20261005-1251-codex-23ce (rollout dry run 8e)*
+*Updated 2026-10-05 — Session 20261005-1055-claude-93a0 (rollout step 8 cleanup)*
 
 - **Repo root:** `~/dev/vetree` · state worktree: `.harness-state/` (branch `harness-state`)
 - **main:** `60e658d` (PR #109, 2026-10-04) — last verified: `init.sh check` GREEN on
@@ -16,14 +16,11 @@ Routine: `docs/harness/README.md` on `main`. Pre-harness primer (frozen): root `
 - **Standard startup:** `docs/harness/init.sh` (state, then check) — see README for exit codes
 - **Standard verification:** `docs/harness/init.sh check [--item <id>]`; build reads production
   Supabase (read-only); never Playwright as a baseline
-- **Highest-priority unfinished item:** no ordinary backlog items; three dry-run items are
-  parked as blocked pending removal after step 8. **Session 001 builds the backlog with Roi** (D1)
-- **Current blocker:** harness rollout not finished — steps 8–9 (dry runs in progress, rules PR);
-  steps 6–7 done 2026-10-05 (branch pushed, Vercel does not deploy it) — no ordinary item sessions until the rules PR is merged
-- **Latest local verification:** dry run 8e quick check GREEN on `chore/agent-harness` @
-  `95f3413` (tsc + lint ratchet; build skipped). Claim push recovered after the network outage.
-- **Next step:** Claude Code / Roi review 8e, record the tested Codex invocation in the rules,
-  finish step 8 and remove parked dry-run items, then proceed to step 9.
+- **Highest-priority unfinished item:** none — `feature_list.json` is empty (dry-run items
+  removed after rollout step 8); **Session 001 builds the backlog with Roi** (D1)
+- **Current blocker:** rollout step 9 — rules on `chore/agent-harness` (local, not pushed yet):
+  Codex review of the full diff, then a draft PR; merged only on Roi's word. No ordinary item
+  sessions until then. Steps 0–8 done (DESIGN.md).
 - **Open PRs awaiting Roi:** none (checked 2026-10-05)
 
 ## 2. Open Issues & Known Risks
@@ -188,6 +185,15 @@ works today was spot-checked in the code on 2026-10-05.
 
 ## 7. Recent Sessions
 (Newest first. Every entry is also in `session-log.md`, which is never trimmed.)
+
+### Session 20261005-1055-claude-93a0 · 2026-10-05 · Claude Code · rollout step 8 cleanup
+- Goal / Completed: removed the three dry-run items (harness-dryrun-001/002/003) from
+  feature_list.json — their full records stay in this log — and reset Current State.
+  Step 8 results (all passed after 2 fixes): DESIGN.md rollout checklist.
+- Start state: chore/agent-harness @ 4c81fcc, clean; state @ e6671c6, lock free.
+- Verification: n/a (state only) · Review: n/a (CLAUDE.md exception 1) · Commits / PR: state only.
+- Pending Roi approvals: push of chore/agent-harness + draft PR (step 9); merge (Roi's word).
+- Next best step: step 9 — Codex review of the full rules diff (60e658d..4c81fcc), then draft PR.
 
 ### Session 20261005-1251-codex-23ce · 2026-10-05 · Codex · harness-dryrun-003
 - Goal / Completed: rollout dry run 8e, resumed the same session after the network outage
