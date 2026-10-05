@@ -58,5 +58,38 @@
     ],
     "notes": ""
   },
-  "features": []
+  "features": [
+    {
+      "id": "harness-002",
+      "priority": 1,
+      "area": "harness",
+      "type": "chore",
+      "title": "Review token budget: risk-tiered reviews, delta rounds, 3-round cap, lean reviewer context, concise output, effort levels, primer trim, cost tracking",
+      "user_visible_behavior": "none (agent process only)",
+      "status": "in_progress",
+      "verification": [
+        {
+          "step": "init.sh check GREEN on the branch head",
+          "target": "local",
+          "db_reads": "prod",
+          "db_writes": "none",
+          "paid_calls": false
+        },
+        {
+          "step": "Codex review (full loop — harness is sensitive) reaches BLOCKING: none within 3 rounds",
+          "target": "none",
+          "db_reads": "none",
+          "db_writes": "none",
+          "paid_calls": false
+        }
+      ],
+      "evidence": [],
+      "branch": "chore/harness-review-budget",
+      "pr": null,
+      "head_sha": null,
+      "wip_sha": null,
+      "expected_failures": [],
+      "notes": "Named by Roi 2026-10-05: all 8 measures; sensitive list = auth/session, Supabase writes + migrations, security + secrets, paid AI calls, email sending, harness scripts. Backlog session 001 is paused and still pending. Claimed by 20261005-1638-claude-3439"
+    }
+  ]
 }
