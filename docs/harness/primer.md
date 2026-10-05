@@ -8,7 +8,7 @@ Routine: `docs/harness/README.md` on `main`. Pre-harness primer (frozen): root `
 ---
 
 ## 1. Current Verified State
-*Updated 2026-10-05 — Session 000 (harness rollout)*
+*Updated 2026-10-05 — Session 20261005-1251-codex-23ce (rollout dry run 8e)*
 
 - **Repo root:** `~/dev/vetree` · state worktree: `.harness-state/` (branch `harness-state`)
 - **main:** `60e658d` (PR #109, 2026-10-04) — last verified: `init.sh check` GREEN on
@@ -16,10 +16,14 @@ Routine: `docs/harness/README.md` on `main`. Pre-harness primer (frozen): root `
 - **Standard startup:** `docs/harness/init.sh` (state, then check) — see README for exit codes
 - **Standard verification:** `docs/harness/init.sh check [--item <id>]`; build reads production
   Supabase (read-only); never Playwright as a baseline
-- **Highest-priority unfinished item:** none — `feature_list.json` is empty; **Session 001 builds
-  the backlog with Roi** (D1)
+- **Highest-priority unfinished item:** no ordinary backlog items; three dry-run items are
+  parked as blocked pending removal after step 8. **Session 001 builds the backlog with Roi** (D1)
 - **Current blocker:** harness rollout not finished — steps 8–9 (dry runs in progress, rules PR);
   steps 6–7 done 2026-10-05 (branch pushed, Vercel does not deploy it) — no ordinary item sessions until the rules PR is merged
+- **Latest local verification:** dry run 8e quick check GREEN on `chore/agent-harness` @
+  `95f3413` (tsc + lint ratchet; build skipped). Claim push recovered after the network outage.
+- **Next step:** Claude Code / Roi review 8e, record the tested Codex invocation in the rules,
+  finish step 8 and remove parked dry-run items, then proceed to step 9.
 - **Open PRs awaiting Roi:** none (checked 2026-10-05)
 
 ## 2. Open Issues & Known Risks
@@ -184,6 +188,30 @@ works today was spot-checked in the code on 2026-10-05.
 
 ## 7. Recent Sessions
 (Newest first. Every entry is also in `session-log.md`, which is never trimmed.)
+
+### Session 20261005-1251-codex-23ce · 2026-10-05 · Codex · harness-dryrun-003
+- Goal / Completed: rollout dry run 8e, resumed the same session after the network outage
+  stopped the claim push. Recovered per README Failed state push: fetched origin, inspected
+  the unpushed log and diff (only claim 3ac4b97), verified the remote lock belongs to this
+  session, pulled with rebase (already up to date), and pushed 3ac4b97 to harness-state.
+  Quick check GREEN; recorded evidence and parked the item for removal after step 8.
+- Start state: resumed on chore/agent-harness @ 95f3413920c65f3aef7e2ac061031cf86e88faea,
+  clean; state @ 3ac4b97, remote @ ad4bdb5, own remote lock held; claim was the only local commit.
+- Verification: `docs/harness/init.sh --check-git` exit 0; after recovery,
+  `HARNESS_SESSION=20261005-1251-codex-23ce docs/harness/init.sh state` exit 0, lock held by
+  this session; `HARNESS_SESSION=20261005-1251-codex-23ce docs/harness/init.sh check --quick --item harness-dryrun-003`
+  exit 0 GREEN on 95f3413920c65f3aef7e2ac061031cf86e88faea (tsc PASS 17s, lint ratchet PASS,
+  lint 28s, build skipped). Target: local; no database reads/writes or paid calls.
+- Review: Claude Code verified the pre-resume state (Roi's report); state-only handoff is
+  exempt from a separate diff review under CLAUDE.md exception 1.
+- Commits / PR / WIP commit: lock ad4bdb5; recovered claim 3ac4b97; this state-only handoff
+  `handoff + release lock: 20261005-1251-codex-23ce`. Product commit/build/push, PR and WIP: N/A
+  (only harness state changed).
+- Pending Roi approvals: none for this state-only dry run.
+- Known risks / unresolved: outage recovered; item blocked as "parked dry run; removed after step 8".
+  Rules README still needs the tested Codex invocation recorded by the rollout owner.
+- Next best step: Claude Code / Roi review dry run 8e, record the tested invocation in the rules,
+  finish step 8 and remove parked dry-run items, then continue rollout step 9.
 
 ### Session 20261005-0943-claude-9a55 · 2026-10-05 · Claude Code · harness-dryrun-002
 - Goal / Completed: dry run (c4) — deleted the item's local branch; README recovery found

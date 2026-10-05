@@ -84,3 +84,27 @@ Newest at the bottom. The same entries (latest few) appear in primer.md → Rece
   head_sha locally, created chore/harness-dryrun-recovered-20261005 at it, updated the item (old name kept in notes). Push -u skipped
   (local-only dry-run branch, by design).
 - Next best step: dry run (d) — fresh clone.
+
+### Session 20261005-1251-codex-23ce · 2026-10-05 · Codex · harness-dryrun-003
+- Goal / Completed: rollout dry run 8e, resumed the same session after the network outage
+  stopped the claim push. Recovered per README Failed state push: fetched origin, inspected
+  the unpushed log and diff (only claim 3ac4b97), verified the remote lock belongs to this
+  session, pulled with rebase (already up to date), and pushed 3ac4b97 to harness-state.
+  Quick check GREEN; recorded evidence and parked the item for removal after step 8.
+- Start state: resumed on chore/agent-harness @ 95f3413920c65f3aef7e2ac061031cf86e88faea,
+  clean; state @ 3ac4b97, remote @ ad4bdb5, own remote lock held; claim was the only local commit.
+- Verification: `docs/harness/init.sh --check-git` exit 0; after recovery,
+  `HARNESS_SESSION=20261005-1251-codex-23ce docs/harness/init.sh state` exit 0, lock held by
+  this session; `HARNESS_SESSION=20261005-1251-codex-23ce docs/harness/init.sh check --quick --item harness-dryrun-003`
+  exit 0 GREEN on 95f3413920c65f3aef7e2ac061031cf86e88faea (tsc PASS 17s, lint ratchet PASS,
+  lint 28s, build skipped). Target: local; no database reads/writes or paid calls.
+- Review: Claude Code verified the pre-resume state (Roi's report); state-only handoff is
+  exempt from a separate diff review under CLAUDE.md exception 1.
+- Commits / PR / WIP commit: lock ad4bdb5; recovered claim 3ac4b97; this state-only handoff
+  `handoff + release lock: 20261005-1251-codex-23ce`. Product commit/build/push, PR and WIP: N/A
+  (only harness state changed).
+- Pending Roi approvals: none for this state-only dry run.
+- Known risks / unresolved: outage recovered; item blocked as "parked dry run; removed after step 8".
+  Rules README still needs the tested Codex invocation recorded by the rollout owner.
+- Next best step: Claude Code / Roi review dry run 8e, record the tested invocation in the rules,
+  finish step 8 and remove parked dry-run items, then continue rollout step 9.

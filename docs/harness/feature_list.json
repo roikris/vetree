@@ -245,7 +245,7 @@
       "type": "chore",
       "title": "DRY RUN (rollout step 8e) — Codex worker; throwaway, removed after step 8",
       "user_visible_behavior": "",
-      "status": "in_progress",
+      "status": "blocked",
       "verification": [
         {
           "step": "init.sh check --quick --item harness-dryrun-003 GREEN",
@@ -255,13 +255,24 @@
           "paid_calls": false
         }
       ],
-      "evidence": [],
+      "evidence": [
+        {
+          "date": "2026-10-05",
+          "session": "20261005-1251-codex-23ce",
+          "sha": "95f3413920c65f3aef7e2ac061031cf86e88faea",
+          "command": "HARNESS_SESSION=20261005-1251-codex-23ce docs/harness/init.sh check --quick --item harness-dryrun-003",
+          "target": "local",
+          "outcome": "pass",
+          "approval": "n/a (no prod writes, no paid calls)",
+          "link": "session-log.md"
+        }
+      ],
       "branch": "",
       "pr": null,
       "head_sha": null,
       "wip_sha": null,
       "expected_failures": [],
-      "notes": "claimed by 20261005-1251-codex-23ce"
+      "notes": "claimed by 20261005-1251-codex-23ce · parked dry run; removed after step 8 · claim push interrupted by network outage; recovered via README Failed state push after network returned; quick check GREEN"
     }
   ]
 }
