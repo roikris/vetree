@@ -98,6 +98,8 @@ import { CLAUDE_MODEL } from '@/lib/ai/model'   // = 'claude-sonnet-4-6'
 ```
 Every Claude API call — enrichment, synthesis, content agent, analysis agent, security agent, LinkedIn matcher, Growth OS scoring — must use `CLAUDE_MODEL` (`claude-sonnet-4-6`). Sonnet 5.5 ran 2026-09-30 → 2026-10-01 and was reverted: ~1.46x the tokens for the same work (measured side by side on identical production prompts; mostly tokenizer). Roi revisits ~2026-11-01 — switching is one line in `lib/ai/model.ts` plus the three scripts. Do not introduce Haiku for any reason, including cost optimisation.
 
+**Exception (Roi, 2026-10-06): enrichment only — when Claude refuses an article (stop_reason: refusal), the same prompt goes once to the fallback model; every other AI call stays on Claude.** The fallback is OpenAI `gpt-6-astra` (`FALLBACK_MODEL` in `.github/workflows/scripts/enrich-articles.js`, key `OPENAI_API_KEY` in GitHub Actions). Its reply goes through the same parsing, validation and save; `prompt_version` records it as `v2-context-framing+fallback:gpt-6-astra` (internal only — readers see a normal summary). Why: Claude refuses some livestock/poultry pathogen papers (FMD, ASF, HPAI, tularemia…) that `gpt-6-astra` summarizes well (24-article side-by-side review, 2026-10-06).
+
 ### 1. API Routes — always add
 ```ts
 export const runtime = 'nodejs'
@@ -297,6 +299,7 @@ NEXT_PUBLIC_SUPABASE_URL
 NEXT_PUBLIC_SUPABASE_ANON_KEY
 SUPABASE_SERVICE_ROLE_KEY
 ANTHROPIC_API_KEY
+OPENAI_API_KEY        # enrichment refusal fallback only (GitHub Actions secret; rule 0 exception)
 RESEND_API_KEY
 DIGEST_SECRET
 SENTRY_DSN
@@ -419,6 +422,7 @@ if (!success) return NextResponse.json({ error: 'Too many requests' }, { status:
 
 ## Enrichment Rules
 - Cap: enrichment_attempts < 3 (normal) OR force_retry = true
+- **Claude refusal → one fallback call** to `gpt-6-astra` with the identical prompt (rule 0 exception); a fallback refusal, error, or missing `OPENAI_API_KEY` is a normal failed attempt. The Slack report counts fallback summaries and warns when a refusal had no key.
 - **Third failed attempt = hidden, not published.** The job records each failure with the database function
   `record_enrichment_failure` (migration 072, one locked statement): the attempt that reaches 3 sets
   `quarantined = true, quarantine_reason = 'enrichment_failed'` — unless the article is already quarantined, whose

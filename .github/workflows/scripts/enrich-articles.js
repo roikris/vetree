@@ -18,6 +18,46 @@ function filterLabels(labels) {
 
 const PROMPT_VERSION = 'v2-context-framing';
 
+// Fallback for refusals only (CLAUDE.md rule 0 exception, Roi 2026-10-06): when Claude declines an
+// article (stop_reason 'refusal' — e.g. livestock/poultry pathogen research), the SAME system + user
+// prompt goes once to this OpenAI model; its reply goes through the same parsing, validation and save.
+// Every other failure stays a normal failure. The model is recorded in prompt_version.
+const FALLBACK_MODEL = 'gpt-6-astra';
+let fallbackUsed = 0;
+let fallbackUnavailable = 0;  // refusals that could not fall back (no OPENAI_API_KEY)
+
+async function fallbackOnRefusal(system, prompt) {
+  const key = process.env.OPENAI_API_KEY;
+  if (!key) {
+    fallbackUnavailable++;
+    throw new Error('Claude refused (stop_reason: refusal); fallback unavailable: OPENAI_API_KEY not set');
+  }
+  const res = await fetch('https://api.openai.com/v1/responses', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: FALLBACK_MODEL,
+      input: [{ role: 'system', content: system }, { role: 'user', content: prompt }],
+      reasoning: { effort: 'medium' },
+      max_output_tokens: 8000,  // reasoning tokens count toward this cap
+    }),
+  });
+  const body = await res.json().catch(() => null);
+  if (!res.ok) {
+    throw new Error(`Claude refused (stop_reason: refusal); fallback HTTP ${res.status}: ${body?.error?.message || 'no body'}`.slice(0, 500));
+  }
+  if (body?.status !== 'completed') {
+    throw new Error(`Claude refused (stop_reason: refusal); fallback status ${body?.status || 'unknown'}${body?.incomplete_details?.reason ? ` (${body.incomplete_details.reason})` : ''}`);
+  }
+  const parts = (body.output || []).filter(item => item.type === 'message').flatMap(item => item.content || []);
+  const refusal = parts.find(part => part.type === 'refusal');
+  if (refusal) throw new Error(`Claude refused (stop_reason: refusal); fallback refused too: ${String(refusal.refusal || '').slice(0, 200)}`);
+  const text = parts.filter(part => part.type === 'output_text').map(part => part.text).join('');
+  if (!text) throw new Error('Claude refused (stop_reason: refusal); fallback returned no text');
+  fallbackUsed++;
+  return text;
+}
+
 // Claude summarizes `abstract` (migration 057) — ONLY that column, never `summary`.
 // Before 057 the abstract lived in `summary` and this script overwrote it, so any retry
 // (force_retry, admin re-queue, label edit, reset-enrichment, or the retry after a partial
@@ -64,10 +104,17 @@ Return ONLY valid JSON, no markdown formatting.`;
       throw new Error('Claude reply was cut off at max_tokens');
     }
     const textBlock = message.content?.find(block => block.type === 'text');
-    if (!textBlock) {
+    let responseText;
+    let promptVersion = PROMPT_VERSION;
+    if (textBlock) {
+      responseText = textBlock.text;
+    } else if (message.stop_reason === 'refusal') {
+      console.log(`  ↪ Claude refused — trying fallback ${FALLBACK_MODEL} (same prompt)`);
+      responseText = await fallbackOnRefusal(system, prompt);
+      promptVersion = `${PROMPT_VERSION}+fallback:${FALLBACK_MODEL}`;
+    } else {
       throw new Error(`No text content in Claude response (stop_reason: ${message.stop_reason})`);
     }
-    const responseText = textBlock.text;
 
     // Try to extract JSON from the response
     let jsonMatch = responseText.match(/\{[\s\S]*\}/);
@@ -113,7 +160,7 @@ Return ONLY valid JSON, no markdown formatting.`;
       } : {}),
       last_enrichment_at: new Date().toISOString(),
       last_enrichment_error: errorMessage,  // Set error if incomplete, null if complete
-      prompt_version: PROMPT_VERSION  // Which prompt produced summary/clinical_bottom_line — enables precise rollback
+      prompt_version: promptVersion  // Which prompt (and, for a refusal fallback, which model) produced summary/clinical_bottom_line
     };
 
 
@@ -148,7 +195,7 @@ Return ONLY valid JSON, no markdown formatting.`;
       else if (outcome === 'hidden') failedOutHidden++;
       return false;  // a failure, not a success
     }
-    console.log(`  ✓ Enriched: ${article.title.substring(0, 60)}...`);
+    console.log(`  ✓ Enriched${promptVersion === PROMPT_VERSION ? '' : ` (fallback ${FALLBACK_MODEL})`}: ${article.title.substring(0, 60)}...`);
     console.log(`    Labels: ${validLabels.join(', ')}`);
     console.log(`    Evidence: ${enrichment.strength_of_evidence}`);
 
@@ -193,6 +240,7 @@ async function sendSlackNotification(stats) {
 • Total processed this run: ${stats.totalProcessed}
 • Successfully enriched: ${stats.successCount}
 • Failed this run: ${stats.failCount} (hidden after 3 failed attempts: ${stats.hiddenThisRun})
+• Summarized by fallback ${FALLBACK_MODEL} (Claude refused): ${fallbackUsed}${fallbackUnavailable ? `\n⚠️ *Claude refused ${fallbackUnavailable} article(s) and no OPENAI_API_KEY was set — no fallback ran*` : ''}
 • Total remaining in queue: ${stats.remainingInQueue}${failedWarning}`
   };
 

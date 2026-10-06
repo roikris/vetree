@@ -35,4 +35,5 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}  # refusal fallback only (CLAUDE.md rule 0 exception)
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

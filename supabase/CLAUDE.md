@@ -62,7 +62,7 @@ Column names verified against information_schema and migrations. Schema is the s
 | summary | text | AI-generated, fetch lazily |
 | abstract | text | source abstract (migration 057) — the ONLY thing enrichment summarizes; never overwritten |
 | abstract_fetched_at | timestamptz | when the abstract was fetched |
-| prompt_version | text | which enrichment prompt produced summary/bottom line (migration 049) |
+| prompt_version | text | which enrichment prompt produced summary/bottom line (migration 049); `…+fallback:gpt-6-astra` = Claude refused and the fallback model wrote it (rule 0 exception) |
 | clinical_bottom_line | text | AI-generated — must exist to show publicly |
 | labels | text[] | GIN indexed |
 | source_journal | text | |
