@@ -12,8 +12,8 @@
 -- 1. requeue_failed_articles() (admin "Retry failed") no longer selects ai_refused articles — same
 --    set as FAILED_UNPUBLISHED_OR in lib/enrichment/requeueFailed.ts.
 -- 2. Backfill: the articles already refused (3 attempts each, before this change) become ai_refused.
---    Only refusal errors, only articles not publicly visible, never over an admin / no-abstract
---    quarantine. Not "summary IS NULL": pre-057 rows still hold a copy of the abstract in summary.
+--    Only refusal errors, only articles not publicly visible, never over an admin / no-abstract /
+--    unknown (NULL-reason) quarantine. Not "summary IS NULL": pre-057 rows still hold a copy of the abstract in summary.
 
 COMMENT ON COLUMN public.articles.quarantine_reason IS
   'Why the article is hidden: enrichment_failed (3rd failed enrichment attempt; lifted only by admin "Retry failed") | no_abstract | admin | ai_refused (Claude refused; lifted by the Codex fallback when it saves a summary) | NULL = unknown/older, never lifted automatically';
@@ -63,6 +63,8 @@ UPDATE public.articles SET
   force_retry       = false
 WHERE last_enrichment_error ILIKE '%stop_reason: refusal%'
   AND abstract IS NOT NULL
-  AND (quarantine_reason IS NULL OR quarantine_reason = 'enrichment_failed')
-  AND NOT (needs_enrichment = false AND summary IS NOT NULL AND clinical_bottom_line IS NOT NULL
-           AND coalesce(quarantined, false) = false);   -- never hide a publicly visible article
+  -- never over an admin / no-abstract / unknown (NULL-reason) quarantine
+  AND ((quarantine_reason IS NULL AND coalesce(quarantined, false) = false) OR quarantine_reason = 'enrichment_failed')
+  -- never hide a publicly visible article (IS NOT TRUE: a NULL needs_enrichment must not skip a hidden row)
+  AND (needs_enrichment = false AND summary IS NOT NULL AND clinical_bottom_line IS NOT NULL
+       AND coalesce(quarantined, false) = false) IS NOT TRUE;

@@ -21,11 +21,15 @@ let refusedThisRun = 0;
 // Articles hidden this run after their 3rd failed attempt (see record_enrichment_failure)
 let failedOutHidden = 0;
 
-// Hide a refused article as ai_refused in ONE conditional update. It never overwrites an admin's or a
-// no-abstract quarantine: if one is set, the attempt is recorded the normal way instead.
+// Hide a refused article as ai_refused in ONE guarded update. Only an article that is still queued
+// (needs_enrichment) and either unquarantined-with-no-reason or hidden by the enrichment job — never an
+// admin / no-abstract / unknown (NULL-reason) quarantine, never a row the Codex fallback just published
+// (it sets needs_enrichment false). An admin / no-abstract / legacy quarantine that is still queued is
+// recorded the normal way; a row that changed meanwhile is left alone.
+// Returns false (not enriched). A refusal is counted only once it is persisted, so database failures
+// still count toward the systemic-failure check.
 async function markRefused(client, article) {
-  refusedThisRun++;
-  console.log(`  ⊘ Claude refused — hidden as ${AI_REFUSED}, waiting for the Codex fallback`);
+  console.log(`  ⊘ Claude refused — hiding as ${AI_REFUSED}, waiting for the Codex fallback`);
   const { data, error } = await client
     .from('articles')
     .update({
@@ -38,16 +42,23 @@ async function markRefused(client, article) {
       last_enrichment_error: 'Claude refused (stop_reason: refusal); waiting for the Codex fallback (npm run enrich:refused)',
     })
     .eq('id', article.id)
-    .or(`quarantine_reason.is.null,quarantine_reason.in.(enrichment_failed,${AI_REFUSED})`)
+    .eq('needs_enrichment', true)
+    .or(`and(quarantine_reason.is.null,or(quarantined.is.null,quarantined.eq.false)),quarantine_reason.in.(enrichment_failed,${AI_REFUSED})`)
     .select('id');
-  if (!error && data && data.length === 1) return false;  // not enriched (yet) — counted as a failure this run
-  if (error) console.error(`  Error marking ${AI_REFUSED}:`, error.message);
+  if (error) { console.error(`  Error marking ${AI_REFUSED}:`, error.message); return false; }
+  if (data && data.length === 1) { refusedThisRun++; return false; }
+  // Not marked: find out why before touching the row
+  const { data: row, error: readError } = await client.from('articles')
+    .select('needs_enrichment').eq('id', article.id).maybeSingle();
+  if (readError || !row) { console.error(`  Error re-reading refused article:`, readError ? readError.message : 'missing'); return false; }
+  if (!row.needs_enrichment) { refusedThisRun++; console.log('  (row changed meanwhile — left as it is)'); return false; }
   const { data: outcome, error: rpcError } = await client.rpc('record_enrichment_failure', {
     p_id: article.id,
     p_error: 'Claude refused (stop_reason: refusal)'
   });
-  if (!rpcError && outcome === 'hidden') failedOutHidden++;
-  if (rpcError) console.error(`  Error recording failure:`, rpcError.message);
+  if (rpcError) { console.error(`  Error recording failure:`, rpcError.message); return false; }
+  refusedThisRun++;
+  if (outcome === 'hidden') failedOutHidden++;
   return false;
 }
 
@@ -296,7 +307,8 @@ async function main() {
       .select('*')
       .eq('needs_enrichment', true)
       .not('abstract', 'is', null)  // only ever enrich from the source abstract
-      .or('enrichment_attempts.lt.3,force_retry.eq.true')
+      // never ai_refused: those wait for the Codex fallback, whatever another control reset (rule 0 exception)
+      .or(`and(or(enrichment_attempts.lt.3,force_retry.eq.true),or(quarantine_reason.is.null,quarantine_reason.neq.${AI_REFUSED}))`)
       .limit(articlesToFetch);
 
     if (error) {

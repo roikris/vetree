@@ -75,7 +75,7 @@ async function note(id, message) {
     .eq('id', id).eq('quarantine_reason', AI_REFUSED)
 }
 
-const totals = { saved: 0, declined: 0, invalid: 0, missing: 0, tokens: 0 }
+const totals = { saved: 0, declined: 0, invalid: 0, missing: 0, tokens: 0, failedBatches: 0 }
 for (let i = 0; i < articles.length; i += BATCH) {
   const batch = articles.slice(i, i + BATCH)
   const dir = mkdtempSync(join(tmpdir(), 'vetree-codex-'))
@@ -88,12 +88,20 @@ for (let i = 0; i < articles.length; i += BATCH) {
   const used = Number(((run.stdout || '') + (run.stderr || '')).match(/tokens used\s*\n\s*([\d,]+)/i)?.[1]?.replace(/,/g, '') || 0)
   totals.tokens += used
   let results = []
-  try {
-    results = JSON.parse(readFileSync(out, 'utf8').trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, ''))
-  } catch (e) {
-    console.error(`  ✗ Codex reply was not a JSON array (${e.message}); exit ${run.status}. Nothing saved for this batch.`)
+  if (run.error || run.status !== 0) {
+    // Codex itself failed (not installed, timed out, crashed, usage limit…): nothing from this batch counts
+    totals.failedBatches++
+    console.error(`  ✗ Codex run failed (${run.error ? run.error.message : `exit ${run.status}${run.signal ? `, ${run.signal}` : ''}`}). Nothing saved for this batch.`)
+  } else {
+    try {
+      results = JSON.parse(readFileSync(out, 'utf8').trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, ''))
+    } catch (e) {
+      totals.failedBatches++
+      console.error(`  ✗ Codex reply was not a JSON array (${e.message}). Nothing saved for this batch.`)
+    }
   }
   rmSync(dir, { recursive: true, force: true })
+  if (!Array.isArray(results) || !results.length) continue  // failed batch: no per-article notes, retry next run
   const byId = Object.fromEntries((Array.isArray(results) ? results : []).map(r => [r && r.id, r && r.result]))
 
   for (const a of batch) {
@@ -126,4 +134,5 @@ for (let i = 0; i < articles.length; i += BATCH) {
     } else { totals.saved++; console.log(`  ✓ saved: ${label}`) }
   }
 }
-console.log(`\n${DRY ? 'Would save' : 'Saved'}: ${totals.saved} · declined: ${totals.declined} · incomplete/not saved: ${totals.invalid} · no result: ${totals.missing} · Codex tokens: ${totals.tokens.toLocaleString()}`)
+console.log(`\n${DRY ? 'Would save' : 'Saved'}: ${totals.saved} · declined: ${totals.declined} · incomplete/not saved: ${totals.invalid} · no result: ${totals.missing} · failed Codex batches: ${totals.failedBatches} · Codex tokens: ${totals.tokens.toLocaleString()}`)
+if (totals.failedBatches) process.exit(1)

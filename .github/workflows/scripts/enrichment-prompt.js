@@ -43,8 +43,9 @@ function filterLabels(labels) {
 // Same rules for every model: BOTH summary and clinical_bottom_line, and at least one allowed label.
 function validateEnrichment(enrichment) {
   const validLabels = filterLabels(enrichment && enrichment.labels);
-  const hasSummary = !!(enrichment && enrichment.summary && String(enrichment.summary).trim().length > 0);
-  const hasClinicalBottomLine = !!(enrichment && enrichment.clinical_bottom_line && String(enrichment.clinical_bottom_line).trim().length > 0);
+  const text = v => typeof v === 'string' && v.trim().length > 0;  // a real, non-empty string — nothing else
+  const hasSummary = !!enrichment && text(enrichment.summary);
+  const hasClinicalBottomLine = !!enrichment && text(enrichment.clinical_bottom_line);
   const missing = [];
   if (!hasSummary) missing.push('summary');
   if (!hasClinicalBottomLine) missing.push('clinical_bottom_line');
