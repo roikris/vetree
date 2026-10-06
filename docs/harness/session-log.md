@@ -207,3 +207,15 @@ Newest at the bottom. The same entries (latest few) appear in primer.md → Rece
 - Pending Roi approvals: enrich-001 resolution (prod writes / paid Claude calls) — ask with findings;
   infra-001 read-only prod access when it starts.
 - Next best step: new session for enrich-001 (read-only prod investigation approved).
+
+### Session 20261006-1444-claude-6864 · 2026-10-06 · Claude Code · enrich-001 (controlled stop — waiting for Roi)
+- Goal / Completed: the 24 articles failing 3+ attempts are all Claude refusals on pathogen
+  research. Codex/gpt-6-astra side-by-side test (identical prompt): 24/24 answered; Roi: good.
+  Roi chose a refusal-only fallback to gpt-6-astra (rule 0 exception, internal disclosure).
+  Built on fix/enrichment-refusal-fallback → draft PR #112.
+- Start state: main @ b54393b, clean; lock free.
+- Verification: read-only prod queries; mocked-API tests; init.sh check GREEN on head 21e2d6b.
+- Review: Codex · tier 2 · 2 rounds · 27.4k + 34.7k tokens · BLOCKING: none (2 blocking fixed).
+- Commits / PR: e418960, 21e2d6b → #112 (draft).
+- Pending Roi approvals: OPENAI_API_KEY secret; gpt-6-astra access; merge #112; re-run the 24.
+- Next best step: after Roi's merge + key — with his OK, re-run the 24 and re-count; then infra-001.

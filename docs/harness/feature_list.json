@@ -184,10 +184,51 @@
     },
     {
       "status": "in_progress",
-      "evidence": [],
-      "branch": "",
-      "pr": null,
-      "head_sha": null,
+      "evidence": [
+        {
+          "date": "2026-10-06",
+          "session": "20261006-1444-claude-6864",
+          "sha": "21e2d6b",
+          "command": "read-only prod query: 346 articles with 3+ attempts; 24 unpublished — all last_enrichment_error \"stop_reason: refusal\" (pathogen research)",
+          "target": "production",
+          "outcome": "pass",
+          "approval": "Roi: read-only prod queries for the investigation",
+          "link": "PR #112"
+        },
+        {
+          "date": "2026-10-06",
+          "session": "20261006-1444-claude-6864",
+          "sha": "21e2d6b",
+          "command": "Codex/gpt-6-astra side-by-side test, identical prompt, 24/24 answered, format + numbers checks pass; Roi reviewed summaries vs abstracts: good (~/dev/vetree-harness-work/codex-summary-test/review.html)",
+          "target": "none",
+          "outcome": "pass",
+          "approval": "Roi asked for the test",
+          "link": "PR #112"
+        },
+        {
+          "date": "2026-10-06",
+          "session": "20261006-1444-claude-6864",
+          "sha": "21e2d6b",
+          "command": "fallback mocked-API tests (success, refusal, incomplete, 404, empty, no key, key redaction, ordering, counter); init.sh check GREEN",
+          "target": "local",
+          "outcome": "pass",
+          "approval": "n/a",
+          "link": "PR #112"
+        },
+        {
+          "date": "2026-10-06",
+          "session": "20261006-1444-claude-6864",
+          "sha": "21e2d6b",
+          "command": "Codex review tier 2: r1 27.4k (2 blocking) → r2 delta 34.7k BLOCKING: none",
+          "target": "none",
+          "outcome": "pass",
+          "approval": "n/a",
+          "link": "PR #112"
+        }
+      ],
+      "branch": "fix/enrichment-refusal-fallback",
+      "pr": 112,
+      "head_sha": "21e2d6b",
       "wip_sha": null,
       "expected_failures": [],
       "id": "enrich-001",
@@ -219,7 +260,7 @@
           "paid_calls": false
         }
       ],
-      "notes": "Roi, 2026-10-06: from the enrichment report (24 articles failed 3+ attempts). Read-only prod queries approved for the investigation; writes / paid calls ask first. · claimed by 20261006-1444-claude-6864"
+      "notes": "Roi, 2026-10-06: from the enrichment report (24 articles failed 3+ attempts). Read-only prod queries approved for the investigation; writes / paid calls ask first. · claimed by 20261006-1444-claude-6864 · decisions (Roi 2026-10-06): option A fallback = OpenAI gpt-6-astra, internal-only disclosure, rule 0 exception refusals only. NEXT: Roi adds GitHub secret OPENAI_API_KEY + confirms gpt-6-astra access → mark #112 ready (smoke runs) → Roi merges → with Roi's OK re-run the 24 (Retry failed / force_retry; prod writes + 24 Claude + 24 gpt-6-astra calls) → re-count failed-3+ (expect 0 refusals left)."
     },
     {
       "status": "not_started",

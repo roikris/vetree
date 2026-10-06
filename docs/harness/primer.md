@@ -8,7 +8,7 @@ Routine: `docs/harness/README.md` on `main`. Pre-harness primer (frozen): root `
 ---
 
 ## 1. Current Verified State
-*Updated 2026-10-06 — Session 20261006-1422-claude-ab88 (backlog session 001 completed)*
+*Updated 2026-10-06 — Session 20261006-1444-claude-6864 (enrich-001, controlled stop: waiting for Roi)*
 
 - **Repo root:** `~/dev/vetree` · state worktree: `.harness-state/` (branch `harness-state`)
 - **main:** `b54393b` (PR #111 review token budget, merged by Roi 2026-10-05) — last verified:
@@ -16,11 +16,12 @@ Routine: `docs/harness/README.md` on `main`. Pre-harness primer (frozen): root `
 - **Standard startup:** `docs/harness/init.sh` (state, then check) — see README for exit codes
 - **Standard verification:** `docs/harness/init.sh check [--item <id>]`; build reads production
   Supabase (read-only); never Playwright as a baseline
-- **Highest-priority unfinished item:** **enrich-001** (24 articles failed enrichment 3+ attempts).
-  Then infra-001 (GRANTs, deadline 2026-10-30) → feed-001 → harness-003 → build-001 → lint-001;
-  ai-001 parked until ~2026-11-01.
-- **Current blocker:** none — rollout steps 0–9 done; the harness is live on main
-- **Open PRs awaiting Roi:** none
+- **Highest-priority unfinished item:** **enrich-001** (in_progress) — fallback built, draft PR #112;
+  waiting for Roi (secret + access + merge), then the re-run of the 24. Next: infra-001 (GRANTs,
+  deadline 2026-10-30) → feed-001 → harness-003 → build-001 → lint-001; ai-001 parked.
+- **Current blocker:** enrich-001 needs Roi: GitHub secret `OPENAI_API_KEY`, confirm `gpt-6-astra`
+  access (limited rollout), merge #112, then OK for the 24-article re-run (prod writes + paid calls)
+- **Open PRs awaiting Roi:** #112 fix(enrichment) refusal fallback — draft; review BLOCKING: none
 
 ## 2. Open Issues & Known Risks
 - **Lint is red on main:** 178 errors / 75 warnings, never run in CI. Handled by the lint ratchet
@@ -197,6 +198,18 @@ works today was spot-checked in the code on 2026-10-05.
 (Newest first — only the latest 5 are kept here (D11); every entry, older ones included, is in
 `session-log.md`, which is never trimmed.)
 
+### Session 20261006-1444-claude-6864 · 2026-10-06 · Claude Code · enrich-001 (controlled stop — waiting for Roi)
+- Goal / Completed: the 24 articles failing 3+ attempts are all Claude refusals on pathogen
+  research. Codex/gpt-6-astra side-by-side test (identical prompt): 24/24 answered; Roi: good.
+  Roi chose a refusal-only fallback to gpt-6-astra (rule 0 exception, internal disclosure).
+  Built on fix/enrichment-refusal-fallback → draft PR #112.
+- Start state: main @ b54393b, clean; lock free.
+- Verification: read-only prod queries; mocked-API tests; init.sh check GREEN on head 21e2d6b.
+- Review: Codex · tier 2 · 2 rounds · 27.4k + 34.7k tokens · BLOCKING: none (2 blocking fixed).
+- Commits / PR: e418960, 21e2d6b → #112 (draft).
+- Pending Roi approvals: OPENAI_API_KEY secret; gpt-6-astra access; merge #112; re-run the 24.
+- Next best step: after Roi's merge + key — with his OK, re-run the 24 and re-count; then infra-001.
+
 ### Session 20261006-1422-claude-ab88 · 2026-10-06 · Claude Code · backlog session 001 (completed)
 - Goal / Completed: resumed and finished the backlog session with Roi. Roi agreed the order and
   put a new item first. Backlog: 1 enrich-001 (24 articles failed enrichment 3+ attempts, from
@@ -239,9 +252,3 @@ works today was spot-checked in the code on 2026-10-05.
 - Known risks / unresolved: candidate B has a deadline (Supabase explicit GRANTs, 2026-10-30).
 - Next best step: resume backlog session 001 with Roi — ask his priorities first, then candidates
   (suggested order B, A, E-proxy, D, F; G parked).
-
-### Session 20261005-1621-claude-4de2 · 2026-10-05 · Claude Code · rollout step 9 (merge)
-- Goal / Completed: Roi approved the merge; #110 marked ready (smoke skipped, docs-only; run
-  success on b899862), squash-merged as 5ae7d29. Local checkout on main @ 5ae7d29.
-- Note: DESIGN.md's step-9 row still says "Merge: on Roi's word" — tick it in the next rules PR.
-- Next best step: Session 001 — build the backlog with Roi (init.sh check --quick; no product code).
