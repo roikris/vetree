@@ -26,6 +26,14 @@ const FALLBACK_MODEL = 'gpt-6-astra';
 let fallbackUsed = 0;
 let fallbackUnavailable = 0;  // refusals that could not fall back (no OPENAI_API_KEY)
 
+// Error text from the fallback API is logged and saved (last_enrichment_error), so it must never carry
+// the key: remove the key itself and anything that looks like an OpenAI secret.
+function redact(text, key) {
+  let out = String(text || '');
+  if (key) out = out.split(key).join('[redacted]');
+  return out.replace(/sk-[A-Za-z0-9_-]{8,}/g, '[redacted]');
+}
+
 async function fallbackOnRefusal(system, prompt) {
   const key = process.env.OPENAI_API_KEY;
   if (!key) {
@@ -44,17 +52,17 @@ async function fallbackOnRefusal(system, prompt) {
   });
   const body = await res.json().catch(() => null);
   if (!res.ok) {
-    throw new Error(`Claude refused (stop_reason: refusal); fallback HTTP ${res.status}: ${body?.error?.message || 'no body'}`.slice(0, 500));
+    const detail = redact(body?.error?.message || body?.error?.code || 'no body', key);
+    throw new Error(`Claude refused (stop_reason: refusal); fallback HTTP ${res.status}: ${detail}`.slice(0, 500));
   }
   if (body?.status !== 'completed') {
     throw new Error(`Claude refused (stop_reason: refusal); fallback status ${body?.status || 'unknown'}${body?.incomplete_details?.reason ? ` (${body.incomplete_details.reason})` : ''}`);
   }
   const parts = (body.output || []).filter(item => item.type === 'message').flatMap(item => item.content || []);
   const refusal = parts.find(part => part.type === 'refusal');
-  if (refusal) throw new Error(`Claude refused (stop_reason: refusal); fallback refused too: ${String(refusal.refusal || '').slice(0, 200)}`);
+  if (refusal) throw new Error(`Claude refused (stop_reason: refusal); fallback refused too: ${redact(refusal.refusal, key).slice(0, 200)}`);
   const text = parts.filter(part => part.type === 'output_text').map(part => part.text).join('');
   if (!text) throw new Error('Claude refused (stop_reason: refusal); fallback returned no text');
-  fallbackUsed++;
   return text;
 }
 
@@ -106,12 +114,13 @@ Return ONLY valid JSON, no markdown formatting.`;
     const textBlock = message.content?.find(block => block.type === 'text');
     let responseText;
     let promptVersion = PROMPT_VERSION;
-    if (textBlock) {
-      responseText = textBlock.text;
-    } else if (message.stop_reason === 'refusal') {
+    // A refusal is checked FIRST: any text that comes with it is never used or saved.
+    if (message.stop_reason === 'refusal') {
       console.log(`  ↪ Claude refused — trying fallback ${FALLBACK_MODEL} (same prompt)`);
       responseText = await fallbackOnRefusal(system, prompt);
       promptVersion = `${PROMPT_VERSION}+fallback:${FALLBACK_MODEL}`;
+    } else if (textBlock) {
+      responseText = textBlock.text;
     } else {
       throw new Error(`No text content in Claude response (stop_reason: ${message.stop_reason})`);
     }
@@ -195,6 +204,7 @@ Return ONLY valid JSON, no markdown formatting.`;
       else if (outcome === 'hidden') failedOutHidden++;
       return false;  // a failure, not a success
     }
+    if (promptVersion !== PROMPT_VERSION) fallbackUsed++;  // counted only once validated and saved
     console.log(`  ✓ Enriched${promptVersion === PROMPT_VERSION ? '' : ` (fallback ${FALLBACK_MODEL})`}: ${article.title.substring(0, 60)}...`);
     console.log(`    Labels: ${validLabels.join(', ')}`);
     console.log(`    Evidence: ${enrichment.strength_of_evidence}`);
