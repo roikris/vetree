@@ -29,6 +29,7 @@ let failedOutHidden = 0;
 async function markRefused(client, article) {
   const { data: outcome, error } = await client.rpc('record_enrichment_refusal', { p_id: article.id });
   if (error) { console.error(`  Error recording refusal:`, error.message); return false; }
+  if (outcome === 'missing') { console.log('  ⊘ Claude refused — the article no longer exists, nothing recorded'); return false; }
   refusedThisRun++;
   if (outcome === 'hidden') failedOutHidden++;
   console.log(`  ⊘ Claude refused — ${outcome === 'refused' ? `hidden as ${AI_REFUSED}, waiting for the Codex fallback`
