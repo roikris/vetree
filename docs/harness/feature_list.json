@@ -183,7 +183,7 @@
       "notes": "Added by 20261005-1947-claude-9005 on Roi's word (2026-10-05). Origin: session 20261005-1630-claude-2221 overwrote a held lock because lock-taking was hand-written and chained after a STOP (reverted 52fed24). Order vs session-001 candidates: Roi decides when the backlog session resumes."
     },
     {
-      "status": "not_started",
+      "status": "in_progress",
       "evidence": [],
       "branch": "",
       "pr": null,
@@ -219,7 +219,7 @@
           "paid_calls": false
         }
       ],
-      "notes": "Roi, 2026-10-06: from the enrichment report (24 articles failed 3+ attempts). Read-only prod queries approved for the investigation; writes / paid calls ask first."
+      "notes": "Roi, 2026-10-06: from the enrichment report (24 articles failed 3+ attempts). Read-only prod queries approved for the investigation; writes / paid calls ask first. · claimed by 20261006-1444-claude-6864"
     },
     {
       "status": "not_started",
