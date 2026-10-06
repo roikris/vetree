@@ -1,6 +1,6 @@
 {
   "project": "vetree",
-  "last_updated": "2026-10-05",
+  "last_updated": "2026-10-06",
   "rules": {
     "single_active_feature": true,
     "passing_requires_evidence": true,
@@ -124,7 +124,7 @@
     },
     {
       "id": "harness-003",
-      "priority": 2,
+      "priority": 4,
       "area": "harness",
       "type": "feature",
       "title": "init.sh lock / unlock — take and release the session lock in one command that refuses when held",
@@ -181,6 +181,191 @@
       "wip_sha": null,
       "expected_failures": [],
       "notes": "Added by 20261005-1947-claude-9005 on Roi's word (2026-10-05). Origin: session 20261005-1630-claude-2221 overwrote a held lock because lock-taking was hand-written and chained after a STOP (reverted 52fed24). Order vs session-001 candidates: Roi decides when the backlog session resumes."
+    },
+    {
+      "status": "not_started",
+      "evidence": [],
+      "branch": "",
+      "pr": null,
+      "head_sha": null,
+      "wip_sha": null,
+      "expected_failures": [],
+      "id": "enrich-001",
+      "priority": 1,
+      "area": "enrichment",
+      "type": "fix",
+      "title": "24 articles failed enrichment 3+ attempts — investigate and resolve",
+      "user_visible_behavior": "Articles that can be enriched get summaries and appear; ones that cannot are handled per the enrichment rules (quarantine / hidden), with a known cause",
+      "verification": [
+        {
+          "step": "Root cause per article group identified from production data",
+          "target": "production",
+          "db_reads": "prod",
+          "db_writes": "none",
+          "paid_calls": false
+        },
+        {
+          "step": "Resolution applied (code fix and/or re-run of enrichment) — prod writes / paid Claude calls only with Roi's OK",
+          "target": "production",
+          "db_reads": "prod",
+          "db_writes": "prod",
+          "paid_calls": true
+        },
+        {
+          "step": "Failed-3+ count re-checked after the fix",
+          "target": "production",
+          "db_reads": "prod",
+          "db_writes": "none",
+          "paid_calls": false
+        }
+      ],
+      "notes": "Roi, 2026-10-06: from the enrichment report (24 articles failed 3+ attempts). Read-only prod queries approved for the investigation; writes / paid calls ask first."
+    },
+    {
+      "status": "not_started",
+      "evidence": [],
+      "branch": "",
+      "pr": null,
+      "head_sha": null,
+      "wip_sha": null,
+      "expected_failures": [],
+      "id": "infra-001",
+      "priority": 2,
+      "area": "supabase",
+      "type": "investigation",
+      "title": "Supabase explicit-GRANT enforcement (from 2026-10-30): do existing tables break?",
+      "user_visible_behavior": "No 42501 permission errors after Supabase starts enforcing explicit GRANTs",
+      "verification": [
+        {
+          "step": "List public tables / functions and their grants for anon, authenticated, service_role; compare with what the app uses",
+          "target": "production",
+          "db_reads": "prod",
+          "db_writes": "none",
+          "paid_calls": false
+        },
+        {
+          "step": "If gaps: a migration with the missing GRANTs — db push only on Roi's yes (rule 15)",
+          "target": "production",
+          "db_reads": "prod",
+          "db_writes": "prod",
+          "paid_calls": false
+        }
+      ],
+      "notes": "Deadline 2026-10-30 (supabase/CLAUDE.md:505). Only 22 of 72 migrations contain a GRANT. Tier 2 (Supabase migrations). Ask Roi for read-only prod access when starting."
+    },
+    {
+      "status": "not_started",
+      "evidence": [],
+      "branch": "",
+      "pr": null,
+      "head_sha": null,
+      "wip_sha": null,
+      "expected_failures": [],
+      "id": "feed-001",
+      "priority": 3,
+      "area": "feed",
+      "type": "fix",
+      "title": "Feed header \"new this week\" count is wrong (app/page.tsx:91)",
+      "user_visible_behavior": "The count shows only visible articles that arrived on Vetree in the last 7 days",
+      "verification": [
+        {
+          "step": "Count excludes hidden / quarantined / unsummarised articles and future-dated preprints; uses created_at (Content Ranking Clock)",
+          "target": "local",
+          "db_reads": "none",
+          "db_writes": "none",
+          "paid_calls": false
+        },
+        {
+          "step": "Preview shows a plausible number",
+          "target": "preview",
+          "db_reads": "prod",
+          "db_writes": "none",
+          "paid_calls": false
+        }
+      ],
+      "notes": "Session 001 candidate A."
+    },
+    {
+      "status": "not_started",
+      "evidence": [],
+      "branch": "",
+      "pr": null,
+      "head_sha": null,
+      "wip_sha": null,
+      "expected_failures": [],
+      "id": "build-001",
+      "priority": 5,
+      "area": "build",
+      "type": "chore",
+      "title": "Build warnings — Next 16 middleware → proxy rename (plus Sentry onRouterTransitionStart, scan-route tracing)",
+      "user_visible_behavior": "none; removes deprecation before it becomes an error",
+      "verification": [
+        {
+          "step": "init.sh check GREEN with the warnings gone",
+          "target": "local",
+          "db_reads": "none",
+          "db_writes": "none",
+          "paid_calls": false
+        },
+        {
+          "step": "Auth / email-verification redirects still work on the preview",
+          "target": "preview",
+          "db_reads": "prod",
+          "db_writes": "none",
+          "paid_calls": false
+        }
+      ],
+      "notes": "Session 001 candidate E. middleware is auth → tier 2."
+    },
+    {
+      "status": "not_started",
+      "evidence": [],
+      "branch": "",
+      "pr": null,
+      "head_sha": null,
+      "wip_sha": null,
+      "expected_failures": [],
+      "id": "lint-001",
+      "priority": 6,
+      "area": "lint",
+      "type": "chore",
+      "title": "Lint cleanup — narrow scope (design handoff, workflow scripts), shrink the baseline, incl. the three \"possible bugs\"",
+      "user_visible_behavior": "none",
+      "verification": [
+        {
+          "step": "lint-baseline.json shrinks; init.sh check GREEN",
+          "target": "local",
+          "db_reads": "none",
+          "db_writes": "none",
+          "paid_calls": false
+        }
+      ],
+      "notes": "Session 001 candidates D + C (C judged benign: hoisting, Onboarding remount, Date.now in a server component)."
+    },
+    {
+      "status": "blocked",
+      "evidence": [],
+      "branch": "",
+      "pr": null,
+      "head_sha": null,
+      "wip_sha": null,
+      "expected_failures": [],
+      "id": "ai-001",
+      "priority": 99,
+      "area": "ai",
+      "type": "investigation",
+      "title": "AI model revisit (Sonnet 4.6 vs newer) ~2026-11-01",
+      "user_visible_behavior": "none",
+      "verification": [
+        {
+          "step": "Token cost per identical prompt measured side by side",
+          "target": "production",
+          "db_reads": "prod",
+          "db_writes": "none",
+          "paid_calls": true
+        }
+      ],
+      "notes": "Parked until ~2026-11-01 (CLAUDE.md rule 0). Session 001 candidate G."
     }
   ]
 }

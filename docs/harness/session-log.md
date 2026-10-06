@@ -196,3 +196,14 @@ Newest at the bottom. The same entries (latest few) appear in primer.md → Rece
   is Roi's call when the backlog session resumes.
 - Verification: n/a (state only) · Review: n/a (exception 1) · Commits / PR: state only.
 - Next best step: resume backlog session 001 with Roi.
+
+### Session 20261006-1422-claude-ab88 · 2026-10-06 · Claude Code · backlog session 001 (completed)
+- Goal / Completed: resumed and finished the backlog session with Roi. Roi agreed the order and
+  put a new item first. Backlog: 1 enrich-001 (24 articles failed enrichment 3+ attempts, from
+  the enrichment report) · 2 infra-001 (GRANTs, deadline 2026-10-30) · 3 feed-001 · 4 harness-003
+  · 5 build-001 · 6 lint-001 · ai-001 parked (~2026-11-01). F was already done in #111.
+- Start state: main @ b54393b, clean; lock free. Baseline: init.sh check --quick GREEN.
+- Verification: n/a (no product code) · Review: n/a (state only) · Commits / PR: state only.
+- Pending Roi approvals: enrich-001 resolution (prod writes / paid Claude calls) — ask with findings;
+  infra-001 read-only prod access when it starts.
+- Next best step: new session for enrich-001 (read-only prod investigation approved).

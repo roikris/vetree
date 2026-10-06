@@ -8,7 +8,7 @@ Routine: `docs/harness/README.md` on `main`. Pre-harness primer (frozen): root `
 ---
 
 ## 1. Current Verified State
-*Updated 2026-10-05 — Session 20261005-1947-claude-9005 (backlog update)*
+*Updated 2026-10-06 — Session 20261006-1422-claude-ab88 (backlog session 001 completed)*
 
 - **Repo root:** `~/dev/vetree` · state worktree: `.harness-state/` (branch `harness-state`)
 - **main:** `b54393b` (PR #111 review token budget, merged by Roi 2026-10-05) — last verified:
@@ -16,9 +16,9 @@ Routine: `docs/harness/README.md` on `main`. Pre-harness primer (frozen): root `
 - **Standard startup:** `docs/harness/init.sh` (state, then check) — see README for exit codes
 - **Standard verification:** `docs/harness/init.sh check [--item <id>]`; build reads production
   Supabase (read-only); never Playwright as a baseline
-- **Highest-priority unfinished item:** backlog session 001 (paused by Roi) — resume it and set the
-  order; queued so far: **harness-003** (`init.sh lock`/`unlock`, not_started). Candidate B has a
-  deadline: Supabase explicit GRANTs by 2026-10-30.
+- **Highest-priority unfinished item:** **enrich-001** (24 articles failed enrichment 3+ attempts).
+  Then infra-001 (GRANTs, deadline 2026-10-30) → feed-001 → harness-003 → build-001 → lint-001;
+  ai-001 parked until ~2026-11-01.
 - **Current blocker:** none — rollout steps 0–9 done; the harness is live on main
 - **Open PRs awaiting Roi:** none
 
@@ -39,7 +39,8 @@ Routine: `docs/harness/README.md` on `main`. Pre-harness primer (frozen): root `
 - **AI model revisit ~2026-11-01:** Sonnet 4.6 for every call; Sonnet 5.5 was reverted (~1.46x
   tokens). One line in `lib/ai/model.ts` + the three scripts.
 
-### Backlog candidates for Session 001 (not items yet — Roi decides; presented 2026-10-05, paused)
+### Backlog candidates from Session 001 — now items (2026-10-06): B→infra-001, A→feed-001,
+E→build-001, D+C→lint-001, G→ai-001 (parked), F done in #111
 - **A (fix)** Feed header "new this week" count (`app/page.tsx:91`): no quarantine/summary filter (counts hidden
   articles), no upper bound (future-dated preprints count forever), uses `publication_date` not `created_at`.
 - **B (investigation, deadline 2026-10-30)** Supabase explicit-GRANT enforcement (supabase/CLAUDE.md): only 22 of 72
@@ -196,6 +197,17 @@ works today was spot-checked in the code on 2026-10-05.
 (Newest first — only the latest 5 are kept here (D11); every entry, older ones included, is in
 `session-log.md`, which is never trimmed.)
 
+### Session 20261006-1422-claude-ab88 · 2026-10-06 · Claude Code · backlog session 001 (completed)
+- Goal / Completed: resumed and finished the backlog session with Roi. Roi agreed the order and
+  put a new item first. Backlog: 1 enrich-001 (24 articles failed enrichment 3+ attempts, from
+  the enrichment report) · 2 infra-001 (GRANTs, deadline 2026-10-30) · 3 feed-001 · 4 harness-003
+  · 5 build-001 · 6 lint-001 · ai-001 parked (~2026-11-01). F was already done in #111.
+- Start state: main @ b54393b, clean; lock free. Baseline: init.sh check --quick GREEN.
+- Verification: n/a (no product code) · Review: n/a (state only) · Commits / PR: state only.
+- Pending Roi approvals: enrich-001 resolution (prod writes / paid Claude calls) — ask with findings;
+  infra-001 read-only prod access when it starts.
+- Next best step: new session for enrich-001 (read-only prod investigation approved).
+
 ### Session 20261005-1947-claude-9005 · 2026-10-05 · Claude Code · backlog update
 - Goal / Completed: Roi merged #111 (b54393b) → harness-002 `merged`. Added **harness-003** on Roi's
   word: `init.sh lock <item>` / `init.sh unlock` (refuse when any lock is held; owner-only unlock;
@@ -233,10 +245,3 @@ works today was spot-checked in the code on 2026-10-05.
   success on b899862), squash-merged as 5ae7d29. Local checkout on main @ 5ae7d29.
 - Note: DESIGN.md's step-9 row still says "Merge: on Roi's word" — tick it in the next rules PR.
 - Next best step: Session 001 — build the backlog with Roi (init.sh check --quick; no product code).
-
-### Session 20261005-1545-claude-0ccc · 2026-10-05 · Claude Code · rollout step 9
-- Goal / Completed: rules branch pushed; draft PR #110 opened on Roi's OK. Checks: scope pass
-  (docs-only), smoke skipped (run success), Vercel preview ready. Codex review of the full rules
-  diff: 6 rounds, 6 blocking fixed, BLOCKING: none (DESIGN.md step 9).
-- Pending Roi approvals: merge of #110.
-- Next best step: after Roi merges #110 — Session 001: build the backlog with Roi.
