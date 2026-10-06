@@ -2,69 +2,13 @@ const { createClient } = require('@supabase/supabase-js');
 const ws = require('ws');
 const Anthropic = require('@anthropic-ai/sdk');
 
-const ALLOWED_LABELS = [
-  'Cardiology', 'Oncology', 'Soft Tissue Surgery', 'Orthopedics', 'Dermatology',
-  'Neurology', 'Internal Medicine', 'Small Animal', 'Large Animal', 'Equine',
-  'Exotic', 'Emergency', 'Anesthesia', 'Radiology', 'Pathology', 'Pharmacology',
-  'Nutrition', 'Behavior', 'Reproduction', 'Ophthalmology', 'Dentistry'
-];
+// eslint-disable-next-line @typescript-eslint/no-require-imports -- CommonJS script run directly by the workflow
+const { PROMPT_VERSION, AI_REFUSED, SYSTEM, buildPrompt, validateEnrichment } = require('./enrichment-prompt');
 
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-function filterLabels(labels) {
-  if (!Array.isArray(labels)) return [];
-  return labels.filter(label => ALLOWED_LABELS.includes(label));
-}
-
-const PROMPT_VERSION = 'v2-context-framing';
-
-// Fallback for refusals only (CLAUDE.md rule 0 exception, Roi 2026-10-06): when Claude declines an
-// article (stop_reason 'refusal' — e.g. livestock/poultry pathogen research), the SAME system + user
-// prompt goes once to this OpenAI model; its reply goes through the same parsing, validation and save.
-// Every other failure stays a normal failure. The model is recorded in prompt_version.
-const FALLBACK_MODEL = 'gpt-6-astra';
-let fallbackUsed = 0;
-let fallbackUnavailable = 0;  // refusals that could not fall back (no OPENAI_API_KEY)
-
-// Error text from the fallback API is logged and saved (last_enrichment_error), so it must never carry
-// the key: remove the key itself and anything that looks like an OpenAI secret.
-function redact(text, key) {
-  let out = String(text || '');
-  if (key) out = out.split(key).join('[redacted]');
-  return out.replace(/sk-[A-Za-z0-9_-]{8,}/g, '[redacted]');
-}
-
-async function fallbackOnRefusal(system, prompt) {
-  const key = process.env.OPENAI_API_KEY;
-  if (!key) {
-    fallbackUnavailable++;
-    throw new Error('Claude refused (stop_reason: refusal); fallback unavailable: OPENAI_API_KEY not set');
-  }
-  const res = await fetch('https://api.openai.com/v1/responses', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: FALLBACK_MODEL,
-      input: [{ role: 'system', content: system }, { role: 'user', content: prompt }],
-      reasoning: { effort: 'medium' },
-      max_output_tokens: 8000,  // reasoning tokens count toward this cap
-    }),
-  });
-  const body = await res.json().catch(() => null);
-  if (!res.ok) {
-    const detail = redact(body?.error?.message || body?.error?.code || 'no body', key);
-    throw new Error(`Claude refused (stop_reason: refusal); fallback HTTP ${res.status}: ${detail}`.slice(0, 500));
-  }
-  if (body?.status !== 'completed') {
-    throw new Error(`Claude refused (stop_reason: refusal); fallback status ${body?.status || 'unknown'}${body?.incomplete_details?.reason ? ` (${body.incomplete_details.reason})` : ''}`);
-  }
-  const parts = (body.output || []).filter(item => item.type === 'message').flatMap(item => item.content || []);
-  const refusal = parts.find(part => part.type === 'refusal');
-  if (refusal) throw new Error(`Claude refused (stop_reason: refusal); fallback refused too: ${redact(refusal.refusal, key).slice(0, 200)}`);
-  const text = parts.filter(part => part.type === 'output_text').map(part => part.text).join('');
-  if (!text) throw new Error('Claude refused (stop_reason: refusal); fallback returned no text');
-  return text;
-}
+// Claude refusals this run (marked ai_refused, waiting for the Codex fallback on Roi's Mac)
+let refusedThisRun = 0;
 
 // Claude summarizes `abstract` (migration 057) — ONLY that column, never `summary`.
 // Before 057 the abstract lived in `summary` and this script overwrote it, so any retry
@@ -77,24 +21,39 @@ async function fallbackOnRefusal(system, prompt) {
 // Articles hidden this run after their 3rd failed attempt (see record_enrichment_failure)
 let failedOutHidden = 0;
 
+// Hide a refused article as ai_refused in ONE conditional update. It never overwrites an admin's or a
+// no-abstract quarantine: if one is set, the attempt is recorded the normal way instead.
+async function markRefused(client, article) {
+  refusedThisRun++;
+  console.log(`  ⊘ Claude refused — hidden as ${AI_REFUSED}, waiting for the Codex fallback`);
+  const { data, error } = await client
+    .from('articles')
+    .update({
+      needs_enrichment: false,
+      force_retry: false,
+      quarantined: true,
+      quarantine_reason: AI_REFUSED,
+      enrichment_attempts: (article.enrichment_attempts || 0) + 1,
+      last_enrichment_at: new Date().toISOString(),
+      last_enrichment_error: 'Claude refused (stop_reason: refusal); waiting for the Codex fallback (npm run enrich:refused)',
+    })
+    .eq('id', article.id)
+    .or(`quarantine_reason.is.null,quarantine_reason.in.(enrichment_failed,${AI_REFUSED})`)
+    .select('id');
+  if (!error && data && data.length === 1) return false;  // not enriched (yet) — counted as a failure this run
+  if (error) console.error(`  Error marking ${AI_REFUSED}:`, error.message);
+  const { data: outcome, error: rpcError } = await client.rpc('record_enrichment_failure', {
+    p_id: article.id,
+    p_error: 'Claude refused (stop_reason: refusal)'
+  });
+  if (!rpcError && outcome === 'hidden') failedOutHidden++;
+  if (rpcError) console.error(`  Error recording failure:`, rpcError.message);
+  return false;
+}
+
 async function enrichArticle(client, anthropic, article) {
-  const system = `You are a veterinary medicine expert supporting Vetree, an evidence-based clinical reference platform for licensed veterinary professionals. Your task is to summarize a single article that is already published and publicly indexed on PubMed — peer-reviewed veterinary and biomedical literature. You are not generating new research, protocols, or technical instructions; you are only extracting and restating what the published abstract already states, for clinical-reference use by practicing veterinarians.`;
-
-  const prompt = `Analyze the following already-published, peer-reviewed article and extract the requested information for a clinical reference summary.
-
-Title: ${article.title}
-Authors: ${article.authors}
-Journal: ${article.source_journal}
-Abstract: ${article.abstract}
-
-Return a JSON object with exactly these 5 fields:
-1. summary: A comprehensive 150-250 word summary for veterinary professionals
-2. clinical_bottom_line: One sentence (max 20 words) highlighting the key clinical takeaway
-3. labels: Array of 3-5 strings ONLY from this list: Cardiology, Oncology, Soft Tissue Surgery, Orthopedics, Dermatology, Neurology, Internal Medicine, Small Animal, Large Animal, Equine, Exotic, Emergency, Anesthesia, Radiology, Pathology, Pharmacology, Nutrition, Behavior, Reproduction, Ophthalmology, Dentistry
-4. strength_of_evidence: One of: Gold Standard/RCT, Systematic Review/Meta-Analysis, Cohort Study, Case-Control Study, Observational, Case Series, Case Report, Expert Opinion
-5. authors: corrected authors string if duplicates detected, otherwise null
-
-Return ONLY valid JSON, no markdown formatting.`;
+  const system = SYSTEM;
+  const prompt = buildPrompt(article);
 
   try {
     const message = await anthropic.messages.create({
@@ -111,19 +70,17 @@ Return ONLY valid JSON, no markdown formatting.`;
     if (message.stop_reason === 'max_tokens') {
       throw new Error('Claude reply was cut off at max_tokens');
     }
-    const textBlock = message.content?.find(block => block.type === 'text');
-    let responseText;
-    let promptVersion = PROMPT_VERSION;
-    // A refusal is checked FIRST: any text that comes with it is never used or saved.
+    // A refusal is checked FIRST (any text that comes with it is never used): Claude declines some
+    // livestock/poultry pathogen papers. One attempt is enough — a refusal repeats — so the article
+    // is hidden as ai_refused and waits for the Codex fallback (CLAUDE.md rule 0 exception).
     if (message.stop_reason === 'refusal') {
-      console.log(`  ↪ Claude refused — trying fallback ${FALLBACK_MODEL} (same prompt)`);
-      responseText = await fallbackOnRefusal(system, prompt);
-      promptVersion = `${PROMPT_VERSION}+fallback:${FALLBACK_MODEL}`;
-    } else if (textBlock) {
-      responseText = textBlock.text;
-    } else {
+      return await markRefused(client, article);
+    }
+    const textBlock = message.content?.find(block => block.type === 'text');
+    if (!textBlock) {
       throw new Error(`No text content in Claude response (stop_reason: ${message.stop_reason})`);
     }
+    const responseText = textBlock.text;
 
     // Try to extract JSON from the response
     let jsonMatch = responseText.match(/\{[\s\S]*\}/);
@@ -133,24 +90,13 @@ Return ONLY valid JSON, no markdown formatting.`;
 
     const enrichment = JSON.parse(jsonMatch[0]);
 
-    // Filter and validate labels
-    const validLabels = filterLabels(enrichment.labels);
-
-    // Validate enrichment is complete - BOTH fields must be populated
-    const hasSummary = enrichment.summary && enrichment.summary.trim().length > 0;
-    const hasClinicalBottomLine = enrichment.clinical_bottom_line && enrichment.clinical_bottom_line.trim().length > 0;
-    const hasValidLabels = validLabels.length > 0;
-
-    const isComplete = hasSummary && hasClinicalBottomLine && hasValidLabels;
+    // Same validation as the Codex fallback (enrichment-prompt.js): BOTH fields + an allowed label
+    const { validLabels, isComplete, missing } = validateEnrichment(enrichment);
     const attemptNumber = (article.enrichment_attempts || 0) + 1;
 
     // If enrichment is incomplete, set error and keep needs_enrichment = true
     let errorMessage = null;
     if (!isComplete) {
-      const missing = [];
-      if (!hasSummary) missing.push('summary');
-      if (!hasClinicalBottomLine) missing.push('clinical_bottom_line');
-      if (!hasValidLabels) missing.push('labels');
       errorMessage = `Enrichment incomplete - missing: ${missing.join(', ')}`;
     }
 
@@ -169,7 +115,7 @@ Return ONLY valid JSON, no markdown formatting.`;
       } : {}),
       last_enrichment_at: new Date().toISOString(),
       last_enrichment_error: errorMessage,  // Set error if incomplete, null if complete
-      prompt_version: promptVersion  // Which prompt (and, for a refusal fallback, which model) produced summary/clinical_bottom_line
+      prompt_version: PROMPT_VERSION  // Which prompt produced summary/clinical_bottom_line — enables precise rollback
     };
 
 
@@ -204,8 +150,7 @@ Return ONLY valid JSON, no markdown formatting.`;
       else if (outcome === 'hidden') failedOutHidden++;
       return false;  // a failure, not a success
     }
-    if (promptVersion !== PROMPT_VERSION) fallbackUsed++;  // counted only once validated and saved
-    console.log(`  ✓ Enriched${promptVersion === PROMPT_VERSION ? '' : ` (fallback ${FALLBACK_MODEL})`}: ${article.title.substring(0, 60)}...`);
+    console.log(`  ✓ Enriched: ${article.title.substring(0, 60)}...`);
     console.log(`    Labels: ${validLabels.join(', ')}`);
     console.log(`    Evidence: ${enrichment.strength_of_evidence}`);
 
@@ -250,7 +195,7 @@ async function sendSlackNotification(stats) {
 • Total processed this run: ${stats.totalProcessed}
 • Successfully enriched: ${stats.successCount}
 • Failed this run: ${stats.failCount} (hidden after 3 failed attempts: ${stats.hiddenThisRun})
-• Summarized by fallback ${FALLBACK_MODEL} (Claude refused): ${fallbackUsed}${fallbackUnavailable ? `\n⚠️ *Claude refused ${fallbackUnavailable} article(s) and no OPENAI_API_KEY was set — no fallback ran*` : ''}
+• Claude refused this run: ${stats.refusedThisRun} · waiting for the Codex fallback: ${stats.waitingForFallback}${stats.waitingForFallback ? ' — run `npm run enrich:refused` on Roi\'s Mac' : ''}
 • Total remaining in queue: ${stats.remainingInQueue}${failedWarning}`
   };
 
@@ -299,7 +244,9 @@ async function main() {
     remainingInQueue: 0,
     failedArticles: 0,
     attempted: 0,       // real AI attempts (skipped short abstracts excluded)
-    hiddenThisRun: 0
+    hiddenThisRun: 0,
+    refusedThisRun: 0,
+    waitingForFallback: 0
   };
 
   const BATCH_SIZE = 50;
@@ -457,11 +404,20 @@ async function main() {
     .from('articles')
     .select('*', { count: 'exact', head: true })
     .not('abstract', 'is', null)
-    // = FAILED_UNPUBLISHED_OR in lib/enrichment/requeueFailed.ts
-    .or('quarantine_reason.eq.enrichment_failed,and(enrichment_attempts.gte.3,or(needs_enrichment.eq.true,summary.is.null,clinical_bottom_line.is.null))')
+    // = FAILED_UNPUBLISHED_OR in lib/enrichment/requeueFailed.ts (ai_refused is counted separately below)
+    .or(`quarantine_reason.eq.enrichment_failed,and(enrichment_attempts.gte.3,or(quarantine_reason.is.null,quarantine_reason.neq.${AI_REFUSED}),or(needs_enrichment.eq.true,summary.is.null,clinical_bottom_line.is.null))`)
     .not('force_retry', 'is', true);
 
   stats.failedArticles = failedCount || 0;
+
+  // Refused by Claude and hidden: waiting for the Codex fallback on Roi's Mac. Decided by the marker,
+  // not by `summary`: pre-057 rows still hold a copy of the abstract there (never AI text).
+  const { count: waitingCount } = await supabase
+    .from('articles')
+    .select('*', { count: 'exact', head: true })
+    .eq('quarantine_reason', AI_REFUSED)
+    .not('abstract', 'is', null);
+  stats.waitingForFallback = waitingCount || 0;
 
   console.log(`\n✅ Enrichment complete!`);
   console.log(`   Total processed: ${stats.totalProcessed}`);
@@ -470,6 +426,7 @@ async function main() {
   console.log(`   Remaining in queue: ${stats.remainingInQueue}`);
 
   stats.hiddenThisRun = failedOutHidden;
+  stats.refusedThisRun = refusedThisRun;
 
   // Send Slack notification
   await sendSlackNotification(stats);
@@ -477,8 +434,10 @@ async function main() {
   // Several real AI attempts that ALL failed is a systemic problem (API key, model, database): fail
   // the workflow so it shows red in GitHub, not only in Slack. Skipped/quarantined short abstracts
   // are not attempts, and one or two failures alone are not systemic.
-  if (stats.attempted >= 3 && stats.successCount === 0) {
-    console.error(`✗ All ${stats.attempted} enrichment attempts in this run failed — exiting 1`);
+  // A refusal is not systemic: Claude answered (key, model and API work), it declined the topic.
+  const systemicAttempts = stats.attempted - refusedThisRun;
+  if (systemicAttempts >= 3 && stats.successCount === 0) {
+    console.error(`✗ All ${systemicAttempts} non-refusal enrichment attempts in this run failed — exiting 1`);
     process.exit(1);
   }
 }
