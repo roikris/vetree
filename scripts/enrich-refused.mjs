@@ -87,21 +87,26 @@ for (let i = 0; i < articles.length; i += BATCH) {
   { cwd: dir, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, timeout: 30 * 60 * 1000 })
   const used = Number(((run.stdout || '') + (run.stderr || '')).match(/tokens used\s*\n\s*([\d,]+)/i)?.[1]?.replace(/,/g, '') || 0)
   totals.tokens += used
-  let results = []
+  let results = null
+  let failure = null
   if (run.error || run.status !== 0) {
-    // Codex itself failed (not installed, timed out, crashed, usage limit…): nothing from this batch counts
-    totals.failedBatches++
-    console.error(`  ✗ Codex run failed (${run.error ? run.error.message : `exit ${run.status}${run.signal ? `, ${run.signal}` : ''}`}). Nothing saved for this batch.`)
+    // Codex itself failed (not installed, timed out, crashed, usage limit…)
+    failure = `Codex run failed (${run.error ? run.error.message : `exit ${run.status}${run.signal ? `, ${run.signal}` : ''}`})`
   } else {
     try {
       results = JSON.parse(readFileSync(out, 'utf8').trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, ''))
+      if (!Array.isArray(results) || results.length === 0) failure = 'Codex reply contained no results (not a non-empty JSON array)'
     } catch (e) {
-      totals.failedBatches++
-      console.error(`  ✗ Codex reply was not a JSON array (${e.message}). Nothing saved for this batch.`)
+      failure = `Codex reply was not JSON (${e.message})`
     }
   }
   rmSync(dir, { recursive: true, force: true })
-  if (!Array.isArray(results) || !results.length) continue  // failed batch: no per-article notes, retry next run
+  if (failure) {
+    // One failed batch, counted once: nothing saved, no per-article notes; the articles stay waiting
+    totals.failedBatches++
+    console.error(`  ✗ ${failure}. Nothing saved for this batch.`)
+    continue
+  }
   const byId = Object.fromEntries((Array.isArray(results) ? results : []).map(r => [r && r.id, r && r.result]))
 
   for (const a of batch) {

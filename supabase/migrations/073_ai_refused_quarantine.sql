@@ -11,7 +11,13 @@
 --
 -- 1. requeue_failed_articles() (admin "Retry failed") no longer selects ai_refused articles — same
 --    set as FAILED_UNPUBLISHED_OR in lib/enrichment/requeueFailed.ts.
--- 2. Backfill: the articles already refused (3 attempts each, before this change) become ai_refused.
+-- 2. record_enrichment_refusal(id): the job's ONE call on a Claude refusal. In a single locked
+--    transaction it re-checks that the row is still queued (needs_enrichment — the Codex fallback sets
+--    it false when it publishes), then marks it ai_refused if it is unquarantined-with-no-reason or
+--    hidden by the enrichment job; any other quarantine (admin / no_abstract / unknown NULL-reason)
+--    gets a normal failed attempt via record_enrichment_failure. Returns 'refused' | 'changed' (no
+--    longer queued — left alone) | 'missing' | record_enrichment_failure's 'queued' / 'hidden' / 'kept'.
+-- 3. Backfill: the articles already refused (3 attempts each, before this change) become ai_refused.
 --    Only refusal errors, only articles not publicly visible, never over an admin / no-abstract /
 --    unknown (NULL-reason) quarantine. Not "summary IS NULL": pre-057 rows still hold a copy of the abstract in summary.
 
@@ -55,6 +61,49 @@ $$;
 
 REVOKE EXECUTE ON FUNCTION public.requeue_failed_articles() FROM PUBLIC, anon, authenticated;
 GRANT  EXECUTE ON FUNCTION public.requeue_failed_articles() TO service_role;
+
+CREATE OR REPLACE FUNCTION public.record_enrichment_refusal(p_id text)
+RETURNS text
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_queued boolean;
+  v_quarantined boolean;
+  v_reason text;
+BEGIN
+  -- Lock the row: the eligibility check and the write below see the same version
+  SELECT needs_enrichment, coalesce(quarantined, false), quarantine_reason
+    INTO v_queued, v_quarantined, v_reason
+    FROM public.articles WHERE id = p_id FOR UPDATE;
+  IF NOT FOUND THEN
+    RETURN 'missing';
+  END IF;
+  IF v_queued IS NOT TRUE THEN
+    RETURN 'changed';   -- published or otherwise changed meanwhile: leave it exactly as it is
+  END IF;
+
+  IF (v_reason IS NULL AND NOT v_quarantined) OR v_reason IN ('enrichment_failed', 'ai_refused') THEN
+    UPDATE public.articles SET
+      needs_enrichment      = false,
+      force_retry           = false,
+      quarantined           = true,
+      quarantine_reason     = 'ai_refused',
+      enrichment_attempts   = coalesce(enrichment_attempts, 0) + 1,
+      last_enrichment_at    = now(),
+      last_enrichment_error = 'Claude refused (stop_reason: refusal); waiting for the Codex fallback (npm run enrich:refused)'
+    WHERE id = p_id;
+    RETURN 'refused';
+  END IF;
+
+  -- admin / no_abstract / unknown quarantine: a normal failed attempt (same transaction, row lock held)
+  RETURN public.record_enrichment_failure(p_id, 'Claude refused (stop_reason: refusal)');
+END;
+$$;
+
+REVOKE EXECUTE ON FUNCTION public.record_enrichment_refusal(text) FROM PUBLIC, anon, authenticated;
+GRANT  EXECUTE ON FUNCTION public.record_enrichment_refusal(text) TO service_role;
 
 UPDATE public.articles SET
   quarantined       = true,

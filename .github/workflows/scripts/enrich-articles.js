@@ -21,44 +21,18 @@ let refusedThisRun = 0;
 // Articles hidden this run after their 3rd failed attempt (see record_enrichment_failure)
 let failedOutHidden = 0;
 
-// Hide a refused article as ai_refused in ONE guarded update. Only an article that is still queued
-// (needs_enrichment) and either unquarantined-with-no-reason or hidden by the enrichment job — never an
-// admin / no-abstract / unknown (NULL-reason) quarantine, never a row the Codex fallback just published
-// (it sets needs_enrichment false). An admin / no-abstract / legacy quarantine that is still queued is
-// recorded the normal way; a row that changed meanwhile is left alone.
-// Returns false (not enriched). A refusal is counted only once it is persisted, so database failures
-// still count toward the systemic-failure check.
+// A Claude refusal is recorded by ONE database call, record_enrichment_refusal (migration 073): in a single
+// locked transaction it re-checks the row is still queued, then hides it as ai_refused (waiting for the
+// Codex fallback) — or, under an admin / no-abstract / unknown quarantine, records a normal failed attempt.
+// A row the fallback just published ('changed') is left alone. A refusal is counted only once recorded,
+// so database failures still count toward the systemic-failure check. Returns false (not enriched).
 async function markRefused(client, article) {
-  console.log(`  ⊘ Claude refused — hiding as ${AI_REFUSED}, waiting for the Codex fallback`);
-  const { data, error } = await client
-    .from('articles')
-    .update({
-      needs_enrichment: false,
-      force_retry: false,
-      quarantined: true,
-      quarantine_reason: AI_REFUSED,
-      enrichment_attempts: (article.enrichment_attempts || 0) + 1,
-      last_enrichment_at: new Date().toISOString(),
-      last_enrichment_error: 'Claude refused (stop_reason: refusal); waiting for the Codex fallback (npm run enrich:refused)',
-    })
-    .eq('id', article.id)
-    .eq('needs_enrichment', true)
-    .or(`and(quarantine_reason.is.null,or(quarantined.is.null,quarantined.eq.false)),quarantine_reason.in.(enrichment_failed,${AI_REFUSED})`)
-    .select('id');
-  if (error) { console.error(`  Error marking ${AI_REFUSED}:`, error.message); return false; }
-  if (data && data.length === 1) { refusedThisRun++; return false; }
-  // Not marked: find out why before touching the row
-  const { data: row, error: readError } = await client.from('articles')
-    .select('needs_enrichment').eq('id', article.id).maybeSingle();
-  if (readError || !row) { console.error(`  Error re-reading refused article:`, readError ? readError.message : 'missing'); return false; }
-  if (!row.needs_enrichment) { refusedThisRun++; console.log('  (row changed meanwhile — left as it is)'); return false; }
-  const { data: outcome, error: rpcError } = await client.rpc('record_enrichment_failure', {
-    p_id: article.id,
-    p_error: 'Claude refused (stop_reason: refusal)'
-  });
-  if (rpcError) { console.error(`  Error recording failure:`, rpcError.message); return false; }
+  const { data: outcome, error } = await client.rpc('record_enrichment_refusal', { p_id: article.id });
+  if (error) { console.error(`  Error recording refusal:`, error.message); return false; }
   refusedThisRun++;
   if (outcome === 'hidden') failedOutHidden++;
+  console.log(`  ⊘ Claude refused — ${outcome === 'refused' ? `hidden as ${AI_REFUSED}, waiting for the Codex fallback`
+    : outcome === 'changed' ? 'row changed meanwhile, left as it is' : `recorded as a failed attempt (${outcome})`}`);
   return false;
 }
 
