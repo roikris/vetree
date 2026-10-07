@@ -11,13 +11,17 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 export const ENRICHMENT_FAILED = 'enrichment_failed'
+// Claude refused it (stop_reason 'refusal'): waiting for the Codex fallback that Roi runs on his Mac
+// (scripts/enrich-refused.mjs). Never re-queued to Claude — a refusal repeats (migration 073).
+export const AI_REFUSED = 'ai_refused'
 
 /**
  * PostgREST .or() for the same set requeue_failed_articles() retries (combine with abstract not null):
- * hidden by the enrichment job, or 3+ attempts and not published.
+ * hidden by the enrichment job, or 3+ attempts and not published — never ai_refused (migration 073).
+ * `quarantine_reason.is.null` is spelled out because neq alone drops NULL rows (CLAUDE.md rule 5).
  */
 export const FAILED_UNPUBLISHED_OR =
-  `quarantine_reason.eq.${ENRICHMENT_FAILED},and(enrichment_attempts.gte.3,or(needs_enrichment.eq.true,summary.is.null,clinical_bottom_line.is.null))`
+  `quarantine_reason.eq.${ENRICHMENT_FAILED},and(enrichment_attempts.gte.3,or(quarantine_reason.is.null,quarantine_reason.neq.${AI_REFUSED}),or(needs_enrichment.eq.true,summary.is.null,clinical_bottom_line.is.null))`
 
 export async function requeueFailedArticles(admin: SupabaseClient): Promise<{ requeued: number; released: number }> {
   const { data, error } = await admin.rpc('requeue_failed_articles')

@@ -62,7 +62,7 @@ Column names verified against information_schema and migrations. Schema is the s
 | summary | text | AI-generated, fetch lazily |
 | abstract | text | source abstract (migration 057) — the ONLY thing enrichment summarizes; never overwritten |
 | abstract_fetched_at | timestamptz | when the abstract was fetched |
-| prompt_version | text | which enrichment prompt produced summary/bottom line (migration 049) |
+| prompt_version | text | which enrichment prompt produced summary/bottom line (migration 049); `…+fallback:codex:gpt-6-astra` = Claude refused and the Codex fallback wrote it (rule 0 exception) |
 | clinical_bottom_line | text | AI-generated — must exist to show publicly |
 | labels | text[] | GIN indexed |
 | source_journal | text | |
@@ -75,7 +75,7 @@ Column names verified against information_schema and migrations. Schema is the s
 | enrichment_attempts | integer | the queue retries while < 3 (or force_retry); admin retries keep counting up |
 | force_retry | boolean | admin override |
 | quarantined | boolean | hidden from public |
-| quarantine_reason | text | `enrichment_failed` (lifted only by admin "Retry failed") \| `no_abstract` \| `admin` \| NULL = unknown/older, never lifted automatically (migration 072) |
+| quarantine_reason | text | `enrichment_failed` (lifted only by admin "Retry failed") \| `no_abstract` \| `admin` \| `ai_refused` (Claude refused; lifted by the Codex fallback when it saves a summary — migration 073) \| NULL = unknown/older, never lifted automatically (migration 072) |
 | last_enrichment_error | text | |
 | last_enrichment_at | timestamptz | |
 
@@ -480,7 +480,7 @@ Service role only. Records data migrations and each `purge_expired_logs()` run.
 | Function | Migration | Purpose |
 |----------|-----------|---------|
 | `record_enrichment_failure(id, error)` | 072 | One failed enrichment attempt, locked; the 3rd hides the article (`quarantine_reason = 'enrichment_failed'`) unless already quarantined |
-| `requeue_failed_articles()` | 072 | Admin "Retry failed": re-queues failed, unpublished articles; lifts only `enrichment_failed` quarantines |
+| `requeue_failed_articles()` | 072, 073 | Admin "Retry failed": re-queues failed, unpublished articles; lifts only `enrichment_failed` quarantines; never selects `ai_refused` (073) |
 | `purge_expired_logs()` | 069/070 | 12-month retention purge (pg_cron daily) |
 | `delete_user_account(uuid)` | 070 | GDPR deletion of a user's rows across all PII tables |
 | `search_articles_batch` / `search_articles_fuzzy` / `search_articles_synthesis` | 060 / 054+056 / 026+030 | Search — granted to `anon` (public search) |
