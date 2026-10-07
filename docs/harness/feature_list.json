@@ -244,6 +244,16 @@
           "outcome": "pass",
           "approval": "Roi: \"push\" (2026-10-07, rule 15)",
           "link": "PR #112"
+        },
+        {
+          "date": "2026-10-07",
+          "session": "20261006-1824-claude-501f",
+          "sha": "75c4363",
+          "command": "PR #112 smoke (full suite) pass on head 75c4363; squash-merged as a527f5f on Roi's word",
+          "target": "preview",
+          "outcome": "pass",
+          "approval": "Roi: \"merge #112 when smoke passes\"",
+          "link": "PR #112"
         }
       ],
       "branch": "fix/enrichment-refusal-fallback",
@@ -280,7 +290,7 @@
           "paid_calls": false
         }
       ],
-      "notes": "Roi, 2026-10-06: from the enrichment report (24 articles failed 3+ attempts). Read-only prod queries approved for the investigation; writes / paid calls ask first. · claimed by 20261006-1444-claude-6864 · decisions (Roi 2026-10-06): option A fallback = OpenAI gpt-6-astra, internal-only disclosure, rule 0 exception refusals only. NEXT: Roi adds GitHub secret OPENAI_API_KEY + confirms gpt-6-astra access → mark #112 ready (smoke runs) → Roi merges → with Roi's OK re-run the 24 (Retry failed / force_retry; prod writes + 24 Claude + 24 gpt-6-astra calls) → re-count failed-3+ (expect 0 refusals left). · 2026-10-07: design changed to Codex on Roi's ChatGPT plan (no API billing); migration 073 applied. NEXT: mark #112 ready → smoke → Roi merges → Roi runs npm run enrich:refused (-- --dry-run first) → re-count (expect 0 waiting)."
+      "notes": "Roi, 2026-10-06: from the enrichment report (24 articles failed 3+ attempts). Read-only prod queries approved for the investigation; writes / paid calls ask first. · claimed by 20261006-1444-claude-6864 · decisions (Roi 2026-10-06): option A fallback = OpenAI gpt-6-astra, internal-only disclosure, rule 0 exception refusals only. NEXT: Roi adds GitHub secret OPENAI_API_KEY + confirms gpt-6-astra access → mark #112 ready (smoke runs) → Roi merges → with Roi's OK re-run the 24 (Retry failed / force_retry; prod writes + 24 Claude + 24 gpt-6-astra calls) → re-count failed-3+ (expect 0 refusals left). · 2026-10-07: design changed to Codex on Roi's ChatGPT plan (no API billing); migration 073 applied. NEXT: mark #112 ready → smoke → Roi merges → Roi runs npm run enrich:refused (-- --dry-run first) → re-count (expect 0 waiting). · #112 merged (a527f5f). REMAINING: Roi runs `npm run enrich:refused -- --dry-run` then `npm run enrich:refused` on his Mac → next session re-counts (expect 0 ai_refused waiting) → status passing/merged."
     },
     {
       "status": "not_started",

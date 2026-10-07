@@ -219,3 +219,16 @@ Newest at the bottom. The same entries (latest few) appear in primer.md → Rece
 - Commits / PR: e418960, 21e2d6b → #112 (draft).
 - Pending Roi approvals: OPENAI_API_KEY secret; gpt-6-astra access; merge #112; re-run the 24.
 - Next best step: after Roi's merge + key — with his OK, re-run the 24 and re-count; then infra-001.
+
+### Session 20261006-1824-claude-501f · 2026-10-06 → 07 · Claude Code · enrich-001 (controlled stop — Roi's local run next)
+- Goal / Completed: Roi chose Codex on his ChatGPT plan over API billing (OpenAI advises against
+  ChatGPT auth in CI; repo is public). Reworked #112: refusals → ai_refused after one attempt via
+  record_enrichment_refusal() (locked); `npm run enrich:refused` on Roi's Mac (identical shared
+  prompt, ChatGPT-login guard, same validation, guarded save). Found in testing: pre-057 rows hold
+  the abstract in `summary` (24/24) → "waiting" = the marker; `codex login status` writes stderr.
+- Verification: migration 073 applied (Roi "push"): 24 ai_refused, manual-review count 0, none
+  visible, new function service-role only; #112 full smoke pass; merged a527f5f.
+- Review: Codex · tier 2 · 3 rounds · 55.7k / 46.8k / 47.8k tokens · BLOCKING: none (6 blocking fixed).
+- Commits / PR: 6d8eef7, 6e40b11, d17cd37, 75c4363 → #112 merged as a527f5f.
+- Pending Roi approvals: none — Roi runs the fallback himself.
+- Next best step: after Roi's run, re-count ai_refused (expect 0 waiting) and close enrich-001.

@@ -8,20 +8,19 @@ Routine: `docs/harness/README.md` on `main`. Pre-harness primer (frozen): root `
 ---
 
 ## 1. Current Verified State
-*Updated 2026-10-06 — Session 20261006-1444-claude-6864 (enrich-001, controlled stop: waiting for Roi)*
+*Updated 2026-10-07 — Session 20261006-1824-claude-501f (enrich-001: #112 merged, waiting for Roi's fallback run)*
 
 - **Repo root:** `~/dev/vetree` · state worktree: `.harness-state/` (branch `harness-state`)
-- **main:** `b54393b` (PR #111 review token budget, merged by Roi 2026-10-05) — last verified:
-  `init.sh check` GREEN on the PR head 45b510f (identical tree)
+- **main:** `a527f5f` (PR #112 enrichment refusal → Codex fallback, merged 2026-10-07); migration 073
+  applied 2026-10-07 — last verified: PR #112 full smoke pass on 75c4363 (identical tree)
 - **Standard startup:** `docs/harness/init.sh` (state, then check) — see README for exit codes
 - **Standard verification:** `docs/harness/init.sh check [--item <id>]`; build reads production
   Supabase (read-only); never Playwright as a baseline
-- **Highest-priority unfinished item:** **enrich-001** (in_progress) — fallback built, draft PR #112;
-  waiting for Roi (secret + access + merge), then the re-run of the 24. Next: infra-001 (GRANTs,
-  deadline 2026-10-30) → feed-001 → harness-003 → build-001 → lint-001; ai-001 parked.
-- **Current blocker:** enrich-001 needs Roi: GitHub secret `OPENAI_API_KEY`, confirm `gpt-6-astra`
-  access (limited rollout), merge #112, then OK for the 24-article re-run (prod writes + paid calls)
-- **Open PRs awaiting Roi:** #112 fix(enrichment) refusal fallback — draft; review BLOCKING: none
+- **Highest-priority unfinished item:** **enrich-001** (in_progress) — only Roi's fallback run is left:
+  `npm run enrich:refused -- --dry-run`, then `npm run enrich:refused` (Codex, his ChatGPT plan).
+  Then infra-001 (GRANTs, deadline 2026-10-30) → feed-001 → harness-003 → build-001 → lint-001.
+- **Current blocker:** none (enrich-001 waits on Roi running the local fallback)
+- **Open PRs awaiting Roi:** none
 
 ## 2. Open Issues & Known Risks
 - **Lint is red on main:** 178 errors / 75 warnings, never run in CI. Handled by the lint ratchet
@@ -198,6 +197,19 @@ works today was spot-checked in the code on 2026-10-05.
 (Newest first — only the latest 5 are kept here (D11); every entry, older ones included, is in
 `session-log.md`, which is never trimmed.)
 
+### Session 20261006-1824-claude-501f · 2026-10-06 → 07 · Claude Code · enrich-001 (controlled stop — Roi's local run next)
+- Goal / Completed: Roi chose Codex on his ChatGPT plan over API billing (OpenAI advises against
+  ChatGPT auth in CI; repo is public). Reworked #112: refusals → ai_refused after one attempt via
+  record_enrichment_refusal() (locked); `npm run enrich:refused` on Roi's Mac (identical shared
+  prompt, ChatGPT-login guard, same validation, guarded save). Found in testing: pre-057 rows hold
+  the abstract in `summary` (24/24) → "waiting" = the marker; `codex login status` writes stderr.
+- Verification: migration 073 applied (Roi "push"): 24 ai_refused, manual-review count 0, none
+  visible, new function service-role only; #112 full smoke pass; merged a527f5f.
+- Review: Codex · tier 2 · 3 rounds · 55.7k / 46.8k / 47.8k tokens · BLOCKING: none (6 blocking fixed).
+- Commits / PR: 6d8eef7, 6e40b11, d17cd37, 75c4363 → #112 merged as a527f5f.
+- Pending Roi approvals: none — Roi runs the fallback himself.
+- Next best step: after Roi's run, re-count ai_refused (expect 0 waiting) and close enrich-001.
+
 ### Session 20261006-1444-claude-6864 · 2026-10-06 · Claude Code · enrich-001 (controlled stop — waiting for Roi)
 - Goal / Completed: the 24 articles failing 3+ attempts are all Claude refusals on pathogen
   research. Codex/gpt-6-astra side-by-side test (identical prompt): 24/24 answered; Roi: good.
@@ -240,15 +252,3 @@ works today was spot-checked in the code on 2026-10-05.
 - Commits / PR: 3a72897, 93fcf93, 45b510f on chore/harness-review-budget → draft PR #111.
 - Pending Roi approvals: merge of #111; whether to add `init.sh lock`/`unlock` (proposed).
 - Next best step: resume backlog session 001 with Roi.
-
-### Session 20261005-1625-claude-ea54 · 2026-10-05 · Claude Code · backlog session 001 (paused by Roi)
-- Goal / Completed: started the backlog session with Roi (no product code). Baseline `init.sh check --quick`
-  GREEN (quick — build not run) on main @ 5ae7d29. No open PRs or issues; nothing to reconcile.
-  Presented candidates A–G (see primer §2, "Backlog candidates"); Roi paused before deciding.
-- Start state: main @ 5ae7d29, clean; state @ 829f0cf, lock free.
-- Verification: n/a (no item) · Review: n/a (state only) · Commits / PR: state only.
-- Pending Roi approvals: his own product priorities; which candidates become items + order;
-  per item, whether prod DB writes / paid calls are allowed.
-- Known risks / unresolved: candidate B has a deadline (Supabase explicit GRANTs, 2026-10-30).
-- Next best step: resume backlog session 001 with Roi — ask his priorities first, then candidates
-  (suggested order B, A, E-proxy, D, F; G parked).
