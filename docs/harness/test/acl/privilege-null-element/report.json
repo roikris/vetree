@@ -1,0 +1,97 @@
+[
+ {
+  "object": "public.articles",
+  "kind": "table",
+  "grantee": "anon",
+  "privileges": [
+   null
+  ]
+ },
+ {
+  "object": "public.articles",
+  "kind": "table",
+  "grantee": "authenticated",
+  "privileges": [
+   "SELECT"
+  ]
+ },
+ {
+  "object": "public.articles",
+  "kind": "table",
+  "grantee": "service_role",
+  "privileges": [
+   "DELETE",
+   "INSERT",
+   "REFERENCES",
+   "SELECT",
+   "TRIGGER",
+   "TRUNCATE",
+   "UPDATE"
+  ]
+ },
+ {
+  "object": "public.articles",
+  "kind": "table",
+  "grantee": "PUBLIC",
+  "privileges": []
+ },
+ {
+  "object": "public.scores",
+  "kind": "table",
+  "grantee": "anon",
+  "privileges": []
+ },
+ {
+  "object": "public.scores",
+  "kind": "table",
+  "grantee": "authenticated",
+  "privileges": []
+ },
+ {
+  "object": "public.scores",
+  "kind": "table",
+  "grantee": "service_role",
+  "privileges": [
+   "DELETE",
+   "INSERT",
+   "REFERENCES",
+   "SELECT",
+   "TRIGGER",
+   "TRUNCATE",
+   "UPDATE"
+  ]
+ },
+ {
+  "object": "public.scores",
+  "kind": "table",
+  "grantee": "PUBLIC",
+  "privileges": []
+ },
+ {
+  "object": "public.log_id_seq",
+  "kind": "sequence",
+  "grantee": "anon",
+  "privileges": []
+ },
+ {
+  "object": "public.log_id_seq",
+  "kind": "sequence",
+  "grantee": "authenticated",
+  "privileges": []
+ },
+ {
+  "object": "public.log_id_seq",
+  "kind": "sequence",
+  "grantee": "service_role",
+  "privileges": [
+   "SELECT",
+   "USAGE"
+  ]
+ },
+ {
+  "object": "public.log_id_seq",
+  "kind": "sequence",
+  "grantee": "PUBLIC",
+  "privileges": []
+ }
+]

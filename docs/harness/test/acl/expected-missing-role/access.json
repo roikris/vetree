@@ -1,0 +1,48 @@
+{
+ "note": "fixture",
+ "objects": {
+  "public.articles": {
+   "kind": "table",
+   "anon": [
+    "SELECT"
+   ],
+   "authenticated": [
+    "SELECT"
+   ],
+   "service_role": [
+    "DELETE",
+    "INSERT",
+    "REFERENCES",
+    "SELECT",
+    "TRIGGER",
+    "TRUNCATE",
+    "UPDATE"
+   ]
+  },
+  "public.scores": {
+   "kind": "table",
+   "anon": [],
+   "authenticated": [],
+   "service_role": [
+    "DELETE",
+    "INSERT",
+    "REFERENCES",
+    "SELECT",
+    "TRIGGER",
+    "TRUNCATE",
+    "UPDATE"
+   ],
+   "PUBLIC": []
+  },
+  "public.log_id_seq": {
+   "kind": "sequence",
+   "anon": [],
+   "authenticated": [],
+   "service_role": [
+    "SELECT",
+    "USAGE"
+   ],
+   "PUBLIC": []
+  }
+ }
+}

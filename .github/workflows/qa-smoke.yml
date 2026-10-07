@@ -35,6 +35,29 @@ jobs:
         with:
           node-version: '20'
 
+      # Daily + post-deploy drift check (infra-001): production's actual privileges vs
+      # supabase/access.json. Its own Slack alert and fail step below, so it never changes the smoke
+      # triage. Read-only, no Vercel CPU. (Between a migration's push and its PR's merge this can
+      # mismatch — expected, resolves on merge.)
+      - name: Access-control audit
+        id: acl
+        continue-on-error: true
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node docs/harness/harness.mjs acl-audit
+
+      - name: Slack on failed access-control audit
+        if: steps.acl.outcome == 'failure'
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          [ -n "$SLACK_WEBHOOK_URL" ] || exit 0
+          curl -s -X POST -H 'Content-Type: application/json' \
+            -d "{\"text\":\"🔐 *Vetree* — access-control audit FAILED (privileges differ from supabase/access.json, or the report could not be read)\\n$RUN_URL\"}" "$SLACK_WEBHOOK_URL" \
+            -o /dev/null -w 'Slack HTTP %{http_code}\n' -f || echo "::warning::Slack delivery failed"
+
       # On push: test the release that was just pushed, never the previous one. Poll
       # /api/version until production serves this exact commit (fails after 15 minutes).
       - name: Wait until production serves this commit
@@ -171,4 +194,8 @@ jobs:
 
       - name: Fail job if tests failed
         if: steps.smoke.outcome == 'failure'
+        run: exit 1
+
+      - name: Fail job if the access-control audit failed
+        if: steps.acl.outcome == 'failure'
         run: exit 1
