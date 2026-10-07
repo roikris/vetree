@@ -304,17 +304,58 @@
     },
     {
       "status": "in_progress",
-      "evidence": [],
-      "branch": "",
-      "pr": null,
-      "head_sha": null,
+      "evidence": [
+        {
+          "date": "2026-10-07",
+          "session": "20261007-1242-claude-5b95",
+          "sha": "5c20d64",
+          "command": "Supabase changelog #45329 read: only NEW public tables/sequences lose auto-grants; existing objects + functions unaffected",
+          "target": "none",
+          "outcome": "pass",
+          "approval": "n/a",
+          "link": "PR #113"
+        },
+        {
+          "date": "2026-10-07",
+          "session": "20261007-1242-claude-5b95",
+          "sha": "5c20d64",
+          "command": "Plan review: 4 rounds (75.7k/48.3k/60.6k/47.0k) → BLOCKING: none; course changed from SQL-text guard to catalog audit (Roi); round 4 beyond cap (Roi)",
+          "target": "none",
+          "outcome": "pass",
+          "approval": "Roi: middle path → catalog audit; option b",
+          "link": "PR #113"
+        },
+        {
+          "date": "2026-10-07",
+          "session": "20261007-1242-claude-5b95",
+          "sha": "5c20d64",
+          "command": "Code review tier 2: 3 rounds (58.4k/39.7k/40.9k) → BLOCKING: none",
+          "target": "none",
+          "outcome": "pass",
+          "approval": "n/a",
+          "link": "PR #113"
+        },
+        {
+          "date": "2026-10-07",
+          "session": "20261007-1242-claude-5b95",
+          "sha": "5c20d64",
+          "command": "db push migration 074 (dry run listed only 074); live report: 33 relations × 4 = 132 rows, 0 malformed, 071 revokes visible, anon denied; acl-snapshot → supabase/access.json; acl-audit PASS 33/33; init.sh check GREEN",
+          "target": "production",
+          "outcome": "pass",
+          "approval": "Roi: \"push\" (rule 15)",
+          "link": "PR #113"
+        }
+      ],
+      "branch": "chore/infra-001-acl-audit",
+      "pr": 113,
+      "head_sha": "5c20d64",
       "wip_sha": null,
       "expected_failures": [],
       "id": "infra-001",
       "priority": 2,
       "area": "supabase",
-      "type": "investigation",
-      "title": "Supabase explicit-GRANT enforcement (from 2026-10-30): do existing tables break?",
+      "type": "feature",
+      "title": "Supabase 2026-10-30 grant change: access-control audit (production privileges vs supabase/access.json)",
       "user_visible_behavior": "No 42501 permission errors after Supabase starts enforcing explicit GRANTs",
       "verification": [
         {
@@ -332,7 +373,7 @@
           "paid_calls": false
         }
       ],
-      "notes": "Deadline 2026-10-30 (supabase/CLAUDE.md:505). Only 22 of 72 migrations contain a GRANT. Tier 2 (Supabase migrations). Ask Roi for read-only prod access when starting. · claimed by 20261007-1242-claude-5b95"
+      "notes": "Deadline 2026-10-30 (supabase/CLAUDE.md:505). Only 22 of 72 migrations contain a GRANT. Tier 2 (Supabase migrations). Ask Roi for read-only prod access when starting. · claimed by 20261007-1242-claude-5b95 · NEXT: mark #113 ready → smoke (first CI run of the audit step) → Roi reviews access.json + merges."
     },
     {
       "status": "not_started",
@@ -447,6 +488,70 @@
         }
       ],
       "notes": "Parked until ~2026-11-01 (CLAUDE.md rule 0). Session 001 candidate G."
+    },
+    {
+      "status": "not_started",
+      "evidence": [],
+      "branch": "",
+      "pr": null,
+      "head_sha": null,
+      "wip_sha": null,
+      "expected_failures": [],
+      "id": "infra-002",
+      "priority": 7,
+      "area": "supabase",
+      "type": "chore",
+      "title": "Least-privilege review of the access baseline (anon/authenticated hold ALL — incl. DELETE/TRUNCATE — on 29 tables)",
+      "user_visible_behavior": "none if done right; narrower grants per role",
+      "verification": [
+        {
+          "step": "per table: which role really needs which privilege (client vs server paths, RLS)",
+          "target": "production",
+          "db_reads": "prod",
+          "db_writes": "none",
+          "paid_calls": false
+        },
+        {
+          "step": "migration with REVOKE/GRANT + access.json update — db push on Roi's yes",
+          "target": "production",
+          "db_reads": "prod",
+          "db_writes": "prod",
+          "paid_calls": false
+        }
+      ],
+      "notes": "From infra-001 (2026-10-07). Tier 2. Careful: tightening can break client reads/writes."
+    },
+    {
+      "status": "not_started",
+      "evidence": [],
+      "branch": "",
+      "pr": null,
+      "head_sha": null,
+      "wip_sha": null,
+      "expected_failures": [],
+      "id": "infra-003",
+      "priority": 8,
+      "area": "supabase",
+      "type": "chore",
+      "title": "Replay safety: explicit grants for objects created under the old defaults (e.g. analytics_events, migration 041)",
+      "user_visible_behavior": "none (a fresh database rebuild gets the same grants as production)",
+      "verification": [
+        {
+          "step": "inventory objects whose grants come only from old defaults",
+          "target": "local",
+          "db_reads": "none",
+          "db_writes": "none",
+          "paid_calls": false
+        },
+        {
+          "step": "forward migration making them explicit; acl-audit still PASS",
+          "target": "production",
+          "db_reads": "prod",
+          "db_writes": "prod",
+          "paid_calls": false
+        }
+      ],
+      "notes": "From infra-001 (2026-10-07). Production unaffected; matters for a rebuild after 2026-10-30."
     }
   ]
 }
