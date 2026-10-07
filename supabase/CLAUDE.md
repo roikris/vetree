@@ -480,6 +480,7 @@ Service role only. Records data migrations and each `purge_expired_logs()` run.
 | Function | Migration | Purpose |
 |----------|-----------|---------|
 | `record_enrichment_failure(id, error)` | 072 | One failed enrichment attempt, locked; the 3rd hides the article (`quarantine_reason = 'enrichment_failed'`) unless already quarantined |
+| `harness_acl_report()` | 074 | Read-only: every public relation × (anon, authenticated, service_role, PUBLIC) with its actual privileges (explicit empty arrays), plus informational default-privilege rows — the access-control audit's source |
 | `requeue_failed_articles()` | 072, 073 | Admin "Retry failed": re-queues failed, unpublished articles; lifts only `enrichment_failed` quarantines; never selects `ai_refused` (073) |
 | `purge_expired_logs()` | 069/070 | 12-month retention purge (pg_cron daily) |
 | `delete_user_account(uuid)` | 070 | GDPR deletion of a user's rows across all PII tables |
@@ -502,13 +503,43 @@ CREATE POLICY "Admins only" ON t FOR ALL USING (
 CREATE POLICY "Anyone can insert" ON t FOR INSERT WITH CHECK (true);
 ```
 
-## Required Grants (Supabase enforces from Oct 30, 2026)
-Every new table needs explicit GRANTs or gets 42501 errors. Add after RLS policies:
+## Required Grants + the access-control audit (Supabase change of 2026-10-30, infra-001)
+**What changes:** from 2026-10-30 Supabase stops giving NEW tables and sequences in `public` automatic grants for
+`anon`, `authenticated` and `service_role` (missing grant → PostgREST `42501 permission denied`). Existing objects
+keep their grants; functions are not part of the change. What counts is **when a migration runs**, not its file
+number: anything applied after Oct 30 — including old files on a fresh rebuild — gets the new defaults.
+
+**Every migration that creates or changes a public table / view / sequence:**
+1. Grants exactly what each role needs — least privilege, "none" allowed. Start EVERY new table and sequence with
+   `REVOKE ALL … FROM PUBLIC, anon, authenticated, service_role` so the result is identical before and after Oct 30
+   (until then the old defaults would still grant broadly):
 ```sql
-GRANT SELECT ON public.table_name TO anon;                              -- if public read
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.table_name TO authenticated; -- adjust as needed
-GRANT ALL ON public.table_name TO service_role;
+REVOKE ALL ON public.table_name FROM PUBLIC, anon, authenticated, service_role;
+GRANT SELECT ON public.table_name TO anon;                       -- only if anonymous reads go through the Data API
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.table_name TO authenticated;  -- only what signed-in clients do directly
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.table_name TO service_role;   -- what server code / jobs do
+-- serial / bigserial column → its sequence (identity columns don't need this):
+REVOKE ALL ON SEQUENCE public.table_name_id_seq FROM PUBLIC, anon, authenticated, service_role;
+GRANT USAGE, SELECT ON SEQUENCE public.table_name_id_seq TO service_role;    -- + any role that inserts
 ```
+2. Updates `supabase/access.json` in the same PR — the EXACT expected privileges per role (`anon`, `authenticated`,
+   `service_role`, `PUBLIC`; `[]` = none).
+
+**The audit** — `node docs/harness/harness.mjs acl-audit` compares production's ACTUAL privileges (the catalog, via
+`public.harness_acl_report()`, migration 074 — service role only) with `supabase/access.json`, exactly: a new object
+missing from the file, an object gone from the database, a different kind, or any extra / missing privilege fails
+(exit 1); a report it can't fetch or that's malformed is UNVERIFIED (exit 2) — never a pass. It runs in
+`docs/harness/init.sh check` (every mode; a mismatch is never "transient" or "expected WIP"), in every PR's required
+`smoke` job before any Vercel work, and daily / after each deploy in `qa-smoke.yml` (Slack on failure).
+`acl-selftest` runs its offline fixtures (docs/harness/test/acl/), including sentinel checks that no output ever
+echoes response content. `acl-snapshot` writes the baseline from production — run once when the audit is
+introduced, then never to paper over a difference: fix the grants or the file deliberately.
+**Order for a new table:** migration with grants → `db push` (Roi's yes, rule 15) → update `access.json` → PR CI
+audits production against it → merge. (Between push and merge the daily audit on `main` can mismatch.)
+**Limits:** direct relation privileges only — not role membership / inherited privileges, column grants, RLS,
+schema USAGE or grant options. A match proves neither that the app can do what it needs nor that a role is
+effectively denied. Follow-ups: infra-002 (least-privilege review of the baseline), infra-003 (make grants explicit
+for objects created under the old defaults, e.g. `analytics_events` (041), so a fresh rebuild matches).
 
 ## SQL Function Security (required)
 ```sql

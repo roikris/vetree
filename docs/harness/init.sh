@@ -184,7 +184,7 @@ cmd_check() {
   head_ "Checks on $(git branch --show-current || echo detached) @ $(git rev-parse --short HEAD)"
   { [ $quick = 1 ] || [ $wipmode = 1 ]; } || say "effects: next build READS production Supabase (sitemap, static article pages) — it writes nothing"
   rm -f "$LOGDIR"/*.sigs.json "$LOGDIR/failed-checks" "$LOGDIR/lint.json"
-  local red=0 transient=0 tsc_red=0 lint_red=0
+  local red=0 transient=0 tsc_red=0 lint_red=0 acl_block=0
 
   # sigs <check> — record a failed check and its signatures; a crash in the parser = unparsed.
   sigs() {
@@ -218,13 +218,30 @@ cmd_check() {
        [ -s "$LOGDIR/lint.sigs.json" ] || printf '{"check":"lint","unparsed":true,"failures":[]}\n' > "$LOGDIR/lint.sigs.json" ;;
   esac
 
+  # Access-control audit (infra-001): production's actual privileges vs supabase/access.json, exactly.
+  # Every mode. A mismatch, or an unverified result that is not a network error, blocks: never
+  # POSSIBLE TRANSIENT and never EXPECTED-WIP (classify rejects a failed 'acl' check).
+  local arc=0
+  node --env-file-if-exists=.env.local "$H/harness.mjs" acl-audit > "$LOGDIR/acl.log" 2>&1 || arc=$?
+  case "$arc" in
+    0) say "$(grep '^acl audit:' "$LOGDIR/acl.log")" ;;
+    1) say "acl audit: FAIL — privileges differ from supabase/access.json:"; grep -E '^  (NEW|GONE|KIND|ACL) ' "$LOGDIR/acl.log" | sed -n '1,20p'
+       red=1; acl_block=1; printf 'acl\n' >> "$LOGDIR/failed-checks" ;;
+    *) red=1; printf 'acl\n' >> "$LOGDIR/failed-checks"
+       if grep -q '^acl audit: UNVERIFIED — network:' "$LOGDIR/acl.log" && [ $tsc_red = 0 ] && [ $lint_red = 0 ]; then
+         transient=1; say "$(grep '^acl audit:' "$LOGDIR/acl.log") — possible transient: re-run once"
+       else
+         acl_block=1; say "$(grep '^acl audit:' "$LOGDIR/acl.log")"; grep -E '^  ' "$LOGDIR/acl.log" | grep -v '^  info' | sed -n '1,10p'
+       fi ;;
+  esac
+
   if [ $wipmode = 1 ]; then
     say "build: skipped — HEAD is $item's recorded WIP commit (tsc + lint decide; build must be GREEN before the next normal commit)"
   elif [ $quick = 0 ]; then
     if ! run_timed build npm run build; then
       red=1; sigs build
       # Only the known Supabase/network blip counts as transient, and only when tsc + lint passed.
-      if [ $tsc_red = 0 ] && [ $lint_red = 0 ] && \
+      if [ $tsc_red = 0 ] && [ $lint_red = 0 ] && [ $acl_block = 0 ] && \
          grep -qE '^[[:space:]]*\[?[A-Za-z]*Error\]?:? .*(sitemap: .* failed after [0-9]+ attempts|fetch failed|getaddrinfo ENOTFOUND|connect ETIMEDOUT|read ECONNRESET|socket hang up)' "$LOGDIR/build.log"; then
         transient=1
         say "build failure matches the known Supabase/network blip — possible transient: re-run once"
@@ -244,7 +261,7 @@ cmd_check() {
     else say "GREEN"; fi
     return 0
   fi
-  if [ $transient = 1 ]; then say "POSSIBLE TRANSIENT — re-run once; a second exit 3 in a row = treat as a regression (controlled stop, tell Roi)"; return 3; fi
+  if [ $transient = 1 ] && [ $acl_block = 0 ]; then say "POSSIBLE TRANSIENT — re-run once; a second exit 3 in a row = treat as a regression (controlled stop, tell Roi)"; return 3; fi
   if [ -n "$item" ]; then
     local fl="$WT/$H/feature_list.json"
     [ -f "$fl" ] || stop "--item given but $fl not found (run init.sh state first)"

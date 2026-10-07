@@ -45,7 +45,9 @@ jobs:
           echo "$FILES"
           # Count non-doc files reading ALL input (grep -q would exit early and SIGPIPE the writer,
           # which pipefail turns into "no code"). Only an exact "0" proves docs-only.
-          NONDOC=$(printf '%s\n' "$FILES" | grep -cvE '(\.md$|^docs/)' || true)
+          # The harness's scripts and audit fixtures under docs/harness/ are code (both rename sides
+          # are in FILES), so a change to the access audit itself always runs this job.
+          NONDOC=$(printf '%s\n' "$FILES" | awk '!/(\.md$|^docs\/)/ || /^docs\/harness\/(.*\.(mjs|sh|js)$|test\/)/ {n++} END {print n+0}')
           # The files API stops at 3000: an incomplete list can't prove docs-only
           if [ "$LISTED" != "$EXPECTED" ] || [ -z "$FILES" ] || [ "$NONDOC" != "0" ]; then
             echo "code=true" >> "$GITHUB_OUTPUT"
@@ -96,6 +98,19 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+
+      # Access-control audit (infra-001): production's actual privileges (migration 074's report)
+      # vs supabase/access.json, exactly — so a new table without its grants fails here, before the
+      # code that needs it ships. Self-tests first (offline), so an outage can't skip them. Exit 1
+      # (mismatch) and 2 (unverified) both fail. Plain node + fetch, no install, no Vercel CPU.
+      # Credentials only in this step; output carries status / error codes and diffs, never keys.
+      - name: Access-control audit
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          node docs/harness/harness.mjs acl-selftest
+          node docs/harness/harness.mjs acl-audit
 
       - name: Poll Vercel for preview URL
         id: vercel

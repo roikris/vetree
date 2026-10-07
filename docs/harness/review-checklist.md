@@ -62,7 +62,8 @@ The critical rules in one line each — the full text is in CLAUDE.md under the 
     get Roi's explicit go-ahead on the chosen path.
 15. Schema changes only as migration files; `db push` needs Roi's yes.
 16. `security-acknowledged.json` changes only with Roi's sign-off.
-Also: never log emails or pass user text / request bodies to Sentry; the CLAUDE.md branch / PR /
+Also: a new or changed public table / view / sequence has explicit least-privilege grants (REVOKE ALL first) AND a
+matching `supabase/access.json` entry (supabase/CLAUDE.md "Required Grants"); never log emails or pass user text / request bodies to Sentry; the CLAUDE.md branch / PR /
 merge policy and its two exceptions.
 
 ## 4. Ask for short output
