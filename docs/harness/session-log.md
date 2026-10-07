@@ -252,3 +252,16 @@ Newest at the bottom. The same entries (latest few) appear in primer.md → Rece
   code · Codex · tier 2 · 3 rounds · 58.4k / 39.7k / 40.9k · BLOCKING: none.
 - Commits / PR: 5c20d64 → #113, merged by Roi via the web UI as 4686368 (GitHub merge API 500 ×4).
 - Next best step: feed-001.
+
+### Session 20261007-1922-claude-7410 · 2026-10-07 · Claude Code · seo-001 (closed)
+- Goal / Completed: Roi's side quest — Google Search Console errors. Read the Page indexing report
+  (read-only): 195 not indexed, mostly Google's choice (143 crawled-not-indexed, 30 alternate canonical,
+  11 redirects, 2 robots-blocked on purpose). Fixed: /auth/signin 404 → permanent redirect to /login
+  (+ the library link); /login, /signup soft 404 → noindex,follow; /?search={search_term_string} soft 404 →
+  noindex on search results and the JSON-LD SearchAction removed. /article/pubmed- (empty id): no source
+  in code or sitemap, already a correct 404.
+- Verification: init.sh check GREEN; local prod build and live production after deploy (f0b17e6).
+- Review: Codex · tier 2 · 1 round · 36.1k tokens · BLOCKING: none.
+- Commits / PR: 5926c9d → #114, merged as f0b17e6 on Roi's word.
+- Pending Roi: "Validate fix" on the GSC Not found + Soft 404 reports.
+- Next best step: feed-001.

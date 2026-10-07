@@ -570,7 +570,7 @@
       "type": "fix",
       "title": "Google Search Console errors — investigate and fix",
       "user_visible_behavior": "Pages Google reports as errors become indexable (or are deliberately excluded)",
-      "status": "in_progress",
+      "status": "merged",
       "verification": [
         {
           "step": "read Search Console reports (Pages / indexing, sitemaps, enhancements) in Roi's browser — read-only",
@@ -594,13 +594,54 @@
           "paid_calls": false
         }
       ],
-      "evidence": [],
-      "branch": "",
-      "pr": null,
-      "head_sha": null,
+      "evidence": [
+        {
+          "date": "2026-10-07",
+          "session": "20261007-1922-claude-7410",
+          "sha": "4686368",
+          "command": "Read GSC Page indexing (read-only): 475 indexed / 195 not — 143 crawled-not-indexed, 30 alternate canonical, 11 redirect, 5 404, 4 soft 404, 2 robots-blocked; curl-reproduced samples",
+          "target": "production",
+          "outcome": "pass",
+          "approval": "n/a",
+          "link": "PR #114"
+        },
+        {
+          "date": "2026-10-07",
+          "session": "20261007-1922-claude-7410",
+          "sha": "5926c9d",
+          "command": "init.sh check GREEN (tsc, lint ratchet, acl 33/33, build); local prod build: /auth/signin 308→/login, noindex,follow on /login, /signup, /?search=; none on / and /?labels=",
+          "target": "local",
+          "outcome": "pass",
+          "approval": "n/a",
+          "link": "PR #114"
+        },
+        {
+          "date": "2026-10-07",
+          "session": "20261007-1922-claude-7410",
+          "sha": "5926c9d",
+          "command": "Codex review tier 2, 1 round, 36.1k tokens → BLOCKING: none; PR #114 smoke pass",
+          "target": "none",
+          "outcome": "pass",
+          "approval": "n/a",
+          "link": "PR #114"
+        },
+        {
+          "date": "2026-10-07",
+          "session": "20261007-1922-claude-7410",
+          "sha": "f0b17e6",
+          "command": "Merged as f0b17e6; production /api/version = f0b17e6; live: /auth/signin 308→/login; robots noindex,follow on /login, /signup, /?search=…; none on /",
+          "target": "production",
+          "outcome": "pass",
+          "approval": "Roi: \"merge\"",
+          "link": "PR #114"
+        }
+      ],
+      "branch": "fix/seo-search-console",
+      "pr": 114,
+      "head_sha": "f0b17e6",
       "wip_sha": null,
       "expected_failures": [],
-      "notes": "Side quest named by Roi 2026-10-07 (before feed-001). Claimed by 20261007-1922-claude-7410"
+      "notes": "Side quest named by Roi 2026-10-07 (before feed-001). Claimed by 20261007-1922-claude-7410 · CLOSED 2026-10-07. Remaining (Roi): \"Validate fix\" on the GSC Not found + Soft 404 reports. /article/pubmed- (empty id) had no source in code or sitemap — already a correct 404."
     }
   ]
 }

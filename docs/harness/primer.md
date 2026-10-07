@@ -8,18 +8,18 @@ Routine: `docs/harness/README.md` on `main`. Pre-harness primer (frozen): root `
 ---
 
 ## 1. Current Verified State
-*Updated 2026-10-07 — Session 20261007-1242-claude-5b95 (infra-001 closed)*
+*Updated 2026-10-07 — Session 20261007-1922-claude-7410 (seo-001 closed)*
 
 - **Repo root:** `~/dev/vetree` · state worktree: `.harness-state/` (branch `harness-state`)
-- **main:** `4686368` (PR #113 access-control audit, merged 2026-10-07); migration 074 applied — last
-  verified: `init.sh check` GREEN incl. acl audit 33/33; post-merge qa-smoke acl audit PASS
+- **main:** `f0b17e6` (PR #114 Search Console fixes, merged 2026-10-07; before it #113 access-control audit,
+  migration 074 applied) — last verified: `init.sh check` GREEN incl. acl audit 33/33; live checks after deploy
 - **Standard startup:** `docs/harness/init.sh` (state, then check) — see README for exit codes
 - **Standard verification:** `docs/harness/init.sh check [--item <id>]`; build reads production
   Supabase (read-only); never Playwright as a baseline
 - **Highest-priority unfinished item:** **feed-001** (feed header "new this week" count). Then harness-003 →
   build-001 → lint-001 → infra-002 (least privilege) → infra-003 (replay safety); ai-001 parked (~2026-11-01).
 - **Current blocker:** none
-- **Open PRs awaiting Roi:** none
+- **Open PRs awaiting Roi:** none · Roi to click "Validate fix" in Search Console (seo-001)
 
 ## 2. Open Issues & Known Risks
 - **Lint is red on main:** 178 errors / 75 warnings, never run in CI. Handled by the lint ratchet
@@ -202,6 +202,19 @@ works today was spot-checked in the code on 2026-10-05.
 (Newest first — only the latest 5 are kept here (D11); every entry, older ones included, is in
 `session-log.md`, which is never trimmed.)
 
+### Session 20261007-1922-claude-7410 · 2026-10-07 · Claude Code · seo-001 (closed)
+- Goal / Completed: Roi's side quest — Google Search Console errors. Read the Page indexing report
+  (read-only): 195 not indexed, mostly Google's choice (143 crawled-not-indexed, 30 alternate canonical,
+  11 redirects, 2 robots-blocked on purpose). Fixed: /auth/signin 404 → permanent redirect to /login
+  (+ the library link); /login, /signup soft 404 → noindex,follow; /?search={search_term_string} soft 404 →
+  noindex on search results and the JSON-LD SearchAction removed. /article/pubmed- (empty id): no source
+  in code or sitemap, already a correct 404.
+- Verification: init.sh check GREEN; local prod build and live production after deploy (f0b17e6).
+- Review: Codex · tier 2 · 1 round · 36.1k tokens · BLOCKING: none.
+- Commits / PR: 5926c9d → #114, merged as f0b17e6 on Roi's word.
+- Pending Roi: "Validate fix" on the GSC Not found + Soft 404 reports.
+- Next best step: feed-001.
+
 ### Session 20261007-1242-claude-5b95 · 2026-10-07 · Claude Code · infra-001 (closed)
 - Goal / Completed: Supabase's 2026-10-30 change (new public tables/sequences lose auto-grants; existing
   objects + functions unaffected). After two plan rounds showed a SQL-text guard keeps leaking, Roi chose
@@ -247,13 +260,3 @@ works today was spot-checked in the code on 2026-10-05.
 - Pending Roi approvals: OPENAI_API_KEY secret; gpt-6-astra access; merge #112; re-run the 24.
 - Next best step: after Roi's merge + key — with his OK, re-run the 24 and re-count; then infra-001.
 
-### Session 20261006-1422-claude-ab88 · 2026-10-06 · Claude Code · backlog session 001 (completed)
-- Goal / Completed: resumed and finished the backlog session with Roi. Roi agreed the order and
-  put a new item first. Backlog: 1 enrich-001 (24 articles failed enrichment 3+ attempts, from
-  the enrichment report) · 2 infra-001 (GRANTs, deadline 2026-10-30) · 3 feed-001 · 4 harness-003
-  · 5 build-001 · 6 lint-001 · ai-001 parked (~2026-11-01). F was already done in #111.
-- Start state: main @ b54393b, clean; lock free. Baseline: init.sh check --quick GREEN.
-- Verification: n/a (no product code) · Review: n/a (state only) · Commits / PR: state only.
-- Pending Roi approvals: enrich-001 resolution (prod writes / paid Claude calls) — ask with findings;
-  infra-001 read-only prod access when it starts.
-- Next best step: new session for enrich-001 (read-only prod investigation approved).
