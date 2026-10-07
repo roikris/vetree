@@ -26,6 +26,13 @@ const nextConfig: NextConfig = {
       },
     ]
   },
+
+  // /auth/signin was renamed to /login (PR #12); Google still crawls the old URL (Search Console 404).
+  async redirects() {
+    return [
+      { source: '/auth/signin', destination: '/login', permanent: true },
+    ]
+  },
 };
 
 // Sentry v9 build config (options renamed from v7)

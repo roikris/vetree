@@ -142,7 +142,7 @@ export function LibraryClient({ entries, userEmail }: Props) {
                 {initials}
               </Link>
             ) : (
-              <Link href="/auth/signin" style={{
+              <Link href="/login" style={{
                 height: 34, padding: '0 14px', borderRadius: 8,
                 background: 'var(--al-card)', border: '1px solid rgba(var(--al-line),0.12)',
                 display: 'flex', alignItems: 'center',

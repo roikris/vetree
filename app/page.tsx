@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import { parseSearchParams } from '@/lib/utils/searchParams'
 import { DEFAULT_QUICK_FILTER, matchesQuickFilter } from '@/lib/utils/species'
 import { searchArticles, getUniqueJournals, getDistinctEvidenceLevels } from '@/lib/queries/articles'
@@ -26,6 +27,14 @@ type HomeProps = {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }
 
+// Search results are not pages to index (Google crawled the old JSON-LD SearchAction template
+// "/?search={search_term_string}" literally and reported it as a soft 404, Search Console 2026-10-07).
+// The SearchAction is gone too — Google retired the sitelinks search box in 2024.
+export async function generateMetadata({ searchParams }: HomeProps): Promise<Metadata> {
+  const { search } = await searchParams
+  return search !== undefined ? { robots: { index: false, follow: true } } : {}
+}
+
 export default async function Home({ searchParams }: HomeProps) {
   const params = await searchParams
   const filters = parseSearchParams(params)
@@ -44,12 +53,7 @@ export default async function Home({ searchParams }: HomeProps) {
     "@type": "WebSite",
     "name": "Vetree",
     "description": "Evidence-based veterinary research, distilled.",
-    "url": "https://vetree.app",
-    "potentialAction": {
-      "@type": "SearchAction",
-      "target": "https://vetree.app/?search={search_term_string}",
-      "query-input": "required name=search_term_string"
-    }
+    "url": "https://vetree.app"
   }
 
   // Show full marketing landing page for logged-out guests on first page with no filters
