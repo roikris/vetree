@@ -562,6 +562,45 @@
         }
       ],
       "notes": "From infra-001 (2026-10-07). Production unaffected; matters for a rebuild after 2026-10-30."
+    },
+    {
+      "id": "seo-001",
+      "priority": 1,
+      "area": "seo",
+      "type": "fix",
+      "title": "Google Search Console errors — investigate and fix",
+      "user_visible_behavior": "Pages Google reports as errors become indexable (or are deliberately excluded)",
+      "status": "in_progress",
+      "verification": [
+        {
+          "step": "read Search Console reports (Pages / indexing, sitemaps, enhancements) in Roi's browser — read-only",
+          "target": "production",
+          "db_reads": "none",
+          "db_writes": "none",
+          "paid_calls": false
+        },
+        {
+          "step": "reproduce each error against vetree.app (curl / HTTP status / headers) and fix the cause in code",
+          "target": "production",
+          "db_reads": "none",
+          "db_writes": "none",
+          "paid_calls": false
+        },
+        {
+          "step": "after deploy: Roi requests validation in Search Console",
+          "target": "production",
+          "db_reads": "none",
+          "db_writes": "none",
+          "paid_calls": false
+        }
+      ],
+      "evidence": [],
+      "branch": "",
+      "pr": null,
+      "head_sha": null,
+      "wip_sha": null,
+      "expected_failures": [],
+      "notes": "Side quest named by Roi 2026-10-07 (before feed-001). Claimed by 20261007-1922-claude-7410"
     }
   ]
 }
