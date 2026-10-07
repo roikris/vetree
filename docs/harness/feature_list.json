@@ -303,7 +303,7 @@
       "notes": "Roi, 2026-10-06: from the enrichment report (24 articles failed 3+ attempts). Read-only prod queries approved for the investigation; writes / paid calls ask first. · claimed by 20261006-1444-claude-6864 · decisions (Roi 2026-10-06): option A fallback = OpenAI gpt-6-astra, internal-only disclosure, rule 0 exception refusals only. NEXT: Roi adds GitHub secret OPENAI_API_KEY + confirms gpt-6-astra access → mark #112 ready (smoke runs) → Roi merges → with Roi's OK re-run the 24 (Retry failed / force_retry; prod writes + 24 Claude + 24 gpt-6-astra calls) → re-count failed-3+ (expect 0 refusals left). · 2026-10-07: design changed to Codex on Roi's ChatGPT plan (no API billing); migration 073 applied. NEXT: mark #112 ready → smoke → Roi merges → Roi runs npm run enrich:refused (-- --dry-run first) → re-count (expect 0 waiting). · #112 merged (a527f5f). REMAINING: Roi runs `npm run enrich:refused -- --dry-run` then `npm run enrich:refused` on his Mac → next session re-counts (expect 0 ai_refused waiting) → status passing/merged. · CLOSED 2026-10-07: all 24 published via the Codex fallback; verified."
     },
     {
-      "status": "in_progress",
+      "status": "merged",
       "evidence": [
         {
           "date": "2026-10-07",
@@ -344,11 +344,21 @@
           "outcome": "pass",
           "approval": "Roi: \"push\" (rule 15)",
           "link": "PR #113"
+        },
+        {
+          "date": "2026-10-07",
+          "session": "20261007-1242-claude-5b95",
+          "sha": "4686368",
+          "command": "PR #113: smoke pass on 5c20d64 incl. the CI audit step (acl selftest PASS, acl audit PASS 33/33, secrets masked); merged by Roi via the web UI as 4686368 after the GitHub merge API returned 500 four times (request ids E652:40990:20A77A:263665:6AC661E4, E635:130F8:1F8E64:2515AB:6AC661B4); post-merge qa-smoke.yml: acl audit PASS 33/33",
+          "target": "production",
+          "outcome": "pass",
+          "approval": "Roi: \"merge #113\"; merged it himself",
+          "link": "PR #113"
         }
       ],
       "branch": "chore/infra-001-acl-audit",
       "pr": 113,
-      "head_sha": "5c20d64",
+      "head_sha": "4686368",
       "wip_sha": null,
       "expected_failures": [],
       "id": "infra-001",
@@ -373,7 +383,7 @@
           "paid_calls": false
         }
       ],
-      "notes": "Deadline 2026-10-30 (supabase/CLAUDE.md:505). Only 22 of 72 migrations contain a GRANT. Tier 2 (Supabase migrations). Ask Roi for read-only prod access when starting. · claimed by 20261007-1242-claude-5b95 · NEXT: mark #113 ready → smoke (first CI run of the audit step) → Roi reviews access.json + merges."
+      "notes": "Deadline 2026-10-30 (supabase/CLAUDE.md:505). Only 22 of 72 migrations contain a GRANT. Tier 2 (Supabase migrations). Ask Roi for read-only prod access when starting. · claimed by 20261007-1242-claude-5b95 · NEXT: mark #113 ready → smoke (first CI run of the audit step) → Roi reviews access.json + merges. · CLOSED 2026-10-07."
     },
     {
       "status": "not_started",

@@ -240,3 +240,15 @@ Newest at the bottom. The same entries (latest few) appear in primer.md → Rece
   quality 24/24 clean; manual-review count 0; live page 200. Item → merged.
 - Review: n/a (verification only, read-only).
 - Next best step: infra-001 (GRANT enforcement, deadline 2026-10-30) — ask Roi for read-only prod access.
+
+### Session 20261007-1242-claude-5b95 · 2026-10-07 · Claude Code · infra-001 (closed)
+- Goal / Completed: Supabase's 2026-10-30 change (new public tables/sequences lose auto-grants; existing
+  objects + functions unaffected). After two plan rounds showed a SQL-text guard keeps leaking, Roi chose
+  a catalog audit: migration 074 harness_acl_report() (pushed on Roi's yes), supabase/access.json
+  baseline (33 relations), acl-audit in init.sh / PR smoke / daily + post-deploy, 24 offline fixtures incl.
+  6 sentinel-leak checks. Added infra-002 (least privilege) and infra-003 (replay safety).
+- Verification: live report 33 × 4 rows, anon denied; audit PASS locally, in PR CI and post-merge.
+- Review: plan · 4 rounds · 75.7k / 48.3k / 60.6k / 47.0k (round 4 beyond the cap, Roi) · BLOCKING: none;
+  code · Codex · tier 2 · 3 rounds · 58.4k / 39.7k / 40.9k · BLOCKING: none.
+- Commits / PR: 5c20d64 → #113, merged by Roi via the web UI as 4686368 (GitHub merge API 500 ×4).
+- Next best step: feed-001.
