@@ -8,7 +8,7 @@ Routine: `docs/harness/README.md` on `main`. Pre-harness primer (frozen): root `
 ---
 
 ## 1. Current Verified State
-*Updated 2026-10-07 — Session 20261006-1824-claude-501f (enrich-001: #112 merged, waiting for Roi's fallback run)*
+*Updated 2026-10-07 — Session 20261007-0604-claude-2342 (enrich-001 closed)*
 
 - **Repo root:** `~/dev/vetree` · state worktree: `.harness-state/` (branch `harness-state`)
 - **main:** `a527f5f` (PR #112 enrichment refusal → Codex fallback, merged 2026-10-07); migration 073
@@ -16,10 +16,10 @@ Routine: `docs/harness/README.md` on `main`. Pre-harness primer (frozen): root `
 - **Standard startup:** `docs/harness/init.sh` (state, then check) — see README for exit codes
 - **Standard verification:** `docs/harness/init.sh check [--item <id>]`; build reads production
   Supabase (read-only); never Playwright as a baseline
-- **Highest-priority unfinished item:** **enrich-001** (in_progress) — only Roi's fallback run is left:
-  `npm run enrich:refused -- --dry-run`, then `npm run enrich:refused` (Codex, his ChatGPT plan).
-  Then infra-001 (GRANTs, deadline 2026-10-30) → feed-001 → harness-003 → build-001 → lint-001.
-- **Current blocker:** none (enrich-001 waits on Roi running the local fallback)
+- **Highest-priority unfinished item:** **infra-001** — Supabase explicit-GRANT check, deadline
+  **2026-10-30** (ask Roi for read-only prod access when starting). Then feed-001 → harness-003 →
+  build-001 → lint-001; ai-001 parked (~2026-11-01).
+- **Current blocker:** none
 - **Open PRs awaiting Roi:** none
 
 ## 2. Open Issues & Known Risks
@@ -36,6 +36,8 @@ Routine: `docs/harness/README.md` on `main`. Pre-harness primer (frozen): root `
 - **npm install scripts not approved** on Roi's machine (npm 11.19: esbuild, @sentry/cli,
   unrs-resolver, protobufjs, fsevents, @google/genai) — no effect on tsc / lint / build today;
   approving any is Roi's call.
+- **Claude refusals → Codex fallback (2026-10-07):** refused articles are hidden as `ai_refused`; the Slack
+  enrichment report shows "waiting for the Codex fallback: N" → Roi runs `npm run enrich:refused` on his Mac.
 - **AI model revisit ~2026-11-01:** Sonnet 4.6 for every call; Sonnet 5.5 was reverted (~1.46x
   tokens). One line in `lib/ai/model.ts` + the three scripts.
 
@@ -197,6 +199,14 @@ works today was spot-checked in the code on 2026-10-05.
 (Newest first — only the latest 5 are kept here (D11); every entry, older ones included, is in
 `session-log.md`, which is never trimmed.)
 
+### Session 20261007-0604-claude-2342 · 2026-10-07 · Claude Code · enrich-001 (verified + closed)
+- Goal / Completed: verified Roi's fallback run and closed enrich-001. First check (09:05) found
+  nothing saved — that was the dry run (08:36–08:39); Roi's real run (09:33–09:36, "Saved: 24")
+  came later. Now: 0 waiting; 24 saved via codex:gpt-6-astra, all pass the Public Article Filter;
+  quality 24/24 clean; manual-review count 0; live page 200. Item → merged.
+- Review: n/a (verification only, read-only).
+- Next best step: infra-001 (GRANT enforcement, deadline 2026-10-30) — ask Roi for read-only prod access.
+
 ### Session 20261006-1824-claude-501f · 2026-10-06 → 07 · Claude Code · enrich-001 (controlled stop — Roi's local run next)
 - Goal / Completed: Roi chose Codex on his ChatGPT plan over API billing (OpenAI advises against
   ChatGPT auth in CI; repo is public). Reworked #112: refusals → ai_refused after one attempt via
@@ -239,16 +249,4 @@ works today was spot-checked in the code on 2026-10-05.
   failed-push handling; README updated) — tier 2 review. Its order vs the session-001 candidates
   is Roi's call when the backlog session resumes.
 - Verification: n/a (state only) · Review: n/a (exception 1) · Commits / PR: state only.
-- Next best step: resume backlog session 001 with Roi.
-
-### Session 20261005-1638-claude-3439 · 2026-10-05 · Claude Code · harness-002
-- Goal / Completed: Roi's eight review-budget measures (D11): risk tiers + sensitive list, delta
-  rounds, 3-round cap, lean reviewer context (new docs/harness/review-checklist.md), BLOCKING /
-  NON-BLOCKING output, effort levels, primer keeps latest 5 (done: 363 → 234 lines), cost line.
-- Start state: main @ 5ae7d29, clean; state lock free (session 001 paused). An earlier start
-  (20261005-1630-claude-2221) wrongly overwrote session 001's lock and was reverted (revert commit 52fed24).
-- Verification: init.sh check GREEN before each commit; PR #111 checks pass (smoke skipped).
-- Review: Codex · tier 2 · 3 rounds · 28.6k / 12.2k / 22.0k tokens · BLOCKING: none (2 blocking fixed).
-- Commits / PR: 3a72897, 93fcf93, 45b510f on chore/harness-review-budget → draft PR #111.
-- Pending Roi approvals: merge of #111; whether to add `init.sh lock`/`unlock` (proposed).
 - Next best step: resume backlog session 001 with Roi.

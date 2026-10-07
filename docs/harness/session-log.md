@@ -232,3 +232,11 @@ Newest at the bottom. The same entries (latest few) appear in primer.md → Rece
 - Commits / PR: 6d8eef7, 6e40b11, d17cd37, 75c4363 → #112 merged as a527f5f.
 - Pending Roi approvals: none — Roi runs the fallback himself.
 - Next best step: after Roi's run, re-count ai_refused (expect 0 waiting) and close enrich-001.
+
+### Session 20261007-0604-claude-2342 · 2026-10-07 · Claude Code · enrich-001 (verified + closed)
+- Goal / Completed: verified Roi's fallback run and closed enrich-001. First check (09:05) found
+  nothing saved — that was the dry run (08:36–08:39); Roi's real run (09:33–09:36, "Saved: 24")
+  came later. Now: 0 waiting; 24 saved via codex:gpt-6-astra, all pass the Public Article Filter;
+  quality 24/24 clean; manual-review count 0; live page 200. Item → merged.
+- Review: n/a (verification only, read-only).
+- Next best step: infra-001 (GRANT enforcement, deadline 2026-10-30) — ask Roi for read-only prod access.

@@ -1,6 +1,6 @@
 {
   "project": "vetree",
-  "last_updated": "2026-10-06",
+  "last_updated": "2026-10-07",
   "rules": {
     "single_active_feature": true,
     "passing_requires_evidence": true,
@@ -183,7 +183,7 @@
       "notes": "Added by 20261005-1947-claude-9005 on Roi's word (2026-10-05). Origin: session 20261005-1630-claude-2221 overwrote a held lock because lock-taking was hand-written and chained after a STOP (reverted 52fed24). Order vs session-001 candidates: Roi decides when the backlog session resumes."
     },
     {
-      "status": "in_progress",
+      "status": "merged",
       "evidence": [
         {
           "date": "2026-10-06",
@@ -254,11 +254,21 @@
           "outcome": "pass",
           "approval": "Roi: \"merge #112 when smoke passes\"",
           "link": "PR #112"
+        },
+        {
+          "date": "2026-10-07",
+          "session": "20261007-0604-claude-2342",
+          "sha": "a527f5f",
+          "command": "Roi ran `npm run enrich:refused` (dry run 08:36–08:39, real run 09:33–09:36 local): \"Saved: 24 · declined 0 · failed batches 0 · Codex tokens 31,829\". Read-only verification: 0 ai_refused waiting; 24 saved with prompt_version …+fallback:codex:gpt-6-astra; 24/24 pass the Public Article Filter; quality 24/24 clean (150–250-word summary, ≤20-word bottom line, 3–5 allowed labels, valid evidence, not the abstract, every number in the abstract); manual-review count 0; live article page HTTP 200",
+          "target": "production",
+          "outcome": "pass",
+          "approval": "Roi ran the fallback himself; verification read-only",
+          "link": "PR #112"
         }
       ],
       "branch": "fix/enrichment-refusal-fallback",
       "pr": 112,
-      "head_sha": "75c4363",
+      "head_sha": "a527f5f",
       "wip_sha": null,
       "expected_failures": [],
       "id": "enrich-001",
@@ -290,7 +300,7 @@
           "paid_calls": false
         }
       ],
-      "notes": "Roi, 2026-10-06: from the enrichment report (24 articles failed 3+ attempts). Read-only prod queries approved for the investigation; writes / paid calls ask first. · claimed by 20261006-1444-claude-6864 · decisions (Roi 2026-10-06): option A fallback = OpenAI gpt-6-astra, internal-only disclosure, rule 0 exception refusals only. NEXT: Roi adds GitHub secret OPENAI_API_KEY + confirms gpt-6-astra access → mark #112 ready (smoke runs) → Roi merges → with Roi's OK re-run the 24 (Retry failed / force_retry; prod writes + 24 Claude + 24 gpt-6-astra calls) → re-count failed-3+ (expect 0 refusals left). · 2026-10-07: design changed to Codex on Roi's ChatGPT plan (no API billing); migration 073 applied. NEXT: mark #112 ready → smoke → Roi merges → Roi runs npm run enrich:refused (-- --dry-run first) → re-count (expect 0 waiting). · #112 merged (a527f5f). REMAINING: Roi runs `npm run enrich:refused -- --dry-run` then `npm run enrich:refused` on his Mac → next session re-counts (expect 0 ai_refused waiting) → status passing/merged."
+      "notes": "Roi, 2026-10-06: from the enrichment report (24 articles failed 3+ attempts). Read-only prod queries approved for the investigation; writes / paid calls ask first. · claimed by 20261006-1444-claude-6864 · decisions (Roi 2026-10-06): option A fallback = OpenAI gpt-6-astra, internal-only disclosure, rule 0 exception refusals only. NEXT: Roi adds GitHub secret OPENAI_API_KEY + confirms gpt-6-astra access → mark #112 ready (smoke runs) → Roi merges → with Roi's OK re-run the 24 (Retry failed / force_retry; prod writes + 24 Claude + 24 gpt-6-astra calls) → re-count failed-3+ (expect 0 refusals left). · 2026-10-07: design changed to Codex on Roi's ChatGPT plan (no API billing); migration 073 applied. NEXT: mark #112 ready → smoke → Roi merges → Roi runs npm run enrich:refused (-- --dry-run first) → re-count (expect 0 waiting). · #112 merged (a527f5f). REMAINING: Roi runs `npm run enrich:refused -- --dry-run` then `npm run enrich:refused` on his Mac → next session re-counts (expect 0 ai_refused waiting) → status passing/merged. · CLOSED 2026-10-07: all 24 published via the Codex fallback; verified."
     },
     {
       "status": "not_started",
