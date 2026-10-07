@@ -224,11 +224,31 @@
           "outcome": "pass",
           "approval": "n/a",
           "link": "PR #112"
+        },
+        {
+          "date": "2026-10-07",
+          "session": "20261006-1824-claude-501f",
+          "sha": "75c4363",
+          "command": "Codex review tier 2 (Codex-fallback design): r1 55.7k (5 blocking) → r2 46.8k (1 blocking) → r3 47.8k BLOCKING: none",
+          "target": "none",
+          "outcome": "pass",
+          "approval": "n/a",
+          "link": "PR #112"
+        },
+        {
+          "date": "2026-10-07",
+          "session": "20261006-1824-claude-501f",
+          "sha": "75c4363",
+          "command": "db push migration 073 (dry run listed only 073); checks: 24 ai_refused (all hidden, not queued), manual-review count 0, 0 ai_refused visible, record_enrichment_refusal works for service role and is denied to anon, requeue_failed_articles denied to anon",
+          "target": "production",
+          "outcome": "pass",
+          "approval": "Roi: \"push\" (2026-10-07, rule 15)",
+          "link": "PR #112"
         }
       ],
       "branch": "fix/enrichment-refusal-fallback",
       "pr": 112,
-      "head_sha": "21e2d6b",
+      "head_sha": "75c4363",
       "wip_sha": null,
       "expected_failures": [],
       "id": "enrich-001",
@@ -260,7 +280,7 @@
           "paid_calls": false
         }
       ],
-      "notes": "Roi, 2026-10-06: from the enrichment report (24 articles failed 3+ attempts). Read-only prod queries approved for the investigation; writes / paid calls ask first. · claimed by 20261006-1444-claude-6864 · decisions (Roi 2026-10-06): option A fallback = OpenAI gpt-6-astra, internal-only disclosure, rule 0 exception refusals only. NEXT: Roi adds GitHub secret OPENAI_API_KEY + confirms gpt-6-astra access → mark #112 ready (smoke runs) → Roi merges → with Roi's OK re-run the 24 (Retry failed / force_retry; prod writes + 24 Claude + 24 gpt-6-astra calls) → re-count failed-3+ (expect 0 refusals left)."
+      "notes": "Roi, 2026-10-06: from the enrichment report (24 articles failed 3+ attempts). Read-only prod queries approved for the investigation; writes / paid calls ask first. · claimed by 20261006-1444-claude-6864 · decisions (Roi 2026-10-06): option A fallback = OpenAI gpt-6-astra, internal-only disclosure, rule 0 exception refusals only. NEXT: Roi adds GitHub secret OPENAI_API_KEY + confirms gpt-6-astra access → mark #112 ready (smoke runs) → Roi merges → with Roi's OK re-run the 24 (Retry failed / force_retry; prod writes + 24 Claude + 24 gpt-6-astra calls) → re-count failed-3+ (expect 0 refusals left). · 2026-10-07: design changed to Codex on Roi's ChatGPT plan (no API billing); migration 073 applied. NEXT: mark #112 ready → smoke → Roi merges → Roi runs npm run enrich:refused (-- --dry-run first) → re-count (expect 0 waiting)."
     },
     {
       "status": "not_started",
