@@ -650,7 +650,7 @@
       "type": "fix",
       "title": "Digest footer: shorten the legal notice (same legal content, no repetition)",
       "user_visible_behavior": "Digest footer states the §30A / §17F details once per language: short English line naming \"Vetree\", Hebrew line with Roi's name and address",
-      "status": "in_progress",
+      "status": "merged",
       "verification": [
         {
           "step": "render the footer HTML from the template; init.sh check",
@@ -667,13 +667,34 @@
           "paid_calls": false
         }
       ],
-      "evidence": [],
+      "evidence": [
+        {
+          "date": "2026-10-09",
+          "session": "20261009-1730-claude-5a0d",
+          "sha": "6c2885e",
+          "command": "init.sh check GREEN (tsc, lint ratchet, acl 33/33, build); Codex tier 2, 1 round, 22.2k tokens → BLOCKING: none; PR #115 smoke pass",
+          "target": "local",
+          "outcome": "pass",
+          "approval": "n/a",
+          "link": "PR #115"
+        },
+        {
+          "date": "2026-10-09",
+          "session": "20261009-1730-claude-5a0d",
+          "sha": "946f146",
+          "command": "Merged as 946f146; production /api/version = 946f146. No digest sent — first live use: next Friday digest",
+          "target": "production",
+          "outcome": "pass",
+          "approval": "Roi: \"merge\"",
+          "link": "PR #115"
+        }
+      ],
       "branch": "fix/digest-footer",
-      "pr": null,
-      "head_sha": null,
+      "pr": 115,
+      "head_sha": "946f146",
       "wip_sha": null,
       "expected_failures": [],
-      "notes": "Named by Roi 2026-10-09 (side step). Not a company yet → English names \"Vetree\" only (no \"Ltd.\"); Hebrew keeps name + address (§30A, §17F). Claimed by 20261009-1730-claude-5a0d"
+      "notes": "Named by Roi 2026-10-09 (side step). Not a company yet → English names \"Vetree\" only (no \"Ltd.\"); Hebrew keeps name + address (§30A, §17F). Claimed by 20261009-1730-claude-5a0d · CLOSED 2026-10-09."
     }
   ]
 }

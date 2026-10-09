@@ -265,3 +265,14 @@ Newest at the bottom. The same entries (latest few) appear in primer.md → Rece
 - Commits / PR: 5926c9d → #114, merged as f0b17e6 on Roi's word.
 - Pending Roi: "Validate fix" on the GSC Not found + Soft 404 reports.
 - Next best step: feed-001.
+
+### Session 20261009-1730-claude-5a0d · 2026-10-09 · Claude Code · digest-001 (closed)
+- Goal / Completed: Roi found the digest's legal footer repetitive. Explained what §30A (advertising) and §17F
+  (direct mailing) require and that the sender's name must be in the email itself (a link isn't enough; a
+  company as sender would replace Roi's name — not incorporated yet, so no "Ltd."). Shortened footer: English
+  names only "Vetree"; Hebrew keeps name, address, consent, data sources, removal, deletion.
+- Verification: init.sh check GREEN; deployed (946f146). No digest sent.
+- Review: Codex · tier 2 · 1 round · 22.2k tokens · BLOCKING: none.
+- Commits / PR: 6c2885e → #115, merged as 946f146 on Roi's word.
+- Open question for a lawyer (Roi): company as sender; P.O. box instead of a street address.
+- Next best step: feed-001.

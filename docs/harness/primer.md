@@ -8,10 +8,10 @@ Routine: `docs/harness/README.md` on `main`. Pre-harness primer (frozen): root `
 ---
 
 ## 1. Current Verified State
-*Updated 2026-10-07 — Session 20261007-1922-claude-7410 (seo-001 closed)*
+*Updated 2026-10-09 — Session 20261009-1730-claude-5a0d (digest-001 closed)*
 
 - **Repo root:** `~/dev/vetree` · state worktree: `.harness-state/` (branch `harness-state`)
-- **main:** `f0b17e6` (PR #114 Search Console fixes, merged 2026-10-07; before it #113 access-control audit,
+- **main:** `946f146` (PR #115 shorter digest footer, 2026-10-09; #114 Search Console fixes, 2026-10-07; before it #113 access-control audit,
   migration 074 applied) — last verified: `init.sh check` GREEN incl. acl audit 33/33; live checks after deploy
 - **Standard startup:** `docs/harness/init.sh` (state, then check) — see README for exit codes
 - **Standard verification:** `docs/harness/init.sh check [--item <id>]`; build reads production
@@ -202,6 +202,17 @@ works today was spot-checked in the code on 2026-10-05.
 (Newest first — only the latest 5 are kept here (D11); every entry, older ones included, is in
 `session-log.md`, which is never trimmed.)
 
+### Session 20261009-1730-claude-5a0d · 2026-10-09 · Claude Code · digest-001 (closed)
+- Goal / Completed: Roi found the digest's legal footer repetitive. Explained what §30A (advertising) and §17F
+  (direct mailing) require and that the sender's name must be in the email itself (a link isn't enough; a
+  company as sender would replace Roi's name — not incorporated yet, so no "Ltd."). Shortened footer: English
+  names only "Vetree"; Hebrew keeps name, address, consent, data sources, removal, deletion.
+- Verification: init.sh check GREEN; deployed (946f146). No digest sent.
+- Review: Codex · tier 2 · 1 round · 22.2k tokens · BLOCKING: none.
+- Commits / PR: 6c2885e → #115, merged as 946f146 on Roi's word.
+- Open question for a lawyer (Roi): company as sender; P.O. box instead of a street address.
+- Next best step: feed-001.
+
 ### Session 20261007-1922-claude-7410 · 2026-10-07 · Claude Code · seo-001 (closed)
 - Goal / Completed: Roi's side quest — Google Search Console errors. Read the Page indexing report
   (read-only): 195 not indexed, mostly Google's choice (143 crawled-not-indexed, 30 alternate canonical,
@@ -247,16 +258,4 @@ works today was spot-checked in the code on 2026-10-05.
 - Commits / PR: 6d8eef7, 6e40b11, d17cd37, 75c4363 → #112 merged as a527f5f.
 - Pending Roi approvals: none — Roi runs the fallback himself.
 - Next best step: after Roi's run, re-count ai_refused (expect 0 waiting) and close enrich-001.
-
-### Session 20261006-1444-claude-6864 · 2026-10-06 · Claude Code · enrich-001 (controlled stop — waiting for Roi)
-- Goal / Completed: the 24 articles failing 3+ attempts are all Claude refusals on pathogen
-  research. Codex/gpt-6-astra side-by-side test (identical prompt): 24/24 answered; Roi: good.
-  Roi chose a refusal-only fallback to gpt-6-astra (rule 0 exception, internal disclosure).
-  Built on fix/enrichment-refusal-fallback → draft PR #112.
-- Start state: main @ b54393b, clean; lock free.
-- Verification: read-only prod queries; mocked-API tests; init.sh check GREEN on head 21e2d6b.
-- Review: Codex · tier 2 · 2 rounds · 27.4k + 34.7k tokens · BLOCKING: none (2 blocking fixed).
-- Commits / PR: e418960, 21e2d6b → #112 (draft).
-- Pending Roi approvals: OPENAI_API_KEY secret; gpt-6-astra access; merge #112; re-run the 24.
-- Next best step: after Roi's merge + key — with his OK, re-run the 24 and re-count; then infra-001.
 
