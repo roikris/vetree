@@ -362,7 +362,10 @@ export async function POST(request: NextRequest) {
       // Build email subject
       const formattedDate = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
       // Treated as advertising (owner's decision, 2026-09-30): Israeli Communications Law §30A —
-      // the subject starts with "פרסומת", the footer names the sender and a refusal channel
+      // the subject starts with "פרסומת", the footer names the sender and a refusal channel. The footer's
+      // Hebrew line carries the legal details (sender, address, data sources, removal, deletion — also
+      // Privacy Protection Law §17F); the English line is a courtesy and names only "Vetree" (not a company yet:
+      // no "Ltd.", Roi 2026-10-09)
       const subject = '(פרסומת) ' + (tags.length > 0
         ? `🌿 Your Vetree Weekly Digest — ${tags.slice(0, 3).join(', ')}${tags.length > 3 ? `, +${tags.length - 3}` : ''}`
         : `🌿 This Week on Vetree — Fresh Research (${formattedDate})`)
@@ -592,13 +595,10 @@ function generateEmailHTML(email: string, userId: string, unsubscribeToken: stri
               · or reply to this email to stop receiving it
             </p>
             <p style="margin: 0; font-size: 13px; color: #4b5563; line-height: 1.6;">
-              Advertising and direct mailing (פרסומת · דיוור ישיר) from Vetree · Roi Krispin, La Guardia 60, Tel Aviv, Israel · vetree.app@gmail.com<br/>
-              You receive this because you agreed to the weekly digest. It is selected using your Vetree registration,
-              the specialties you follow and your activity. To stop it, use the link above or reply; to have the
-              information used for it deleted, email vetree.app@gmail.com.<br/>
-              <span dir="rtl">דיוור ישיר ופרסומת מאת רועי קריספין, לה גוארדיה 60, תל אביב, בהסכמתך. הדיוור מותאם על סמך ההרשמה
-              שלך ל-Vetree, תחומי ההתמחות שבחרת והפעילות שלך. להסרה: קישור ההסרה או מענה להודעה זו; למחיקת המידע המשמש
-              לדיוור: vetree.app@gmail.com.</span>
+              Advertising / direct mailing from Vetree · vetree.app@gmail.com — sent with your consent, based on your
+              registration, followed specialties and activity. Stop: the link above or reply. Delete your data: email us.<br/>
+              <span dir="rtl">דיוור ישיר ופרסומת מאת רועי קריספין, לה גוארדיה 60, תל אביב, בהסכמתך, על סמך ההרשמה שלך
+              ל-Vetree, תחומי ההתמחות והפעילות שלך. להסרה: הקישור למעלה או מענה; למחיקת המידע: vetree.app@gmail.com.</span>
             </p>
           </div>
         </div>
