@@ -1,6 +1,6 @@
 {
   "project": "vetree",
-  "last_updated": "2026-10-07",
+  "last_updated": "2026-10-09",
   "rules": {
     "single_active_feature": true,
     "passing_requires_evidence": true,
@@ -642,6 +642,38 @@
       "wip_sha": null,
       "expected_failures": [],
       "notes": "Side quest named by Roi 2026-10-07 (before feed-001). Claimed by 20261007-1922-claude-7410 · CLOSED 2026-10-07. Remaining (Roi): \"Validate fix\" on the GSC Not found + Soft 404 reports. /article/pubmed- (empty id) had no source in code or sitemap — already a correct 404."
+    },
+    {
+      "id": "digest-001",
+      "priority": 1,
+      "area": "email",
+      "type": "fix",
+      "title": "Digest footer: shorten the legal notice (same legal content, no repetition)",
+      "user_visible_behavior": "Digest footer states the §30A / §17F details once per language: short English line naming \"Vetree\", Hebrew line with Roi's name and address",
+      "status": "in_progress",
+      "verification": [
+        {
+          "step": "render the footer HTML from the template; init.sh check",
+          "target": "local",
+          "db_reads": "none",
+          "db_writes": "none",
+          "paid_calls": false
+        },
+        {
+          "step": "Roi reviews the wording; no digest is sent by this item",
+          "target": "none",
+          "db_reads": "none",
+          "db_writes": "none",
+          "paid_calls": false
+        }
+      ],
+      "evidence": [],
+      "branch": "fix/digest-footer",
+      "pr": null,
+      "head_sha": null,
+      "wip_sha": null,
+      "expected_failures": [],
+      "notes": "Named by Roi 2026-10-09 (side step). Not a company yet → English names \"Vetree\" only (no \"Ltd.\"); Hebrew keeps name + address (§30A, §17F). Claimed by 20261009-1730-claude-5a0d"
     }
   ]
 }
