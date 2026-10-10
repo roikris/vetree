@@ -53,6 +53,7 @@ export default withSentryConfig(nextConfig, {
   sourcemaps: { disable: true },  // was: hideSourceMaps: true
   disableLogger: true,
   telemetry: false,
-  // Its hook only feeds navigation tracing, which is off on purpose (tracesSampleRate 0, lib/sentry/options.ts)
+  // The onRouterTransitionStart hook instruments client navigations (transaction names, trace context) for
+  // tracing, which is off on purpose (tracesSampleRate 0, lib/sentry/options.ts); silencing keeps today's behavior
   suppressOnRouterTransitionStartWarning: true,
 });

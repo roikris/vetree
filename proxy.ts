@@ -1,8 +1,24 @@
 import { type NextRequest, NextResponse } from 'next/server'
+import * as Sentry from '@sentry/nextjs'
 import { updateSession } from '@/lib/supabase/middleware'
 
 // Proxy (Next 16 name for middleware; Node.js runtime) handles auth token refresh and email verification
 export async function proxy(request: NextRequest) {
+  try {
+    return await handle(request)
+  } catch (err) {
+    // Next 16.3.8 passes proxy errors only to the Edge copy of instrumentation.ts onRequestError, which never
+    // loads on Node — report them here. Method + path only: no query string, no headers.
+    Sentry.captureRequestError(
+      err,
+      { path: request.nextUrl.pathname, method: request.method, headers: {} },
+      { routerKind: 'Pages Router', routePath: '/proxy', routeType: 'proxy' }
+    )
+    throw err
+  }
+}
+
+async function handle(request: NextRequest) {
   // Single session read per request — this used to call getUser() a second
   // time here via a separate server client reading the same request cookies
   // updateSession() had already read, at the cost of an extra Supabase
