@@ -56,6 +56,80 @@ type TooltipPosition = {
   arrowOffset?: { x: number; y: number }
 }
 
+// Hand-drawn arrow SVG with an organic, sketchy appearance (module level: a component defined inside
+// Onboarding would be re-created, and re-mounted, on every render)
+function HandDrawnArrow({ position }: { position: 'top' | 'bottom' | 'left' | 'right' }) {
+  const arrowPaths = {
+    top: (
+      // Arrow pointing up from tooltip to target above - wobbly and organic
+      <path
+        d="M 50 85 C 48 75, 52 70, 49 60 C 47 50, 51 45, 50 35 C 49 25, 52 20, 50 10 M 50 10 L 44 20 M 50 10 L 56 19"
+        stroke="#1A1A1A"
+        strokeWidth="2.5"
+        fill="none"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        opacity="0.85"
+      />
+    ),
+    bottom: (
+      // Arrow pointing down from tooltip to target below - wobbly and organic
+      <path
+        d="M 50 15 C 52 25, 48 30, 51 40 C 53 50, 49 55, 50 65 C 51 75, 48 80, 50 90 M 50 90 L 44 80 M 50 90 L 56 81"
+        stroke="#1A1A1A"
+        strokeWidth="2.5"
+        fill="none"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        opacity="0.85"
+      />
+    ),
+    left: (
+      // Arrow pointing left from tooltip to target on left - wobbly and organic
+      <path
+        d="M 85 50 C 75 52, 70 48, 60 51 C 50 53, 45 49, 35 50 C 25 51, 20 48, 10 50 M 10 50 L 20 44 M 10 50 L 19 56"
+        stroke="#1A1A1A"
+        strokeWidth="2.5"
+        fill="none"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        opacity="0.85"
+      />
+    ),
+    right: (
+      // Arrow pointing right from tooltip to target on right - wobbly and organic
+      <path
+        d="M 15 50 C 25 48, 30 52, 40 49 C 50 47, 55 51, 65 50 C 75 49, 80 52, 90 50 M 90 50 L 80 44 M 90 50 L 81 56"
+        stroke="#1A1A1A"
+        strokeWidth="2.5"
+        fill="none"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        opacity="0.85"
+      />
+    ),
+  }
+
+  const arrowStyles = {
+    top: { top: '-60px', left: '50%', transform: 'translateX(-50%)' },
+    bottom: { bottom: '-60px', left: '50%', transform: 'translateX(-50%)' },
+    left: { left: '-60px', top: '50%', transform: 'translateY(-50%)' },
+    right: { right: '-60px', top: '50%', transform: 'translateY(-50%)' },
+  }
+
+  return (
+    <svg
+      className="absolute pointer-events-none"
+      style={arrowStyles[position]}
+      width="100"
+      height="100"
+      viewBox="0 0 100 100"
+    >
+      {arrowPaths[position]}
+    </svg>
+  )
+}
+
 export function Onboarding() {
   const { showOnboarding, completeOnboarding, skipOnboarding } = useOnboarding()
   const { user } = useAuth()
@@ -177,79 +251,6 @@ export function Onboarding() {
 
   const handleSkip = () => {
     skipOnboarding()
-  }
-
-  // Hand-drawn arrow SVG components with organic, sketchy appearance
-  const HandDrawnArrow = ({ position }: { position: 'top' | 'bottom' | 'left' | 'right' }) => {
-    const arrowPaths = {
-      top: (
-        // Arrow pointing up from tooltip to target above - wobbly and organic
-        <path
-          d="M 50 85 C 48 75, 52 70, 49 60 C 47 50, 51 45, 50 35 C 49 25, 52 20, 50 10 M 50 10 L 44 20 M 50 10 L 56 19"
-          stroke="#1A1A1A"
-          strokeWidth="2.5"
-          fill="none"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          opacity="0.85"
-        />
-      ),
-      bottom: (
-        // Arrow pointing down from tooltip to target below - wobbly and organic
-        <path
-          d="M 50 15 C 52 25, 48 30, 51 40 C 53 50, 49 55, 50 65 C 51 75, 48 80, 50 90 M 50 90 L 44 80 M 50 90 L 56 81"
-          stroke="#1A1A1A"
-          strokeWidth="2.5"
-          fill="none"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          opacity="0.85"
-        />
-      ),
-      left: (
-        // Arrow pointing left from tooltip to target on left - wobbly and organic
-        <path
-          d="M 85 50 C 75 52, 70 48, 60 51 C 50 53, 45 49, 35 50 C 25 51, 20 48, 10 50 M 10 50 L 20 44 M 10 50 L 19 56"
-          stroke="#1A1A1A"
-          strokeWidth="2.5"
-          fill="none"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          opacity="0.85"
-        />
-      ),
-      right: (
-        // Arrow pointing right from tooltip to target on right - wobbly and organic
-        <path
-          d="M 15 50 C 25 48, 30 52, 40 49 C 50 47, 55 51, 65 50 C 75 49, 80 52, 90 50 M 90 50 L 80 44 M 90 50 L 81 56"
-          stroke="#1A1A1A"
-          strokeWidth="2.5"
-          fill="none"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          opacity="0.85"
-        />
-      ),
-    }
-
-    const arrowStyles = {
-      top: { top: '-60px', left: '50%', transform: 'translateX(-50%)' },
-      bottom: { bottom: '-60px', left: '50%', transform: 'translateX(-50%)' },
-      left: { left: '-60px', top: '50%', transform: 'translateY(-50%)' },
-      right: { right: '-60px', top: '50%', transform: 'translateY(-50%)' },
-    }
-
-    return (
-      <svg
-        className="absolute pointer-events-none"
-        style={arrowStyles[position]}
-        width="100"
-        height="100"
-        viewBox="0 0 100 100"
-      >
-        {arrowPaths[position]}
-      </svg>
-    )
   }
 
   return (
