@@ -184,7 +184,7 @@
     },
     {
       "file": "lib/hooks/useFollowedTags.ts",
-      "rule": "react-hooks/set-state-in-effect",
+      "rule": "react-hooks/immutability",
       "count": 1
     },
     {

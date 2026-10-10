@@ -12,6 +12,10 @@ export function useFollowedTags() {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const supabase = createClient()
 
+  useEffect(() => {
+    loadFollowedTags()
+  }, [])
+
   async function loadFollowedTags() {
     const { data: { user } } = await supabase.auth.getUser()
 
@@ -45,10 +49,6 @@ export function useFollowedTags() {
     setFollowedTags(tags)
     setIsLoading(false)
   }
-
-  useEffect(() => {
-    loadFollowedTags()
-  }, [])
 
   function isFollowing(tag: string): boolean {
     return followedTags.has(tag)
