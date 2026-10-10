@@ -18,6 +18,21 @@ const nextConfig: NextConfig = {
   // Enable Turbopack support (Next.js 16)
   turbopack: {},
 
+  // The weekly security scan reads these source files at runtime (its fs calls are marked turbopackIgnore so the
+  // build no longer ships the whole repo with it). A check that reads another file must add it here.
+  // package.json / package-lock.json are for its npm audit step (Next also adds the dependencies' package.json
+  // files when these are listed — ~1,000 small files; still lighter than shipping the whole repo).
+  outputFileTracingIncludes: {
+    '/api/admin/security/scan': [
+      './app/**/*.{ts,tsx}',
+      './next.config.ts',
+      './proxy.ts',
+      './security-acknowledged.json',
+      './package.json',
+      './package-lock.json',
+    ],
+  },
+
   async headers() {
     return [
       {
@@ -40,4 +55,7 @@ export default withSentryConfig(nextConfig, {
   sourcemaps: { disable: true },  // was: hideSourceMaps: true
   disableLogger: true,
   telemetry: false,
+  // The onRouterTransitionStart hook instruments client navigations (transaction names, trace context) for
+  // tracing, which is off on purpose (tracesSampleRate 0, lib/sentry/options.ts); silencing keeps today's behavior
+  suppressOnRouterTransitionStartWarning: true,
 });

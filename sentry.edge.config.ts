@@ -1,4 +1,5 @@
-// Edge-runtime Sentry (middleware), loaded by instrumentation.ts register()
+// Edge-runtime Sentry, loaded by instrumentation.ts register(). Nothing runs on Edge since build-001 (proxy.ts
+// uses the Node.js runtime, so its errors go through sentry.server.config.ts); kept for any future Edge route.
 import * as Sentry from '@sentry/nextjs'
 import { sentryPrivacyOptions } from './lib/sentry/options'
 

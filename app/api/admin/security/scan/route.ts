@@ -146,6 +146,9 @@ export async function POST(request: NextRequest) {
   }
 
   // CHECK 4: Auth protection on sensitive API routes
+  // Source files are read at runtime. Each read is marked turbopackIgnore so the build doesn't ship the whole
+  // repo with this function; the files the checks need are listed in next.config.ts outputFileTracingIncludes —
+  // a new check that reads another file must be added there too (a missing file makes its check pass silently).
   const cwd = process.cwd()
   const sensitiveRouteChecks = [
     { path: 'app/api/digest/send/route.ts', patterns: ['Unauthorized', 'Bearer'] },
@@ -156,7 +159,7 @@ export async function POST(request: NextRequest) {
   ]
   for (const route of sensitiveRouteChecks) {
     try {
-      const content = fs.readFileSync(path.join(cwd, route.path), 'utf-8')
+      const content = fs.readFileSync(path.join(/*turbopackIgnore: true*/ cwd, route.path), 'utf-8')
       const hasAuth = route.patterns.some(p => content.includes(p))
       if (!hasAuth) {
         findings.push({
@@ -182,7 +185,7 @@ export async function POST(request: NextRequest) {
   ]
   for (const routePath of rateLimitedRouteChecks) {
     try {
-      const content = fs.readFileSync(path.join(cwd, routePath), 'utf-8')
+      const content = fs.readFileSync(path.join(/*turbopackIgnore: true*/ cwd, routePath), 'utf-8')
       if (!content.includes('ratelimit') && !content.includes('rateLimit')) {
         findings.push({
           id: `missing_ratelimit_${routePath.replace(/\//g, '_')}`,
@@ -310,7 +313,7 @@ export async function POST(request: NextRequest) {
       'user_preferences', 'user_consents', 'reports', 'synthesis_feedback',
     ]
     const deleteRouteContent = fs.readFileSync(
-      path.join(cwd, 'app/api/delete-account/route.ts'), 'utf-8'
+      path.join(/*turbopackIgnore: true*/ cwd, 'app/api/delete-account/route.ts'), 'utf-8'
     )
     const notCovered = userDataTables.filter(t => !deleteRouteContent.includes(t))
 
@@ -344,7 +347,7 @@ export async function POST(request: NextRequest) {
     const allRouteFiles: string[] = []
 
     const walkDir = (dir: string) => {
-      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      for (const entry of fs.readdirSync(/*turbopackIgnore: true*/ dir, { withFileTypes: true })) {
         const full = path.join(dir, entry.name)
         if (entry.isDirectory()) walkDir(full)
         else if (entry.name === 'route.ts') allRouteFiles.push(full)
@@ -358,7 +361,7 @@ export async function POST(request: NextRequest) {
     const piiLeakFiles: string[] = []
     for (const file of allRouteFiles) {
       if (file === thisScanRoute) continue
-      const content = fs.readFileSync(file, 'utf-8')
+      const content = fs.readFileSync(/*turbopackIgnore: true*/ file, 'utf-8')
       const hasExternalSink = content.includes('SLACK_WEBHOOK_URL') || content.includes('captureException') || content.includes('captureMessage')
       if (!hasExternalSink) continue
 
@@ -415,7 +418,7 @@ export async function POST(request: NextRequest) {
 
   // CHECK 13: Medical disclaimer present on article pages
   try {
-    const articlePageContent = fs.readFileSync(path.join(cwd, 'app/article/[id]/page.tsx'), 'utf-8')
+    const articlePageContent = fs.readFileSync(path.join(/*turbopackIgnore: true*/ cwd, 'app/article/[id]/page.tsx'), 'utf-8')
     const lc = articlePageContent.toLowerCase()
     const hasDisclaimer =
       lc.includes('disclaimer') ||
@@ -498,7 +501,7 @@ export async function POST(request: NextRequest) {
       type Ack = { advisory_id: string | string[]; package: string; reason: string; decision: string; decided_on: string; severity: string }
       let acknowledged: Ack[] = []
       try {
-        acknowledged = JSON.parse(fs.readFileSync(path.join(cwd, 'security-acknowledged.json'), 'utf-8'))
+        acknowledged = JSON.parse(fs.readFileSync(path.join(/*turbopackIgnore: true*/ cwd, 'security-acknowledged.json'), 'utf-8'))
       } catch {
         // Missing/invalid file → fail open to alarming (nothing acknowledged), not silent
       }
@@ -587,7 +590,7 @@ export async function POST(request: NextRequest) {
   // Without CSP, any XSS in AI-generated content (summaries, posts) can
   // exfiltrate session tokens or redirect users to malicious sites.
   try {
-    const nextConfigContent = fs.readFileSync(path.join(cwd, 'next.config.ts'), 'utf-8')
+    const nextConfigContent = fs.readFileSync(path.join(/*turbopackIgnore: true*/ cwd, 'next.config.ts'), 'utf-8')
     const hasCSP = nextConfigContent.includes('Content-Security-Policy')
     if (!hasCSP) {
       findings.push({
@@ -603,19 +606,19 @@ export async function POST(request: NextRequest) {
     // Config file not found
   }
 
-  // CHECK 17: API routes bypass email-verification middleware
+  // CHECK 17: API routes bypass email-verification proxy (proxy.ts)
   // Dynamically walks all app/api route files. For each file that calls getUser(),
   // checks whether it also verifies email_confirmed_at. Admin-only routes (those
   // checking role === 'admin') are excluded — admin access implies verified email.
   try {
-    const middlewareContent = fs.readFileSync(path.join(cwd, 'middleware.ts'), 'utf-8')
-    const apiExcluded = middlewareContent.includes('api') &&
-      middlewareContent.match(/\(\?\!.*api.*\)/) !== null
+    const proxyContent = fs.readFileSync(path.join(/*turbopackIgnore: true*/ cwd, 'proxy.ts'), 'utf-8')
+    const apiExcluded = proxyContent.includes('api') &&
+      proxyContent.match(/\(\?\!.*api.*\)/) !== null
 
     if (apiExcluded) {
       const allApiRoutes: string[] = []
       const walkApiDir = (dir: string) => {
-        for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        for (const entry of fs.readdirSync(/*turbopackIgnore: true*/ dir, { withFileTypes: true })) {
           const full = path.join(dir, entry.name)
           if (entry.isDirectory()) walkApiDir(full)
           else if (entry.name === 'route.ts') allApiRoutes.push(full)
@@ -628,7 +631,7 @@ export async function POST(request: NextRequest) {
       for (const fullPath of allApiRoutes) {
         if (fullPath === thisScanRoute) continue
         try {
-          const content = fs.readFileSync(fullPath, 'utf-8')
+          const content = fs.readFileSync(/*turbopackIgnore: true*/ fullPath, 'utf-8')
           // Match only .auth.getUser() — excludes auth.admin.getUserById (service-role routes)
           const hasAuth = content.includes('.auth.getUser()')
           // Auth must be REQUIRED: route returns 401 when user is null.
@@ -653,7 +656,7 @@ export async function POST(request: NextRequest) {
           id: 'api_email_verification_bypass',
           severity: 'high',
           title: 'API routes accept unverified email sessions',
-          description: `middleware.ts excludes all /api/* routes from email-verification enforcement. These user-facing routes authenticate the user but do not check email_confirmed_at: ${noEmailCheck.join(', ')}. Unverified accounts can access protected features.`,
+          description: `proxy.ts excludes all /api/* routes from email-verification enforcement. These user-facing routes authenticate the user but do not check email_confirmed_at: ${noEmailCheck.join(', ')}. Unverified accounts can access protected features.`,
           affected: noEmailCheck,
           detected_at: new Date().toISOString(),
         })
@@ -756,14 +759,14 @@ export async function POST(request: NextRequest) {
     // Only flag real import statements, not string literals or comments.
     const CLIENT_IMPORT_RE = /from\s+['"]@\/lib\/supabase\/client['"]/
     const walkDir = (dir: string) => {
-      const entries = fs.readdirSync(path.join(cwd, dir), { withFileTypes: true })
+      const entries = fs.readdirSync(path.join(/*turbopackIgnore: true*/ cwd, dir), { withFileTypes: true })
       for (const entry of entries) {
         const rel = `${dir}/${entry.name}`
         if (entry.isDirectory()) { walkDir(rel); continue }
         if (!entry.name.endsWith('.ts') && !entry.name.endsWith('.tsx')) continue
         if (rel === SCAN_ROUTE_REL) continue  // skip self
         try {
-          const content = fs.readFileSync(path.join(cwd, rel), 'utf-8')
+          const content = fs.readFileSync(path.join(/*turbopackIgnore: true*/ cwd, rel), 'utf-8')
           if (CLIENT_IMPORT_RE.test(content)) {
             browserSingletonHits.push(rel)
           }
