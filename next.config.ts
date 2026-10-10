@@ -19,15 +19,17 @@ const nextConfig: NextConfig = {
   turbopack: {},
 
   // The weekly security scan reads these source files at runtime (its fs calls are marked turbopackIgnore so the
-  // build no longer ships the whole repo with it). A check that reads another file must add it here. Not listed:
-  // package.json / package-lock.json for its npm audit step — including them pulls in ~1,000 dependency
-  // package.json files, and that step gets no result on Vercel anyway (acknowledged_count 0 in production).
+  // build no longer ships the whole repo with it). A check that reads another file must add it here.
+  // package.json / package-lock.json are for its npm audit step (Next also adds the dependencies' package.json
+  // files when these are listed — ~1,000 small files; still lighter than shipping the whole repo).
   outputFileTracingIncludes: {
     '/api/admin/security/scan': [
       './app/**/*.{ts,tsx}',
       './next.config.ts',
       './proxy.ts',
       './security-acknowledged.json',
+      './package.json',
+      './package-lock.json',
     ],
   },
 
