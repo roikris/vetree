@@ -1,6 +1,6 @@
 {
   "project": "vetree",
-  "last_updated": "2026-10-09",
+  "last_updated": "2026-10-10",
   "rules": {
     "single_active_feature": true,
     "passing_requires_evidence": true,
@@ -386,9 +386,9 @@
       "notes": "Deadline 2026-10-30 (supabase/CLAUDE.md:505). Only 22 of 72 migrations contain a GRANT. Tier 2 (Supabase migrations). Ask Roi for read-only prod access when starting. · claimed by 20261007-1242-claude-5b95 · NEXT: mark #113 ready → smoke (first CI run of the audit step) → Roi reviews access.json + merges. · CLOSED 2026-10-07."
     },
     {
-      "status": "not_started",
+      "status": "in_progress",
       "evidence": [],
-      "branch": "",
+      "branch": "fix/feed-new-this-week",
       "pr": null,
       "head_sha": null,
       "wip_sha": null,
@@ -415,7 +415,7 @@
           "paid_calls": false
         }
       ],
-      "notes": "Session 001 candidate A."
+      "notes": "Session 001 candidate A. · claimed by 20261010-0452-claude-9c7c"
     },
     {
       "status": "not_started",
