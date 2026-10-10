@@ -129,7 +129,7 @@
       "type": "feature",
       "title": "init.sh lock / unlock — take and release the session lock in one command that refuses when held",
       "user_visible_behavior": "none (agent process): `docs/harness/init.sh lock <item>` and `init.sh unlock` replace hand-written session.lock files",
-      "status": "not_started",
+      "status": "in_progress",
       "verification": [
         {
           "step": "`init.sh lock <item>` on a free lock: writes the canonical format (session/agent/started/item), commits, pushes, prints the session id + the export HARNESS_SESSION line; exit 0",
@@ -175,12 +175,12 @@
         }
       ],
       "evidence": [],
-      "branch": "",
+      "branch": "chore/harness-003-lock-commands",
       "pr": null,
       "head_sha": null,
       "wip_sha": null,
       "expected_failures": [],
-      "notes": "Added by 20261005-1947-claude-9005 on Roi's word (2026-10-05). Origin: session 20261005-1630-claude-2221 overwrote a held lock because lock-taking was hand-written and chained after a STOP (reverted 52fed24). Order vs session-001 candidates: Roi decides when the backlog session resumes."
+      "notes": "Added by 20261005-1947-claude-9005 on Roi's word (2026-10-05). Origin: session 20261005-1630-claude-2221 overwrote a held lock because lock-taking was hand-written and chained after a STOP (reverted 52fed24). Order vs session-001 candidates: Roi decides when the backlog session resumes. · claimed by 20261010-0508-claude-6918"
     },
     {
       "status": "merged",
