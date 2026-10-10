@@ -1,0 +1,3 @@
+RLS on (forced)
+DELETE to anon,authenticated (restrictive)
+using: -

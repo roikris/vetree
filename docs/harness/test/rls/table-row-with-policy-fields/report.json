@@ -1,0 +1,14 @@
+[
+ {
+  "object": "public.a",
+  "kind": "table",
+  "rls_on": true,
+  "rls_forced": false,
+  "policy": "x",
+  "command": null,
+  "roles": null,
+  "permissive": null,
+  "using_expr": null,
+  "check_expr": null
+ }
+]

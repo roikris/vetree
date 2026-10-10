@@ -1,0 +1,4 @@
+public.followed_tags  RLS OFF
+RLS off on 1: public.followed_tags
+using: (auth.uid() = user_id)
+ALL to authenticated
