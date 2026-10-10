@@ -6,11 +6,15 @@
 #   docs/harness/init.sh check [--quick] [--item <id>]
 #                                                deps + tsc + lint (ratchet) + build (unless --quick);
 #                                                --item classifies red results against that item's WIP
+#   docs/harness/init.sh lock <item-id|backlog> --agent <claude|codex>
+#                                                take the session lock (refuses when any lock exists)
+#   docs/harness/init.sh unlock "<handoff message>"
+#                                                publish the handoff + release YOUR lock, one commit
 #   docs/harness/init.sh --check-git             capability probe for Codex working sessions
 #   docs/harness/init.sh --write-lint-baseline   regenerate docs/harness/lint-baseline.json
 #
-# Never runs Playwright, never pushes, never runs `npm install`, never approves install scripts,
-# never deletes or forces anything. Exit codes: 0 ok · 1 check failed / regression · 2 stop (needs
+# Never runs Playwright, never runs `npm install`, never approves install scripts, never forces.
+# Only `lock` / `unlock` publish: one commit on harness-state, built off-tree, pushed compare-and-swap. Exit codes: 0 ok · 1 check failed / regression · 2 stop (needs
 # a human) · 3 possible transient (re-run once) · 10 expected WIP failure (continue the item).
 # Written for bash 3.2 (macOS /bin/bash) as well as newer bash.
 set -u
@@ -21,6 +25,7 @@ H="docs/harness"
 WT="$ROOT/.harness-state"
 STATE_BRANCH="harness-state"
 LOGDIR="$(git rev-parse --git-path harness)"
+case "$LOGDIR" in /*) ;; *) LOGDIR="$ROOT/$LOGDIR" ;; esac   # absolute: lock / unlock run git -C .harness-state
 mkdir -p "$LOGDIR"
 ALLOWED="README.md vercel.json $H/primer.md $H/feature_list.json $H/session-log.md $H/session.lock"
 
@@ -28,8 +33,44 @@ say()  { printf '%s\n' "$*"; }
 head_() { printf '\n== %s\n' "$*"; }
 stop() { say "STOP: $*"; exit 2; }
 
+# One state / lock / unlock at a time per checkout (harness-003): mkdir is atomic. Released by
+# unlink + rmdir (a single file and an empty folder — never a recursive delete).
+MUTEX="$LOGDIR/state-mutex"
+MUTEX_OWNED=0
+TMPIDX=""
+cleanup() {
+  if [ -n "$TMPIDX" ] && [ -f "$TMPIDX" ]; then unlink "$TMPIDX"; fi
+  mutex_release
+}
+trap cleanup EXIT
+mutex_take() { # $1 = command
+  if mkdir "$MUTEX" 2>/dev/null; then
+    MUTEX_OWNED=1
+    printf 'pid: %s\ncommand: %s\nstarted: %s\n' "$$" "$1" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$MUTEX/owner" || true
+  else
+    say "STATE MUTEX HELD: $MUTEX"
+    if [ -f "$MUTEX/owner" ]; then sed 's/^/  /' "$MUTEX/owner"; else say "  (no owner file: it is starting right now, or crashed just after taking the mutex)"; fi
+    stop "another init.sh state / lock / unlock is running in this checkout, or one crashed. Remove the folder $MUTEX only when no init.sh process is running (ps -ax | grep '[i]nit.sh')."
+  fi
+}
+mutex_release() {
+  if [ "$MUTEX_OWNED" = 1 ]; then
+    if [ -f "$MUTEX/owner" ]; then unlink "$MUTEX/owner"; fi
+    rmdir "$MUTEX" 2>/dev/null || say "warning: could not remove $MUTEX (not empty?) — remove it by hand"
+    MUTEX_OWNED=0
+  fi
+}
+# Test-only pause points (docs/harness/test/lock/selftest.sh); inert unless HARNESS_TEST_PAUSE_DIR is set.
+test_pause() {
+  local d="${HARNESS_TEST_PAUSE_DIR:-}" n=0
+  { [ -n "$d" ] && [ -f "$d/pause-$1" ]; } || return 0
+  : > "$d/at-$1"
+  while [ ! -f "$d/go-$1" ]; do sleep 0.1; n=$((n + 1)); [ $n -lt 600 ] || stop "test pause '$1' timed out"; done
+}
+
 # ---------------------------------------------------------------- state
 cmd_state() {
+  mutex_take state
   head_ "Repo"
   say "root:    $ROOT"
   say "branch:  $(git branch --show-current || echo '(detached)')"
@@ -115,6 +156,7 @@ EOF
   else
     say "lock: free"
   fi
+  mutex_release
 }
 
 # ---------------------------------------------------------------- check
@@ -272,6 +314,187 @@ cmd_check() {
   return 1
 }
 
+# ---------------------------------------------------------------- lock / unlock (harness-003)
+# Both: mutex → preliminary checks → sync (fetch + ff-only) → checks on the synced BASE → the new commit
+# is built OFF-TREE (temporary index, commit-tree -p BASE) → pushed compare-and-swap (never forced; a
+# remote change since the fetch makes it non-fast-forward) → only then the worktree adopts it with
+# `reset --mixed` (moves HEAD + index, never touches file contents). Any failure before the push leaves
+# the worktree, its index and local refs as they were after the sync.
+LOCK="$H/session.lock"
+STATE_FILES="primer.md feature_list.json session-log.md"
+BASE=""
+NEW=""
+MOVED=0
+
+check_dirty() { # $1: 0 = must be clean · 1 = only primer.md / feature_list.json / session-log.md modified
+  local st line xy p ok bad=""
+  st="$(git -C "$WT" status --porcelain --ignored --untracked-files=all)" || stop "git status failed in .harness-state"
+  [ -n "$st" ] || return 0
+  while IFS= read -r line; do
+    [ -z "$line" ] && continue
+    xy="${line:0:2}"; p="${line:3}"; ok=0
+    if [ "$1" = 1 ]; then
+      case "$xy" in " M"|"M "|"MM")
+        case "$p" in "$H/primer.md"|"$H/feature_list.json"|"$H/session-log.md") ok=1 ;; esac ;;
+      esac
+    fi
+    [ $ok = 1 ] || bad="$bad
+  $line"
+  done <<EOF
+$st
+EOF
+  [ -z "$bad" ] && return 0
+  if [ "$1" = 1 ]; then
+    stop "changes in .harness-state that unlock may not publish:$bad
+  (unlock publishes only edits to primer.md, feature_list.json, session-log.md). Nothing changed."
+  fi
+  stop "lock needs a clean state worktree:$bad
+  Nothing changed."
+}
+
+txn_begin() { # $1 = command, $2 = check_dirty mode
+  mutex_take "$1"
+  [ -d "$WT" ] || stop "no .harness-state — run docs/harness/init.sh state first"
+  local top common_wt common_root ahead f bad=""
+  top="$(git -C "$WT" rev-parse --show-toplevel 2>/dev/null)" || top=""
+  [ "$top" = "$WT" ] || stop "$WT is not a git worktree — run init.sh state"
+  common_wt="$(cd "$WT" && cd "$(git rev-parse --git-common-dir)" && pwd -P)" || stop "cannot resolve .harness-state's repository"
+  common_root="$(cd "$(git rev-parse --git-common-dir)" && pwd -P)" || stop "cannot resolve this repository"
+  [ "$common_wt" = "$common_root" ] || stop "$WT belongs to a different repository"
+  [ "$(git -C "$WT" branch --show-current)" = "$STATE_BRANCH" ] || stop "$WT is not on $STATE_BRANCH"
+  check_dirty "$2"
+  ahead="$(git -C "$WT" rev-list --count "origin/$STATE_BRANCH..HEAD")" || stop "cannot compare .harness-state with origin/$STATE_BRANCH"
+  [ "$ahead" = "0" ] || stop "unpushed state commits in .harness-state — see README 'Failed state push'. Nothing changed."
+  git -C "$WT" fetch -q origin "$STATE_BRANCH" > "$LOGDIR/state-fetch.log" 2>&1 \
+    || stop "git fetch failed ($(tail -1 "$LOGDIR/state-fetch.log")) — nothing changed"
+  git -C "$WT" merge -q --ff-only "origin/$STATE_BRANCH" > "$LOGDIR/state-merge.log" 2>&1 \
+    || stop "local state cannot fast-forward to origin/$STATE_BRANCH (diverged, or origin changed a file you edited) — nothing published; ask Roi"
+  BASE="$(git -C "$WT" rev-parse "origin/$STATE_BRANCH")" || stop "cannot read origin/$STATE_BRANCH"
+  [ "$(git -C "$WT" rev-parse HEAD)" = "$BASE" ] || stop "local state is not at origin/$STATE_BRANCH after the sync — nothing published"
+  test_pause after-sync
+  check_dirty "$2"
+  while IFS= read -r f; do
+    [ -z "$f" ] && continue
+    case " $ALLOWED " in *" $f "*) ;; *) bad="$bad
+  $f" ;; esac
+  done <<EOF
+$(git -C "$WT" ls-tree -r --name-only "$BASE")
+EOF
+  [ -z "$bad" ] || stop "files outside the state allowlist on origin/$STATE_BRANCH:$bad
+  — nothing published; tell Roi"
+  node "$H/harness.mjs" vercel-ok "$WT/vercel.json" || stop "vercel.json on $STATE_BRANCH must disable deployments — nothing published"
+  TMPIDX="$LOGDIR/state-index.$$"
+  if [ -f "$TMPIDX" ]; then unlink "$TMPIDX"; fi
+  GIT_INDEX_FILE="$TMPIDX" git -C "$WT" read-tree "$BASE" || stop "could not prepare the commit (read-tree) — nothing changed"
+}
+
+txn_publish() { # $1 = commit message; sets NEW
+  local tree rc=0 remote
+  tree="$(GIT_INDEX_FILE="$TMPIDX" git -C "$WT" write-tree)" || stop "could not build the commit (write-tree) — nothing changed"
+  NEW="$(git -C "$WT" commit-tree "$tree" -p "$BASE" -m "$1")" || stop "could not build the commit (commit-tree) — nothing changed"
+  [ "$(git -C "$WT" rev-parse "$NEW^")" = "$BASE" ] || stop "internal: the new commit's parent is not origin/$STATE_BRANCH — nothing changed"
+  test_pause before-push
+  git -C "$WT" push -q origin "$NEW:refs/heads/$STATE_BRANCH" > "$LOGDIR/state-push.log" 2>&1 || rc=$?
+  if [ $rc != 0 ]; then
+    say "push failed (exit $rc):"; sed -n '1,8p' "$LOGDIR/state-push.log" | sed 's/^/  /'
+    # The push may have landed with its reply lost — and origin may have moved on since: decide by
+    # ancestry on a fresh fetch, never by comparing the tip alone.
+    if git -C "$WT" fetch -q origin "$STATE_BRANCH" > "$LOGDIR/state-fetch.log" 2>&1 \
+       && remote="$(git -C "$WT" rev-parse "origin/$STATE_BRANCH")"; then
+      if [ "$remote" = "$NEW" ]; then
+        say "origin/$STATE_BRANCH is ${NEW:0:7} nevertheless — published"
+      elif git -C "$WT" merge-base --is-ancestor "$NEW" "$remote" 2>/dev/null; then
+        say "origin/$STATE_BRANCH contains ${NEW:0:7} — published, and origin has moved on since (${remote:0:7})"
+        MOVED=1
+      else
+        stop "NOT published (origin/$STATE_BRANCH is at ${remote:0:7} and does not contain ${NEW:0:7}). Nothing changed locally. If origin moved, run init.sh state and read the lock; otherwise fix the reason above and re-run."
+      fi
+    else
+      stop "could not read origin after the failed push — NOT KNOWN whether ${NEW:0:7} was published. Nothing changed locally. Run init.sh state and check the lock before anything else; unsure → tell Roi."
+    fi
+  fi
+  [ "$MOVED" = 1 ] || git -C "$WT" update-ref "refs/remotes/origin/$STATE_BRANCH" "$NEW" || true
+}
+
+moved_exit() { # published, but origin moved on after it: the local state is adopted up to NEW only
+  if [ "$MOVED" = 1 ]; then
+    say "STOP: origin/$STATE_BRANCH moved on after this publish — run init.sh state and read the lock before continuing."
+    exit 1
+  fi
+}
+
+adopt_fail() { # $1 = remaining step
+  say "PUBLISHED $NEW to origin/$STATE_BRANCH, but updating .harness-state failed."
+  say "Recover (inside .harness-state): git reset --mixed $NEW && $1"
+  exit 1
+}
+
+cmd_lock() {
+  local item="" agent="" agent_name hex id content blob
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --agent) agent="${2:-}"; [ $# -ge 2 ] && shift ;;
+      -*) stop "unknown option for lock: $1" ;;
+      *) [ -z "$item" ] || stop "lock takes one item id"; item="$1" ;;
+    esac
+    shift
+  done
+  [ -n "$item" ] || stop "usage: init.sh lock <item-id|backlog> --agent <claude|codex>"
+  case "$item" in *[!a-z0-9-]*) stop "item id '$item': only a-z, 0-9 and '-'" ;; esac
+  case "$agent" in claude) agent_name="Claude Code" ;; codex) agent_name="Codex" ;; *) stop "--agent must be claude or codex" ;; esac
+  txn_begin lock 0
+  if git -C "$WT" cat-file -e "$BASE:$LOCK" 2>/dev/null; then
+    say "LOCK HELD:"; git -C "$WT" show "$BASE:$LOCK" | sed 's/^/  /'
+    stop "a session lock already exists — whoever owns it, this session included. It is never replaced; a stale lock is removed only on Roi's word."
+  fi
+  if [ "$item" != "backlog" ]; then
+    git -C "$WT" show "$BASE:$H/feature_list.json" > "$LOGDIR/state-features.json" 2>/dev/null || stop "cannot read feature_list.json on origin"
+    node -e 'const f=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")).features||[];process.exit(f.some(x=>x&&x.id===process.argv[2])?0:1)' \
+      "$LOGDIR/state-features.json" "$item" || stop "unknown item '$item' (not in feature_list.json) — use 'backlog' for a backlog session"
+  fi
+  hex="$(od -An -N2 -tx1 /dev/urandom | tr -d ' \n')" || stop "cannot read /dev/urandom"
+  [ ${#hex} = 4 ] || stop "could not make a session id"
+  id="$(date -u +%Y%m%d-%H%M)-$agent-$hex"
+  content="$(printf 'session: %s\nagent: %s\nstarted: %s\nitem: %s' "$id" "$agent_name" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$item")"
+  blob="$(printf '%s\n' "$content" | git -C "$WT" hash-object -w --stdin)" || stop "could not write the lock (hash-object) — nothing changed"
+  GIT_INDEX_FILE="$TMPIDX" git -C "$WT" update-index --add --cacheinfo "100644,$blob,$LOCK" || stop "could not stage the lock — nothing changed"
+  txn_publish "state: lock $id; item $item"
+  git -C "$WT" reset -q --mixed "$NEW" || adopt_fail "git checkout -- $LOCK"
+  git -C "$WT" checkout -q -- "$LOCK" || adopt_fail "git checkout -- $LOCK"
+  moved_exit
+  say "lock taken: $id (item $item) — pushed ${NEW:0:7}"
+  say "now run:  export HARNESS_SESSION=$id"
+}
+
+cmd_unlock() {
+  local msg="${1:-}" me="${HARNESS_SESSION:-}" owner f blob
+  { [ $# = 1 ] && [ -n "$msg" ]; } || stop "usage: init.sh unlock \"<handoff message>\""
+  [ -n "$me" ] || stop "HARNESS_SESSION is not set — export HARNESS_SESSION=<your session id>. Nothing changed."
+  txn_begin unlock 1
+  git -C "$WT" cat-file -e "$BASE:$LOCK" 2>/dev/null || stop "no session lock on origin/$STATE_BRANCH — nothing to release (already released, or never taken). Nothing changed."
+  owner="$(git -C "$WT" show "$BASE:$LOCK" | awk '/^session: /{print $2; exit}')"
+  if [ "$owner" != "$me" ]; then
+    say "LOCK HELD:"; git -C "$WT" show "$BASE:$LOCK" | sed 's/^/  /'
+    stop "the lock belongs to '${owner:-?}', not $me — never release another session's lock. Nothing changed."
+  fi
+  grep -qF "### Session $me · " "$WT/$H/session-log.md" \
+    || stop "no entry '### Session $me · …' in session-log.md — write the session entry first (README 'Before you stop'). Nothing changed."
+  node -e 'JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"))' "$WT/$H/feature_list.json" 2>/dev/null \
+    || stop "feature_list.json is not valid JSON — fix it first. Nothing changed."
+  for f in $STATE_FILES; do
+    blob="$(git -C "$WT" hash-object -w -- "$H/$f")" || stop "could not read $f — nothing changed"
+    GIT_INDEX_FILE="$TMPIDX" git -C "$WT" update-index --add --cacheinfo "100644,$blob,$H/$f" || stop "could not stage $f — nothing changed"
+  done
+  GIT_INDEX_FILE="$TMPIDX" git -C "$WT" update-index --force-remove "$LOCK" || stop "could not stage the lock removal — nothing changed"
+  txn_publish "$msg"
+  git -C "$WT" reset -q --mixed "$NEW" || adopt_fail "unlink $LOCK"
+  # After the reset the lock file is untracked (perhaps even ignored): remove exactly that file.
+  if [ -e "$WT/$LOCK" ]; then unlink "$WT/$LOCK" || adopt_fail "unlink $LOCK"; fi
+  [ ! -e "$WT/$LOCK" ] || adopt_fail "unlink $LOCK"
+  moved_exit
+  say "lock released: $me — handoff pushed ${NEW:0:7}"
+}
+
 # ---------------------------------------------------------------- probes / tools
 cmd_check_git() {
   head_ "Git capability probe (preliminary — the real proof is that the lock + claim commits push)"
@@ -295,6 +518,8 @@ case "${1:-}" in
   "")                    cmd_state; cmd_check ;;
   state)                 cmd_state ;;
   check)                 shift; cmd_check "$@" ;;
+  lock)                  shift; cmd_lock "$@" ;;
+  unlock)                shift; cmd_unlock "$@" ;;
   --check-git)           cmd_check_git ;;
   --write-lint-baseline) cmd_write_lint_baseline ;;
   *) stop "unknown command: $1 (see the header of $H/init.sh)" ;;

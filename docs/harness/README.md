@@ -29,18 +29,17 @@ The old root `primer.md` is frozen and superseded. History before the harness: `
 3. **Codex only:** `docs/harness/init.sh --check-git`. Fails → stop, tell Roi.
 4. `docs/harness/init.sh state`. Then read `.harness-state/docs/harness/primer.md` (Current State
    + the latest session) and `.harness-state/docs/harness/feature_list.json`.
-5. **Take the lock:** write `.harness-state/docs/harness/session.lock` in exactly this format —
-   `init.sh` reads the owner from the unindented `session: ` line:
+5. **Take the lock** — choose the item first (see "Pick one item": the in-progress item, the next
+   `not_started` one, the one Roi names, or `backlog` for a backlog session with Roi), then run:
    ```
-   session: 20261005-0846-claude-b18d
-   agent: Claude Code
-   started: 2026-10-05T08:46:44Z
-   item: <item id>
+   docs/harness/init.sh lock <item id | backlog> --agent <claude | codex>
+   export HARNESS_SESSION=<the id it prints>
    ```
-   (id = `YYYYMMDD-HHMM-<agent>-<4 random hex>`), then commit and push.
-   Then `export HARNESS_SESSION=<id>` so later `init.sh` runs recognise the lock as yours.
-   `init.sh state` stops (exit 2) on any lock that isn't yours → tell Roi. Push fails → stop; no
-   product work.
+   It refuses (exit 2, nothing published) when ANY lock exists — yours included — or the item id is
+   unknown; it writes the canonical `session.lock` (`session: YYYYMMDD-HHMM-<agent>-<4 hex>` /
+   `agent` / `started` / `item`), commits and pushes it, never forced. **Never write or delete
+   `session.lock` by hand.** Exit 2 → read the message, stop, tell Roi; no product work.
+   `init.sh state` stops (exit 2) on any lock that isn't yours (`HARNESS_SESSION`) → tell Roi.
 6. **Reconcile with GitHub**, for every item with a `pr`: merged → `merged`; closed unmerged →
    `in_progress` or `blocked` with a note; open and `passing` but the PR head ≠ the evidence SHA →
    `in_progress` ("head changed after verification"). GitHub unreachable → note it, change nothing.
@@ -117,8 +116,14 @@ so "local" is never isolated.
 - [ ] Session entry in `primer.md` (Recent Sessions) **and** appended to `session-log.md`. Keep only
       the **latest 5** entries in `primer.md` (every session reads it); older ones stay in `session-log.md`.
 - [ ] `primer.md` Current State updated; next step written down.
-- [ ] Lock released (delete `session.lock`) and the state committed + pushed. A release counts
-      only once its push succeeds.
+- [ ] Lock released with the handoff, in one commit: edit primer.md / feature_list.json /
+      session-log.md (the entry `### Session <id> · …` must exist), then
+      `docs/harness/init.sh unlock "state: <item> <what happened>; session <id> entry; release lock"`.
+      It publishes only those three files, only for the lock's owner (`HARNESS_SESSION`), and
+      counts only when it exits 0 (pushed). Exit 2 → your edits are still in the worktree; read the
+      message: "NOT published" / "nothing changed" → fix the cause and re-run; "NOT KNOWN whether …
+      was published" → run `init.sh state`, read the lock, tell Roi if unsure. Exit 1 → it WAS
+      published; follow the printed recovery / `init.sh state`.
 
 A **controlled stop** (regression, nothing to do, Roi stops the session) also writes a short entry
 and releases the lock. Only a crash leaves a lock behind; a stale lock is removed only on Roi's word.
@@ -139,6 +144,16 @@ and releases the lock. Only a crash leaves a lock behind; a stale lock is remove
 
 ## Failed state push (lock, claim or handoff)
 
+`init.sh lock` / `unlock` never leave a local commit behind: they build the commit off-tree and
+change the worktree only after the push succeeded. Exit 2 = the local state is unchanged, and the
+message says whether origin got it: "NOT published" (origin does not contain the commit) or "NOT
+KNOWN" (origin unreadable after a failed push) — then run `init.sh state` and read the lock before
+anything else. Exit 1 = it WAS published: either updating `.harness-state` failed (run the recovery
+command it prints) or origin moved on after it (run `init.sh state`). "STATE MUTEX HELD" = another
+`state` / `lock` / `unlock` runs in this checkout, or one crashed: remove the folder it names only
+when no `init.sh` process is running.
+
+The rest of this section is for state commits made by hand (claims, mid-session updates).
 All commands inside `.harness-state`. Never reset or discard the local commit.
 `git fetch origin`; inspect `git log origin/harness-state..HEAD` and `git diff origin/harness-state`.
 Check ownership on the **remote**: `git show origin/harness-state:docs/harness/session.lock` must

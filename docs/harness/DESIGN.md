@@ -77,6 +77,13 @@ failed state pushes and lost branches; fresh-clone + dry-run retirement in rollo
   it in the same PR). Entry = {file, rule, count}; a file+rule count above its baseline, or a new
   file+rule, fails; fewer is fine (init.sh suggests shrinking the file). Lint cleanup → backlog
   candidate for session 001.
+- D12 (Roi, 2026-10-10, harness-003) The session lock is taken and released only by
+  `init.sh lock <item|backlog> --agent …` / `init.sh unlock "<message>"`, never by hand: refuse on
+  ANY existing lock; release only by the owner and only with a session entry; the handoff and the
+  release are one commit; the commit is built off-tree and pushed compare-and-swap, so a failure
+  never leaves a half-done local state; a per-checkout mutex serialises state / lock / unlock.
+  Origin: session 20261005-1630 overwrote a held lock that was written by hand (reverted 52fed24).
+  Plan review: 3 rounds (Codex), cap reached; Roi chose to fold in round 3 and verify in code review.
 - D11 (Roi, 2026-10-05) Review token budget — all of: risk tiers (0 none / 1 one focused round at
   medium effort / 2 full loop at high effort for the sensitive areas: auth/sessions, Supabase writes
   + migrations, security + secrets, paid AI calls, email sending, the harness); round 2+ reviews
@@ -265,6 +272,8 @@ Before you stop (clean-state checklist; each line is done, or N/A with the reaso
 - [ ] primer.md Current State updated; next step written
 - [ ] lock released; state committed + pushed to harness-state
 
+Since D12 (2026-10-10) taken / released only by `init.sh lock` / `init.sh unlock` — the rules
+below still describe what they enforce.
 Lock (D7, single-user, so it guards against accidents — a forgotten session, Claude + Codex
 started together — not adversaries):
 - `docs/harness/session.lock` = session id (`YYYYMMDD-HHMM-<agent>-<4 random hex>`), agent, start
@@ -289,7 +298,7 @@ started together — not adversaries):
   conflict in feature_list.json or primer.md → stop and ask Roi (no automatic resolution).
 
 ## init.sh
-Subcommands: `state` (repo info + state worktree), `check [--quick]` (dependencies + tsc / lint /
+Subcommands: `state` (repo info + state worktree), `lock` / `unlock` (D12), `check [--quick]` (dependencies + tsc / lint /
 build; `--quick` skips build), `--check-git` (preliminary capability probe). No argument = `state`
 then `check`. Non-zero exit if anything fails; summary table.
 `--check-git` works on a fresh clone with no local `harness-state` branch: write + delete a temp
