@@ -480,11 +480,42 @@
       "notes": "Session 001 candidate A. · claimed by 20261010-0452-claude-9c7c · CLOSED 2026-10-10 (preview step replaced by the live check after merge)."
     },
     {
-      "status": "in_progress",
-      "evidence": [],
+      "status": "passing",
+      "evidence": [
+        {
+          "date": "2026-10-10",
+          "session": "20261010-1034-claude-41e2",
+          "sha": "e4052d1",
+          "command": "init.sh check GREEN; build log 0 warnings (was: Sentry onRouterTransitionStart ×2, middleware→proxy, 7 Turbopack whole-project traces); proxy built as nodejs with the same matcher; scan route trace 676 files / 6.2 MB → 1,396 / 5.7 MB (package files kept, Roi chose A), all 130 files the checks read present",
+          "target": "local",
+          "outcome": "pass",
+          "approval": "n/a",
+          "link": "PR #118"
+        },
+        {
+          "date": "2026-10-10",
+          "session": "20261010-1034-claude-41e2",
+          "sha": "8762402",
+          "command": "Local next start: / 200, /profile anon → /login, /auth/signin → /login, junk auth cookie 200; probe build (temporary throw + beforeSend log-and-drop, reverted): proxy error reaches Sentry once, path without query",
+          "target": "local",
+          "outcome": "pass",
+          "approval": "n/a",
+          "link": "PR #118"
+        },
+        {
+          "date": "2026-10-10",
+          "session": "20261010-1034-claude-41e2",
+          "sha": "e4052d1",
+          "command": "PR #118 smoke on the preview pass (anonymous protected-route redirects, signed-in round trip through the proxy); Codex tier 2: 2 rounds (58.6k / 39.5k) → BLOCKING: none (1 fixed: proxy errors not reported to Sentry on Node)",
+          "target": "preview",
+          "outcome": "pass",
+          "approval": "n/a",
+          "link": "PR #118"
+        }
+      ],
       "branch": "chore/build-001-warnings",
-      "pr": null,
-      "head_sha": null,
+      "pr": 118,
+      "head_sha": "e4052d1",
       "wip_sha": null,
       "expected_failures": [],
       "id": "build-001",
