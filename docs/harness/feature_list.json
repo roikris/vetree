@@ -553,11 +553,32 @@
       "notes": "Session 001 candidate E. middleware is auth → tier 2. · claimed by 20261010-1034-claude-41e2 · CLOSED 2026-10-10. Follow-ups (Roi): Vercel usage after a few days (proxy = Node function now); Thursday security scan = first run of the trimmed trace."
     },
     {
-      "status": "in_progress",
-      "evidence": [],
+      "status": "passing",
+      "evidence": [
+        {
+          "date": "2026-10-10",
+          "session": "20261010-1719-claude-9084",
+          "sha": "55ce2b3",
+          "command": "init.sh check GREEN; lint-baseline.json 177 → 117 errors (70 → 44 file+rule entries; no new pair, no grown count vs main) via init.sh --write-lint-baseline; warnings 75 → 68",
+          "target": "local",
+          "outcome": "pass",
+          "approval": "n/a",
+          "link": "PR #119"
+        },
+        {
+          "date": "2026-10-10",
+          "session": "20261010-1719-claude-9084",
+          "sha": "55ce2b3",
+          "command": "Codex tier 2: 2 rounds (45.0k / 26.1k) → BLOCKING: none (1 fixed: useFollowedTags reorder swapped in a new file+rule pair — reverted); PR #119 smoke pass",
+          "target": "preview",
+          "outcome": "pass",
+          "approval": "n/a",
+          "link": "PR #119"
+        }
+      ],
       "branch": "chore/lint-001-cleanup",
-      "pr": null,
-      "head_sha": null,
+      "pr": 119,
+      "head_sha": "55ce2b3",
       "wip_sha": null,
       "expected_failures": [],
       "id": "lint-001",
