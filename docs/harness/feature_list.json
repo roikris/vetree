@@ -386,11 +386,42 @@
       "notes": "Deadline 2026-10-30 (supabase/CLAUDE.md:505). Only 22 of 72 migrations contain a GRANT. Tier 2 (Supabase migrations). Ask Roi for read-only prod access when starting. · claimed by 20261007-1242-claude-5b95 · NEXT: mark #113 ready → smoke (first CI run of the audit step) → Roi reviews access.json + merges. · CLOSED 2026-10-07."
     },
     {
-      "status": "in_progress",
-      "evidence": [],
+      "status": "merged",
+      "evidence": [
+        {
+          "date": "2026-10-10",
+          "session": "20261010-0452-claude-9c7c",
+          "sha": "b882d93",
+          "command": "Production read-only: old query 46 (13 future-dated), new query (public filter + created_at ≥ now−7d) 117",
+          "target": "production",
+          "outcome": "pass",
+          "approval": "n/a",
+          "link": "PR #116"
+        },
+        {
+          "date": "2026-10-10",
+          "session": "20261010-0452-claude-9c7c",
+          "sha": "23ff18f",
+          "command": "init.sh check GREEN (lint baseline 178→177); Codex tier 2, 2 rounds, 47.6k + 16.1k tokens → BLOCKING: none (stale-cache finding fixed: cache keyed by UTC hour); PR #116 smoke pass",
+          "target": "local",
+          "outcome": "pass",
+          "approval": "n/a",
+          "link": "PR #116"
+        },
+        {
+          "date": "2026-10-10",
+          "session": "20261010-0452-claude-9c7c",
+          "sha": "48e1524",
+          "command": "Merged as 48e1524; production /api/version = 48e1524; live /?browse=1 header: \"117 new this week\"",
+          "target": "production",
+          "outcome": "pass",
+          "approval": "Roi: \"merge\"",
+          "link": "PR #116"
+        }
+      ],
       "branch": "fix/feed-new-this-week",
-      "pr": null,
-      "head_sha": null,
+      "pr": 116,
+      "head_sha": "48e1524",
       "wip_sha": null,
       "expected_failures": [],
       "id": "feed-001",
@@ -415,7 +446,7 @@
           "paid_calls": false
         }
       ],
-      "notes": "Session 001 candidate A. · claimed by 20261010-0452-claude-9c7c"
+      "notes": "Session 001 candidate A. · claimed by 20261010-0452-claude-9c7c · CLOSED 2026-10-10 (preview step replaced by the live check after merge)."
     },
     {
       "status": "not_started",

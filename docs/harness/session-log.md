@@ -276,3 +276,15 @@ Newest at the bottom. The same entries (latest few) appear in primer.md → Rece
 - Commits / PR: 6c2885e → #115, merged as 946f146 on Roi's word.
 - Open question for a lawyer (Roi): company as sender; P.O. box instead of a street address.
 - Next best step: feed-001.
+
+### Session 20261010-0452-claude-9c7c · 2026-10-10 · Claude Code · feed-001 (closed)
+- Goal / Completed: the feed header's "N new this week" counted publication_date ≥ 7 days ago without the
+  summary/quarantine checks (future-dated preprints counted forever). Now getNewThisWeekCount() in
+  lib/queries/publicStats.ts: public filter + created_at, cached per UTC hour, null on failure. 46 → 117.
+  Lint baseline 178 → 177.
+- Verification: init.sh check GREEN; live header "117 new this week" after deploy (48e1524).
+- Review: Codex · tier 2 (lint baseline) · 2 rounds · 47.6k + 16.1k tokens · BLOCKING: none (1 fixed: unstable_cache
+  serves stale values past revalidate → key by hour).
+- Commits / PR: b882d93, 23ff18f → #116, merged as 48e1524 on Roi's word.
+- Lesson: unstable_cache `revalidate` is stale-while-revalidate and keeps the old value when a refresh fails — not a max age.
+- Next best step: harness-003 (init.sh lock/unlock).

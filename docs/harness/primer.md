@@ -8,15 +8,15 @@ Routine: `docs/harness/README.md` on `main`. Pre-harness primer (frozen): root `
 ---
 
 ## 1. Current Verified State
-*Updated 2026-10-09 — Session 20261009-1730-claude-5a0d (digest-001 closed)*
+*Updated 2026-10-10 — Session 20261010-0452-claude-9c7c (feed-001 closed)*
 
 - **Repo root:** `~/dev/vetree` · state worktree: `.harness-state/` (branch `harness-state`)
-- **main:** `946f146` (PR #115 shorter digest footer, 2026-10-09; #114 Search Console fixes, 2026-10-07; before it #113 access-control audit,
+- **main:** `48e1524` (PR #116 "new this week" count, 2026-10-10; #115 shorter digest footer, 2026-10-09; #114 Search Console fixes, 2026-10-07; before it #113 access-control audit,
   migration 074 applied) — last verified: `init.sh check` GREEN incl. acl audit 33/33; live checks after deploy
 - **Standard startup:** `docs/harness/init.sh` (state, then check) — see README for exit codes
 - **Standard verification:** `docs/harness/init.sh check [--item <id>]`; build reads production
   Supabase (read-only); never Playwright as a baseline
-- **Highest-priority unfinished item:** **feed-001** (feed header "new this week" count). Then harness-003 →
+- **Highest-priority unfinished item:** **harness-003** (init.sh lock/unlock). Then
   build-001 → lint-001 → infra-002 (least privilege) → infra-003 (replay safety); ai-001 parked (~2026-11-01).
 - **Current blocker:** none
 - **Open PRs awaiting Roi:** none · Roi to click "Validate fix" in Search Console (seo-001)
@@ -202,6 +202,18 @@ works today was spot-checked in the code on 2026-10-05.
 (Newest first — only the latest 5 are kept here (D11); every entry, older ones included, is in
 `session-log.md`, which is never trimmed.)
 
+### Session 20261010-0452-claude-9c7c · 2026-10-10 · Claude Code · feed-001 (closed)
+- Goal / Completed: the feed header's "N new this week" counted publication_date ≥ 7 days ago without the
+  summary/quarantine checks (future-dated preprints counted forever). Now getNewThisWeekCount() in
+  lib/queries/publicStats.ts: public filter + created_at, cached per UTC hour, null on failure. 46 → 117.
+  Lint baseline 178 → 177.
+- Verification: init.sh check GREEN; live header "117 new this week" after deploy (48e1524).
+- Review: Codex · tier 2 (lint baseline) · 2 rounds · 47.6k + 16.1k tokens · BLOCKING: none (1 fixed: unstable_cache
+  serves stale values past revalidate → key by hour).
+- Commits / PR: b882d93, 23ff18f → #116, merged as 48e1524 on Roi's word.
+- Lesson: unstable_cache `revalidate` is stale-while-revalidate and keeps the old value when a refresh fails — not a max age.
+- Next best step: harness-003 (init.sh lock/unlock).
+
 ### Session 20261009-1730-claude-5a0d · 2026-10-09 · Claude Code · digest-001 (closed)
 - Goal / Completed: Roi found the digest's legal footer repetitive. Explained what §30A (advertising) and §17F
   (direct mailing) require and that the sender's name must be in the email itself (a link isn't enough; a
@@ -245,17 +257,4 @@ works today was spot-checked in the code on 2026-10-05.
   quality 24/24 clean; manual-review count 0; live page 200. Item → merged.
 - Review: n/a (verification only, read-only).
 - Next best step: infra-001 (GRANT enforcement, deadline 2026-10-30) — ask Roi for read-only prod access.
-
-### Session 20261006-1824-claude-501f · 2026-10-06 → 07 · Claude Code · enrich-001 (controlled stop — Roi's local run next)
-- Goal / Completed: Roi chose Codex on his ChatGPT plan over API billing (OpenAI advises against
-  ChatGPT auth in CI; repo is public). Reworked #112: refusals → ai_refused after one attempt via
-  record_enrichment_refusal() (locked); `npm run enrich:refused` on Roi's Mac (identical shared
-  prompt, ChatGPT-login guard, same validation, guarded save). Found in testing: pre-057 rows hold
-  the abstract in `summary` (24/24) → "waiting" = the marker; `codex login status` writes stderr.
-- Verification: migration 073 applied (Roi "push"): 24 ai_refused, manual-review count 0, none
-  visible, new function service-role only; #112 full smoke pass; merged a527f5f.
-- Review: Codex · tier 2 · 3 rounds · 55.7k / 46.8k / 47.8k tokens · BLOCKING: none (6 blocking fixed).
-- Commits / PR: 6d8eef7, 6e40b11, d17cd37, 75c4363 → #112 merged as a527f5f.
-- Pending Roi approvals: none — Roi runs the fallback himself.
-- Next best step: after Roi's run, re-count ai_refused (expect 0 waiting) and close enrich-001.
 
