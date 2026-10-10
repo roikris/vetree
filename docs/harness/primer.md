@@ -8,19 +8,19 @@ Routine: `docs/harness/README.md` on `main`. Pre-harness primer (frozen): root `
 ---
 
 ## 1. Current Verified State
-*Updated 2026-10-10 — Session 20261010-0508-claude-6918 (harness-003 closed)*
+*Updated 2026-10-10 — Session 20261010-1034-claude-41e2 (build-001 closed)*
 
 - **Repo root:** `~/dev/vetree` · state worktree: `.harness-state/` (branch `harness-state`)
-- **main:** `61f9f4d` (PR #117 init.sh lock / unlock, 2026-10-10; #116 "new this week" count, 2026-10-10; #115 shorter digest footer, 2026-10-09; #114 Search Console fixes, 2026-10-07; before it #113 access-control audit,
+- **main:** `ba9fb77` (PR #118 build warnings / middleware → proxy, 2026-10-10; #117 init.sh lock / unlock, 2026-10-10; #116 "new this week" count, 2026-10-10; #115 shorter digest footer, 2026-10-09; #114 Search Console fixes, 2026-10-07; before it #113 access-control audit,
   migration 074 applied) — last verified: `init.sh check` GREEN incl. acl audit 33/33; live checks after deploy
 - **Standard startup:** `docs/harness/init.sh` (state, then check) — see README for exit codes. Take / release
   the lock only with `init.sh lock <item> --agent …` / `init.sh unlock "<message>"` (D12), never by hand
 - **Standard verification:** `docs/harness/init.sh check [--item <id>]`; build reads production
   Supabase (read-only); never Playwright as a baseline
-- **Highest-priority unfinished item:** **build-001** (middleware → proxy + build warnings). Then
-  lint-001 → infra-002 (least privilege) → infra-003 (replay safety); ai-001 parked (~2026-11-01).
+- **Highest-priority unfinished item:** **lint-001**. Then infra-002 (least privilege) → infra-003 (replay safety); ai-001 parked (~2026-11-01).
 - **Current blocker:** none
-- **Open PRs awaiting Roi:** none · Roi to click "Validate fix" in Search Console (seo-001)
+- **Open PRs awaiting Roi:** none · Roi to click "Validate fix" in Search Console (seo-001) · check Vercel usage
+  ~2026-10-14 (proxy now a Node function, build-001)
 
 ## 2. Open Issues & Known Risks
 - **Lint is red on main:** 178 errors / 75 warnings, never run in CI. Handled by the lint ratchet
@@ -30,9 +30,9 @@ Routine: `docs/harness/README.md` on `main`. Pre-harness primer (frozen): root `
   `app/page.tsx:91` (impure function during render).
 - **Lint scope:** it lints `docs/design_handoff_vetree_redesign/**` and
   `.github/workflows/scripts/**`.
-- **Build warnings (non-failing):** Sentry wants `onRouterTransitionStart` exported from
-  `instrumentation-client.ts`; Next 16 deprecates `middleware` → `proxy`; Turbopack traces the whole
-  project for `app/api/admin/security/scan/route.ts:757` (reads source files at runtime).
+- **Build warnings:** none since build-001 (2026-10-10). The security scan reads source files at runtime: a new
+  check that reads another file must be added to `outputFileTracingIncludes` in next.config.ts (else it passes
+  silently on Vercel). Its npm audit step may get no result on Vercel (unproven; acknowledged_count 0 in prod).
 - **npm install scripts not approved** on Roi's machine (npm 11.19: esbuild, @sentry/cli,
   unrs-resolver, protobufjs, fsevents, @google/genai) — no effect on tsc / lint / build today;
   approving any is Roi's call.
@@ -203,6 +203,22 @@ works today was spot-checked in the code on 2026-10-05.
 (Newest first — only the latest 5 are kept here (D11); every entry, older ones included, is in
 `session-log.md`, which is never trimmed.)
 
+### Session 20261010-1034-claude-41e2 · 2026-10-10 · Claude Code · build-001 (closed)
+- Goal / Completed: cleared all build warnings. middleware.ts → proxy.ts (Next 16; now Node.js runtime — Edge is not
+  allowed) with its own Sentry reporting (Next 16.3.8 forwards proxy errors only on Edge); Sentry
+  onRouterTransitionStart warning suppressed (tracing off on purpose); security-scan route: fs reads marked
+  turbopackIgnore + outputFileTracingIncludes, trace 676 files / 6.2 MB (whole repo) → 1,396 / 5.7 MB (package files
+  kept for npm audit — Roi chose A). Scan CHECK 17 now reads proxy.ts. First session opened with `init.sh lock`.
+- Verification: init.sh check GREEN, 0 build warnings; local probe (throw + beforeSend log-and-drop): one Sentry event,
+  no query; PR smoke pass; production ba9fb77 live checks pass.
+- Review: Codex · tier 2 · 2 rounds · 58.6k + 39.5k tokens · BLOCKING: none (1 fixed: proxy errors lost on Node).
+- Commits / PR: 88cac12, 8762402, e4052d1 → #118, merged as ba9fb77 on Roi's word. The first production deploy
+  failed before building ("Git information retrieval failed" — Vercel couldn't fetch the commit); Roi redeployed.
+- Lesson: `/*turbopackIgnore: true*/` must sit on the path expression (`path.join(/*…*/ cwd, x)`), not only inside
+  fs.readFileSync( — and listing package.json in outputFileTracingIncludes pulls in every dependency's package.json.
+- Pending Roi: Vercel usage in a few days (proxy billed as a Node function); Thursday's security scan.
+- Next best step: lint-001.
+
 ### Session 20261010-0508-claude-6918 · 2026-10-10 · Claude Code · harness-003 (closed)
 - Goal / Completed: `docs/harness/init.sh lock <item|backlog> --agent claude|codex` and `init.sh unlock "<message>"`
   replace hand-written session.lock files (D12). Both sync with origin first, refuse when the lock is held / not
@@ -252,16 +268,4 @@ works today was spot-checked in the code on 2026-10-05.
 - Review: Codex · tier 2 · 1 round · 36.1k tokens · BLOCKING: none.
 - Commits / PR: 5926c9d → #114, merged as f0b17e6 on Roi's word.
 - Pending Roi: "Validate fix" on the GSC Not found + Soft 404 reports.
-- Next best step: feed-001.
-
-### Session 20261007-1242-claude-5b95 · 2026-10-07 · Claude Code · infra-001 (closed)
-- Goal / Completed: Supabase's 2026-10-30 change (new public tables/sequences lose auto-grants; existing
-  objects + functions unaffected). After two plan rounds showed a SQL-text guard keeps leaking, Roi chose
-  a catalog audit: migration 074 harness_acl_report() (pushed on Roi's yes), supabase/access.json
-  baseline (33 relations), acl-audit in init.sh / PR smoke / daily + post-deploy, 24 offline fixtures incl.
-  6 sentinel-leak checks. Added infra-002 (least privilege) and infra-003 (replay safety).
-- Verification: live report 33 × 4 rows, anon denied; audit PASS locally, in PR CI and post-merge.
-- Review: plan · 4 rounds · 75.7k / 48.3k / 60.6k / 47.0k (round 4 beyond the cap, Roi) · BLOCKING: none;
-  code · Codex · tier 2 · 3 rounds · 58.4k / 39.7k / 40.9k · BLOCKING: none.
-- Commits / PR: 5c20d64 → #113, merged by Roi via the web UI as 4686368 (GitHub merge API 500 ×4).
 - Next best step: feed-001.

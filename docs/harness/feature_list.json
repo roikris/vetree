@@ -480,7 +480,7 @@
       "notes": "Session 001 candidate A. · claimed by 20261010-0452-claude-9c7c · CLOSED 2026-10-10 (preview step replaced by the live check after merge)."
     },
     {
-      "status": "passing",
+      "status": "merged",
       "evidence": [
         {
           "date": "2026-10-10",
@@ -511,11 +511,21 @@
           "outcome": "pass",
           "approval": "n/a",
           "link": "PR #118"
+        },
+        {
+          "date": "2026-10-10",
+          "session": "20261010-1034-claude-41e2",
+          "sha": "ba9fb77",
+          "command": "Merged as ba9fb77 (tree = e4052d1). First production deploy failed before building (Vercel: \"Git information retrieval failed\"); Roi redeployed. Production /api/version = ba9fb77; / 200, /profile + /library anon → /login, /auth/signin 308 → /login, /verify-email 200, /sw.js 200, sitemap 200, junk auth cookie 200, feed header \"106 new this week\"",
+          "target": "production",
+          "outcome": "pass",
+          "approval": "Roi: \"merge\"",
+          "link": "PR #118"
         }
       ],
       "branch": "chore/build-001-warnings",
       "pr": 118,
-      "head_sha": "e4052d1",
+      "head_sha": "ba9fb77",
       "wip_sha": null,
       "expected_failures": [],
       "id": "build-001",
@@ -540,7 +550,7 @@
           "paid_calls": false
         }
       ],
-      "notes": "Session 001 candidate E. middleware is auth → tier 2. · claimed by 20261010-1034-claude-41e2"
+      "notes": "Session 001 candidate E. middleware is auth → tier 2. · claimed by 20261010-1034-claude-41e2 · CLOSED 2026-10-10. Follow-ups (Roi): Vercel usage after a few days (proxy = Node function now); Thursday security scan = first run of the trimmed trace."
     },
     {
       "status": "not_started",
