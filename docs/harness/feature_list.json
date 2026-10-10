@@ -634,9 +634,9 @@
       "notes": "Parked until ~2026-11-01 (CLAUDE.md rule 0). Session 001 candidate G."
     },
     {
-      "status": "not_started",
+      "status": "in_progress",
       "evidence": [],
-      "branch": "",
+      "branch": "chore/infra-002-least-privilege",
       "pr": null,
       "head_sha": null,
       "wip_sha": null,
@@ -663,7 +663,7 @@
           "paid_calls": false
         }
       ],
-      "notes": "From infra-001 (2026-10-07). Tier 2. Careful: tightening can break client reads/writes."
+      "notes": "From infra-001 (2026-10-07). Tier 2. Careful: tightening can break client reads/writes. · claimed by 20261010-1903-claude-8c5f"
     },
     {
       "status": "not_started",
