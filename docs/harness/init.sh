@@ -324,6 +324,7 @@ LOCK="$H/session.lock"
 STATE_FILES="primer.md feature_list.json session-log.md"
 BASE=""
 NEW=""
+MOVED=0
 
 check_dirty() { # $1: 0 = must be clean · 1 = only primer.md / feature_list.json / session-log.md modified
   local st line xy p ok bad=""
@@ -396,16 +397,30 @@ txn_publish() { # $1 = commit message; sets NEW
   git -C "$WT" push -q origin "$NEW:refs/heads/$STATE_BRANCH" > "$LOGDIR/state-push.log" 2>&1 || rc=$?
   if [ $rc != 0 ]; then
     say "push failed (exit $rc):"; sed -n '1,8p' "$LOGDIR/state-push.log" | sed 's/^/  /'
-    remote="$(git -C "$WT" ls-remote origin "refs/heads/$STATE_BRANCH" 2>/dev/null | awk '{print $1}')"
-    if [ -n "$remote" ] && [ "$remote" = "$NEW" ]; then
-      say "origin/$STATE_BRANCH is ${NEW:0:7} nevertheless — published"
-    elif [ -n "$remote" ]; then
-      stop "NOT published (origin/$STATE_BRANCH is at ${remote:0:7}). Nothing changed locally. If origin moved, run init.sh state and read the lock; otherwise fix the reason above and re-run."
+    # The push may have landed with its reply lost — and origin may have moved on since: decide by
+    # ancestry on a fresh fetch, never by comparing the tip alone.
+    if git -C "$WT" fetch -q origin "$STATE_BRANCH" > "$LOGDIR/state-fetch.log" 2>&1 \
+       && remote="$(git -C "$WT" rev-parse "origin/$STATE_BRANCH")"; then
+      if [ "$remote" = "$NEW" ]; then
+        say "origin/$STATE_BRANCH is ${NEW:0:7} nevertheless — published"
+      elif git -C "$WT" merge-base --is-ancestor "$NEW" "$remote" 2>/dev/null; then
+        say "origin/$STATE_BRANCH contains ${NEW:0:7} — published, and origin has moved on since (${remote:0:7})"
+        MOVED=1
+      else
+        stop "NOT published (origin/$STATE_BRANCH is at ${remote:0:7} and does not contain ${NEW:0:7}). Nothing changed locally. If origin moved, run init.sh state and read the lock; otherwise fix the reason above and re-run."
+      fi
     else
       stop "could not read origin after the failed push — NOT KNOWN whether ${NEW:0:7} was published. Nothing changed locally. Run init.sh state and check the lock before anything else; unsure → tell Roi."
     fi
   fi
-  git -C "$WT" update-ref "refs/remotes/origin/$STATE_BRANCH" "$NEW" || true
+  [ "$MOVED" = 1 ] || git -C "$WT" update-ref "refs/remotes/origin/$STATE_BRANCH" "$NEW" || true
+}
+
+moved_exit() { # published, but origin moved on after it: the local state is adopted up to NEW only
+  if [ "$MOVED" = 1 ]; then
+    say "STOP: origin/$STATE_BRANCH moved on after this publish — run init.sh state and read the lock before continuing."
+    exit 1
+  fi
 }
 
 adopt_fail() { # $1 = remaining step
@@ -446,6 +461,7 @@ cmd_lock() {
   txn_publish "state: lock $id; item $item"
   git -C "$WT" reset -q --mixed "$NEW" || adopt_fail "git checkout -- $LOCK"
   git -C "$WT" checkout -q -- "$LOCK" || adopt_fail "git checkout -- $LOCK"
+  moved_exit
   say "lock taken: $id (item $item) — pushed ${NEW:0:7}"
   say "now run:  export HARNESS_SESSION=$id"
 }
@@ -471,9 +487,11 @@ cmd_unlock() {
   done
   GIT_INDEX_FILE="$TMPIDX" git -C "$WT" update-index --force-remove "$LOCK" || stop "could not stage the lock removal — nothing changed"
   txn_publish "$msg"
-  git -C "$WT" reset -q --mixed "$NEW" || adopt_fail "git clean -fq -- $LOCK"
-  # After the reset the lock file is untracked; git removes exactly that one path.
-  git -C "$WT" clean -fq -- "$LOCK" || adopt_fail "git clean -fq -- $LOCK"
+  git -C "$WT" reset -q --mixed "$NEW" || adopt_fail "unlink $LOCK"
+  # After the reset the lock file is untracked (perhaps even ignored): remove exactly that file.
+  if [ -e "$WT/$LOCK" ]; then unlink "$WT/$LOCK" || adopt_fail "unlink $LOCK"; fi
+  [ ! -e "$WT/$LOCK" ] || adopt_fail "unlink $LOCK"
+  moved_exit
   say "lock released: $me — handoff pushed ${NEW:0:7}"
 }
 

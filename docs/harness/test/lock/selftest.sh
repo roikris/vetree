@@ -20,6 +20,28 @@ PASS=0 FAIL=0 N=0 E=""
 
 echo "lock selftest — bash $BASH_VERSION ($BASH) — temp: $T"
 
+# A test double for git, first on PATH only inside fake(): FAKE_GIT_FAIL=<subcommand> makes that
+# subcommand fail; FAKE_GIT_LOST_ACK=1 makes a push land but report failure, after running the
+# script FAKE_GIT_AFTER (which must use the real git: $REALGIT).
+REALGIT="$(command -v git)"
+mkdir -p "$T/fakegit"
+cat > "$T/fakegit/git" <<EOF
+#!/bin/sh
+sub=""; skip=0
+for a in "\$@"; do
+  if [ \$skip = 1 ]; then skip=0; continue; fi
+  case "\$a" in -C|-c) skip=1 ;; -*) ;; *) sub="\$a"; break ;; esac
+done
+if [ -n "\${FAKE_GIT_FAIL:-}" ] && [ "\$sub" = "\$FAKE_GIT_FAIL" ]; then echo "fake failure: \$sub" >&2; exit 1; fi
+if [ "\$sub" = push ] && [ -n "\${FAKE_GIT_LOST_ACK:-}" ]; then
+  "$REALGIT" "\$@" || exit \$?
+  if [ -n "\${FAKE_GIT_AFTER:-}" ]; then sh "\$FAKE_GIT_AFTER" > /dev/null 2>&1; fi
+  echo "fake: connection lost after the push" >&2; exit 1
+fi
+exec "$REALGIT" "\$@"
+EOF
+chmod +x "$T/fakegit/git"
+
 ok()   { PASS=$((PASS + 1)); }
 bad()  { FAIL=$((FAIL + 1)); echo "  FAIL [$CASE]: $*"; [ -f "$E/out" ] && sed 's/^/      | /' "$E/out" | tail -6; }
 is()   { if [ "$1" = "$2" ]; then ok; else bad "$3 (got '$1', want '$2')"; fi; }
@@ -53,6 +75,10 @@ clone() { # $1 = name
 run() { # $1 = clone, then init.sh args; env via VAR=… before `run`. Sets RC, output in $E/out
   local d="$1"; shift
   ( cd "$E/$d" && "$BASH" docs/harness/init.sh "$@" ) > "$E/out" 2>&1; RC=$?
+}
+fake() { # like run, with the git test double first on PATH (FAKE_GIT_* via env before `fake`)
+  local d="$1"; shift
+  ( cd "$E/$d" && PATH="$T/fakegit:$PATH" "$BASH" docs/harness/init.sh "$@" ) > "$E/out" 2>&1; RC=$?
 }
 seed_push() { # $1 = message: commit whatever is staged in seed (on harness-state, synced to origin) and push
   git -C "$E/seed" commit -qm "$1" && git -C "$E/seed" push -q "$E/origin.git" harness-state
@@ -268,6 +294,61 @@ run A lock x-001 --agent codex; is "$RC" 2 "lock refused"
 HARNESS_SESSION="$ME" run A state; is "$RC" 2 "state refused"
 HARNESS_SESSION="$ME" run A unlock "again"; is "$RC" 2 "second unlock refused"
 resume before-push; is "$BGRC" 0 "first unlock completes"; is "$(olock)" "" "released"
+
+case_ "unlock: refusal leaves staged / partly staged edits exactly as they were"
+new_env; lock_A; entry A "$ME"; W="$E/A/.harness-state"
+printf 'v1\n' >> "$W/docs/harness/primer.md"; git -C "$W" add docs/harness/primer.md; printf 'v2\n' >> "$W/docs/harness/primer.md"
+cached="$(git -C "$W" diff --cached)"; unstaged="$(git -C "$W" diff)"; before="$(osha)"
+HARNESS_SESSION="20990101-0000-codex-ffff" run A unlock "m"; is "$RC" 2 "refused"
+is "$(git -C "$W" diff --cached)" "$cached" "index unchanged"; is "$(git -C "$W" diff)" "$unstaged" "worktree unchanged"
+is "$(osha)" "$before" "origin unchanged"
+
+case_ "unlock: lock file ignored locally (*.lock) is still removed"
+new_env; lock_A; entry A "$ME"; printf '*.lock\n' >> "$E/A/.git/info/exclude"
+HARNESS_SESSION="$ME" run A unlock "m"; is "$RC" 0 "exit"; is "$(olock)" "" "released on origin"
+is "$([ -e "$E/A/.harness-state/$LK" ] && echo left || echo gone)" gone "local lock file gone"
+run A state; is "$RC" 0 "state afterwards"; has "$E/out" "lock: free" "lock free"
+
+case_ "build failures: write-tree (unlock) / commit-tree (lock)"
+new_env; lock_A; entry A "$ME"; before="$(osha)"; lhead="$(whead A)"
+FAKE_GIT_FAIL=write-tree HARNESS_SESSION="$ME" fake A unlock "m"
+is "$RC" 2 "write-tree"; has "$E/out" "write-tree" "names the step"; is "$(osha)" "$before" "origin unchanged"
+is "$(whead A)" "$lhead" "HEAD unchanged"; is "$(wst A)" " M docs/harness/session-log.md" "edits kept"
+new_env; before="$(osha)"
+FAKE_GIT_FAIL=commit-tree fake A lock x-001 --agent claude
+is "$RC" 2 "commit-tree"; is "$(osha)" "$before" "origin unchanged"; is "$(olock)" "" "no lock"; is "$(wst A)" "" "clean"
+
+case_ "push landed, reply lost (lock)"
+new_env
+FAKE_GIT_LOST_ACK=1 fake A lock x-001 --agent claude
+is "$RC" 0 "exit"; has "$E/out" "nevertheless — published" "message"; is "$(olock | sed -n 2p)" "agent: Claude Code" "lock on origin"
+is "$(whead A)" "$(osha)" "adopted"; is "$(wst A)" "" "clean"
+
+case_ "push landed, reply lost, origin moved on (unlock)"
+new_env; lock_A; entry A "$ME"
+cat > "$E/advance.sh" <<EOF
+"$REALGIT" -C "$E/seed" fetch -q "$E/origin.git" harness-state && "$REALGIT" -C "$E/seed" reset -q --hard FETCH_HEAD &&
+printf 'more\n' >> "$E/seed/README.md" && "$REALGIT" -C "$E/seed" commit -qam "someone else" && "$REALGIT" -C "$E/seed" push -q "$E/origin.git" harness-state
+EOF
+FAKE_GIT_LOST_ACK=1 FAKE_GIT_AFTER="$E/advance.sh" HARNESS_SESSION="$ME" fake A unlock "state: handoff"
+is "$RC" 1 "exit 1 (published, origin moved)"; has "$E/out" "moved on" "message"
+is "$(git --git-dir="$E/origin.git" log -1 --format=%s harness-state)" "someone else" "origin advanced"
+is "$(git --git-dir="$E/origin.git" log --format=%s harness-state | grep -c 'state: handoff')" 1 "our commit is in origin"
+is "$(olock)" "" "lock released"
+run A state; is "$RC" 0 "state afterwards catches up"; is "$(whead A)" "$(osha)" "local at origin"
+
+case_ "adoption fails after the push (lock): recovery as printed"
+new_env
+FAKE_GIT_FAIL=reset fake A lock x-001 --agent claude
+is "$RC" 1 "exit"; has "$E/out" "PUBLISHED" "message"; is "$(olock | sed -n 2p)" "agent: Claude Code" "lock on origin"
+rec="$(sed -n 's/^Recover (inside .harness-state): //p' "$E/out")"
+( cd "$E/A/.harness-state" && eval "$rec" ) > /dev/null 2>&1; is "$?" 0 "recovery command runs"
+is "$(wst A)" "" "clean after recovery"; is "$(whead A)" "$(osha)" "adopted after recovery"
+id2="$(olock | sed -n 's/^session: //p')"; HARNESS_SESSION="$id2" run A state; is "$RC" 0 "state afterwards"
+
+case_ "default run (no arguments) respects the mutex"
+new_env; mkdir "$E/A/.git/harness/state-mutex"
+run A; is "$RC" 2 "refused"; has "$E/out" "STATE MUTEX HELD" "message"
 
 case_ "unlock: object store not writable (commit cannot be built)"
 if [ "$(id -u)" = 0 ]; then

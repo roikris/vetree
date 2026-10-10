@@ -120,8 +120,10 @@ so "local" is never isolated.
       session-log.md (the entry `### Session <id> · …` must exist), then
       `docs/harness/init.sh unlock "state: <item> <what happened>; session <id> entry; release lock"`.
       It publishes only those three files, only for the lock's owner (`HARNESS_SESSION`), and
-      counts only when it exits 0 (pushed). Exit 2 → nothing was published, your edits are still in
-      the worktree; read the message (fix the cause and re-run, or tell Roi).
+      counts only when it exits 0 (pushed). Exit 2 → your edits are still in the worktree; read the
+      message: "NOT published" / "nothing changed" → fix the cause and re-run; "NOT KNOWN whether …
+      was published" → run `init.sh state`, read the lock, tell Roi if unsure. Exit 1 → it WAS
+      published; follow the printed recovery / `init.sh state`.
 
 A **controlled stop** (regression, nothing to do, Roi stops the session) also writes a short entry
 and releases the lock. Only a crash leaves a lock behind; a stale lock is removed only on Roi's word.
@@ -143,9 +145,11 @@ and releases the lock. Only a crash leaves a lock behind; a stale lock is remove
 ## Failed state push (lock, claim or handoff)
 
 `init.sh lock` / `unlock` never leave a local commit behind: they build the commit off-tree and
-change the worktree only after the push succeeded. On exit 2 nothing is published locally either —
-re-run `init.sh state` and read the lock before anything else. Exit 1 after "PUBLISHED …" = pushed,
-but updating `.harness-state` failed: run the recovery command it prints. "STATE MUTEX HELD" = another
+change the worktree only after the push succeeded. Exit 2 = the local state is unchanged, and the
+message says whether origin got it: "NOT published" (origin does not contain the commit) or "NOT
+KNOWN" (origin unreadable after a failed push) — then run `init.sh state` and read the lock before
+anything else. Exit 1 = it WAS published: either updating `.harness-state` failed (run the recovery
+command it prints) or origin moved on after it (run `init.sh state`). "STATE MUTEX HELD" = another
 `state` / `lock` / `unlock` runs in this checkout, or one crashed: remove the folder it names only
 when no `init.sh` process is running.
 
