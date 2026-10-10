@@ -1,6 +1,6 @@
 {
   "note": "Known lint errors (D9 ratchet). Only errors above these counts fail. Shrink, never grow.",
-  "total_errors": 178,
+  "total_errors": 177,
   "entries": [
     {
       "file": ".github/workflows/scripts/backfill-articles-2025-2026.js",
@@ -175,11 +175,6 @@
     {
       "file": "app/page.tsx",
       "rule": "@typescript-eslint/no-explicit-any",
-      "count": 1
-    },
-    {
-      "file": "app/page.tsx",
-      "rule": "react-hooks/purity",
       "count": 1
     },
     {

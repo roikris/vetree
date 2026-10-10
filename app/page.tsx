@@ -18,7 +18,7 @@ import { Suspense } from 'react'
 import { SearchResults } from '@/components/search/SearchResults'
 import { SproutLoader } from '@/components/search/SproutLoader'
 import { searchKeyFor } from '@/lib/search/progressive'
-import { getVisibleArticleCount, formatArticleCount } from '@/lib/queries/publicStats'
+import { getVisibleArticleCount, getNewThisWeekCount, formatArticleCount } from '@/lib/queries/publicStats'
 
 // Force dynamic rendering to ensure searchParams are always fresh
 export const dynamic = 'force-dynamic'
@@ -91,14 +91,8 @@ export default async function Home({ searchParams }: HomeProps) {
   // 2026-10-03 — the landing page is the one pitch; "Browse articles" goes straight to the feed.)
   const isSearchRequest = !!filters.search.trim()
 
-  // Count articles published in the last 7 days (for stream header)
-  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-  const { count: newThisWeek } = isSearchRequest ? { count: null } : await supabase
-    .from('articles')
-    .select('id', { count: 'exact', head: true })
-    .eq('needs_enrichment', false)
-    .not('clinical_bottom_line', 'is', null)
-    .gte('publication_date', sevenDaysAgo)
+  // Visible articles new to Vetree in the last 7 days (stream header) — lib/queries/publicStats
+  const newThisWeek = isSearchRequest ? null : await getNewThisWeekCount()
 
   // A search renders progressively in its own streamed subtree (components/search/SearchResults);
   // only the feed (no search) is fetched here.
