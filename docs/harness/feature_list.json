@@ -553,7 +553,7 @@
       "notes": "Session 001 candidate E. middleware is auth → tier 2. · claimed by 20261010-1034-claude-41e2 · CLOSED 2026-10-10. Follow-ups (Roi): Vercel usage after a few days (proxy = Node function now); Thursday security scan = first run of the trimmed trace."
     },
     {
-      "status": "passing",
+      "status": "merged",
       "evidence": [
         {
           "date": "2026-10-10",
@@ -574,11 +574,21 @@
           "outcome": "pass",
           "approval": "n/a",
           "link": "PR #119"
+        },
+        {
+          "date": "2026-10-10",
+          "session": "20261010-1719-claude-9084",
+          "sha": "9429086",
+          "command": "Merged as 9429086 (tree = 55ce2b3); production /api/version = 9429086 after ~60 s; / 200, /profile anon → /login, /login 200, feed 200, sitemap 200",
+          "target": "production",
+          "outcome": "pass",
+          "approval": "Roi: \"Merge\"",
+          "link": "PR #119"
         }
       ],
       "branch": "chore/lint-001-cleanup",
       "pr": 119,
-      "head_sha": "55ce2b3",
+      "head_sha": "9429086",
       "wip_sha": null,
       "expected_failures": [],
       "id": "lint-001",
@@ -596,7 +606,7 @@
           "paid_calls": false
         }
       ],
-      "notes": "Session 001 candidates D + C (C judged benign: hoisting, Onboarding remount, Date.now in a server component). · claimed by 20261010-1719-claude-9084"
+      "notes": "Session 001 candidates D + C (C judged benign: hoisting, Onboarding remount, Date.now in a server component). · claimed by 20261010-1719-claude-9084 · CLOSED 2026-10-10. Left (separate items if wanted): 103 no-explicit-any, 13 set-state-in-effect, useFollowedTags immutability."
     },
     {
       "status": "blocked",

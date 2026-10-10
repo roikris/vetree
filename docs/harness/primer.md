@@ -8,28 +8,25 @@ Routine: `docs/harness/README.md` on `main`. Pre-harness primer (frozen): root `
 ---
 
 ## 1. Current Verified State
-*Updated 2026-10-10 — Session 20261010-1034-claude-41e2 (build-001 closed)*
+*Updated 2026-10-10 — Session 20261010-1719-claude-9084 (lint-001 closed)*
 
 - **Repo root:** `~/dev/vetree` · state worktree: `.harness-state/` (branch `harness-state`)
-- **main:** `ba9fb77` (PR #118 build warnings / middleware → proxy, 2026-10-10; #117 init.sh lock / unlock, 2026-10-10; #116 "new this week" count, 2026-10-10; #115 shorter digest footer, 2026-10-09; #114 Search Console fixes, 2026-10-07; before it #113 access-control audit,
+- **main:** `9429086` (PR #119 lint cleanup, 2026-10-10; #118 build warnings / middleware → proxy, 2026-10-10; #117 init.sh lock / unlock, 2026-10-10; #116 "new this week" count, 2026-10-10; #115 shorter digest footer, 2026-10-09; #114 Search Console fixes, 2026-10-07; before it #113 access-control audit,
   migration 074 applied) — last verified: `init.sh check` GREEN incl. acl audit 33/33; live checks after deploy
 - **Standard startup:** `docs/harness/init.sh` (state, then check) — see README for exit codes. Take / release
   the lock only with `init.sh lock <item> --agent …` / `init.sh unlock "<message>"` (D12), never by hand
 - **Standard verification:** `docs/harness/init.sh check [--item <id>]`; build reads production
   Supabase (read-only); never Playwright as a baseline
-- **Highest-priority unfinished item:** **lint-001**. Then infra-002 (least privilege) → infra-003 (replay safety); ai-001 parked (~2026-11-01).
+- **Highest-priority unfinished item:** **infra-002** (least privilege). Then infra-003 (replay safety); ai-001 parked
+  (~2026-11-01).
 - **Current blocker:** none
 - **Open PRs awaiting Roi:** none · Roi to click "Validate fix" in Search Console (seo-001) · check Vercel usage
   ~2026-10-14 (proxy now a Node function, build-001)
 
 ## 2. Open Issues & Known Risks
-- **Lint is red on main:** 178 errors / 75 warnings, never run in CI. Handled by the lint ratchet
-  (`docs/harness/lint-baseline.json`); only new errors fail.
-- **Possible real bugs among the lint errors:** `lib/hooks/useFollowedTags.ts:16` (variable used
-  before declared), `components/onboarding/Onboarding.tsx:288` (component created during render),
-  `app/page.tsx:91` (impure function during render).
-- **Lint scope:** it lints `docs/design_handoff_vetree_redesign/**` and
-  `.github/workflows/scripts/**`.
+- **Lint is red on main:** 117 errors (103 no-explicit-any, 13 set-state-in-effect, 1 immutability) / 68 warnings,
+  never run in CI. Handled by the lint ratchet (`docs/harness/lint-baseline.json`, per file + rule); only new errors
+  fail. Scope narrowed in lint-001 (design prototype ignored; require() allowed in CommonJS scripts).
 - **Build warnings:** none since build-001 (2026-10-10). The security scan reads source files at runtime: a new
   check that reads another file must be added to `outputFileTracingIncludes` in next.config.ts (else it passes
   silently on Vercel). Its npm audit step may get no result on Vercel (unproven; acknowledged_count 0 in prod).
@@ -203,6 +200,23 @@ works today was spot-checked in the code on 2026-10-05.
 (Newest first — only the latest 5 are kept here (D11); every entry, older ones included, is in
 `session-log.md`, which is never trimmed.)
 
+### Session 20261010-1719-claude-9084 · 2026-10-10 · Claude Code · lint-001 (closed)
+- Goal / Completed: lint baseline 177 → 117 (70 → 44 entries). eslint.config.mjs: design prototype ignored;
+  require() allowed in the CommonJS scripts only; no-unescaped-entities keeps > and }, allows ' and ". Onboarding's
+  HandDrawnArrow moved to module level; prefer-const ×2. Left: 103 no-explicit-any, 13 set-state-in-effect,
+  useFollowedTags immutability (benign hoisting). The three Session-001 "possible bugs": none was a real bug.
+- Verification: init.sh check GREEN; no new file+rule pair and no grown count vs main; PR smoke pass; production
+  9429086 live.
+- Review: Codex · tier 2 · 2 rounds · 45.0k + 26.1k tokens · BLOCKING: none (1 fixed: reordering useFollowedTags swapped
+  in a new file+rule pair — D9 forbids that even when the total falls; reverted).
+- Commits / PR: 38fd077, 55ce2b3 → #119, merged as 9429086 on Roi's word.
+- Lesson: an eslint flat-config rule override for a plugin rule needs the same `files` as the config object that
+  defines the plugin (else "could not find plugin"). The ratchet is per file + rule — check pairs, not the total.
+- Incident (mine): closing build-001, my script opened session-log.md for writing before reading it, which
+  emptied it, then wrote one entry (f81d84f: 28 entries → 1; repeated once here). Restored in this handoff from 7c89e29
+  (history byte-identical) + the build-001 and lint-001 entries. Write state files only after reading them fully.
+- Next best step: infra-002 (least privilege) — needs Roi for anything touching production grants.
+
 ### Session 20261010-1034-claude-41e2 · 2026-10-10 · Claude Code · build-001 (closed)
 - Goal / Completed: cleared all build warnings. middleware.ts → proxy.ts (Next 16; now Node.js runtime — Edge is not
   allowed) with its own Sentry reporting (Next 16.3.8 forwards proxy errors only on Edge); Sentry
@@ -255,17 +269,4 @@ works today was spot-checked in the code on 2026-10-05.
 - Review: Codex · tier 2 · 1 round · 22.2k tokens · BLOCKING: none.
 - Commits / PR: 6c2885e → #115, merged as 946f146 on Roi's word.
 - Open question for a lawyer (Roi): company as sender; P.O. box instead of a street address.
-- Next best step: feed-001.
-
-### Session 20261007-1922-claude-7410 · 2026-10-07 · Claude Code · seo-001 (closed)
-- Goal / Completed: Roi's side quest — Google Search Console errors. Read the Page indexing report
-  (read-only): 195 not indexed, mostly Google's choice (143 crawled-not-indexed, 30 alternate canonical,
-  11 redirects, 2 robots-blocked on purpose). Fixed: /auth/signin 404 → permanent redirect to /login
-  (+ the library link); /login, /signup soft 404 → noindex,follow; /?search={search_term_string} soft 404 →
-  noindex on search results and the JSON-LD SearchAction removed. /article/pubmed- (empty id): no source
-  in code or sitemap, already a correct 404.
-- Verification: init.sh check GREEN; local prod build and live production after deploy (f0b17e6).
-- Review: Codex · tier 2 · 1 round · 36.1k tokens · BLOCKING: none.
-- Commits / PR: 5926c9d → #114, merged as f0b17e6 on Roi's word.
-- Pending Roi: "Validate fix" on the GSC Not found + Soft 404 reports.
 - Next best step: feed-001.
