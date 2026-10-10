@@ -553,9 +553,9 @@
       "notes": "Session 001 candidate E. middleware is auth → tier 2. · claimed by 20261010-1034-claude-41e2 · CLOSED 2026-10-10. Follow-ups (Roi): Vercel usage after a few days (proxy = Node function now); Thursday security scan = first run of the trimmed trace."
     },
     {
-      "status": "not_started",
+      "status": "in_progress",
       "evidence": [],
-      "branch": "",
+      "branch": "chore/lint-001-cleanup",
       "pr": null,
       "head_sha": null,
       "wip_sha": null,
@@ -575,7 +575,7 @@
           "paid_calls": false
         }
       ],
-      "notes": "Session 001 candidates D + C (C judged benign: hoisting, Onboarding remount, Date.now in a server component)."
+      "notes": "Session 001 candidates D + C (C judged benign: hoisting, Onboarding remount, Date.now in a server component). · claimed by 20261010-1719-claude-9084"
     },
     {
       "status": "blocked",
