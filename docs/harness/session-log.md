@@ -288,3 +288,18 @@ Newest at the bottom. The same entries (latest few) appear in primer.md → Rece
 - Commits / PR: b882d93, 23ff18f → #116, merged as 48e1524 on Roi's word.
 - Lesson: unstable_cache `revalidate` is stale-while-revalidate and keeps the old value when a refresh fails — not a max age.
 - Next best step: harness-003 (init.sh lock/unlock).
+
+### Session 20261010-0508-claude-6918 · 2026-10-10 · Claude Code · harness-003 (closed)
+- Goal / Completed: `docs/harness/init.sh lock <item|backlog> --agent claude|codex` and `init.sh unlock "<message>"`
+  replace hand-written session.lock files (D12). Both sync with origin first, refuse when the lock is held / not
+  owned / the state worktree has other changes, build the commit off to the side and push without force; a failed
+  push is classified as published / NOT published / NOT KNOWN. unlock also publishes the handoff (primer,
+  feature_list, session-log) and requires this session's log entry. A per-checkout mutex also blocks `state`.
+- Verification: lock self-test 178/178 on bash 3.2 (Mac) and 5.2 (CI, now in PR smoke); 5 mutations all caught;
+  init.sh check GREEN; merged tree = PR head; production 61f9f4d.
+- Review: Codex · tier 2 · plan 3 rounds (33.3k / 32.9k / 40.5k, cap reached, Roi chose A) · code 2 rounds
+  (50.2k / 39.4k) · BLOCKING: none (2 fixed: git clean skips ignored files; lost push ack ≠ not published).
+- Commits / PR: cec8d9c, da1636f → #117, merged as 61f9f4d on Roi's word. This lock was the last hand-written one.
+- Lesson: `git clean` silently skips ignored files — delete one known file with `unlink` and check it is gone.
+  Claude Code's safety check blocks `rm` on variable paths; `unlink` / `rmdir` express the intent better anyway.
+- Next best step: build-001 (middleware → proxy, Sentry onRouterTransitionStart, scan-route tracing).

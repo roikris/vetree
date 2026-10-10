@@ -8,16 +8,17 @@ Routine: `docs/harness/README.md` on `main`. Pre-harness primer (frozen): root `
 ---
 
 ## 1. Current Verified State
-*Updated 2026-10-10 — Session 20261010-0452-claude-9c7c (feed-001 closed)*
+*Updated 2026-10-10 — Session 20261010-0508-claude-6918 (harness-003 closed)*
 
 - **Repo root:** `~/dev/vetree` · state worktree: `.harness-state/` (branch `harness-state`)
-- **main:** `48e1524` (PR #116 "new this week" count, 2026-10-10; #115 shorter digest footer, 2026-10-09; #114 Search Console fixes, 2026-10-07; before it #113 access-control audit,
+- **main:** `61f9f4d` (PR #117 init.sh lock / unlock, 2026-10-10; #116 "new this week" count, 2026-10-10; #115 shorter digest footer, 2026-10-09; #114 Search Console fixes, 2026-10-07; before it #113 access-control audit,
   migration 074 applied) — last verified: `init.sh check` GREEN incl. acl audit 33/33; live checks after deploy
-- **Standard startup:** `docs/harness/init.sh` (state, then check) — see README for exit codes
+- **Standard startup:** `docs/harness/init.sh` (state, then check) — see README for exit codes. Take / release
+  the lock only with `init.sh lock <item> --agent …` / `init.sh unlock "<message>"` (D12), never by hand
 - **Standard verification:** `docs/harness/init.sh check [--item <id>]`; build reads production
   Supabase (read-only); never Playwright as a baseline
-- **Highest-priority unfinished item:** **harness-003** (init.sh lock/unlock). Then
-  build-001 → lint-001 → infra-002 (least privilege) → infra-003 (replay safety); ai-001 parked (~2026-11-01).
+- **Highest-priority unfinished item:** **build-001** (middleware → proxy + build warnings). Then
+  lint-001 → infra-002 (least privilege) → infra-003 (replay safety); ai-001 parked (~2026-11-01).
 - **Current blocker:** none
 - **Open PRs awaiting Roi:** none · Roi to click "Validate fix" in Search Console (seo-001)
 
@@ -202,6 +203,21 @@ works today was spot-checked in the code on 2026-10-05.
 (Newest first — only the latest 5 are kept here (D11); every entry, older ones included, is in
 `session-log.md`, which is never trimmed.)
 
+### Session 20261010-0508-claude-6918 · 2026-10-10 · Claude Code · harness-003 (closed)
+- Goal / Completed: `docs/harness/init.sh lock <item|backlog> --agent claude|codex` and `init.sh unlock "<message>"`
+  replace hand-written session.lock files (D12). Both sync with origin first, refuse when the lock is held / not
+  owned / the state worktree has other changes, build the commit off to the side and push without force; a failed
+  push is classified as published / NOT published / NOT KNOWN. unlock also publishes the handoff (primer,
+  feature_list, session-log) and requires this session's log entry. A per-checkout mutex also blocks `state`.
+- Verification: lock self-test 178/178 on bash 3.2 (Mac) and 5.2 (CI, now in PR smoke); 5 mutations all caught;
+  init.sh check GREEN; merged tree = PR head; production 61f9f4d.
+- Review: Codex · tier 2 · plan 3 rounds (33.3k / 32.9k / 40.5k, cap reached, Roi chose A) · code 2 rounds
+  (50.2k / 39.4k) · BLOCKING: none (2 fixed: git clean skips ignored files; lost push ack ≠ not published).
+- Commits / PR: cec8d9c, da1636f → #117, merged as 61f9f4d on Roi's word. This lock was the last hand-written one.
+- Lesson: `git clean` silently skips ignored files — delete one known file with `unlink` and check it is gone.
+  Claude Code's safety check blocks `rm` on variable paths; `unlink` / `rmdir` express the intent better anyway.
+- Next best step: build-001 (middleware → proxy, Sentry onRouterTransitionStart, scan-route tracing).
+
 ### Session 20261010-0452-claude-9c7c · 2026-10-10 · Claude Code · feed-001 (closed)
 - Goal / Completed: the feed header's "N new this week" counted publication_date ≥ 7 days ago without the
   summary/quarantine checks (future-dated preprints counted forever). Now getNewThisWeekCount() in
@@ -249,12 +265,3 @@ works today was spot-checked in the code on 2026-10-05.
   code · Codex · tier 2 · 3 rounds · 58.4k / 39.7k / 40.9k · BLOCKING: none.
 - Commits / PR: 5c20d64 → #113, merged by Roi via the web UI as 4686368 (GitHub merge API 500 ×4).
 - Next best step: feed-001.
-
-### Session 20261007-0604-claude-2342 · 2026-10-07 · Claude Code · enrich-001 (verified + closed)
-- Goal / Completed: verified Roi's fallback run and closed enrich-001. First check (09:05) found
-  nothing saved — that was the dry run (08:36–08:39); Roi's real run (09:33–09:36, "Saved: 24")
-  came later. Now: 0 waiting; 24 saved via codex:gpt-6-astra, all pass the Public Article Filter;
-  quality 24/24 clean; manual-review count 0; live page 200. Item → merged.
-- Review: n/a (verification only, read-only).
-- Next best step: infra-001 (GRANT enforcement, deadline 2026-10-30) — ask Roi for read-only prod access.
-

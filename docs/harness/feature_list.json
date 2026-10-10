@@ -129,7 +129,7 @@
       "type": "feature",
       "title": "init.sh lock / unlock — take and release the session lock in one command that refuses when held",
       "user_visible_behavior": "none (agent process): `docs/harness/init.sh lock <item>` and `init.sh unlock` replace hand-written session.lock files",
-      "status": "in_progress",
+      "status": "merged",
       "verification": [
         {
           "step": "`init.sh lock <item>` on a free lock: writes the canonical format (session/agent/started/item), commits, pushes, prints the session id + the export HARNESS_SESSION line; exit 0",
@@ -174,13 +174,44 @@
           "paid_calls": false
         }
       ],
-      "evidence": [],
+      "evidence": [
+        {
+          "date": "2026-10-10",
+          "session": "20261010-0508-claude-6918",
+          "sha": "da1636f",
+          "command": "docs/harness/test/lock/selftest.sh: 178 passed, 0 failed on bash 3.2.57 (Mac) and bash 5.2.21 (PR #117 CI); mutation check: 5 deliberately broken copies (held-lock check, owner check, adoption via merge, state mutex, git clean) each fail the suite; init.sh check GREEN",
+          "target": "local",
+          "outcome": "pass",
+          "approval": "n/a",
+          "link": "PR #117"
+        },
+        {
+          "date": "2026-10-10",
+          "session": "20261010-0508-claude-6918",
+          "sha": "da1636f",
+          "command": "Codex tier 2: plan 3 rounds (33.3k / 32.9k / 40.5k, cap reached; Roi chose A: fold round 3 in and verify in code review); code 2 rounds (50.2k / 39.4k) → BLOCKING: none (2 fixed: git clean skipped an ignored lock file; a lost push acknowledgement was misclassified as NOT published)",
+          "target": "none",
+          "outcome": "pass",
+          "approval": "Roi: \"A\"",
+          "link": "PR #117"
+        },
+        {
+          "date": "2026-10-10",
+          "session": "20261010-0508-claude-6918",
+          "sha": "61f9f4d",
+          "command": "Merged as 61f9f4d (tree identical to da1636f); production /api/version = 61f9f4d; this session's lock released with the new init.sh unlock",
+          "target": "production",
+          "outcome": "pass",
+          "approval": "Roi: \"merge\"",
+          "link": "PR #117"
+        }
+      ],
       "branch": "chore/harness-003-lock-commands",
-      "pr": null,
-      "head_sha": null,
+      "pr": 117,
+      "head_sha": "61f9f4d",
       "wip_sha": null,
       "expected_failures": [],
-      "notes": "Added by 20261005-1947-claude-9005 on Roi's word (2026-10-05). Origin: session 20261005-1630-claude-2221 overwrote a held lock because lock-taking was hand-written and chained after a STOP (reverted 52fed24). Order vs session-001 candidates: Roi decides when the backlog session resumes. · claimed by 20261010-0508-claude-6918"
+      "notes": "Added by 20261005-1947-claude-9005 on Roi's word (2026-10-05). Origin: session 20261005-1630-claude-2221 overwrote a held lock because lock-taking was hand-written and chained after a STOP (reverted 52fed24). Order vs session-001 candidates: Roi decides when the backlog session resumes. · claimed by 20261010-0508-claude-6918 · CLOSED 2026-10-10 (first real release done with init.sh unlock)."
     },
     {
       "status": "merged",
