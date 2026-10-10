@@ -829,6 +829,38 @@
       "wip_sha": null,
       "expected_failures": [],
       "notes": "Named by Roi 2026-10-09 (side step). Not a company yet → English names \"Vetree\" only (no \"Ltd.\"); Hebrew keeps name + address (§30A, §17F). Claimed by 20261009-1730-claude-5a0d · CLOSED 2026-10-09."
+    },
+    {
+      "status": "not_started",
+      "evidence": [],
+      "branch": "",
+      "pr": null,
+      "head_sha": null,
+      "wip_sha": null,
+      "expected_failures": [],
+      "id": "harness-004",
+      "priority": 7,
+      "area": "harness",
+      "type": "feature",
+      "title": "init.sh unlock refuses unless session-log.md only grew (the published log starts with BASE's log, byte for byte)",
+      "user_visible_behavior": "none (agent process): a truncated or edited session log can no longer be published by unlock",
+      "verification": [
+        {
+          "step": "unlock refuses (exit 2, nothing published) when the worktree session-log.md is not BASE's file + appended text; selftest cases for truncation, an edited old entry, and a normal append",
+          "target": "local",
+          "db_reads": "none",
+          "db_writes": "none",
+          "paid_calls": false
+        },
+        {
+          "step": "Review: Codex, tier 2 (harness scripts) → BLOCKING: none",
+          "target": "none",
+          "db_reads": "none",
+          "db_writes": "none",
+          "paid_calls": false
+        }
+      ],
+      "notes": "Added by 20261010-1903-claude-8c5f on Roi's word (2026-10-10, \"add the guard\"). Origin: session-log.md truncated to one entry in f81d84f by a close-out script (restored in d94ff26); unlock only checked that the session's entry exists."
     }
   ]
 }
