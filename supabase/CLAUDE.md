@@ -317,6 +317,9 @@ server-side (see app/api/CLAUDE.md). `save_intent_resolved.detail` additionally 
 | user_id | uuid nullable | |
 | created_at | timestamptz | |
 
+Service role only since migration 076 (RLS on, no policies; anon / authenticated hold no privileges) — every app
+path uses the service role. Before 076 three PUBLIC policies let anyone read, insert and update rows.
+
 ### `synthesis_feedback`
 | Column | Type |
 |--------|------|
