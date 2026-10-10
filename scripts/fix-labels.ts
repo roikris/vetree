@@ -56,7 +56,7 @@ async function fixLabels() {
   console.log('🔧 Fixing malformed labels in the database...\n')
 
   // Fetch all articles (in batches)
-  let allArticles: any[] = []
+  const allArticles: any[] = []
   let from = 0
   const batchSize = 1000
 

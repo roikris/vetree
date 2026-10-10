@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
     // If article_id is provided, fetch that specific article and use it VERBATIM.
     // Principle: explicit article_id = use exactly that article. Never substitute.
     // A failed or excluded lookup is an error to the caller — never a silent fallback.
-    let forcedArticleId = articleId
+    const forcedArticleId = articleId
     if (forcedArticleId) {
       const { data: specificArticle, error } = await supabase
         .from('articles')
