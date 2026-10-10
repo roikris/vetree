@@ -7,5 +7,5 @@ export async function register() {
   if (process.env.NEXT_RUNTIME === 'edge') await import('./sentry.edge.config')
 }
 
-// Uncaught errors in server components, route handlers and middleware
+// Uncaught errors in server components, route handlers and the proxy (proxy.ts)
 export const onRequestError = Sentry.captureRequestError

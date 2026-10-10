@@ -5,7 +5,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 // request carrying a session cookie awaits this call, and Vercel kills the
 // function (and the page) at 25s with no fallback. Timing out here and
 // treating the request as unauthenticated only affects the /verify-email
-// redirect in middleware.ts — real auth enforcement (RLS, API route checks,
+// redirect in proxy.ts — real auth enforcement (RLS, API route checks,
 // page-level redirect guards) happens downstream and independently.
 const AUTH_TIMEOUT_MS = 4000
 
@@ -59,7 +59,7 @@ export async function updateSession(request: NextRequest) {
     }
   )
 
-  // Refreshing the auth token. Returned alongside the response so middleware.ts
+  // Refreshing the auth token. Returned alongside the response so proxy.ts
   // doesn't need its own second server client + getUser() call reading the
   // exact same incoming request cookies a second time — that redundant call
   // used to cost a full extra Supabase round-trip on every request for no

@@ -18,6 +18,19 @@ const nextConfig: NextConfig = {
   // Enable Turbopack support (Next.js 16)
   turbopack: {},
 
+  // The weekly security scan reads these source files at runtime (its fs calls are marked turbopackIgnore so the
+  // build no longer ships the whole repo with it). A check that reads another file must add it here. Not listed:
+  // package.json / package-lock.json for its npm audit step — including them pulls in ~1,000 dependency
+  // package.json files, and that step gets no result on Vercel anyway (acknowledged_count 0 in production).
+  outputFileTracingIncludes: {
+    '/api/admin/security/scan': [
+      './app/**/*.{ts,tsx}',
+      './next.config.ts',
+      './proxy.ts',
+      './security-acknowledged.json',
+    ],
+  },
+
   async headers() {
     return [
       {
@@ -40,4 +53,6 @@ export default withSentryConfig(nextConfig, {
   sourcemaps: { disable: true },  // was: hideSourceMaps: true
   disableLogger: true,
   telemetry: false,
+  // Its hook only feeds navigation tracing, which is off on purpose (tracesSampleRate 0, lib/sentry/options.ts)
+  suppressOnRouterTransitionStartWarning: true,
 });

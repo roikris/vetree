@@ -1,8 +1,8 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { updateSession } from '@/lib/supabase/middleware'
 
-// Middleware handles auth token refresh and email verification
-export async function middleware(request: NextRequest) {
+// Proxy (Next 16 name for middleware; Node.js runtime) handles auth token refresh and email verification
+export async function proxy(request: NextRequest) {
   // Single session read per request — this used to call getUser() a second
   // time here via a separate server client reading the same request cookies
   // updateSession() had already read, at the cost of an extra Supabase

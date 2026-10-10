@@ -320,7 +320,7 @@ NEXT_PUBLIC_FB_PIXEL_ID          # Meta Pixel ID; script is a no-op if unset
 - Admin ID: `90cb8294-b593-4144-a9f5-23ca52dd5e35`
 - Admin check: `user_roles` table WHERE `role = 'admin'`; use `.maybeSingle()` not `.single()` (no row for non-admins)
 - `useAdmin` hook: `lib/hooks/useAdmin.ts`
-- Email verification enforced in `middleware.ts` (pages only — /api/* excluded)
+- Email verification enforced in `proxy.ts` (Next 16 name for middleware; pages only — /api/* excluded)
 - User-facing API routes must also check `email_confirmed_at` after auth: return 403 'Email verification required' if null
 - Exclude admin + TEST_USER_ID from ALL analytics queries — use `excludedUsersOrFilter()`
 - **Post-login navigation must never be `router.push()` + `router.refresh()`.** That combo
