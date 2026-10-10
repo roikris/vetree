@@ -30,6 +30,7 @@ jobs:
       pull-requests: read
     outputs:
       code: ${{ steps.diff.outputs.code }}
+      lock_tests: ${{ steps.diff.outputs.lock_tests }}
     steps:
       - name: Does this PR change anything besides docs?
         id: diff
@@ -48,6 +49,13 @@ jobs:
           # The harness's scripts and audit fixtures under docs/harness/ are code (both rename sides
           # are in FILES), so a change to the access audit itself always runs this job.
           NONDOC=$(printf '%s\n' "$FILES" | awk '!/(\.md$|^docs\/)/ || /^docs\/harness\/(.*\.(mjs|sh|js)$|test\/)/ {n++} END {print n+0}')
+          # The session-lock tests (harness-003) take minutes: only when init.sh or its tests change
+          LOCKT=$(printf '%s\n' "$FILES" | awk '/^docs\/harness\/(init\.sh$|test\/lock\/)/ {n++} END {print n+0}')
+          if [ "$LISTED" != "$EXPECTED" ] || [ -z "$FILES" ] || [ "$LOCKT" != "0" ]; then
+            echo "lock_tests=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "lock_tests=false" >> "$GITHUB_OUTPUT"
+          fi
           # The files API stops at 3000: an incomplete list can't prove docs-only
           if [ "$LISTED" != "$EXPECTED" ] || [ -z "$FILES" ] || [ "$NONDOC" != "0" ]; then
             echo "code=true" >> "$GITHUB_OUTPUT"
@@ -111,6 +119,12 @@ jobs:
         run: |
           node docs/harness/harness.mjs acl-selftest
           node docs/harness/harness.mjs acl-audit
+
+      # Session-lock commands (harness-003): offline tests against throwaway git repos — no
+      # network, no secrets, no Vercel CPU. Run only when init.sh or the tests change (scope job).
+      - name: Session-lock self-test
+        if: ${{ needs.scope.outputs.lock_tests != 'false' }}
+        run: bash docs/harness/test/lock/selftest.sh
 
       - name: Poll Vercel for preview URL
         id: vercel
