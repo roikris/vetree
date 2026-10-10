@@ -201,13 +201,13 @@ const KINDS = new Set(['table', 'partitioned table', 'view', 'materialized view'
 // Diagnostics never echo response content: names are shown only when they look like plain identifiers.
 const safeName = n => (typeof n === 'string' && /^public\.[A-Za-z0-9_]{1,63}$/.test(n) ? n : '<unprintable name>')
 
-async function fetchAclReport() {
+async function fetchAclReport(rpc = 'harness_acl_report') {
   const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY
   if (!url || !key) return { error: 'missing SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY' }
   let res
   try {
-    res = await fetch(`${url.replace(/\/+$/, '')}/rest/v1/rpc/harness_acl_report`, {
+    res = await fetch(`${url.replace(/\/+$/, '')}/rest/v1/rpc/${rpc}`, {
       method: 'POST',
       headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
       body: '{}',
@@ -306,6 +306,36 @@ async function aclAudit(argv) {
   console.log(`acl audit: PASS — ${Object.keys(objects).length} relations match ${ACL_FILE}`)
 }
 
+// rls-report: print production's row-level security per public table (public.harness_rls_report(), migration 075 —
+// catalog only, never a row of data). Read-only and informational (infra-002): exit 0 printed, 2 not fetched /
+// malformed. Names are shown only when they look like plain identifiers; expressions are cut at 200 characters.
+async function rlsReport() {
+  const fetched = await fetchAclReport('harness_rls_report')
+  if (fetched.error) { console.log(`rls report: UNVERIFIED — ${fetched.error}`); process.exit(2) }
+  const tables = {}, bad = []
+  const ident = n => (typeof n === 'string' && /^[A-Za-z0-9_ .:-]{1,80}$/.test(n) ? n : '<unprintable>')
+  const expr = e => (typeof e === 'string' ? e.replace(/\s+/g, ' ').slice(0, 200) : '-')
+  for (const [i, r] of fetched.rows.entries()) {
+    if (!r || typeof r.object !== 'string' || !/^public\.[A-Za-z0-9_]{1,63}$/.test(r.object)) { bad.push(`row ${i + 1}: bad object`); continue }
+    const t = tables[r.object] ??= { rls: null, forced: null, policies: [] }
+    if (r.kind === 'table') { t.rls = r.rls_on === true; t.forced = r.rls_forced === true }
+    else if (r.kind === 'policy') t.policies.push(r)
+    else bad.push(`row ${i + 1}: unknown kind`)
+  }
+  if (bad.length) { console.log('rls report: UNVERIFIED — malformed report:'); for (const b of bad.slice(0, 20)) console.log(`  ${b}`); process.exit(2) }
+  const names = Object.keys(tables).sort()
+  for (const n of names) {
+    const t = tables[n]
+    console.log(`${n}  RLS ${t.rls === null ? '?' : t.rls ? 'on' : 'OFF'}${t.forced ? ' (forced)' : ''} · ${t.policies.length} polic${t.policies.length === 1 ? 'y' : 'ies'}`)
+    for (const p of t.policies.sort((a, b) => String(a.policy).localeCompare(String(b.policy)))) {
+      const roles = Array.isArray(p.roles) ? p.roles.map(ident).join(',') : '?'
+      console.log(`    ${ident(p.command)} to ${roles}${p.permissive === false ? ' (restrictive)' : ''} · "${ident(p.policy)}" · using: ${expr(p.using_expr)} · check: ${expr(p.check_expr)}`)
+    }
+  }
+  const off = names.filter(n => tables[n].rls === false)
+  console.log(`rls report: ${names.length} tables · RLS off on ${off.length}${off.length ? ': ' + off.join(', ') : ''}`)
+}
+
 // acl-snapshot: write supabase/access.json from the live report (read-only query). Baseline only.
 async function aclSnapshot() {
   const fetched = await fetchAclReport()
@@ -356,6 +386,7 @@ const commands = {
   'acl-audit': () => aclAudit(args),
   'acl-snapshot': () => aclSnapshot(),
   'acl-selftest': () => aclSelftest(),
+  'rls-report': () => rlsReport(),
 }
 if (!commands[cmd]) { console.error(`unknown command: ${cmd}`); process.exit(2) }
 commands[cmd]()

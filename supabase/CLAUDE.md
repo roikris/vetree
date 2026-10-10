@@ -481,6 +481,7 @@ Service role only. Records data migrations and each `purge_expired_logs()` run.
 |----------|-----------|---------|
 | `record_enrichment_failure(id, error)` | 072 | One failed enrichment attempt, locked; the 3rd hides the article (`quarantine_reason = 'enrichment_failed'`) unless already quarantined |
 | `harness_acl_report()` | 074 | Read-only: every public relation × (anon, authenticated, service_role, PUBLIC) with its actual privileges (explicit empty arrays), plus informational default-privilege rows — the access-control audit's source |
+| `harness_rls_report()` | 075 | Read-only: every public table's row-level security (on / forced) plus every policy on it (command, roles, USING / WITH CHECK) — catalog only, never row data; `node docs/harness/harness.mjs rls-report` prints it (infra-002) |
 | `requeue_failed_articles()` | 072, 073 | Admin "Retry failed": re-queues failed, unpublished articles; lifts only `enrichment_failed` quarantines; never selects `ai_refused` (073) |
 | `purge_expired_logs()` | 069/070 | 12-month retention purge (pg_cron daily) |
 | `delete_user_account(uuid)` | 070 | GDPR deletion of a user's rows across all PII tables |
