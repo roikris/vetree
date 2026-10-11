@@ -416,6 +416,8 @@ printf '\n- unrelated note\n' >> "$(wlog)"
 HARNESS_SESSION="$ME" run A unlock "m"; refused "entry in old part"; has "$E/out" "not in the appended text" "reason"
 
 case_ "log: origin has no session-log.md"
+# (Refused already by check_dirty — the recreated log is untracked; the new missing-BASE guard in unlock is defence
+#  in depth for a path the sync makes unreachable. Not a mutation witness.)
 new_env; seed_sync; git -C "$E/seed" rm -q "$LOGF"; seed_push "no log"; lock_A; before="$(osha)"
 entry A "$ME"
 HARNESS_SESSION="$ME" run A unlock "m"; is "$RC" 2 "exit"; is "$(osha)" "$before" "origin unchanged"; is "$(olock | sed -n 1p)" "session: $ME" "lock still held"
@@ -432,12 +434,18 @@ entry A "$ME"; cp "$(wlog)" "$E/want"
 HARNESS_SESSION="$ME" run A unlock "state: handoff"; is "$RC" 0 "exit"
 olog_to "$E/got"; if cmp -s "$E/got" "$E/want"; then ok; else bad "published bytes differ"; fi
 
+case_ "log: BOM removed from the old text, entry appended"
+grow_setup '\xef\xbb\xbf# log\n\n### Session 20261001-0000-claude-aaaa · d · test · x-001\n- one SENTINEL-7f3a\n'
+tail -c +4 "$(wlog)" > "$E/l" && cat "$E/l" > "$(wlog)"; entry A "$ME"
+HARNESS_SESSION="$ME" run A unlock "m"; refused "BOM removed"; has "$E/out" "first difference at byte 0 (line 1)" "reason"
+
 case_ "log: origin fast-forwards (another file) before unlock — checked against the new BASE (pass)"
 grow_setup; entry A "$ME"
 seed_sync; printf 'from origin\n' >> "$E/seed/docs/harness/primer.md"; git -C "$E/seed" add docs/harness/primer.md; seed_push "primer on origin"
+cp "$(wlog)" "$E/want"
 HARNESS_SESSION="$ME" run A unlock "state: handoff"; is "$RC" 0 "exit"
 is "$(git --git-dir="$E/origin.git" show harness-state:docs/harness/primer.md | tail -1)" "from origin" "origin's edit kept"
-is "$(git --git-dir="$E/origin.git" show "harness-state:$LOGF" | grep -c "### Session $ME · ")" 1 "entry published"
+olog_to "$E/got"; if cmp -s "$E/got" "$E/want"; then ok; else bad "published log differs from the worktree's"; fi
 
 case_ "log: truncated while unlock is paused before the push — the checked blob is published"
 grow_setup; entry A "$ME"; cp "$(wlog)" "$E/want"
@@ -450,8 +458,9 @@ is "$(cat "$(wlog)")" "truncated" "later edit stays in the worktree"
 case_ "log: a refusal can be fixed and re-run"
 grow_setup; printf '### Session %s · today · test · x-001\n' "$ME" > "$(wlog)"
 HARNESS_SESSION="$ME" run A unlock "m"; refused "first try"
-git -C "$E/A/.harness-state" show "origin/harness-state:$LOGF" > "$(wlog)"; entry A "$ME"
+git -C "$E/A/.harness-state" show "origin/harness-state:$LOGF" > "$(wlog)"; entry A "$ME"; cp "$(wlog)" "$E/want"
 HARNESS_SESSION="$ME" run A unlock "state: handoff"; is "$RC" 0 "after restoring + appending"; is "$(olock)" "" "released"
+olog_to "$E/got"; if cmp -s "$E/got" "$E/want"; then ok; else bad "published log differs from the restored + appended one"; fi
 
 echo
 echo "lock selftest: $PASS passed, $FAIL failed (bash $BASH_VERSION)"
