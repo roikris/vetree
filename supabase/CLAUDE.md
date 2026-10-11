@@ -274,7 +274,11 @@ new page_views-reading query without deciding which side of that filter it belon
 | source_page_view_id | uuid nullable UNIQUE | migration 065 — original page_views id for rows moved out of page_views |
 | created_at | timestamptz | |
 
-Admin-only read policy. Public insert policy. Never write funnel events to page_views.
+Admin-only read policy. Never write funnel events to page_views.
+
+**page_views, search_logs and analytics_events are written only with the service role** (the
+`/api/analytics/*` routes, `/api/synthesis/generate`). Migration 078 dropped their PUBLIC insert policies and
+revoked INSERT from anon / authenticated — before it, anyone holding the public key could insert rows directly.
 
 `/api/analytics/event` always merges `device: {type, in_app_browser}` + `ip_hash` into `detail`
 server-side (see app/api/CLAUDE.md). `save_intent_resolved.detail` additionally carries `branch`,
