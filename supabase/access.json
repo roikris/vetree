@@ -888,7 +888,6 @@
       "kind": "table",
       "anon": [
         "DELETE",
-        "INSERT",
         "MAINTAIN",
         "REFERENCES",
         "SELECT",
@@ -898,7 +897,6 @@
       ],
       "authenticated": [
         "DELETE",
-        "INSERT",
         "MAINTAIN",
         "REFERENCES",
         "SELECT",
