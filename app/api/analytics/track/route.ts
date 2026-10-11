@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Writes use the service role: the public key cannot insert into page_views / analytics_events
-    // (infra-002), so rows only arrive through this route's filters (QA, admin, bot tagging).
+    // (since migration 078, infra-002), so rows only arrive through this route's filters (QA, admin, bot tagging).
     const db = createAdminClient()
 
     // Synthesis experiment events are NOT page views (CLAUDE.md rule 12). Browser tabs still running

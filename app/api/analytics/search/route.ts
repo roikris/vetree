@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
     const ipHash = createHash('sha256').update(ip + (process.env.IP_HASH_SALT || 'vetree-salt')).digest('hex')
 
     // Insert search log — with the service role: the public key cannot insert into search_logs
-    // (infra-002), so rows only arrive through this route's filters (QA, excluded users)
+    // (since migration 078, infra-002), so rows only arrive through this route's filters (QA, excluded users)
     const { error } = await createAdminClient()
       .from('search_logs')
       .insert({

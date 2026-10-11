@@ -55,8 +55,8 @@ export async function POST(request: NextRequest) {
       ip_hash: ipHash,
     }
 
-    // Service role: the public key cannot insert into analytics_events (infra-002), so rows only
-    // arrive through this route's filters (QA, admin, bot tagging)
+    // Service role: the public key cannot insert into analytics_events (since migration
+    // 078, infra-002), so rows only arrive through this route's filters (QA, admin, bot tagging)
     const { error } = await createAdminClient().from('analytics_events').insert({
       event_name,
       article_id: article_id || null,
