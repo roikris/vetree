@@ -8,20 +8,20 @@ Routine: `docs/harness/README.md` on `main`. Pre-harness primer (frozen): root `
 ---
 
 ## 1. Current Verified State
-*Updated 2026-10-10 — Session 20261010-1719-claude-9084 (lint-001 closed)*
+*Updated 2026-10-11 — Session 20261010-1903-claude-8c5f (infra-002 closed)*
 
 - **Repo root:** `~/dev/vetree` · state worktree: `.harness-state/` (branch `harness-state`)
-- **main:** `9429086` (PR #119 lint cleanup, 2026-10-10; #118 build warnings / middleware → proxy, 2026-10-10; #117 init.sh lock / unlock, 2026-10-10; #116 "new this week" count, 2026-10-10; #115 shorter digest footer, 2026-10-09; #114 Search Console fixes, 2026-10-07; before it #113 access-control audit,
-  migration 074 applied) — last verified: `init.sh check` GREEN incl. acl audit 33/33; live checks after deploy
+- **main:** `5545ab5` (PRs #120–#125 least privilege + policy audit, migrations 075–079 applied, 2026-10-11; #119 lint cleanup, 2026-10-10; #118 build warnings / middleware → proxy, 2026-10-10; #117 init.sh lock / unlock, 2026-10-10; #116 "new this week" count, 2026-10-10; #115 shorter digest footer, 2026-10-09; #114 Search Console fixes, 2026-10-07; before it #113 access-control audit,
+  migration 074 applied) — last verified: `init.sh check` GREEN incl. acl audit 33/33 and rls audit 32 tables / 40 policies
 - **Standard startup:** `docs/harness/init.sh` (state, then check) — see README for exit codes. Take / release
   the lock only with `init.sh lock <item> --agent …` / `init.sh unlock "<message>"` (D12), never by hand
 - **Standard verification:** `docs/harness/init.sh check [--item <id>]`; build reads production
   Supabase (read-only); never Playwright as a baseline
-- **Highest-priority unfinished item:** **infra-002** (least privilege). Then infra-003 (replay safety); ai-001 parked
-  (~2026-11-01).
+- **Highest-priority unfinished item:** **harness-004** (unlock refuses a shrunken session log). Then infra-003 (replay
+  safety); feed-002 / admin-001 / scripts-001 need Roi's decisions; ai-001 parked (~2026-11-01).
 - **Current blocker:** none
 - **Open PRs awaiting Roi:** none · Roi to click "Validate fix" in Search Console (seo-001) · check Vercel usage
-  ~2026-10-14 (proxy now a Node function, build-001)
+  ~2026-10-14 (proxy now a Node function, build-001) · Thursday's security scan is the first after 079
 
 ## 2. Open Issues & Known Risks
 - **Lint is red on main:** 117 errors (103 no-explicit-any, 13 set-state-in-effect, 1 immutability) / 68 warnings,
@@ -37,6 +37,10 @@ Routine: `docs/harness/README.md` on `main`. Pre-harness primer (frozen): root `
   privileges with `supabase/access.json`. A new table / view / sequence needs explicit grants (REVOKE ALL from all
   four first) AND an `access.json` entry — supabase/CLAUDE.md "Required Grants". Supabase's 2026-10-30 change only
   affects NEW objects. GitHub's merge API returned 500 on #113 (Roi merged via the web UI).
+- **Least privilege + policy audit (2026-10-11, infra-002):** anon / authenticated hold only what their policies allow
+  (079); every analytics / tracking write uses the service role; `rls-audit` compares production's RLS with
+  `supabase/rls.json` exactly (init.sh check, PR smoke, daily). A migration touching a policy, RLS or a table updates
+  `rls.json` (and grants `access.json`) in the same PR — and a new policy needs its grant, a new grant its policy.
 - **Claude refusals → Codex fallback (2026-10-07):** refused articles are hidden as `ai_refused`; the Slack
   enrichment report shows "waiting for the Codex fallback: N" → Roi runs `npm run enrich:refused` on his Mac.
 - **AI model revisit ~2026-11-01:** Sonnet 4.6 for every call; Sonnet 5.5 was reverted (~1.46x
@@ -200,6 +204,37 @@ works today was spot-checked in the code on 2026-10-05.
 (Newest first — only the latest 5 are kept here (D11); every entry, older ones included, is in
 `session-log.md`, which is never trimmed.)
 
+### Session 20261010-1903-claude-8c5f · 2026-10-10 → 2026-10-11 · Claude Code · infra-002 (closed)
+- Goal / Completed: least privilege for the Data API. Migration 075 + `rls-report` showed production's RLS policies;
+  076 closed topic_syntheses (anyone could read / insert / rewrite cached syntheses incl. query + user_id); 077 and 078
+  closed the four insert-anyone tables (synthesis_feedback, page_views, search_logs, analytics_events) after #122 moved
+  the tracking routes to the service role; 079 trimmed anon / authenticated grants to what their policies allow (no
+  TRUNCATE / TRIGGER / REFERENCES / MAINTAIN for either). Guard: `rls-audit` vs supabase/rls.json (32 tables, 40
+  policies) in init.sh check, PR smoke and daily, like acl-audit. 077 also fixed scan CHECK 9's table list (076 would
+  have raised a false "missing grants" on Thursday).
+- Start state: main 9429086, branch chore/infra-002-least-privilege, clean.
+- Verification: after every push acl-audit PASS 33/33 and rls-report as expected; tracking still records (count-only
+  reads, Roi's yes: 12 → 13 page views + 1 search after 078); check_table_grants() 0; Roi checked signed-in, admin and
+  guest pages after 079; rls selftest 57 (42 audit) + mutations caught; init.sh 5 audit scenarios; lock selftest
+  178/178; init.sh check GREEN; PR smoke ran rls audit PASS.
+- Review: Codex · tier 2 · 14 rounds over 6 PRs · 52.5k / 48.6k / 41.7k (#120), 45.7k (#121), 58.6k / 20.8k (#122),
+  66.7k / 20.9k (#123), 98.0k (#124), plan 54.4k / 24.9k + code 72.0k / 43.3k / 31.1k (#125) ≈ 679k · BLOCKING: none
+  (fixed on the way: rls-report accepted malformed reports; guard plan — missing env read as network, no rls.json
+  validation, empty snapshot; guard code — roles compared by joined string, snapshot errors outside the handler,
+  unescaped paths).
+- Commits / PR: #120 5e5cc4c, #121 4175a92, #122 e4a8995, #123 2fd4bef, #124 cbcf274, #125 5545ab5 — each merged on Roi's
+  word. Migrations 075–079 applied with Roi's yes each.
+- Pending Roi approvals: none. Roi: Thursday's security scan (first with 079's grants); Vercel usage ~2026-10-14.
+- Known risks / unresolved: a removed grant turns an empty RLS result into 42501 — guest paths were swept, admin
+  re-queue buttons now error (admin-001); anon keeps SELECT on saved_articles for Trending (feed-002); acl-audit prints
+  its --expected path unescaped (test-only option). Auto mode blocked the first 076 push and a prod probe script that
+  included an anon INSERT (my mistake — never probe with writes); Roi pushed on, the probe never ran. I named PR #124
+  before it existed. A reader's sign-up / login / reset at 07:50 UTC (WhatsApp link) was before 079 and ended signed in.
+- Lesson: before trimming a grant, sweep every guest / signed-in code path for that table — "no rows" becomes
+  "permission denied". fetch refuses some ports (9, discard): use a high port for an ECONNREFUSED test. Never compare
+  lists by joining them into one string.
+- Next best step: harness-004 (unlock refuses a shrunken session log), then infra-003; feed-002 / admin-001 need Roi.
+
 ### Session 20261010-1719-claude-9084 · 2026-10-10 · Claude Code · lint-001 (closed)
 - Goal / Completed: lint baseline 177 → 117 (70 → 44 entries). eslint.config.mjs: design prototype ignored;
   require() allowed in the CommonJS scripts only; no-unescaped-entities keeps > and }, allows ' and ". Onboarding's
@@ -259,14 +294,3 @@ works today was spot-checked in the code on 2026-10-05.
 - Commits / PR: b882d93, 23ff18f → #116, merged as 48e1524 on Roi's word.
 - Lesson: unstable_cache `revalidate` is stale-while-revalidate and keeps the old value when a refresh fails — not a max age.
 - Next best step: harness-003 (init.sh lock/unlock).
-
-### Session 20261009-1730-claude-5a0d · 2026-10-09 · Claude Code · digest-001 (closed)
-- Goal / Completed: Roi found the digest's legal footer repetitive. Explained what §30A (advertising) and §17F
-  (direct mailing) require and that the sender's name must be in the email itself (a link isn't enough; a
-  company as sender would replace Roi's name — not incorporated yet, so no "Ltd."). Shortened footer: English
-  names only "Vetree"; Hebrew keeps name, address, consent, data sources, removal, deletion.
-- Verification: init.sh check GREEN; deployed (946f146). No digest sent.
-- Review: Codex · tier 2 · 1 round · 22.2k tokens · BLOCKING: none.
-- Commits / PR: 6c2885e → #115, merged as 946f146 on Roi's word.
-- Open question for a lawyer (Roi): company as sender; P.O. box instead of a street address.
-- Next best step: feed-001.

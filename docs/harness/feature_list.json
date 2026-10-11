@@ -1,6 +1,6 @@
 {
   "project": "vetree",
-  "last_updated": "2026-10-10",
+  "last_updated": "2026-10-11",
   "rules": {
     "single_active_feature": true,
     "passing_requires_evidence": true,
@@ -634,11 +634,72 @@
       "notes": "Parked until ~2026-11-01 (CLAUDE.md rule 0). Session 001 candidate G."
     },
     {
-      "status": "in_progress",
-      "evidence": [],
-      "branch": "chore/infra-002-least-privilege",
-      "pr": null,
-      "head_sha": null,
+      "status": "merged",
+      "evidence": [
+        {
+          "date": "2026-10-11",
+          "session": "20261010-1903-claude-8c5f",
+          "sha": "5e5cc4c",
+          "command": "Migration 075 harness_rls_report() + rls-report (15 fixtures); prod report: 32 tables, RLS on everywhere; topic_syntheses had 3 PUBLIC policies (read / insert / update, true) + anon/authenticated ALL. Migration 076 closed it; metadata-only integrity check of its 30 rows: nothing unusual. Codex 3 rounds (52.5k / 48.6k / 41.7k). Merged as 5e5cc4c",
+          "target": "production",
+          "outcome": "pass",
+          "approval": "Roi: \"Yes\" (075 push), \"run\" (076 push), \"merge\"",
+          "link": "PR #120"
+        },
+        {
+          "date": "2026-10-11",
+          "session": "20261010-1903-claude-8c5f",
+          "sha": "4175a92",
+          "command": "Migration 077: synthesis_feedback \"Anyone can insert\" dropped, INSERT revoked; check_table_grants() no longer lists topic_syntheses (scan CHECK 9 false alarm). Codex 1 round (45.7k). acl-audit PASS. Merged as 4175a92",
+          "target": "production",
+          "outcome": "pass",
+          "approval": "Roi: \"push\", \"merge\"",
+          "link": "PR #121"
+        },
+        {
+          "date": "2026-10-11",
+          "session": "20261010-1903-claude-8c5f",
+          "sha": "e4a8995",
+          "command": "Tracking routes (/api/analytics/track, /event, /search) insert with the service role. Codex 2 rounds (58.6k / 20.8k). Deployed; count-only read: 12 page_views + 1 event after deploy",
+          "target": "production",
+          "outcome": "pass",
+          "approval": "Roi: \"merge, yes to the count check\"",
+          "link": "PR #122"
+        },
+        {
+          "date": "2026-10-11",
+          "session": "20261010-1903-claude-8c5f",
+          "sha": "2fd4bef",
+          "command": "Migration 078: insert-anyone policies dropped on page_views / search_logs / analytics_events, INSERT revoked; guidance in supabase/CLAUDE.md + scan fix prompts corrected. Codex 2 rounds (66.7k / 20.9k). Count-only read after push: 13 page_views, 1 event, 1 search (Roi's test search)",
+          "target": "production",
+          "outcome": "pass",
+          "approval": "Roi: \"yes\" (078 push), \"merge\"",
+          "link": "PR #123"
+        },
+        {
+          "date": "2026-10-11",
+          "session": "20261010-1903-claude-8c5f",
+          "sha": "cbcf274",
+          "command": "Migration 079: anon/authenticated grants trimmed to the commands their policies allow (anon: SELECT articles + saved_articles for Trending); nobody but service_role/postgres keeps TRUNCATE/TRIGGER/REFERENCES/MAINTAIN; feature_flags \"Public read flags\" dropped. Codex 1 round (98.0k). acl-audit PASS 33/33; check_table_grants() flags 0; Roi checked signed-in, admin and guest pages on production",
+          "target": "production",
+          "outcome": "pass",
+          "approval": "Roi: \"run\" (079 push), \"merge if smoke is green\"",
+          "link": "PR #124"
+        },
+        {
+          "date": "2026-10-11",
+          "session": "20261010-1903-claude-8c5f",
+          "sha": "5545ab5",
+          "command": "Guard: rls-audit vs supabase/rls.json (baseline 32 tables / 40 policies) in init.sh check, PR smoke and daily qa-smoke; rls-snapshot; 42 audit fixtures + mutations caught; init.sh 5 scenarios; lock selftest 178/178. Codex plan 2 rounds (54.4k / 24.9k), code 3 rounds (72.0k / 43.3k / 31.1k). PR smoke: rls audit PASS in CI. Merged as 5545ab5",
+          "target": "preview",
+          "outcome": "pass",
+          "approval": "Roi: \"build\", \"merge\"",
+          "link": "PR #125"
+        }
+      ],
+      "branch": "chore/infra-002-rls-audit",
+      "pr": 125,
+      "head_sha": "5545ab5",
       "wip_sha": null,
       "expected_failures": [],
       "id": "infra-002",
@@ -663,7 +724,7 @@
           "paid_calls": false
         }
       ],
-      "notes": "From infra-001 (2026-10-07). Tier 2. Careful: tightening can break client reads/writes. · claimed by 20261010-1903-claude-8c5f"
+      "notes": "From infra-001 (2026-10-07). Tier 2. Careful: tightening can break client reads/writes. · claimed by 20261010-1903-claude-8c5f · CLOSED 2026-10-11 (6 PRs #120–#125, migrations 075–079). Follow-ups: feed-002 (Trending), admin-001 (re-queue buttons), scripts-001 (anon-key scripts)."
     },
     {
       "status": "not_started",
@@ -861,6 +922,102 @@
         }
       ],
       "notes": "Added by 20261010-1903-claude-8c5f on Roi's word (2026-10-10, \"add the guard\"). Origin: session-log.md truncated to one entry in f81d84f by a close-out script (restored in d94ff26); unlock only checked that the session's entry exists."
+    },
+    {
+      "status": "not_started",
+      "evidence": [],
+      "branch": "",
+      "pr": null,
+      "head_sha": null,
+      "wip_sha": null,
+      "expected_failures": [],
+      "id": "feed-002",
+      "priority": 9,
+      "area": "feed",
+      "type": "fix",
+      "title": "Homepage \"Trending\" counts only the reader's own saves (app/actions/trending.ts reads saved_articles with the cookie client)",
+      "user_visible_behavior": "Trending shows the most-saved articles of the last 7 days to everyone (today: never for guests; for signed-in readers only their own saves, and only if they saved ≥ 3)",
+      "verification": [
+        {
+          "step": "decide with Roi what Trending should show; count saves with the service role (article ids only); then migration: revoke anon SELECT on saved_articles + access.json",
+          "target": "production",
+          "db_reads": "prod",
+          "db_writes": "prod",
+          "paid_calls": false
+        },
+        {
+          "step": "Review: Codex, tier 2 → BLOCKING: none",
+          "target": "none",
+          "db_reads": "none",
+          "db_writes": "none",
+          "paid_calls": false
+        }
+      ],
+      "notes": "Found by 20261010-1903-claude-8c5f in infra-002's grant sweep (2026-10-11). Visible product change — Roi decides. anon keeps SELECT on saved_articles only for this (migration 079)."
+    },
+    {
+      "status": "not_started",
+      "evidence": [],
+      "branch": "",
+      "pr": null,
+      "head_sha": null,
+      "wip_sha": null,
+      "expected_failures": [],
+      "id": "admin-001",
+      "priority": 10,
+      "area": "admin",
+      "type": "fix",
+      "title": "Article Health \"Re-queue never attempted / partial attempts\" never worked (app/actions/admin.ts:546, :574 update articles with the cookie client; no UPDATE policy)",
+      "user_visible_behavior": "the two buttons re-queue articles for enrichment (since 079 they show a permission error; before, a false \"success\" with no change)",
+      "verification": [
+        {
+          "step": "switch to the service role after the admin check, return a real count; Roi decides first — re-queued articles are enriched by the daily job (paid Claude calls)",
+          "target": "production",
+          "db_reads": "prod",
+          "db_writes": "prod",
+          "paid_calls": true
+        },
+        {
+          "step": "Review: Codex, tier 2 → BLOCKING: none",
+          "target": "none",
+          "db_reads": "none",
+          "db_writes": "none",
+          "paid_calls": false
+        }
+      ],
+      "notes": "Found by Codex in infra-002's review of 079 (2026-10-11)."
+    },
+    {
+      "status": "not_started",
+      "evidence": [],
+      "branch": "",
+      "pr": null,
+      "head_sha": null,
+      "wip_sha": null,
+      "expected_failures": [],
+      "id": "scripts-001",
+      "priority": 11,
+      "area": "scripts",
+      "type": "chore",
+      "title": "scripts/fix-labels.ts and scripts/import-articles.ts write articles with the anon key (can never work under RLS)",
+      "user_visible_behavior": "none",
+      "verification": [
+        {
+          "step": "fix (service role) or delete each script; ask Roi whether either is still used",
+          "target": "local",
+          "db_reads": "none",
+          "db_writes": "none",
+          "paid_calls": false
+        },
+        {
+          "step": "Review: Codex, tier 1 or 2 → BLOCKING: none",
+          "target": "none",
+          "db_reads": "none",
+          "db_writes": "none",
+          "paid_calls": false
+        }
+      ],
+      "notes": "Found by Codex in infra-002's review of 079 (2026-10-11)."
     }
   ]
 }
