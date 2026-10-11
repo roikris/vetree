@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { createHash } from 'crypto'
 import { EXCLUDED_USER_IDS } from '@/lib/analytics-excluded-ids'
 import { analyticsRecordingEnabled, isQATraffic } from '@/lib/analytics/recording'
@@ -44,8 +44,9 @@ export async function POST(request: NextRequest) {
     // Hash IP for privacy (never store raw IP)
     const ipHash = createHash('sha256').update(ip + (process.env.IP_HASH_SALT || 'vetree-salt')).digest('hex')
 
-    // Insert search log
-    const { error } = await supabase
+    // Insert search log — with the service role: the public key cannot insert into search_logs
+    // (since migration 078, infra-002), so rows only arrive through this route's filters (QA, excluded users)
+    const { error } = await createAdminClient()
       .from('search_logs')
       .insert({
         query: query.trim(),
