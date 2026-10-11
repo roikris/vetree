@@ -601,6 +601,30 @@ function rlsSelftest() {
   process.exit(failures ? 1 : 0)
 }
 
+// log-grew <base> <new> <session-id> (harness-004): exit 0 only when <new> is <base> byte for byte followed by
+// appended text that contains this session's entry header. Used by `init.sh unlock` on the exact blobs it compares
+// and publishes. Byte exact (Buffers: no decoding, no newline normalisation). Prints sizes / offsets only, never
+// content. Exit 1 = refuse, 2 = could not check.
+function logGrew(basePath, newPath, id) {
+  let base, next
+  try { base = readFileSync(basePath); next = readFileSync(newPath) } catch { console.log('log check: could not read the two versions'); process.exit(2) }
+  if (typeof id !== 'string' || !id.length || /[\u0000-\u001f]/.test(id)) { console.log('log check: no valid session id'); process.exit(2) }
+  if (next.length <= base.length) { console.log(`session-log.md would shrink or not grow: ${base.length} → ${next.length} bytes`); process.exit(1) }
+  if (!next.subarray(0, base.length).equals(base)) {
+    let k = 0
+    while (k < base.length && next[k] === base[k]) k++
+    let line = 1
+    for (let i = 0; i < k; i++) if (base[i] === 0x0a) line++
+    console.log(`an earlier part of session-log.md changed — first difference at byte ${k} (line ${line})`)
+    process.exit(1)
+  }
+  if (!next.subarray(base.length).includes(Buffer.from(`### Session ${id} · `, 'utf8'))) {
+    console.log("this session's entry ('### Session <id> · …') is not in the appended text")
+    process.exit(1)
+  }
+  console.log(`log check: ok — ${base.length} → ${next.length} bytes, appended only`)
+}
+
 const commands = {
   stamp: () => stamp(args[0]),
   'lint-baseline': () => lintBaseline(args[0], args[1], args[2]),
@@ -615,6 +639,7 @@ const commands = {
   'rls-selftest': () => rlsSelftest(),
   'rls-audit': () => rlsAudit(args),
   'rls-snapshot': () => rlsSnapshot(args),
+  'log-grew': () => logGrew(args[0], args[1], args[2]),
 }
 if (!commands[cmd]) { console.error(`unknown command: ${cmd}`); process.exit(2) }
 commands[cmd]()

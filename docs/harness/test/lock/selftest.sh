@@ -363,6 +363,105 @@ else
   is "$(wst A)" " M docs/harness/session-log.md" "edits kept"; is "$(olock | sed -n 1p)" "session: $ME" "lock still held"
 fi
 
+# --- unlock: session-log.md may only grow (harness-004) -------------------------------------
+LOGF="docs/harness/session-log.md"
+OLD='# log\n\n### Session 20261001-0000-claude-aaaa · 2026-10-01 · test · x-001\n- one\n\n### Session 20261002-0000-codex-bbbb · 2026-10-02 · test · x-001\n- two SENTINEL-7f3a\n'
+base_log() { seed_sync; printf '%b' "$1" > "$E/seed/$LOGF"; git -C "$E/seed" add "$LOGF"; seed_push "log on origin"; }
+wlog() { printf '%s' "$E/A/.harness-state/$LOGF"; }
+olog_to() { git --git-dir="$E/origin.git" show "harness-state:$LOGF" > "$1"; }
+refused() { # $1 = label: exit 2, NOT published, origin unchanged, lock still ours
+  is "$RC" 2 "$1: exit"; has "$E/out" "NOT published" "$1: message"; is "$(osha)" "$before" "$1: origin unchanged"
+  is "$(olock | sed -n 1p)" "session: $ME" "$1: lock still held"
+  if grep -qF "SENTINEL-7f3a" "$E/out"; then bad "$1: log content in the output"; else ok; fi
+}
+grow_setup() { new_env; base_log "${1:-$OLD}"; lock_A; before="$(osha)"; }
+
+case_ "log: truncated to this session's entry"
+grow_setup; printf '### Session %s · today · test · x-001\n- done\n' "$ME" > "$(wlog)"
+HARNESS_SESSION="$ME" run A unlock "m"; refused "truncated"; has "$E/out" "would shrink or not grow" "reason"
+
+case_ "log: one byte of an old entry edited"
+grow_setup; sed 's/- one/- 0ne/' "$(wlog)" > "$E/l" && cat "$E/l" > "$(wlog)"; entry A "$ME"
+HARNESS_SESSION="$ME" run A unlock "m"; refused "edited"; has "$E/out" "first difference at byte" "reason"; has "$E/out" "(line 4)" "line number"
+
+case_ "log: a line deleted in the middle"
+grow_setup; grep -v '^- one$' "$(wlog)" > "$E/l" && cat "$E/l" > "$(wlog)"; entry A "$ME"
+HARNESS_SESSION="$ME" run A unlock "m"; refused "line deleted"
+
+case_ "log: replaced by a reordered copy"
+grow_setup; { printf '# log\n\n'; sed -n '/codex-bbbb/,$p' "$(wlog)"; printf '\n'; sed -n '/claude-aaaa/,/^- one$/p' "$(wlog)"; } > "$E/l" && cat "$E/l" > "$(wlog)"; entry A "$ME"
+HARNESS_SESSION="$ME" run A unlock "m"; refused "reordered"
+
+case_ "log: same length, different bytes (entry already on origin, so only the new check can refuse)"
+new_env; base_log "$OLD"; lock_A
+seed_sync; printf '\n### Session %s · early · test · x-001\n' "$ME" >> "$E/seed/$LOGF"; git -C "$E/seed" add "$LOGF"; seed_push "entry on origin"
+git -C "$E/A/.harness-state" pull -q --ff-only origin harness-state; before="$(osha)"
+sed 's/SENTINEL-7f3a/SENTINEL-7f3b/' "$(wlog)" > "$E/l" && cat "$E/l" > "$(wlog)"
+HARNESS_SESSION="$ME" run A unlock "m"; refused "same length"; has "$E/out" "would shrink or not grow" "reason"
+
+case_ "log: old text's last newline changed (LF → CRLF) before the append"
+grow_setup; printf '%b' "$OLD" | sed '$ s/$/\r/' > "$E/l" && cat "$E/l" > "$(wlog)"; entry A "$ME"
+HARNESS_SESSION="$ME" run A unlock "m"; refused "newline changed"
+
+case_ "log: CRLF in the old text altered to LF"
+grow_setup '# log\r\n\r\n### Session 20261001-0000-claude-aaaa · d · test · x-001\r\n- one SENTINEL-7f3a\r\n'
+tr -d '\r' < "$(wlog)" > "$E/l" && cat "$E/l" > "$(wlog)"; entry A "$ME"
+HARNESS_SESSION="$ME" run A unlock "m"; refused "CRLF altered"
+
+case_ "log: this session's entry only in the old part (moved up), unrelated text appended"
+new_env; lock_A
+seed_sync; printf '\n### Session %s · early · test · x-001\n- moved\n' "$ME" >> "$E/seed/$LOGF"; git -C "$E/seed" add "$LOGF"; seed_push "entry on origin"
+git -C "$E/A/.harness-state" pull -q --ff-only origin harness-state; before="$(osha)"
+printf '\n- unrelated note\n' >> "$(wlog)"
+HARNESS_SESSION="$ME" run A unlock "m"; refused "entry in old part"; has "$E/out" "not in the appended text" "reason"
+
+case_ "log: origin has no session-log.md"
+# (Refused already by check_dirty — the recreated log is untracked; the new missing-BASE guard in unlock is defence
+#  in depth for a path the sync makes unreachable. Not a mutation witness.)
+new_env; seed_sync; git -C "$E/seed" rm -q "$LOGF"; seed_push "no log"; lock_A; before="$(osha)"
+entry A "$ME"
+HARNESS_SESSION="$ME" run A unlock "m"; is "$RC" 2 "exit"; is "$(osha)" "$before" "origin unchanged"; is "$(olock | sed -n 1p)" "session: $ME" "lock still held"
+
+case_ "log: append to an old log without a trailing newline (pass)"
+grow_setup '# log\n\n### Session 20261001-0000-claude-aaaa · d · test · x-001\n- one'
+entry A "$ME"; cp "$(wlog)" "$E/want"
+HARNESS_SESSION="$ME" run A unlock "state: handoff"; is "$RC" 0 "exit"; has "$E/out" "lock released" "message"
+olog_to "$E/got"; if cmp -s "$E/got" "$E/want"; then ok; else bad "published log differs from the worktree's"; fi
+
+case_ "log: CRLF + BOM + invalid UTF-8 in the old text kept, entry appended (pass)"
+grow_setup '\xef\xbb\xbf# log\r\n\r\n### Session 20261001-0000-claude-aaaa · d · test · x-001\r\n- bytes \xff\xfe\x80\r\n'
+entry A "$ME"; cp "$(wlog)" "$E/want"
+HARNESS_SESSION="$ME" run A unlock "state: handoff"; is "$RC" 0 "exit"
+olog_to "$E/got"; if cmp -s "$E/got" "$E/want"; then ok; else bad "published bytes differ"; fi
+
+case_ "log: BOM removed from the old text, entry appended"
+grow_setup '\xef\xbb\xbf# log\n\n### Session 20261001-0000-claude-aaaa · d · test · x-001\n- one SENTINEL-7f3a\n'
+tail -c +4 "$(wlog)" > "$E/l" && cat "$E/l" > "$(wlog)"; entry A "$ME"
+HARNESS_SESSION="$ME" run A unlock "m"; refused "BOM removed"; has "$E/out" "first difference at byte 0 (line 1)" "reason"
+
+case_ "log: origin fast-forwards (another file) before unlock — checked against the new BASE (pass)"
+grow_setup; entry A "$ME"
+seed_sync; printf 'from origin\n' >> "$E/seed/docs/harness/primer.md"; git -C "$E/seed" add docs/harness/primer.md; seed_push "primer on origin"
+cp "$(wlog)" "$E/want"
+HARNESS_SESSION="$ME" run A unlock "state: handoff"; is "$RC" 0 "exit"
+is "$(git --git-dir="$E/origin.git" show harness-state:docs/harness/primer.md | tail -1)" "from origin" "origin's edit kept"
+olog_to "$E/got"; if cmp -s "$E/got" "$E/want"; then ok; else bad "published log differs from the worktree's"; fi
+
+case_ "log: truncated while unlock is paused before the push — the checked blob is published"
+grow_setup; entry A "$ME"; cp "$(wlog)" "$E/want"
+export HARNESS_SESSION="$ME"; bg A before-push unlock "state: handoff"; unset HARNESS_SESSION
+printf 'truncated\n' > "$(wlog)"
+resume before-push; is "$BGRC" 0 "exit"
+olog_to "$E/got"; if cmp -s "$E/got" "$E/want"; then ok; else bad "published log is not the checked one"; fi
+is "$(cat "$(wlog)")" "truncated" "later edit stays in the worktree"
+
+case_ "log: a refusal can be fixed and re-run"
+grow_setup; printf '### Session %s · today · test · x-001\n' "$ME" > "$(wlog)"
+HARNESS_SESSION="$ME" run A unlock "m"; refused "first try"
+git -C "$E/A/.harness-state" show "origin/harness-state:$LOGF" > "$(wlog)"; entry A "$ME"; cp "$(wlog)" "$E/want"
+HARNESS_SESSION="$ME" run A unlock "state: handoff"; is "$RC" 0 "after restoring + appending"; is "$(olock)" "" "released"
+olog_to "$E/got"; if cmp -s "$E/got" "$E/want"; then ok; else bad "published log differs from the restored + appended one"; fi
+
 echo
 echo "lock selftest: $PASS passed, $FAIL failed (bash $BASH_VERSION)"
 [ "$FAIL" = 0 ]
