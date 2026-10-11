@@ -510,8 +510,9 @@ CREATE POLICY "Admins only" ON t FOR ALL USING (
   EXISTS (SELECT 1 FROM user_roles WHERE user_id = auth.uid() AND role = 'admin')
 );
 
--- Public insert (analytics)
-CREATE POLICY "Anyone can insert" ON t FOR INSERT WITH CHECK (true);
+-- Analytics / tracking writes: NO public insert policy. The API route validates and filters, then inserts
+-- with the service role (createAdminClient()), which bypasses RLS. A PUBLIC "WITH CHECK (true)" policy lets
+-- anyone holding the public key insert directly, past the route (closed by migrations 077 and 078).
 ```
 
 ## Required Grants + the access-control audit (Supabase change of 2026-10-30, infra-001)

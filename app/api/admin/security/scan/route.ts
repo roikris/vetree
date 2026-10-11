@@ -847,8 +847,9 @@ ADMIN ROUTES PATTERN:
 RLS PATTERN:
 - Enable RLS: ALTER TABLE x ENABLE ROW LEVEL SECURITY
 - Admin policy: USING (EXISTS (SELECT 1 FROM user_roles WHERE user_id = auth.uid() AND role = 'admin'))
-- Public read: USING (true)
-- Public insert (analytics): WITH CHECK (true)
+- Public read: USING (true) — only for genuinely public content, never for tables holding user data
+- Analytics / tracking writes: NO public insert policy — the API route inserts with the service role
+  (createAdminClient() from @/lib/supabase/server); never suggest WITH CHECK (true)
 
 RATE LIMITING PATTERN:
 - Import from @/lib/ratelimit (ratelimitStrict/Moderate/Loose already exist)
