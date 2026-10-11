@@ -1,0 +1,1 @@
+POLICY public.beta "Insert own" · roles — expected authenticated, production PUBLIC

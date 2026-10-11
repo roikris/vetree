@@ -1,0 +1,1 @@
+NEW    policy public.gamma "Public read" — SELECT to PUBLIC · using "true" · check (none)

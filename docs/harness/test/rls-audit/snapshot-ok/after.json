@@ -1,0 +1,50 @@
+{
+  "note": "Expected row-level security per public table — EXACT. Checked against the live catalog by `node docs/harness/harness.mjs rls-audit` (init.sh check, PR smoke, daily). A migration that creates, changes or drops a policy, toggles RLS, or adds / drops a table updates this file in the same PR. Expressions are pg_get_expr text, compared byte for byte.",
+  "tables": {
+    "public.alpha": {
+      "rls": true,
+      "forced": false,
+      "policies": {
+        "Admins only": {
+          "command": "ALL",
+          "roles": [
+            "PUBLIC"
+          ],
+          "permissive": true,
+          "using": "(EXISTS ( SELECT 1\n   FROM public.user_roles\n  WHERE ((user_roles.user_id = auth.uid()) AND (user_roles.role = 'admin'::text))))",
+          "check": null
+        },
+        "Own rows": {
+          "command": "SELECT",
+          "roles": [
+            "anon",
+            "authenticated"
+          ],
+          "permissive": true,
+          "using": "(auth.uid() = user_id)",
+          "check": null
+        }
+      }
+    },
+    "public.beta": {
+      "rls": true,
+      "forced": false,
+      "policies": {
+        "Insert own": {
+          "command": "INSERT",
+          "roles": [
+            "authenticated"
+          ],
+          "permissive": true,
+          "using": null,
+          "check": "(auth.uid() = user_id)"
+        }
+      }
+    },
+    "public.gamma": {
+      "rls": true,
+      "forced": false,
+      "policies": {}
+    }
+  }
+}

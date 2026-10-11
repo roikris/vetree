@@ -1,0 +1,81 @@
+[
+  {
+    "object": "public.alpha",
+    "kind": "table",
+    "rls_on": true,
+    "rls_forced": false,
+    "policy": null,
+    "command": null,
+    "roles": null,
+    "permissive": null,
+    "using_expr": null,
+    "check_expr": null
+  },
+  {
+    "object": "public.beta",
+    "kind": "table",
+    "rls_on": true,
+    "rls_forced": false,
+    "policy": null,
+    "command": null,
+    "roles": null,
+    "permissive": null,
+    "using_expr": null,
+    "check_expr": null
+  },
+  {
+    "object": "public.gamma",
+    "kind": "table",
+    "rls_on": true,
+    "rls_forced": false,
+    "policy": null,
+    "command": null,
+    "roles": null,
+    "permissive": null,
+    "using_expr": null,
+    "check_expr": null
+  },
+  {
+    "object": "public.alpha",
+    "kind": "policy",
+    "rls_on": null,
+    "rls_forced": null,
+    "policy": "Admins only",
+    "command": "ALL",
+    "roles": [
+      "PUBLIC"
+    ],
+    "permissive": true,
+    "using_expr": "(EXISTS ( SELECT 1\n   FROM public.user_roles\n  WHERE ((user_roles.user_id = auth.uid()) AND (user_roles.role = 'admin'::text))))",
+    "check_expr": null
+  },
+  {
+    "object": "public.alpha",
+    "kind": "policy",
+    "rls_on": null,
+    "rls_forced": null,
+    "policy": "Own rows",
+    "command": "SELECT",
+    "roles": [
+      "anon",
+      "authenticated"
+    ],
+    "permissive": true,
+    "using_expr": "true",
+    "check_expr": null
+  },
+  {
+    "object": "public.beta",
+    "kind": "policy",
+    "rls_on": null,
+    "rls_forced": null,
+    "policy": "Insert own",
+    "command": "INSERT",
+    "roles": [
+      "authenticated"
+    ],
+    "permissive": true,
+    "using_expr": null,
+    "check_expr": "(auth.uid() = user_id)"
+  }
+]

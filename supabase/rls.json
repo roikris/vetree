@@ -1,0 +1,553 @@
+{
+  "note": "Expected row-level security per public table — EXACT. Checked against the live catalog by `node docs/harness/harness.mjs rls-audit` (init.sh check, PR smoke, daily). A migration that creates, changes or drops a policy, toggles RLS, or adds / drops a table updates this file in the same PR. Expressions are pg_get_expr text, compared byte for byte.",
+  "tables": {
+    "public.analytics_daily_snapshot": {
+      "rls": true,
+      "forced": false,
+      "policies": {
+        "Admins only": {
+          "command": "ALL",
+          "roles": [
+            "PUBLIC"
+          ],
+          "permissive": true,
+          "using": "(EXISTS ( SELECT 1\n   FROM public.user_roles\n  WHERE ((user_roles.user_id = auth.uid()) AND (user_roles.role = 'admin'::text))))",
+          "check": null
+        }
+      }
+    },
+    "public.analytics_events": {
+      "rls": true,
+      "forced": false,
+      "policies": {
+        "admin_read_events": {
+          "command": "SELECT",
+          "roles": [
+            "PUBLIC"
+          ],
+          "permissive": true,
+          "using": "(EXISTS ( SELECT 1\n   FROM public.user_roles\n  WHERE ((user_roles.user_id = auth.uid()) AND (user_roles.role = 'admin'::text))))",
+          "check": null
+        }
+      }
+    },
+    "public.analytics_insight_feedback": {
+      "rls": true,
+      "forced": false,
+      "policies": {
+        "Admins only": {
+          "command": "ALL",
+          "roles": [
+            "PUBLIC"
+          ],
+          "permissive": true,
+          "using": "(EXISTS ( SELECT 1\n   FROM public.user_roles\n  WHERE ((user_roles.user_id = auth.uid()) AND (user_roles.role = 'admin'::text))))",
+          "check": null
+        }
+      }
+    },
+    "public.analytics_insights": {
+      "rls": true,
+      "forced": false,
+      "policies": {
+        "Admins only": {
+          "command": "ALL",
+          "roles": [
+            "PUBLIC"
+          ],
+          "permissive": true,
+          "using": "(EXISTS ( SELECT 1\n   FROM public.user_roles\n  WHERE ((user_roles.user_id = auth.uid()) AND (user_roles.role = 'admin'::text))))",
+          "check": null
+        }
+      }
+    },
+    "public.analytics_maintenance_log": {
+      "rls": true,
+      "forced": false,
+      "policies": {}
+    },
+    "public.analytics_opportunities": {
+      "rls": true,
+      "forced": false,
+      "policies": {
+        "Admins only": {
+          "command": "ALL",
+          "roles": [
+            "PUBLIC"
+          ],
+          "permissive": true,
+          "using": "(EXISTS ( SELECT 1\n   FROM public.user_roles\n  WHERE ((user_roles.user_id = auth.uid()) AND (user_roles.role = 'admin'::text))))",
+          "check": null
+        }
+      }
+    },
+    "public.analytics_signals": {
+      "rls": true,
+      "forced": false,
+      "policies": {
+        "Admins only": {
+          "command": "ALL",
+          "roles": [
+            "PUBLIC"
+          ],
+          "permissive": true,
+          "using": "(EXISTS ( SELECT 1\n   FROM public.user_roles\n  WHERE ((user_roles.user_id = auth.uid()) AND (user_roles.role = 'admin'::text))))",
+          "check": null
+        }
+      }
+    },
+    "public.articles": {
+      "rls": true,
+      "forced": false,
+      "policies": {
+        "Anon reads published articles": {
+          "command": "SELECT",
+          "roles": [
+            "anon"
+          ],
+          "permissive": true,
+          "using": "((needs_enrichment = false) AND (summary IS NOT NULL) AND (clinical_bottom_line IS NOT NULL) AND ((quarantined IS NULL) OR (quarantined = false)))",
+          "check": null
+        },
+        "Authenticated reads published articles": {
+          "command": "SELECT",
+          "roles": [
+            "authenticated"
+          ],
+          "permissive": true,
+          "using": "(((needs_enrichment = false) AND (summary IS NOT NULL) AND (clinical_bottom_line IS NOT NULL) AND ((quarantined IS NULL) OR (quarantined = false))) OR (EXISTS ( SELECT 1\n   FROM public.user_roles\n  WHERE ((user_roles.user_id = ( SELECT auth.uid() AS uid)) AND (user_roles.role = 'admin'::text)))))",
+          "check": null
+        }
+      }
+    },
+    "public.articles_blacklist": {
+      "rls": true,
+      "forced": false,
+      "policies": {
+        "Admins only": {
+          "command": "ALL",
+          "roles": [
+            "PUBLIC"
+          ],
+          "permissive": true,
+          "using": "(EXISTS ( SELECT 1\n   FROM public.user_roles\n  WHERE ((user_roles.user_id = auth.uid()) AND (user_roles.role = 'admin'::text))))",
+          "check": null
+        }
+      }
+    },
+    "public.digest_logs": {
+      "rls": true,
+      "forced": false,
+      "policies": {
+        "Admins read digest logs": {
+          "command": "SELECT",
+          "roles": [
+            "PUBLIC"
+          ],
+          "permissive": true,
+          "using": "(EXISTS ( SELECT 1\n   FROM public.user_roles\n  WHERE ((user_roles.user_id = auth.uid()) AND (user_roles.role = 'admin'::text))))",
+          "check": null
+        }
+      }
+    },
+    "public.digest_runs": {
+      "rls": true,
+      "forced": false,
+      "policies": {
+        "Admins can view digest runs": {
+          "command": "SELECT",
+          "roles": [
+            "authenticated"
+          ],
+          "permissive": true,
+          "using": "(EXISTS ( SELECT 1\n   FROM public.user_roles\n  WHERE ((user_roles.user_id = auth.uid()) AND (user_roles.role = 'admin'::text))))",
+          "check": null
+        }
+      }
+    },
+    "public.digest_sent_articles": {
+      "rls": true,
+      "forced": false,
+      "policies": {
+        "Admins only": {
+          "command": "ALL",
+          "roles": [
+            "PUBLIC"
+          ],
+          "permissive": true,
+          "using": "(EXISTS ( SELECT 1\n   FROM public.user_roles\n  WHERE ((user_roles.user_id = auth.uid()) AND (user_roles.role = 'admin'::text))))",
+          "check": null
+        }
+      }
+    },
+    "public.feature_flags": {
+      "rls": true,
+      "forced": false,
+      "policies": {
+        "Admins manage flags": {
+          "command": "ALL",
+          "roles": [
+            "PUBLIC"
+          ],
+          "permissive": true,
+          "using": "(EXISTS ( SELECT 1\n   FROM public.user_roles\n  WHERE ((user_roles.user_id = auth.uid()) AND (user_roles.role = 'admin'::text))))",
+          "check": null
+        }
+      }
+    },
+    "public.followed_tags": {
+      "rls": true,
+      "forced": false,
+      "policies": {
+        "Users manage own tags": {
+          "command": "ALL",
+          "roles": [
+            "PUBLIC"
+          ],
+          "permissive": true,
+          "using": "(auth.uid() = user_id)",
+          "check": null
+        }
+      }
+    },
+    "public.growth_agent_memory": {
+      "rls": true,
+      "forced": false,
+      "policies": {
+        "Admins can manage agent memory": {
+          "command": "ALL",
+          "roles": [
+            "PUBLIC"
+          ],
+          "permissive": true,
+          "using": "(EXISTS ( SELECT 1\n   FROM public.user_roles\n  WHERE ((user_roles.user_id = auth.uid()) AND (user_roles.role = 'admin'::text))))",
+          "check": null
+        }
+      }
+    },
+    "public.growth_agent_preferences": {
+      "rls": true,
+      "forced": false,
+      "policies": {
+        "Admins can manage agent preferences": {
+          "command": "ALL",
+          "roles": [
+            "PUBLIC"
+          ],
+          "permissive": true,
+          "using": "(EXISTS ( SELECT 1\n   FROM public.user_roles\n  WHERE ((user_roles.user_id = auth.uid()) AND (user_roles.role = 'admin'::text))))",
+          "check": null
+        }
+      }
+    },
+    "public.growth_article_scores": {
+      "rls": true,
+      "forced": false,
+      "policies": {}
+    },
+    "public.growth_recommendation_sets": {
+      "rls": true,
+      "forced": false,
+      "policies": {}
+    },
+    "public.growth_tasks": {
+      "rls": true,
+      "forced": false,
+      "policies": {
+        "Admins can manage growth tasks": {
+          "command": "ALL",
+          "roles": [
+            "PUBLIC"
+          ],
+          "permissive": true,
+          "using": "(EXISTS ( SELECT 1\n   FROM public.user_roles\n  WHERE ((user_roles.user_id = auth.uid()) AND (user_roles.role = 'admin'::text))))",
+          "check": null
+        }
+      }
+    },
+    "public.linkedin_daily_metrics": {
+      "rls": true,
+      "forced": false,
+      "policies": {
+        "Admin full access to linkedin daily metrics": {
+          "command": "ALL",
+          "roles": [
+            "PUBLIC"
+          ],
+          "permissive": true,
+          "using": "(EXISTS ( SELECT 1\n   FROM public.user_roles\n  WHERE ((user_roles.user_id = auth.uid()) AND (user_roles.role = 'admin'::text))))",
+          "check": null
+        }
+      }
+    },
+    "public.linkedin_post_metrics": {
+      "rls": true,
+      "forced": false,
+      "policies": {
+        "Admin full access to linkedin metrics": {
+          "command": "ALL",
+          "roles": [
+            "PUBLIC"
+          ],
+          "permissive": true,
+          "using": "(EXISTS ( SELECT 1\n   FROM public.user_roles\n  WHERE ((user_roles.user_id = auth.uid()) AND (user_roles.role = 'admin'::text))))",
+          "check": null
+        }
+      }
+    },
+    "public.page_views": {
+      "rls": true,
+      "forced": false,
+      "policies": {
+        "Admins can read all views": {
+          "command": "SELECT",
+          "roles": [
+            "PUBLIC"
+          ],
+          "permissive": true,
+          "using": "(EXISTS ( SELECT 1\n   FROM public.user_roles\n  WHERE ((user_roles.user_id = auth.uid()) AND (user_roles.role = 'admin'::text))))",
+          "check": null
+        }
+      }
+    },
+    "public.reports": {
+      "rls": true,
+      "forced": false,
+      "policies": {
+        "Admins can delete all reports": {
+          "command": "DELETE",
+          "roles": [
+            "PUBLIC"
+          ],
+          "permissive": true,
+          "using": "(EXISTS ( SELECT 1\n   FROM public.user_roles\n  WHERE ((user_roles.user_id = auth.uid()) AND (user_roles.role = 'admin'::text))))",
+          "check": null
+        },
+        "Admins can read all reports": {
+          "command": "SELECT",
+          "roles": [
+            "PUBLIC"
+          ],
+          "permissive": true,
+          "using": "(EXISTS ( SELECT 1\n   FROM public.user_roles\n  WHERE ((user_roles.user_id = auth.uid()) AND (user_roles.role = 'admin'::text))))",
+          "check": null
+        },
+        "Admins can update all reports": {
+          "command": "UPDATE",
+          "roles": [
+            "PUBLIC"
+          ],
+          "permissive": true,
+          "using": "(EXISTS ( SELECT 1\n   FROM public.user_roles\n  WHERE ((user_roles.user_id = auth.uid()) AND (user_roles.role = 'admin'::text))))",
+          "check": null
+        },
+        "Users can create reports": {
+          "command": "INSERT",
+          "roles": [
+            "PUBLIC"
+          ],
+          "permissive": true,
+          "using": null,
+          "check": "(auth.uid() = user_id)"
+        },
+        "Users can read their own reports": {
+          "command": "SELECT",
+          "roles": [
+            "PUBLIC"
+          ],
+          "permissive": true,
+          "using": "(auth.uid() = user_id)",
+          "check": null
+        }
+      }
+    },
+    "public.saved_articles": {
+      "rls": true,
+      "forced": false,
+      "policies": {
+        "Users can save articles": {
+          "command": "INSERT",
+          "roles": [
+            "authenticated"
+          ],
+          "permissive": true,
+          "using": null,
+          "check": "(auth.uid() = user_id)"
+        },
+        "Users can unsave their own articles": {
+          "command": "DELETE",
+          "roles": [
+            "authenticated"
+          ],
+          "permissive": true,
+          "using": "(auth.uid() = user_id)",
+          "check": null
+        },
+        "Users can view their own saved articles": {
+          "command": "SELECT",
+          "roles": [
+            "authenticated"
+          ],
+          "permissive": true,
+          "using": "(auth.uid() = user_id)",
+          "check": null
+        }
+      }
+    },
+    "public.search_logs": {
+      "rls": true,
+      "forced": false,
+      "policies": {
+        "Admins can read all searches": {
+          "command": "SELECT",
+          "roles": [
+            "PUBLIC"
+          ],
+          "permissive": true,
+          "using": "(EXISTS ( SELECT 1\n   FROM public.user_roles\n  WHERE ((user_roles.user_id = auth.uid()) AND (user_roles.role = 'admin'::text))))",
+          "check": null
+        }
+      }
+    },
+    "public.security_reports": {
+      "rls": true,
+      "forced": false,
+      "policies": {
+        "Admins only": {
+          "command": "ALL",
+          "roles": [
+            "PUBLIC"
+          ],
+          "permissive": true,
+          "using": "(EXISTS ( SELECT 1\n   FROM public.user_roles\n  WHERE ((user_roles.user_id = auth.uid()) AND (user_roles.role = 'admin'::text))))",
+          "check": null
+        }
+      }
+    },
+    "public.sync_skipped_articles": {
+      "rls": true,
+      "forced": false,
+      "policies": {
+        "Admins only": {
+          "command": "ALL",
+          "roles": [
+            "PUBLIC"
+          ],
+          "permissive": true,
+          "using": "(EXISTS ( SELECT 1\n   FROM public.user_roles\n  WHERE ((user_roles.user_id = auth.uid()) AND (user_roles.role = 'admin'::text))))",
+          "check": null
+        }
+      }
+    },
+    "public.synthesis_feedback": {
+      "rls": true,
+      "forced": false,
+      "policies": {
+        "Admins read": {
+          "command": "SELECT",
+          "roles": [
+            "PUBLIC"
+          ],
+          "permissive": true,
+          "using": "(EXISTS ( SELECT 1\n   FROM public.user_roles\n  WHERE ((user_roles.user_id = auth.uid()) AND (user_roles.role = 'admin'::text))))",
+          "check": null
+        }
+      }
+    },
+    "public.topic_syntheses": {
+      "rls": true,
+      "forced": false,
+      "policies": {}
+    },
+    "public.user_consents": {
+      "rls": true,
+      "forced": false,
+      "policies": {
+        "Admins can read all consents": {
+          "command": "SELECT",
+          "roles": [
+            "PUBLIC"
+          ],
+          "permissive": true,
+          "using": "(EXISTS ( SELECT 1\n   FROM public.user_roles\n  WHERE ((user_roles.user_id = auth.uid()) AND (user_roles.role = 'admin'::text))))",
+          "check": null
+        },
+        "Users can read own consents": {
+          "command": "SELECT",
+          "roles": [
+            "PUBLIC"
+          ],
+          "permissive": true,
+          "using": "(auth.uid() = user_id)",
+          "check": null
+        }
+      }
+    },
+    "public.user_preferences": {
+      "rls": true,
+      "forced": false,
+      "policies": {
+        "Admins can read all preferences": {
+          "command": "SELECT",
+          "roles": [
+            "PUBLIC"
+          ],
+          "permissive": true,
+          "using": "(EXISTS ( SELECT 1\n   FROM public.user_roles\n  WHERE ((user_roles.user_id = auth.uid()) AND (user_roles.role = 'admin'::text))))",
+          "check": null
+        },
+        "Users can manage own preferences": {
+          "command": "ALL",
+          "roles": [
+            "PUBLIC"
+          ],
+          "permissive": true,
+          "using": "(auth.uid() = user_id)",
+          "check": "(auth.uid() = user_id)"
+        }
+      }
+    },
+    "public.user_roles": {
+      "rls": true,
+      "forced": false,
+      "policies": {
+        "Admins can delete roles": {
+          "command": "DELETE",
+          "roles": [
+            "PUBLIC"
+          ],
+          "permissive": true,
+          "using": "(EXISTS ( SELECT 1\n   FROM public.user_roles user_roles_1\n  WHERE ((user_roles_1.user_id = auth.uid()) AND (user_roles_1.role = 'admin'::text))))",
+          "check": null
+        },
+        "Admins can insert roles": {
+          "command": "INSERT",
+          "roles": [
+            "PUBLIC"
+          ],
+          "permissive": true,
+          "using": null,
+          "check": "(EXISTS ( SELECT 1\n   FROM public.user_roles user_roles_1\n  WHERE ((user_roles_1.user_id = auth.uid()) AND (user_roles_1.role = 'admin'::text))))"
+        },
+        "Admins can update roles": {
+          "command": "UPDATE",
+          "roles": [
+            "PUBLIC"
+          ],
+          "permissive": true,
+          "using": "(EXISTS ( SELECT 1\n   FROM public.user_roles user_roles_1\n  WHERE ((user_roles_1.user_id = auth.uid()) AND (user_roles_1.role = 'admin'::text))))",
+          "check": null
+        },
+        "Users can read their own role": {
+          "command": "SELECT",
+          "roles": [
+            "PUBLIC"
+          ],
+          "permissive": true,
+          "using": "(auth.uid() = user_id)",
+          "check": null
+        }
+      }
+    }
+  }
+}

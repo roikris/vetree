@@ -35,6 +35,16 @@ jobs:
         with:
           node-version: '20'
 
+      # Offline self-tests of both audits first, so a broken audit can't report a false PASS below.
+      - name: Audit self-tests (offline)
+        id: audit_selftests
+        continue-on-error: true
+        run: |
+          rc=0
+          node docs/harness/harness.mjs acl-selftest || rc=1
+          node docs/harness/harness.mjs rls-selftest || rc=1
+          exit $rc
+
       # Daily + post-deploy drift check (infra-001): production's actual privileges vs
       # supabase/access.json. Its own Slack alert and fail step below, so it never changes the smoke
       # triage. Read-only, no Vercel CPU. (Between a migration's push and its PR's merge this can
@@ -56,6 +66,26 @@ jobs:
           [ -n "$SLACK_WEBHOOK_URL" ] || exit 0
           curl -s -X POST -H 'Content-Type: application/json' \
             -d "{\"text\":\"🔐 *Vetree* — access-control audit FAILED (privileges differ from supabase/access.json, or the report could not be read)\\n$RUN_URL\"}" "$SLACK_WEBHOOK_URL" \
+            -o /dev/null -w 'Slack HTTP %{http_code}\n' -f || echo "::warning::Slack delivery failed"
+
+      # Same, for row-level security (infra-002): production's policies vs supabase/rls.json, exactly.
+      - name: Policy audit
+        id: rls
+        continue-on-error: true
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node docs/harness/harness.mjs rls-audit
+
+      - name: Slack on failed policy audit or audit self-tests
+        if: steps.rls.outcome == 'failure' || steps.audit_selftests.outcome == 'failure'
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          [ -n "$SLACK_WEBHOOK_URL" ] || exit 0
+          curl -s -X POST -H 'Content-Type: application/json' \
+            -d "{\"text\":\"🔐 *Vetree* — policy audit or audit self-tests FAILED (row-level security differs from supabase/rls.json, the report could not be read, or a self-test failed)\\n$RUN_URL\"}" "$SLACK_WEBHOOK_URL" \
             -o /dev/null -w 'Slack HTTP %{http_code}\n' -f || echo "::warning::Slack delivery failed"
 
       # On push: test the release that was just pushed, never the previous one. Poll
@@ -198,4 +228,12 @@ jobs:
 
       - name: Fail job if the access-control audit failed
         if: steps.acl.outcome == 'failure'
+        run: exit 1
+
+      - name: Fail job if the policy audit failed
+        if: steps.rls.outcome == 'failure'
+        run: exit 1
+
+      - name: Fail job if the audit self-tests failed
+        if: steps.audit_selftests.outcome == 'failure'
         run: exit 1
