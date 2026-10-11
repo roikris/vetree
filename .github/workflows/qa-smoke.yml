@@ -40,8 +40,10 @@ jobs:
         id: audit_selftests
         continue-on-error: true
         run: |
-          node docs/harness/harness.mjs acl-selftest
-          node docs/harness/harness.mjs rls-selftest
+          rc=0
+          node docs/harness/harness.mjs acl-selftest || rc=1
+          node docs/harness/harness.mjs rls-selftest || rc=1
+          exit $rc
 
       # Daily + post-deploy drift check (infra-001): production's actual privileges vs
       # supabase/access.json. Its own Slack alert and fail step below, so it never changes the smoke
