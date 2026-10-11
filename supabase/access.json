@@ -920,26 +920,8 @@
     },
     "public.topic_syntheses": {
       "kind": "table",
-      "anon": [
-        "DELETE",
-        "INSERT",
-        "MAINTAIN",
-        "REFERENCES",
-        "SELECT",
-        "TRIGGER",
-        "TRUNCATE",
-        "UPDATE"
-      ],
-      "authenticated": [
-        "DELETE",
-        "INSERT",
-        "MAINTAIN",
-        "REFERENCES",
-        "SELECT",
-        "TRIGGER",
-        "TRUNCATE",
-        "UPDATE"
-      ],
+      "anon": [],
+      "authenticated": [],
       "service_role": [
         "DELETE",
         "INSERT",

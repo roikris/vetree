@@ -1,0 +1,29 @@
+[
+ {
+  "object": "public.a",
+  "kind": "table",
+  "rls_on": true,
+  "rls_forced": true,
+  "policy": null,
+  "command": null,
+  "roles": null,
+  "permissive": null,
+  "using_expr": null,
+  "check_expr": null
+ },
+ {
+  "object": "public.a",
+  "kind": "policy",
+  "rls_on": null,
+  "rls_forced": null,
+  "policy": "r",
+  "command": "DELETE",
+  "roles": [
+   "anon",
+   "authenticated"
+  ],
+  "permissive": false,
+  "using_expr": null,
+  "check_expr": null
+ }
+]

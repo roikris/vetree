@@ -201,13 +201,13 @@ const KINDS = new Set(['table', 'partitioned table', 'view', 'materialized view'
 // Diagnostics never echo response content: names are shown only when they look like plain identifiers.
 const safeName = n => (typeof n === 'string' && /^public\.[A-Za-z0-9_]{1,63}$/.test(n) ? n : '<unprintable name>')
 
-async function fetchAclReport() {
+async function fetchAclReport(rpc = 'harness_acl_report') {
   const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY
   if (!url || !key) return { error: 'missing SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY' }
   let res
   try {
-    res = await fetch(`${url.replace(/\/+$/, '')}/rest/v1/rpc/harness_acl_report`, {
+    res = await fetch(`${url.replace(/\/+$/, '')}/rest/v1/rpc/${rpc}`, {
       method: 'POST',
       headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
       body: '{}',
@@ -306,6 +306,65 @@ async function aclAudit(argv) {
   console.log(`acl audit: PASS — ${Object.keys(objects).length} relations match ${ACL_FILE}`)
 }
 
+// rls-report: print production's row-level security per public table (public.harness_rls_report(), migration 075 —
+// catalog only, never a row of data). Read-only and informational (infra-002): exit 0 printed, 2 not fetched /
+// malformed. The whole report is validated before anything is printed, so a malformed one never reads as a result.
+// Control characters in names / expressions are printed escaped (\xNN), never passed to the terminal.
+const RLS_COMMANDS = new Set(['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'ALL'])
+const escCtl = v => String(v).replace(/[\u0000-\u001f\u007f-\u009f]/g, c => `\\x${c.charCodeAt(0).toString(16).padStart(2, '0')}`)
+function parseRlsReport(rows) {
+  const tables = {}, policies = [], malformed = []
+  if (!Array.isArray(rows)) return { tables, malformed: ['report is not an array'] }
+  const isStrOrNull = v => v === null || typeof v === 'string'
+  rows.forEach((r, i) => {
+    const at = `row ${i + 1}`
+    if (!r || typeof r.object !== 'string' || !/^public\.[A-Za-z0-9_]{1,63}$/.test(r.object)) { malformed.push(`${at}: object is not a public table name`); return }
+    if (r.kind === 'table') {
+      if (typeof r.rls_on !== 'boolean' || typeof r.rls_forced !== 'boolean') { malformed.push(`${r.object}: rls_on / rls_forced are not booleans`); return }
+      if (r.policy !== null || r.command !== null || r.roles !== null || r.permissive !== null || r.using_expr !== null || r.check_expr !== null) { malformed.push(`${r.object}: table row carries policy fields`); return }
+      if (tables[r.object]) { malformed.push(`${r.object}: two table rows`); return }
+      tables[r.object] = { rls: r.rls_on, forced: r.rls_forced, policies: [] }
+    } else if (r.kind === 'policy') {
+      if (r.rls_on !== null || r.rls_forced !== null) { malformed.push(`${r.object}: policy row carries table fields`); return }
+      if (typeof r.policy !== 'string' || !r.policy.length) { malformed.push(`${r.object}: policy without a name`); return }
+      if (!RLS_COMMANDS.has(r.command)) { malformed.push(`${r.object}: policy with an unknown command`); return }
+      if (!Array.isArray(r.roles) || !r.roles.length || !r.roles.every(x => typeof x === 'string' && x.length)) { malformed.push(`${r.object}: policy roles are not a non-empty list of names`); return }
+      if (typeof r.permissive !== 'boolean' || !isStrOrNull(r.using_expr) || !isStrOrNull(r.check_expr)) { malformed.push(`${r.object}: policy fields have the wrong types`); return }
+      policies.push(r)
+    } else malformed.push(`${at}: unknown kind`)
+  })
+  for (const p of policies) {
+    const t = tables[p.object]
+    if (!t) { malformed.push(`${p.object}: policy for a table with no table row`); continue }
+    if (t.policies.some(q => q.policy === p.policy)) { malformed.push(`${p.object}: two policies with the same name`); continue }
+    t.policies.push(p)
+  }
+  return { tables, malformed }
+}
+// rls-report [--report <file.json>] — the file option is for offline tests (rls-selftest)
+async function rlsReport(argv = []) {
+  const i = argv.indexOf('--report')
+  let fetched
+  if (i >= 0) { try { fetched = { rows: readJson(argv[i + 1]) } } catch { fetched = { error: 'report file is not valid JSON' } } }
+  else fetched = await fetchAclReport('harness_rls_report')
+  if (fetched.error) { console.log(`rls report: UNVERIFIED — ${fetched.error}`); process.exit(2) }
+  const { tables, malformed } = parseRlsReport(fetched.rows)
+  if (malformed.length) { console.log('rls report: UNVERIFIED — malformed report:'); for (const m of malformed.slice(0, 20)) console.log(`  ${escCtl(m)}`); process.exit(2) }
+  const names = Object.keys(tables).sort()
+  if (!names.length) { console.log('rls report: UNVERIFIED — no tables in the report'); process.exit(2) }
+  for (const n of names) {
+    const t = tables[n]
+    console.log(`${n}  RLS ${t.rls ? 'on' : 'OFF'}${t.forced ? ' (forced)' : ''} · ${t.policies.length} polic${t.policies.length === 1 ? 'y' : 'ies'}`)
+    for (const p of t.policies.sort((a, b) => a.policy.localeCompare(b.policy))) {
+      console.log(`    ${p.command} to ${p.roles.map(escCtl).join(',')}${p.permissive ? '' : ' (restrictive)'} · "${escCtl(p.policy)}"`)
+      console.log(`        using: ${p.using_expr === null ? '-' : escCtl(p.using_expr)}`)
+      console.log(`        check: ${p.check_expr === null ? '-' : escCtl(p.check_expr)}`)
+    }
+  }
+  const off = names.filter(n => !tables[n].rls)
+  console.log(`rls report: ${names.length} tables · RLS off on ${off.length}${off.length ? ': ' + off.join(', ') : ''}`)
+}
+
 // acl-snapshot: write supabase/access.json from the live report (read-only query). Baseline only.
 async function aclSnapshot() {
   const fetched = await fetchAclReport()
@@ -346,6 +405,28 @@ function aclSelftest() {
   process.exit(failures ? 1 : 0)
 }
 
+// rls-selftest: every case under docs/harness/test/rls/<case>/ has report.json, expect (exit code) and optionally
+// contains / forbid (one string per line that the output must / must not include).
+function rlsSelftest() {
+  const dir = join(dirname(new URL(import.meta.url).pathname), 'test', 'rls')
+  let failures = 0
+  const lines = f => (existsSync(f) ? readFileSync(f, 'utf8').split('\n').filter(Boolean) : [])
+  for (const name of readdirSync(dir).sort()) {
+    const c = join(dir, name)
+    const want = Number(readFileSync(join(c, 'expect'), 'utf8').trim())
+    const r = spawnSync(process.execPath, [new URL(import.meta.url).pathname, 'rls-report', '--report', join(c, 'report.json')], { encoding: 'utf8', env: {} })
+    const out = `${r.stdout || ''}${r.stderr || ''}`
+    const missing = lines(join(c, 'contains')).filter(x => !out.includes(x))
+    const leaked = lines(join(c, 'forbid')).filter(x => out.includes(x))
+    const ok = r.status === want && !missing.length && !leaked.length
+    if (!ok) failures++
+    const detail = ok ? '' : leaked.length ? ' — output contains a forbidden string; output withheld' : `${missing.length ? ` — missing: ${missing.join(' | ')}` : ''}\n${out}`
+    console.log(`  ${ok ? '✓' : '✗'} ${name}: exit ${r.status} (want ${want})${detail}`)
+  }
+  console.log(failures ? `rls selftest: FAIL — ${failures} case(s)` : 'rls selftest: PASS')
+  process.exit(failures ? 1 : 0)
+}
+
 const commands = {
   stamp: () => stamp(args[0]),
   'lint-baseline': () => lintBaseline(args[0], args[1], args[2]),
@@ -356,6 +437,8 @@ const commands = {
   'acl-audit': () => aclAudit(args),
   'acl-snapshot': () => aclSnapshot(),
   'acl-selftest': () => aclSelftest(),
+  'rls-report': () => rlsReport(args),
+  'rls-selftest': () => rlsSelftest(),
 }
 if (!commands[cmd]) { console.error(`unknown command: ${cmd}`); process.exit(2) }
 commands[cmd]()
