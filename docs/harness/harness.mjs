@@ -9,7 +9,7 @@
 //   node docs/harness/harness.mjs vercel-ok <vercel.json>
 import { createHash } from 'node:crypto'
 import { execFileSync, spawnSync } from 'node:child_process'
-import { copyFileSync, existsSync, mkdtempSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, relative } from 'node:path'
 
@@ -443,7 +443,7 @@ function compareRls(actual, expected) {
       if (!ep) { diffs.push(`NEW    policy ${at} — ${ap.command} to ${ap.roles.map(escCtl).join(',')} · using ${rlsShow(ap.using)} · check ${rlsShow(ap.check)}`); continue }
       if (!ap) { diffs.push(`GONE   policy ${at}`); continue }
       if (ap.command !== ep.command) diffs.push(`POLICY ${at} · command — expected ${ep.command}, production ${ap.command}`)
-      if (ap.roles.join('\n') !== ep.roles.join('\n')) diffs.push(`POLICY ${at} · roles — expected ${ep.roles.map(escCtl).join(',')}, production ${ap.roles.map(escCtl).join(',')}`)
+      if (ap.roles.length !== ep.roles.length || ap.roles.some((r, i) => r !== ep.roles[i])) diffs.push(`POLICY ${at} · roles — expected ${ep.roles.map(escCtl).join(',')}, production ${ap.roles.map(escCtl).join(',')}`)
       if (ap.permissive !== ep.permissive) diffs.push(`POLICY ${at} · permissive — expected ${ep.permissive}, production ${ap.permissive}`)
       for (const k of ['using', 'check']) if (ap[k] !== ep[k]) diffs.push(`POLICY ${at} · ${k} — expected ${rlsShow(ep[k])}, production ${rlsShow(ap[k])}`)
     }
@@ -469,12 +469,12 @@ async function rlsAudit(argv) {
   const opt = n => { const i = argv.indexOf(n); return i >= 0 ? argv[i + 1] : null }
   const file = opt('--expected') || RLS_FILE
   let expected
-  try { expected = readRlsExpected(file) } catch (e) { console.log(`rls audit: UNVERIFIED — ${e.message}`); process.exit(2) }
+  try { expected = readRlsExpected(file) } catch (e) { console.log(`rls audit: UNVERIFIED — ${escCtl(e.message)}`); process.exit(2) }
   const actual = await rlsActual(argv, 'rls audit')
   const diffs = compareRls(actual, expected)
-  if (diffs.length) { console.log(`rls audit: FAIL — ${diffs.length} difference(s) from ${file}:`); for (const d of diffs) console.log(`  ${d}`); process.exit(1) }
+  if (diffs.length) { console.log(`rls audit: FAIL — ${diffs.length} difference(s) from ${escCtl(file)}:`); for (const d of diffs) console.log(`  ${d}`); process.exit(1) }
   const n = [...actual.values()].reduce((s, t) => s + t.policies.size, 0)
-  console.log(`rls audit: PASS — ${actual.size} tables, ${n} policies match ${file}`)
+  console.log(`rls audit: PASS — ${actual.size} tables, ${n} policies match ${escCtl(file)}`)
 }
 
 // rls-snapshot [--report <file.json>] [--out <rls.json>]: write the expectation from a validated, non-empty
@@ -494,13 +494,16 @@ async function rlsSnapshot(argv) {
     tables[name] = { rls: t.rls, forced: t.forced, policies }
   }
   const tmp = `${out}.tmp-${process.pid}`
-  writeJson(tmp, { note: RLS_NOTE, tables })
-  try { if (compareRls(actual, readRlsExpected(tmp)).length) throw new Error('round trip differs') } catch (e) {
-    rmSync(tmp, { force: true }); console.log(`rls snapshot: failed — ${escCtl(e.message)}`); process.exit(2)
+  try {
+    writeJson(tmp, { note: RLS_NOTE, tables })
+    if (compareRls(actual, readRlsExpected(tmp)).length) throw new Error('round trip differs')
+    renameSync(tmp, out)
+  } catch (e) {
+    try { rmSync(tmp, { force: true }) } catch { /* the temp file may not exist */ }
+    console.log(`rls snapshot: failed — ${e?.code && /^[A-Z]{2,20}$/.test(e.code) ? e.code : escCtl(e?.message || 'error')}`); process.exit(2)
   }
-  renameSync(tmp, out)
   const n = [...actual.values()].reduce((s, t) => s + t.policies.size, 0)
-  console.log(`rls snapshot: wrote ${out} — ${actual.size} tables, ${n} policies`)
+  console.log(`rls snapshot: wrote ${escCtl(out)} — ${actual.size} tables, ${n} policies`)
 }
 
 // acl-snapshot: write supabase/access.json from the live report (read-only query). Baseline only.
@@ -563,15 +566,20 @@ function rlsSelftest() {
   }
   // Audit / snapshot cases: docs/harness/test/rls-audit/<case>/ — report.json, rls.json, expect, optional
   // contains / forbid; optional `argv` (one line, placeholders {report} {expected} {out}; default rls-audit),
-  // `env.json` (the child's whole environment; default empty), `before.json` (copied to {out} first) and
+  // `env.json` (the child's whole environment; default empty), `before.json` (copied to {out} first) or
+  // `before-dir` ({out} is a non-empty directory, so the rename fails), and
   // `after.json` ({out} must equal it afterwards) or `after-absent` ({out} must not exist afterwards).
   const adir = join(dirname(new URL(import.meta.url).pathname), 'test', 'rls-audit')
   for (const name of readdirSync(adir).sort()) {
     const c = join(adir, name)
     const want = Number(readFileSync(join(c, 'expect'), 'utf8').trim())
     const tmp = mkdtempSync(join(tmpdir(), 'rls-selftest-')), out = join(tmp, 'rls.json')
+    // {evil}: a copy of rls.json under a name with a newline and an ESC sequence (path escaping)
+    const evil = join(tmp, 'x\nrls audit: PASS\u001b[2J.json')
     if (existsSync(join(c, 'before.json'))) copyFileSync(join(c, 'before.json'), out)
-    const fill = s => s.replace('{report}', join(c, 'report.json')).replace('{expected}', join(c, 'rls.json')).replace('{out}', out)
+    if (existsSync(join(c, 'before-dir'))) { mkdirSync(join(out, 'keep'), { recursive: true }) }
+    if (existsSync(join(c, 'argv')) && readFileSync(join(c, 'argv'), 'utf8').includes('{evil}')) copyFileSync(join(c, 'rls.json'), evil)
+    const fill = s => s.replace('{report}', join(c, 'report.json')).replace('{expected}', join(c, 'rls.json')).replace('{out}', out).replace('{tmp}', tmp).replace('{evil}', evil)
     const argv = existsSync(join(c, 'argv')) ? readFileSync(join(c, 'argv'), 'utf8').trim().split(/\s+/).map(fill)
       : ['rls-audit', '--report', join(c, 'report.json'), '--expected', join(c, 'rls.json')]
     const env = existsSync(join(c, 'env.json')) ? readJson(join(c, 'env.json')) : {}
