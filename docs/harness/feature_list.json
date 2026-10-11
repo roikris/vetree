@@ -892,9 +892,9 @@
       "notes": "Named by Roi 2026-10-09 (side step). Not a company yet → English names \"Vetree\" only (no \"Ltd.\"); Hebrew keeps name + address (§30A, §17F). Claimed by 20261009-1730-claude-5a0d · CLOSED 2026-10-09."
     },
     {
-      "status": "not_started",
+      "status": "in_progress",
       "evidence": [],
-      "branch": "",
+      "branch": "chore/harness-004-unlock-log-guard",
       "pr": null,
       "head_sha": null,
       "wip_sha": null,
@@ -921,7 +921,7 @@
           "paid_calls": false
         }
       ],
-      "notes": "Added by 20261010-1903-claude-8c5f on Roi's word (2026-10-10, \"add the guard\"). Origin: session-log.md truncated to one entry in f81d84f by a close-out script (restored in d94ff26); unlock only checked that the session's entry exists."
+      "notes": "Added by 20261010-1903-claude-8c5f on Roi's word (2026-10-10, \"add the guard\"). Origin: session-log.md truncated to one entry in f81d84f by a close-out script (restored in d94ff26); unlock only checked that the session's entry exists. · claimed by 20261011-1725-claude-656c"
     },
     {
       "status": "not_started",
