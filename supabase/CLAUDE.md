@@ -330,6 +330,9 @@ path uses the service role. Before 076 three PUBLIC policies let anyone read, in
 | user_id | uuid nullable |
 | created_at | timestamptz |
 
+Written only by app/api/synthesis/feedback with the service role. Since migration 077 nobody else can insert
+(before it, "Anyone can insert" let the public key add votes directly); admins read via "Admins read".
+
 ### `articles_blacklist`
 | Column | Type | Notes |
 |--------|------|-------|
