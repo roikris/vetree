@@ -174,6 +174,11 @@ delay the save by 15+ seconds. Plain `fetch()` dispatches immediately.
 `/api/analytics/event` inserts into `analytics_events` (NOT page_views).
 Use for funnel events that are not page navigations.
 
+**The tracking routes (`/api/analytics/track`, `/event`, `/search`) write with the service role**
+(`createAdminClient()`); the cookie client is only for `auth.getUser()` and the admin check. The public key
+cannot insert into page_views / search_logs / analytics_events (infra-002), so rows only arrive through these
+routes' filters (production only, QA skipped, admin skipped, crawlers tagged).
+
 Admin exclusion mechanism: the route reads the authenticated user via the server Supabase client,
 then queries `user_roles` directly. If `role === 'admin'`, returns `{ success: true, tracked: false }`
 early. This does NOT use `EXCLUDED_USER_IDS` / `excludedUsersOrFilter()`.

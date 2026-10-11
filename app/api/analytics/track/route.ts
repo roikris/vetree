@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { createHash } from 'crypto'
 import { ratelimitLoose, getClientIP } from '@/lib/ratelimit'
 import { detectBotName } from '@/lib/bot-detection'
@@ -56,13 +56,17 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Writes use the service role: the public key cannot insert into page_views / analytics_events
+    // (infra-002), so rows only arrive through this route's filters (QA, admin, bot tagging).
+    const db = createAdminClient()
+
     // Synthesis experiment events are NOT page views (CLAUDE.md rule 12). Browser tabs still running
     // an older build send {event:'synthesis_engaged'} or a '/synthesis/*' path here: record them in
     // analytics_events (as /api/analytics/event does) and never in page_views.
     if (path.startsWith('/synthesis/')) {
       const eventName = `synthesis_${path.slice('/synthesis/'.length)}`
       if (!isSynthesisEvent(eventName)) return NextResponse.json({ success: true, tracked: false })
-      const { error: eventError } = await supabase.from('analytics_events').insert({
+      const { error: eventError } = await db.from('analytics_events').insert({
         event_name: eventName,
         user_id: user?.id || null,
         bot_name: botName,
@@ -119,7 +123,7 @@ export async function POST(request: NextRequest) {
     console.log('[analytics/track] sec-ch-ua-mobile:', secChUaMobile)
 
     // Insert page view
-    const { error } = await supabase
+    const { error } = await db
       .from('page_views')
       .insert({
         path,

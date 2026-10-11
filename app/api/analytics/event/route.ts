@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { createHash } from 'crypto'
 import { detectBotName } from '@/lib/bot-detection'
 import { analyticsRecordingEnabled, isQATraffic } from '@/lib/analytics/recording'
@@ -55,7 +55,9 @@ export async function POST(request: NextRequest) {
       ip_hash: ipHash,
     }
 
-    const { error } = await supabase.from('analytics_events').insert({
+    // Service role: the public key cannot insert into analytics_events (infra-002), so rows only
+    // arrive through this route's filters (QA, admin, bot tagging)
+    const { error } = await createAdminClient().from('analytics_events').insert({
       event_name,
       article_id: article_id || null,
       user_id: user?.id || null,
