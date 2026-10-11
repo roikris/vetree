@@ -8,19 +8,19 @@ Routine: `docs/harness/README.md` on `main`. Pre-harness primer (frozen): root `
 ---
 
 ## 1. Current Verified State
-*Updated 2026-10-11 — Session 20261010-1903-claude-8c5f (infra-002 closed)*
+*Updated 2026-10-12 — Session 20261011-1725-claude-656c (harness-004 closed)*
 
 - **Repo root:** `~/dev/vetree` · state worktree: `.harness-state/` (branch `harness-state`)
-- **main:** `5545ab5` (PRs #120–#125 least privilege + policy audit, migrations 075–079 applied, 2026-10-11; #119 lint cleanup, 2026-10-10; #118 build warnings / middleware → proxy, 2026-10-10; #117 init.sh lock / unlock, 2026-10-10; #116 "new this week" count, 2026-10-10; #115 shorter digest footer, 2026-10-09; #114 Search Console fixes, 2026-10-07; before it #113 access-control audit,
+- **main:** `a652c31` (#126 unlock log guard, 2026-10-12; PRs #120–#125 least privilege + policy audit, migrations 075–079 applied, 2026-10-11; #119 lint cleanup, 2026-10-10; #118 build warnings / middleware → proxy, 2026-10-10; #117 init.sh lock / unlock, 2026-10-10; #116 "new this week" count, 2026-10-10; #115 shorter digest footer, 2026-10-09; #114 Search Console fixes, 2026-10-07; before it #113 access-control audit,
   migration 074 applied) — last verified: `init.sh check` GREEN incl. acl audit 33/33 and rls audit 32 tables / 40 policies
 - **Standard startup:** `docs/harness/init.sh` (state, then check) — see README for exit codes. Take / release
   the lock only with `init.sh lock <item> --agent …` / `init.sh unlock "<message>"` (D12), never by hand
 - **Standard verification:** `docs/harness/init.sh check [--item <id>]`; build reads production
   Supabase (read-only); never Playwright as a baseline
-- **Highest-priority unfinished item:** **harness-004** (unlock refuses a shrunken session log). Then infra-003 (replay
-  safety); feed-002 / admin-001 / scripts-001 need Roi's decisions; ai-001 parked (~2026-11-01).
+- **Highest-priority unfinished item:** **infra-003** (replay safety). feed-002 / admin-001 / scripts-001 need Roi's
+  decisions; ai-001 parked (~2026-11-01).
 - **Current blocker:** none
-- **Open PRs awaiting Roi:** none · Roi to click "Validate fix" in Search Console (seo-001) · check Vercel usage
+- **Open PRs awaiting Roi:** none · Roi: check Vercel usage
   ~2026-10-14 (proxy now a Node function, build-001) · Thursday's security scan is the first after 079
 
 ## 2. Open Issues & Known Risks
@@ -204,6 +204,28 @@ works today was spot-checked in the code on 2026-10-05.
 (Newest first — only the latest 5 are kept here (D11); every entry, older ones included, is in
 `session-log.md`, which is never trimmed.)
 
+### Session 20261011-1725-claude-656c · 2026-10-11 → 2026-10-12 · Claude Code · harness-004 (closed)
+- Goal / Completed: `init.sh unlock` now publishes session-log.md only if it is origin's log, byte for byte, with this
+  session's entry in the appended text (`harness.mjs log-grew`: exit 1 = shrunk / not grown / earlier byte changed /
+  entry not in the appended part, exit 2 = could not check; prints sizes and offsets only). Refused → NOT published,
+  lock still held, with restore instructions. README: a deliberate fix of an old entry needs Roi's OK and its own
+  state commit.
+- Start state: main 5545ab5, branch chore/harness-004-unlock-log-guard, clean.
+- Verification: lock selftest 244/244 on bash 3.2 + 5.3 (before b2053fb), the new cases 73/73 after it, 251/251 in PR
+  CI (bash 5.2); 16 new cases (truncated, one byte edited, line deleted, reordered, same length, LF↔CRLF, BOM removed,
+  entry only in the old part; passes with exact published bytes incl. CRLF + BOM + invalid UTF-8, origin
+  fast-forward, edit while paused, fix and re-run); with the check disabled 10 cases fail. PR smoke pass; post-merge
+  smoke pass; production a652c31. This release is the first under the new rule.
+- Review: Codex · tier 2 · plan 1 round 43.6k + code 2 rounds 56.3k / 48.2k ≈ 148k · BLOCKING: none (3 non-blocking
+  fixed in b2053fb: the no-log case didn't reach the new guard — documented, check_dirty refuses first; two passing
+  cases lacked byte comparisons; BOM-removal refusal added).
+- Commits / PR: 32bfcc5, b2053fb → #126, merged as a652c31 on Roi's word.
+- Pending Roi approvals: none. Roi: Thursday's security scan (first after 079); Vercel usage ~2026-10-14.
+- Lesson: a mutation test only proves what its fixtures reach — a case can pass because an earlier check refuses
+  first (the "same length" case first stopped at the old entry grep); put the precondition on origin so only the
+  new check can refuse.
+- Next best step: infra-003 (replay safety); feed-002 / admin-001 / scripts-001 need Roi's decisions.
+
 ### Session 20261010-1903-claude-8c5f · 2026-10-10 → 2026-10-11 · Claude Code · infra-002 (closed)
 - Goal / Completed: least privilege for the Data API. Migration 075 + `rls-report` showed production's RLS policies;
   076 closed topic_syntheses (anyone could read / insert / rewrite cached syntheses incl. query + user_id); 077 and 078
@@ -282,15 +304,3 @@ works today was spot-checked in the code on 2026-10-05.
 - Lesson: `git clean` silently skips ignored files — delete one known file with `unlink` and check it is gone.
   Claude Code's safety check blocks `rm` on variable paths; `unlink` / `rmdir` express the intent better anyway.
 - Next best step: build-001 (middleware → proxy, Sentry onRouterTransitionStart, scan-route tracing).
-
-### Session 20261010-0452-claude-9c7c · 2026-10-10 · Claude Code · feed-001 (closed)
-- Goal / Completed: the feed header's "N new this week" counted publication_date ≥ 7 days ago without the
-  summary/quarantine checks (future-dated preprints counted forever). Now getNewThisWeekCount() in
-  lib/queries/publicStats.ts: public filter + created_at, cached per UTC hour, null on failure. 46 → 117.
-  Lint baseline 178 → 177.
-- Verification: init.sh check GREEN; live header "117 new this week" after deploy (48e1524).
-- Review: Codex · tier 2 (lint baseline) · 2 rounds · 47.6k + 16.1k tokens · BLOCKING: none (1 fixed: unstable_cache
-  serves stale values past revalidate → key by hour).
-- Commits / PR: b882d93, 23ff18f → #116, merged as 48e1524 on Roi's word.
-- Lesson: unstable_cache `revalidate` is stale-while-revalidate and keeps the old value when a refresh fails — not a max age.
-- Next best step: harness-003 (init.sh lock/unlock).

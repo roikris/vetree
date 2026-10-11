@@ -1,6 +1,6 @@
 {
   "project": "vetree",
-  "last_updated": "2026-10-11",
+  "last_updated": "2026-10-12",
   "rules": {
     "single_active_feature": true,
     "passing_requires_evidence": true,
@@ -892,11 +892,42 @@
       "notes": "Named by Roi 2026-10-09 (side step). Not a company yet → English names \"Vetree\" only (no \"Ltd.\"); Hebrew keeps name + address (§30A, §17F). Claimed by 20261009-1730-claude-5a0d · CLOSED 2026-10-09."
     },
     {
-      "status": "in_progress",
-      "evidence": [],
+      "status": "merged",
+      "evidence": [
+        {
+          "date": "2026-10-12",
+          "session": "20261011-1725-claude-656c",
+          "sha": "b2053fb",
+          "command": "docs/harness/test/lock/selftest.sh: 244/244 on bash 3.2 + 5.3 (before b2053fb), new cases 73/73 after it, 251/251 in PR #126 CI (bash 5.2.21); 16 new log cases (refusals: truncated, edited byte, line deleted, reordered, same length, LF↔CRLF, BOM removed, entry only in the old part; passes with exact published bytes); with the check disabled 10 cases fail",
+          "target": "local",
+          "outcome": "pass",
+          "approval": "n/a",
+          "link": "PR #126"
+        },
+        {
+          "date": "2026-10-12",
+          "session": "20261011-1725-claude-656c",
+          "sha": "b2053fb",
+          "command": "Codex tier 2: plan 1 round (43.6k) + code 2 rounds (56.3k / 48.2k) → BLOCKING: none (3 non-blocking fixed in b2053fb)",
+          "target": "none",
+          "outcome": "pass",
+          "approval": "n/a",
+          "link": "PR #126"
+        },
+        {
+          "date": "2026-10-12",
+          "session": "20261011-1725-claude-656c",
+          "sha": "a652c31",
+          "command": "Merged as a652c31; post-merge QA Smoke Suite success; production /api/version = a652c31; this session's lock released with the guarded init.sh unlock",
+          "target": "production",
+          "outcome": "pass",
+          "approval": "Roi: \"merge\"",
+          "link": "PR #126"
+        }
+      ],
       "branch": "chore/harness-004-unlock-log-guard",
-      "pr": null,
-      "head_sha": null,
+      "pr": 126,
+      "head_sha": "a652c31",
       "wip_sha": null,
       "expected_failures": [],
       "id": "harness-004",
@@ -921,7 +952,7 @@
           "paid_calls": false
         }
       ],
-      "notes": "Added by 20261010-1903-claude-8c5f on Roi's word (2026-10-10, \"add the guard\"). Origin: session-log.md truncated to one entry in f81d84f by a close-out script (restored in d94ff26); unlock only checked that the session's entry exists. · claimed by 20261011-1725-claude-656c"
+      "notes": "Added by 20261010-1903-claude-8c5f on Roi's word (2026-10-10, \"add the guard\"). Origin: session-log.md truncated to one entry in f81d84f by a close-out script (restored in d94ff26); unlock only checked that the session's entry exists. · claimed by 20261011-1725-claude-656c · CLOSED 2026-10-12 (#126)."
     },
     {
       "status": "not_started",

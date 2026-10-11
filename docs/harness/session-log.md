@@ -367,3 +367,25 @@ Newest at the bottom. The same entries (latest few) appear in primer.md → Rece
   "permission denied". fetch refuses some ports (9, discard): use a high port for an ECONNREFUSED test. Never compare
   lists by joining them into one string.
 - Next best step: harness-004 (unlock refuses a shrunken session log), then infra-003; feed-002 / admin-001 need Roi.
+
+### Session 20261011-1725-claude-656c · 2026-10-11 → 2026-10-12 · Claude Code · harness-004 (closed)
+- Goal / Completed: `init.sh unlock` now publishes session-log.md only if it is origin's log, byte for byte, with this
+  session's entry in the appended text (`harness.mjs log-grew`: exit 1 = shrunk / not grown / earlier byte changed /
+  entry not in the appended part, exit 2 = could not check; prints sizes and offsets only). Refused → NOT published,
+  lock still held, with restore instructions. README: a deliberate fix of an old entry needs Roi's OK and its own
+  state commit.
+- Start state: main 5545ab5, branch chore/harness-004-unlock-log-guard, clean.
+- Verification: lock selftest 244/244 on bash 3.2 + 5.3 (before b2053fb), the new cases 73/73 after it, 251/251 in PR
+  CI (bash 5.2); 16 new cases (truncated, one byte edited, line deleted, reordered, same length, LF↔CRLF, BOM removed,
+  entry only in the old part; passes with exact published bytes incl. CRLF + BOM + invalid UTF-8, origin
+  fast-forward, edit while paused, fix and re-run); with the check disabled 10 cases fail. PR smoke pass; post-merge
+  smoke pass; production a652c31. This release is the first under the new rule.
+- Review: Codex · tier 2 · plan 1 round 43.6k + code 2 rounds 56.3k / 48.2k ≈ 148k · BLOCKING: none (3 non-blocking
+  fixed in b2053fb: the no-log case didn't reach the new guard — documented, check_dirty refuses first; two passing
+  cases lacked byte comparisons; BOM-removal refusal added).
+- Commits / PR: 32bfcc5, b2053fb → #126, merged as a652c31 on Roi's word.
+- Pending Roi approvals: none. Roi: Thursday's security scan (first after 079); Vercel usage ~2026-10-14.
+- Lesson: a mutation test only proves what its fixtures reach — a case can pass because an earlier check refuses
+  first (the "same length" case first stopped at the old entry grep); put the precondition on origin so only the
+  new check can refuse.
+- Next best step: infra-003 (replay safety); feed-002 / admin-001 / scripts-001 need Roi's decisions.
