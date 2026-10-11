@@ -483,7 +483,7 @@ cmd_lock() {
 }
 
 cmd_unlock() {
-  local msg="${1:-}" me="${HARNESS_SESSION:-}" owner f blob
+  local msg="${1:-}" me="${HARNESS_SESSION:-}" owner f blob logblob="" baselog newlog lrc
   { [ $# = 1 ] && [ -n "$msg" ]; } || stop "usage: init.sh unlock \"<handoff message>\""
   [ -n "$me" ] || stop "HARNESS_SESSION is not set — export HARNESS_SESSION=<your session id>. Nothing changed."
   txn_begin unlock 1
@@ -500,7 +500,26 @@ cmd_unlock() {
   for f in $STATE_FILES; do
     blob="$(git -C "$WT" hash-object -w -- "$H/$f")" || stop "could not read $f — nothing changed"
     GIT_INDEX_FILE="$TMPIDX" git -C "$WT" update-index --add --cacheinfo "100644,$blob,$H/$f" || stop "could not stage $f — nothing changed"
+    [ "$f" = session-log.md ] && logblob="$blob"
   done
+  # harness-004: the published session-log.md must be origin's log (BASE) byte for byte plus appended text holding
+  # this session's entry. Checked on the exact blob just staged, so nothing can change between check and publish.
+  # Any failure to read either version, or to run the check, refuses too — never an empty BASE that passes.
+  [ -n "$logblob" ] || stop "internal: session-log.md was not staged — NOT published. Nothing changed after the sync."
+  git -C "$WT" cat-file -e "$BASE:$H/session-log.md" 2>/dev/null \
+    || stop "no session-log.md on origin/$STATE_BRANCH — NOT published (the log must already exist). Nothing changed after the sync; tell Roi."
+  baselog="$LOGDIR/state-log-base.$$"; newlog="$LOGDIR/state-log-new.$$"; lrc=0
+  if git -C "$WT" cat-file blob "$BASE:$H/session-log.md" > "$baselog" 2>/dev/null \
+     && git -C "$WT" cat-file blob "$logblob" > "$newlog" 2>/dev/null; then
+    node "$H/harness.mjs" log-grew "$baselog" "$newlog" "$me" > "$LOGDIR/state-log-check.log" 2>&1 || lrc=$?
+  else
+    lrc=3; printf 'could not read the two versions of session-log.md\n' > "$LOGDIR/state-log-check.log"
+  fi
+  for f in "$baselog" "$newlog"; do if [ -e "$f" ]; then unlink "$f"; fi; done
+  [ "$lrc" = 0 ] || stop "session-log.md is not origin's log with this session's entry appended — NOT published, lock still held:
+  $(head -1 "$LOGDIR/state-log-check.log")
+  Restore the earlier entries (git -C .harness-state show origin/$STATE_BRANCH:$H/session-log.md) and append only. A deliberate
+  fix of an old entry needs Roi's OK and goes as its own state commit first. Nothing changed after the sync."
   GIT_INDEX_FILE="$TMPIDX" git -C "$WT" update-index --force-remove "$LOCK" || stop "could not stage the lock removal — nothing changed"
   txn_publish "$msg"
   git -C "$WT" reset -q --mixed "$NEW" || adopt_fail "unlink $LOCK"

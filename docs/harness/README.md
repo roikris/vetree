@@ -121,6 +121,9 @@ so "local" is never isolated.
 - [ ] Lock released with the handoff, in one commit: edit primer.md / feature_list.json /
       session-log.md (the entry `### Session <id> · …` must exist), then
       `docs/harness/init.sh unlock "state: <item> <what happened>; session <id> entry; release lock"`.
+      `session-log.md` must be origin's log byte for byte plus appended text holding this session's entry
+      (harness-004) — a shrunken, edited or reordered log is refused, nothing published. A deliberate fix of an
+      old entry needs Roi's OK and goes as its own state commit first (CLAUDE.md exception 1).
       It publishes only those three files, only for the lock's owner (`HARNESS_SESSION`), and
       counts only when it exits 0 (pushed). Exit 2 → your edits are still in the worktree; read the
       message: "NOT published" / "nothing changed" → fix the cause and re-run; "NOT KNOWN whether …
