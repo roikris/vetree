@@ -45,7 +45,9 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: node docs/harness/harness.mjs acl-audit
+        run: |
+          node docs/harness/harness.mjs acl-selftest
+          node docs/harness/harness.mjs acl-audit
 
       - name: Slack on failed access-control audit
         if: steps.acl.outcome == 'failure'
@@ -56,6 +58,28 @@ jobs:
           [ -n "$SLACK_WEBHOOK_URL" ] || exit 0
           curl -s -X POST -H 'Content-Type: application/json' \
             -d "{\"text\":\"🔐 *Vetree* — access-control audit FAILED (privileges differ from supabase/access.json, or the report could not be read)\\n$RUN_URL\"}" "$SLACK_WEBHOOK_URL" \
+            -o /dev/null -w 'Slack HTTP %{http_code}\n' -f || echo "::warning::Slack delivery failed"
+
+      # Same, for row-level security (infra-002): production's policies vs supabase/rls.json, exactly.
+      - name: Policy audit
+        id: rls
+        continue-on-error: true
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          node docs/harness/harness.mjs rls-selftest
+          node docs/harness/harness.mjs rls-audit
+
+      - name: Slack on failed policy audit
+        if: steps.rls.outcome == 'failure'
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          [ -n "$SLACK_WEBHOOK_URL" ] || exit 0
+          curl -s -X POST -H 'Content-Type: application/json' \
+            -d "{\"text\":\"🔐 *Vetree* — policy audit FAILED (row-level security differs from supabase/rls.json, or the report could not be read)\\n$RUN_URL\"}" "$SLACK_WEBHOOK_URL" \
             -o /dev/null -w 'Slack HTTP %{http_code}\n' -f || echo "::warning::Slack delivery failed"
 
       # On push: test the release that was just pushed, never the previous one. Poll
@@ -198,4 +222,8 @@ jobs:
 
       - name: Fail job if the access-control audit failed
         if: steps.acl.outcome == 'failure'
+        run: exit 1
+
+      - name: Fail job if the policy audit failed
+        if: steps.rls.outcome == 'failure'
         run: exit 1

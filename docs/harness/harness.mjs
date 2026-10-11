@@ -9,7 +9,8 @@
 //   node docs/harness/harness.mjs vercel-ok <vercel.json>
 import { createHash } from 'node:crypto'
 import { execFileSync, spawnSync } from 'node:child_process'
-import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdtempSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { dirname, join, relative } from 'node:path'
 
 const [cmd, ...args] = process.argv.slice(2)
@@ -139,8 +140,9 @@ function classify(sigsDir, featureList, itemId, headSha) {
   const failed = existsSync(failedPath) ? readFileSync(failedPath, 'utf8').split('\n').filter(Boolean) : []
   if (!failed.length) { console.log('REGRESSION: no record of which checks failed — no evidence to match'); process.exit(1) }
   const results = []
-  if (failed.includes('acl')) {
-    console.log('REGRESSION: the access-control audit failed — never an expected WIP failure')
+  const audits = [failed.includes('acl') && 'the access-control audit', failed.includes('rls') && 'the policy audit'].filter(Boolean)
+  if (audits.length) {
+    console.log(`REGRESSION: ${audits.join(' and ')} failed — never an expected WIP failure`)
     process.exit(1)
   }
   if (failed.includes('build')) {
@@ -365,6 +367,142 @@ async function rlsReport(argv = []) {
   console.log(`rls report: ${names.length} tables · RLS off on ${off.length}${off.length ? ': ' + off.join(', ') : ''}`)
 }
 
+// ---------------------------------------------------------------- policy audit (infra-002)
+// Compares production's row-level security (public.harness_rls_report(), migration 075) with the checked-in
+// expectation supabase/rls.json, exactly: per public table RLS on / forced, and every policy's command, roles,
+// permissive flag and USING / WITH CHECK text as pg_get_expr prints it (byte for byte — no normalisation, so a
+// Postgres upgrade that re-prints an expression shows up as a diff to review). Exit 0 = match, 1 = mismatch,
+// 2 = unverified (not fetched, empty or malformed report, or an invalid rls.json) — never a pass.
+// Both sides are validated into one canonical form (Maps, roles sorted) before comparing or snapshotting.
+const RLS_FILE = 'supabase/rls.json'
+const RLS_NOTE = 'Expected row-level security per public table — EXACT. Checked against the live catalog by `node docs/harness/harness.mjs rls-audit` (init.sh check, PR smoke, daily). A migration that creates, changes or drops a policy, toggles RLS, or adds / drops a table updates this file in the same PR. Expressions are pg_get_expr text, compared byte for byte.'
+const TABLE_NAME = /^public\.[A-Za-z0-9_]{1,63}$/
+const hasOwn = (o, k) => Object.prototype.hasOwnProperty.call(o, k)
+const isObj = v => v !== null && typeof v === 'object' && !Array.isArray(v)
+const exactKeys = (o, keys) => Object.keys(o).length === keys.length && keys.every(k => hasOwn(o, k))
+const sortRoles = roles => [...roles].sort()
+
+// parseRlsReport's tables → canonical Map
+function rlsCanonFromReport(tables) {
+  const out = new Map()
+  for (const name of Object.keys(tables)) {
+    const t = tables[name], policies = new Map()
+    for (const p of t.policies) {
+      policies.set(p.policy, { command: p.command, roles: sortRoles(p.roles), permissive: p.permissive, using: p.using_expr, check: p.check_expr })
+    }
+    out.set(name, { rls: t.rls, forced: t.forced, policies })
+  }
+  return out
+}
+
+// rls.json → canonical Map; throws on anything outside the contract (unknown or missing keys included)
+function readRlsExpected(path) {
+  let j
+  try { j = readJson(path) } catch { throw new Error(`${path}: not readable JSON`) }
+  if (!isObj(j) || !exactKeys(j, ['note', 'tables']) || typeof j.note !== 'string' || !isObj(j.tables)) {
+    throw new Error(`${path}: must be an object with exactly "note" (string) and "tables" (object)`)
+  }
+  const out = new Map()
+  for (const name of Object.keys(j.tables)) {
+    if (!TABLE_NAME.test(name)) throw new Error(`${path}: a table key is not a public table name`)
+    const t = j.tables[name]
+    if (!isObj(t) || !exactKeys(t, ['rls', 'forced', 'policies']) || typeof t.rls !== 'boolean' || typeof t.forced !== 'boolean' || !isObj(t.policies)) {
+      throw new Error(`${path}: ${name} must have exactly "rls" (bool), "forced" (bool), "policies" (object)`)
+    }
+    const policies = new Map()
+    for (const pname of Object.keys(t.policies)) {
+      const p = t.policies[pname], at = `${name} "${escCtl(pname)}"`
+      if (!pname.length) throw new Error(`${path}: ${name} has a policy with an empty name`)
+      if (!isObj(p) || !exactKeys(p, ['command', 'roles', 'permissive', 'using', 'check'])) {
+        throw new Error(`${path}: ${at} must have exactly "command", "roles", "permissive", "using", "check"`)
+      }
+      if (!RLS_COMMANDS.has(p.command)) throw new Error(`${path}: ${at} has an unknown command`)
+      if (!Array.isArray(p.roles) || !p.roles.length || !p.roles.every(r => typeof r === 'string' && r.length) || new Set(p.roles).size !== p.roles.length) {
+        throw new Error(`${path}: ${at} roles must be a non-empty list of distinct names`)
+      }
+      if (typeof p.permissive !== 'boolean') throw new Error(`${path}: ${at} permissive must be a boolean`)
+      for (const k of ['using', 'check']) if (p[k] !== null && typeof p[k] !== 'string') throw new Error(`${path}: ${at} ${k} must be a string or null`)
+      policies.set(pname, { command: p.command, roles: sortRoles(p.roles), permissive: p.permissive, using: p.using, check: p.check })
+    }
+    out.set(name, { rls: t.rls, forced: t.forced, policies })
+  }
+  return out
+}
+
+const rlsShow = v => (v === null ? '(none)' : `"${escCtl(v)}"`)
+function compareRls(actual, expected) {
+  const diffs = []
+  for (const name of [...new Set([...actual.keys(), ...expected.keys()])].sort()) {
+    const a = actual.get(name), e = expected.get(name)
+    if (!e) { diffs.push(`NEW    ${name} — in production, not in ${RLS_FILE}`); continue }
+    if (!a) { diffs.push(`GONE   ${name} — in ${RLS_FILE}, not in production`); continue }
+    if (a.rls !== e.rls) diffs.push(`RLS    ${name} — expected ${e.rls ? 'on' : 'off'}, production ${a.rls ? 'on' : 'off'}`)
+    if (a.forced !== e.forced) diffs.push(`FORCED ${name} — expected ${e.forced}, production ${a.forced}`)
+    for (const pname of [...new Set([...a.policies.keys(), ...e.policies.keys()])].sort()) {
+      const ap = a.policies.get(pname), ep = e.policies.get(pname), at = `${name} "${escCtl(pname)}"`
+      if (!ep) { diffs.push(`NEW    policy ${at} — ${ap.command} to ${ap.roles.map(escCtl).join(',')} · using ${rlsShow(ap.using)} · check ${rlsShow(ap.check)}`); continue }
+      if (!ap) { diffs.push(`GONE   policy ${at}`); continue }
+      if (ap.command !== ep.command) diffs.push(`POLICY ${at} · command — expected ${ep.command}, production ${ap.command}`)
+      if (ap.roles.join('\n') !== ep.roles.join('\n')) diffs.push(`POLICY ${at} · roles — expected ${ep.roles.map(escCtl).join(',')}, production ${ap.roles.map(escCtl).join(',')}`)
+      if (ap.permissive !== ep.permissive) diffs.push(`POLICY ${at} · permissive — expected ${ep.permissive}, production ${ap.permissive}`)
+      for (const k of ['using', 'check']) if (ap[k] !== ep[k]) diffs.push(`POLICY ${at} · ${k} — expected ${rlsShow(ep[k])}, production ${rlsShow(ap[k])}`)
+    }
+  }
+  return diffs
+}
+
+// Fetch (or read --report) and validate; returns the canonical Map or prints UNVERIFIED and exits 2
+async function rlsActual(argv, label) {
+  const opt = n => { const i = argv.indexOf(n); return i >= 0 ? argv[i + 1] : null }
+  let fetched
+  if (opt('--report')) { try { fetched = { rows: readJson(opt('--report')) } } catch { fetched = { error: 'report file is not valid JSON' } } }
+  else fetched = await fetchAclReport('harness_rls_report')
+  if (fetched.error) { console.log(`${label}: UNVERIFIED — ${fetched.error}`); process.exit(2) }
+  const { tables, malformed } = parseRlsReport(fetched.rows)
+  if (malformed.length) { console.log(`${label}: UNVERIFIED — malformed report:`); for (const m of malformed.slice(0, 20)) console.log(`  ${escCtl(m)}`); process.exit(2) }
+  if (!Object.keys(tables).length) { console.log(`${label}: UNVERIFIED — no tables in the report`); process.exit(2) }
+  return rlsCanonFromReport(tables)
+}
+
+// rls-audit [--report <file.json>] [--expected <rls.json>]
+async function rlsAudit(argv) {
+  const opt = n => { const i = argv.indexOf(n); return i >= 0 ? argv[i + 1] : null }
+  const file = opt('--expected') || RLS_FILE
+  let expected
+  try { expected = readRlsExpected(file) } catch (e) { console.log(`rls audit: UNVERIFIED — ${e.message}`); process.exit(2) }
+  const actual = await rlsActual(argv, 'rls audit')
+  const diffs = compareRls(actual, expected)
+  if (diffs.length) { console.log(`rls audit: FAIL — ${diffs.length} difference(s) from ${file}:`); for (const d of diffs) console.log(`  ${d}`); process.exit(1) }
+  const n = [...actual.values()].reduce((s, t) => s + t.policies.size, 0)
+  console.log(`rls audit: PASS — ${actual.size} tables, ${n} policies match ${file}`)
+}
+
+// rls-snapshot [--report <file.json>] [--out <rls.json>]: write the expectation from a validated, non-empty
+// report (read-only query). Baseline only — never to paper over a difference. On any error the existing file
+// is left untouched (written to a temp file, checked, then renamed over it).
+async function rlsSnapshot(argv) {
+  const opt = n => { const i = argv.indexOf(n); return i >= 0 ? argv[i + 1] : null }
+  const out = opt('--out') || RLS_FILE
+  const actual = await rlsActual(argv, 'rls snapshot')
+  const tables = {}
+  for (const name of [...actual.keys()].sort()) {
+    const t = actual.get(name), policies = {}
+    for (const pname of [...t.policies.keys()].sort()) {
+      const p = t.policies.get(pname)
+      Object.defineProperty(policies, pname, { value: { command: p.command, roles: p.roles, permissive: p.permissive, using: p.using, check: p.check }, enumerable: true, writable: true, configurable: true })
+    }
+    tables[name] = { rls: t.rls, forced: t.forced, policies }
+  }
+  const tmp = `${out}.tmp-${process.pid}`
+  writeJson(tmp, { note: RLS_NOTE, tables })
+  try { if (compareRls(actual, readRlsExpected(tmp)).length) throw new Error('round trip differs') } catch (e) {
+    rmSync(tmp, { force: true }); console.log(`rls snapshot: failed — ${escCtl(e.message)}`); process.exit(2)
+  }
+  renameSync(tmp, out)
+  const n = [...actual.values()].reduce((s, t) => s + t.policies.size, 0)
+  console.log(`rls snapshot: wrote ${out} — ${actual.size} tables, ${n} policies`)
+}
+
 // acl-snapshot: write supabase/access.json from the live report (read-only query). Baseline only.
 async function aclSnapshot() {
   const fetched = await fetchAclReport()
@@ -423,6 +561,34 @@ function rlsSelftest() {
     const detail = ok ? '' : leaked.length ? ' — output contains a forbidden string; output withheld' : `${missing.length ? ` — missing: ${missing.join(' | ')}` : ''}\n${out}`
     console.log(`  ${ok ? '✓' : '✗'} ${name}: exit ${r.status} (want ${want})${detail}`)
   }
+  // Audit / snapshot cases: docs/harness/test/rls-audit/<case>/ — report.json, rls.json, expect, optional
+  // contains / forbid; optional `argv` (one line, placeholders {report} {expected} {out}; default rls-audit),
+  // `env.json` (the child's whole environment; default empty), `before.json` (copied to {out} first) and
+  // `after.json` ({out} must equal it afterwards) or `after-absent` ({out} must not exist afterwards).
+  const adir = join(dirname(new URL(import.meta.url).pathname), 'test', 'rls-audit')
+  for (const name of readdirSync(adir).sort()) {
+    const c = join(adir, name)
+    const want = Number(readFileSync(join(c, 'expect'), 'utf8').trim())
+    const tmp = mkdtempSync(join(tmpdir(), 'rls-selftest-')), out = join(tmp, 'rls.json')
+    if (existsSync(join(c, 'before.json'))) copyFileSync(join(c, 'before.json'), out)
+    const fill = s => s.replace('{report}', join(c, 'report.json')).replace('{expected}', join(c, 'rls.json')).replace('{out}', out)
+    const argv = existsSync(join(c, 'argv')) ? readFileSync(join(c, 'argv'), 'utf8').trim().split(/\s+/).map(fill)
+      : ['rls-audit', '--report', join(c, 'report.json'), '--expected', join(c, 'rls.json')]
+    const env = existsSync(join(c, 'env.json')) ? readJson(join(c, 'env.json')) : {}
+    const r = spawnSync(process.execPath, [new URL(import.meta.url).pathname, ...argv], { encoding: 'utf8', env })
+    const output = `${r.stdout || ''}${r.stderr || ''}`
+    const missing = lines(join(c, 'contains')).filter(x => !output.includes(x))
+    const leaked = lines(join(c, 'forbid')).filter(x => output.includes(x))
+    let fileProblem = ''
+    if (existsSync(join(c, 'after.json')) && (!existsSync(out) || readFileSync(out, 'utf8') !== readFileSync(join(c, 'after.json'), 'utf8'))) fileProblem = ' — output file differs from after.json'
+    if (existsSync(join(c, 'after-absent')) && existsSync(out)) fileProblem = ' — output file was written'
+    if (readdirSync(tmp).some(f => f.includes('.tmp-'))) fileProblem += ' — temp file left behind'
+    rmSync(tmp, { recursive: true, force: true })
+    const ok = r.status === want && !missing.length && !leaked.length && !fileProblem
+    if (!ok) failures++
+    const detail = ok ? '' : leaked.length ? ' — output contains a forbidden string; output withheld' : `${fileProblem}${missing.length ? ` — missing: ${missing.join(' | ')}` : ''}\n${output}`
+    console.log(`  ${ok ? '✓' : '✗'} audit/${name}: exit ${r.status} (want ${want})${detail}`)
+  }
   console.log(failures ? `rls selftest: FAIL — ${failures} case(s)` : 'rls selftest: PASS')
   process.exit(failures ? 1 : 0)
 }
@@ -439,6 +605,8 @@ const commands = {
   'acl-selftest': () => aclSelftest(),
   'rls-report': () => rlsReport(args),
   'rls-selftest': () => rlsSelftest(),
+  'rls-audit': () => rlsAudit(args),
+  'rls-snapshot': () => rlsSnapshot(args),
 }
 if (!commands[cmd]) { console.error(`unknown command: ${cmd}`); process.exit(2) }
 commands[cmd]()

@@ -1,0 +1,1 @@
+POLICY public.beta "Insert own" · command — expected INSERT, production ALL

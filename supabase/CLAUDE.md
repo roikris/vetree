@@ -546,8 +546,18 @@ missing from the file, an object gone from the database, a different kind, or an
 `acl-selftest` runs its offline fixtures (docs/harness/test/acl/), including sentinel checks that no output ever
 echoes response content. `acl-snapshot` writes the baseline from production — run once when the audit is
 introduced, then never to paper over a difference: fix the grants or the file deliberately.
-**Order for a new table:** migration with grants → `db push` (Roi's yes, rule 15) → update `access.json` → PR CI
-audits production against it → merge. (Between push and merge the daily audit on `main` can mismatch.)
+**The policy audit (infra-002)** — `node docs/harness/harness.mjs rls-audit` does the same for row-level security:
+production's `public.harness_rls_report()` (075) vs `supabase/rls.json`, exactly — per public table RLS on / forced,
+and each policy's command, roles, permissive flag and USING / WITH CHECK text as `pg_get_expr` prints it (byte for
+byte; a Postgres upgrade that re-prints an expression is a diff to review, then the file is updated in a PR). Same
+exit codes and the same places as acl-audit (`init.sh check`, PR `smoke`, daily `qa-smoke.yml` with Slack); `rls-selftest`
+runs its fixtures (docs/harness/test/rls, test/rls-audit). **A migration that creates, changes or drops a policy,
+toggles RLS, or adds / drops a table updates `rls.json` in the same PR.** `rls-snapshot` writes the baseline (once,
+2026-10-11) — never to paper over a difference. Scope: public ordinary + partitioned tables — not other schemas,
+views' security settings, or what a helper function called inside a policy does; a scheduled audit catches drift that
+persists, not a change made and reverted between runs.
+**Order for a new table:** migration with grants → `db push` (Roi's yes, rule 15) → update `access.json` (and
+`rls.json`) → PR CI audits production against them → merge. (Between push and merge the daily audit on `main` can mismatch.)
 **Limits:** direct relation privileges only — not role membership / inherited privileges, column grants, RLS,
 schema USAGE or grant options. A match proves neither that the app can do what it needs nor that a role is
 effectively denied. **Least privilege since migration 079 (infra-002):** anon / authenticated hold only the commands
