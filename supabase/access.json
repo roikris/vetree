@@ -3,24 +3,11 @@
   "objects": {
     "public.analytics_daily_snapshot": {
       "kind": "table",
-      "anon": [
-        "DELETE",
-        "INSERT",
-        "MAINTAIN",
-        "REFERENCES",
-        "SELECT",
-        "TRIGGER",
-        "TRUNCATE",
-        "UPDATE"
-      ],
+      "anon": [],
       "authenticated": [
         "DELETE",
         "INSERT",
-        "MAINTAIN",
-        "REFERENCES",
         "SELECT",
-        "TRIGGER",
-        "TRUNCATE",
         "UPDATE"
       ],
       "service_role": [
@@ -37,23 +24,9 @@
     },
     "public.analytics_events": {
       "kind": "table",
-      "anon": [
-        "DELETE",
-        "MAINTAIN",
-        "REFERENCES",
-        "SELECT",
-        "TRIGGER",
-        "TRUNCATE",
-        "UPDATE"
-      ],
+      "anon": [],
       "authenticated": [
-        "DELETE",
-        "MAINTAIN",
-        "REFERENCES",
-        "SELECT",
-        "TRIGGER",
-        "TRUNCATE",
-        "UPDATE"
+        "SELECT"
       ],
       "service_role": [
         "DELETE",
@@ -69,24 +42,11 @@
     },
     "public.analytics_insight_feedback": {
       "kind": "table",
-      "anon": [
-        "DELETE",
-        "INSERT",
-        "MAINTAIN",
-        "REFERENCES",
-        "SELECT",
-        "TRIGGER",
-        "TRUNCATE",
-        "UPDATE"
-      ],
+      "anon": [],
       "authenticated": [
         "DELETE",
         "INSERT",
-        "MAINTAIN",
-        "REFERENCES",
         "SELECT",
-        "TRIGGER",
-        "TRUNCATE",
         "UPDATE"
       ],
       "service_role": [
@@ -103,24 +63,11 @@
     },
     "public.analytics_insights": {
       "kind": "table",
-      "anon": [
-        "DELETE",
-        "INSERT",
-        "MAINTAIN",
-        "REFERENCES",
-        "SELECT",
-        "TRIGGER",
-        "TRUNCATE",
-        "UPDATE"
-      ],
+      "anon": [],
       "authenticated": [
         "DELETE",
         "INSERT",
-        "MAINTAIN",
-        "REFERENCES",
         "SELECT",
-        "TRIGGER",
-        "TRUNCATE",
         "UPDATE"
       ],
       "service_role": [
@@ -153,16 +100,8 @@
     },
     "public.analytics_maintenance_log_id_seq": {
       "kind": "sequence",
-      "anon": [
-        "SELECT",
-        "UPDATE",
-        "USAGE"
-      ],
-      "authenticated": [
-        "SELECT",
-        "UPDATE",
-        "USAGE"
-      ],
+      "anon": [],
+      "authenticated": [],
       "service_role": [
         "SELECT",
         "UPDATE",
@@ -172,24 +111,11 @@
     },
     "public.analytics_opportunities": {
       "kind": "table",
-      "anon": [
-        "DELETE",
-        "INSERT",
-        "MAINTAIN",
-        "REFERENCES",
-        "SELECT",
-        "TRIGGER",
-        "TRUNCATE",
-        "UPDATE"
-      ],
+      "anon": [],
       "authenticated": [
         "DELETE",
         "INSERT",
-        "MAINTAIN",
-        "REFERENCES",
         "SELECT",
-        "TRIGGER",
-        "TRUNCATE",
         "UPDATE"
       ],
       "service_role": [
@@ -206,24 +132,11 @@
     },
     "public.analytics_signals": {
       "kind": "table",
-      "anon": [
-        "DELETE",
-        "INSERT",
-        "MAINTAIN",
-        "REFERENCES",
-        "SELECT",
-        "TRIGGER",
-        "TRUNCATE",
-        "UPDATE"
-      ],
+      "anon": [],
       "authenticated": [
         "DELETE",
         "INSERT",
-        "MAINTAIN",
-        "REFERENCES",
         "SELECT",
-        "TRIGGER",
-        "TRUNCATE",
         "UPDATE"
       ],
       "service_role": [
@@ -241,24 +154,10 @@
     "public.articles": {
       "kind": "table",
       "anon": [
-        "DELETE",
-        "INSERT",
-        "MAINTAIN",
-        "REFERENCES",
-        "SELECT",
-        "TRIGGER",
-        "TRUNCATE",
-        "UPDATE"
+        "SELECT"
       ],
       "authenticated": [
-        "DELETE",
-        "INSERT",
-        "MAINTAIN",
-        "REFERENCES",
-        "SELECT",
-        "TRIGGER",
-        "TRUNCATE",
-        "UPDATE"
+        "SELECT"
       ],
       "service_role": [
         "DELETE",
@@ -274,24 +173,11 @@
     },
     "public.articles_blacklist": {
       "kind": "table",
-      "anon": [
-        "DELETE",
-        "INSERT",
-        "MAINTAIN",
-        "REFERENCES",
-        "SELECT",
-        "TRIGGER",
-        "TRUNCATE",
-        "UPDATE"
-      ],
+      "anon": [],
       "authenticated": [
         "DELETE",
         "INSERT",
-        "MAINTAIN",
-        "REFERENCES",
         "SELECT",
-        "TRIGGER",
-        "TRUNCATE",
         "UPDATE"
       ],
       "service_role": [
@@ -308,25 +194,9 @@
     },
     "public.digest_logs": {
       "kind": "table",
-      "anon": [
-        "DELETE",
-        "INSERT",
-        "MAINTAIN",
-        "REFERENCES",
-        "SELECT",
-        "TRIGGER",
-        "TRUNCATE",
-        "UPDATE"
-      ],
+      "anon": [],
       "authenticated": [
-        "DELETE",
-        "INSERT",
-        "MAINTAIN",
-        "REFERENCES",
-        "SELECT",
-        "TRIGGER",
-        "TRUNCATE",
-        "UPDATE"
+        "SELECT"
       ],
       "service_role": [
         "DELETE",
@@ -342,25 +212,9 @@
     },
     "public.digest_runs": {
       "kind": "table",
-      "anon": [
-        "DELETE",
-        "INSERT",
-        "MAINTAIN",
-        "REFERENCES",
-        "SELECT",
-        "TRIGGER",
-        "TRUNCATE",
-        "UPDATE"
-      ],
+      "anon": [],
       "authenticated": [
-        "DELETE",
-        "INSERT",
-        "MAINTAIN",
-        "REFERENCES",
-        "SELECT",
-        "TRIGGER",
-        "TRUNCATE",
-        "UPDATE"
+        "SELECT"
       ],
       "service_role": [
         "DELETE",
@@ -376,24 +230,11 @@
     },
     "public.digest_sent_articles": {
       "kind": "table",
-      "anon": [
-        "DELETE",
-        "INSERT",
-        "MAINTAIN",
-        "REFERENCES",
-        "SELECT",
-        "TRIGGER",
-        "TRUNCATE",
-        "UPDATE"
-      ],
+      "anon": [],
       "authenticated": [
         "DELETE",
         "INSERT",
-        "MAINTAIN",
-        "REFERENCES",
         "SELECT",
-        "TRIGGER",
-        "TRUNCATE",
         "UPDATE"
       ],
       "service_role": [
@@ -410,24 +251,11 @@
     },
     "public.feature_flags": {
       "kind": "table",
-      "anon": [
-        "DELETE",
-        "INSERT",
-        "MAINTAIN",
-        "REFERENCES",
-        "SELECT",
-        "TRIGGER",
-        "TRUNCATE",
-        "UPDATE"
-      ],
+      "anon": [],
       "authenticated": [
         "DELETE",
         "INSERT",
-        "MAINTAIN",
-        "REFERENCES",
         "SELECT",
-        "TRIGGER",
-        "TRUNCATE",
         "UPDATE"
       ],
       "service_role": [
@@ -444,24 +272,11 @@
     },
     "public.followed_tags": {
       "kind": "table",
-      "anon": [
-        "DELETE",
-        "INSERT",
-        "MAINTAIN",
-        "REFERENCES",
-        "SELECT",
-        "TRIGGER",
-        "TRUNCATE",
-        "UPDATE"
-      ],
+      "anon": [],
       "authenticated": [
         "DELETE",
         "INSERT",
-        "MAINTAIN",
-        "REFERENCES",
         "SELECT",
-        "TRIGGER",
-        "TRUNCATE",
         "UPDATE"
       ],
       "service_role": [
@@ -478,24 +293,11 @@
     },
     "public.growth_agent_memory": {
       "kind": "table",
-      "anon": [
-        "DELETE",
-        "INSERT",
-        "MAINTAIN",
-        "REFERENCES",
-        "SELECT",
-        "TRIGGER",
-        "TRUNCATE",
-        "UPDATE"
-      ],
+      "anon": [],
       "authenticated": [
         "DELETE",
         "INSERT",
-        "MAINTAIN",
-        "REFERENCES",
         "SELECT",
-        "TRIGGER",
-        "TRUNCATE",
         "UPDATE"
       ],
       "service_role": [
@@ -512,24 +314,11 @@
     },
     "public.growth_agent_preferences": {
       "kind": "table",
-      "anon": [
-        "DELETE",
-        "INSERT",
-        "MAINTAIN",
-        "REFERENCES",
-        "SELECT",
-        "TRIGGER",
-        "TRUNCATE",
-        "UPDATE"
-      ],
+      "anon": [],
       "authenticated": [
         "DELETE",
         "INSERT",
-        "MAINTAIN",
-        "REFERENCES",
         "SELECT",
-        "TRIGGER",
-        "TRUNCATE",
         "UPDATE"
       ],
       "service_role": [
@@ -578,24 +367,11 @@
     },
     "public.growth_tasks": {
       "kind": "table",
-      "anon": [
-        "DELETE",
-        "INSERT",
-        "MAINTAIN",
-        "REFERENCES",
-        "SELECT",
-        "TRIGGER",
-        "TRUNCATE",
-        "UPDATE"
-      ],
+      "anon": [],
       "authenticated": [
         "DELETE",
         "INSERT",
-        "MAINTAIN",
-        "REFERENCES",
         "SELECT",
-        "TRIGGER",
-        "TRUNCATE",
         "UPDATE"
       ],
       "service_role": [
@@ -612,24 +388,11 @@
     },
     "public.linkedin_daily_metrics": {
       "kind": "table",
-      "anon": [
-        "DELETE",
-        "INSERT",
-        "MAINTAIN",
-        "REFERENCES",
-        "SELECT",
-        "TRIGGER",
-        "TRUNCATE",
-        "UPDATE"
-      ],
+      "anon": [],
       "authenticated": [
         "DELETE",
         "INSERT",
-        "MAINTAIN",
-        "REFERENCES",
         "SELECT",
-        "TRIGGER",
-        "TRUNCATE",
         "UPDATE"
       ],
       "service_role": [
@@ -646,24 +409,11 @@
     },
     "public.linkedin_post_metrics": {
       "kind": "table",
-      "anon": [
-        "DELETE",
-        "INSERT",
-        "MAINTAIN",
-        "REFERENCES",
-        "SELECT",
-        "TRIGGER",
-        "TRUNCATE",
-        "UPDATE"
-      ],
+      "anon": [],
       "authenticated": [
         "DELETE",
         "INSERT",
-        "MAINTAIN",
-        "REFERENCES",
         "SELECT",
-        "TRIGGER",
-        "TRUNCATE",
         "UPDATE"
       ],
       "service_role": [
@@ -680,23 +430,9 @@
     },
     "public.page_views": {
       "kind": "table",
-      "anon": [
-        "DELETE",
-        "MAINTAIN",
-        "REFERENCES",
-        "SELECT",
-        "TRIGGER",
-        "TRUNCATE",
-        "UPDATE"
-      ],
+      "anon": [],
       "authenticated": [
-        "DELETE",
-        "MAINTAIN",
-        "REFERENCES",
-        "SELECT",
-        "TRIGGER",
-        "TRUNCATE",
-        "UPDATE"
+        "SELECT"
       ],
       "service_role": [
         "DELETE",
@@ -712,24 +448,11 @@
     },
     "public.reports": {
       "kind": "table",
-      "anon": [
-        "DELETE",
-        "INSERT",
-        "MAINTAIN",
-        "REFERENCES",
-        "SELECT",
-        "TRIGGER",
-        "TRUNCATE",
-        "UPDATE"
-      ],
+      "anon": [],
       "authenticated": [
         "DELETE",
         "INSERT",
-        "MAINTAIN",
-        "REFERENCES",
         "SELECT",
-        "TRIGGER",
-        "TRUNCATE",
         "UPDATE"
       ],
       "service_role": [
@@ -747,24 +470,12 @@
     "public.saved_articles": {
       "kind": "table",
       "anon": [
-        "DELETE",
-        "INSERT",
-        "MAINTAIN",
-        "REFERENCES",
-        "SELECT",
-        "TRIGGER",
-        "TRUNCATE",
-        "UPDATE"
+        "SELECT"
       ],
       "authenticated": [
         "DELETE",
         "INSERT",
-        "MAINTAIN",
-        "REFERENCES",
-        "SELECT",
-        "TRIGGER",
-        "TRUNCATE",
-        "UPDATE"
+        "SELECT"
       ],
       "service_role": [
         "DELETE",
@@ -780,23 +491,9 @@
     },
     "public.search_logs": {
       "kind": "table",
-      "anon": [
-        "DELETE",
-        "MAINTAIN",
-        "REFERENCES",
-        "SELECT",
-        "TRIGGER",
-        "TRUNCATE",
-        "UPDATE"
-      ],
+      "anon": [],
       "authenticated": [
-        "DELETE",
-        "MAINTAIN",
-        "REFERENCES",
-        "SELECT",
-        "TRIGGER",
-        "TRUNCATE",
-        "UPDATE"
+        "SELECT"
       ],
       "service_role": [
         "DELETE",
@@ -812,24 +509,11 @@
     },
     "public.security_reports": {
       "kind": "table",
-      "anon": [
-        "DELETE",
-        "INSERT",
-        "MAINTAIN",
-        "REFERENCES",
-        "SELECT",
-        "TRIGGER",
-        "TRUNCATE",
-        "UPDATE"
-      ],
+      "anon": [],
       "authenticated": [
         "DELETE",
         "INSERT",
-        "MAINTAIN",
-        "REFERENCES",
         "SELECT",
-        "TRIGGER",
-        "TRUNCATE",
         "UPDATE"
       ],
       "service_role": [
@@ -846,24 +530,11 @@
     },
     "public.sync_skipped_articles": {
       "kind": "table",
-      "anon": [
-        "DELETE",
-        "INSERT",
-        "MAINTAIN",
-        "REFERENCES",
-        "SELECT",
-        "TRIGGER",
-        "TRUNCATE",
-        "UPDATE"
-      ],
+      "anon": [],
       "authenticated": [
         "DELETE",
         "INSERT",
-        "MAINTAIN",
-        "REFERENCES",
         "SELECT",
-        "TRIGGER",
-        "TRUNCATE",
         "UPDATE"
       ],
       "service_role": [
@@ -880,23 +551,9 @@
     },
     "public.synthesis_feedback": {
       "kind": "table",
-      "anon": [
-        "DELETE",
-        "MAINTAIN",
-        "REFERENCES",
-        "SELECT",
-        "TRIGGER",
-        "TRUNCATE",
-        "UPDATE"
-      ],
+      "anon": [],
       "authenticated": [
-        "DELETE",
-        "MAINTAIN",
-        "REFERENCES",
-        "SELECT",
-        "TRIGGER",
-        "TRUNCATE",
-        "UPDATE"
+        "SELECT"
       ],
       "service_role": [
         "DELETE",
@@ -928,25 +585,9 @@
     },
     "public.user_consents": {
       "kind": "table",
-      "anon": [
-        "DELETE",
-        "INSERT",
-        "MAINTAIN",
-        "REFERENCES",
-        "SELECT",
-        "TRIGGER",
-        "TRUNCATE",
-        "UPDATE"
-      ],
+      "anon": [],
       "authenticated": [
-        "DELETE",
-        "INSERT",
-        "MAINTAIN",
-        "REFERENCES",
-        "SELECT",
-        "TRIGGER",
-        "TRUNCATE",
-        "UPDATE"
+        "SELECT"
       ],
       "service_role": [
         "DELETE",
@@ -962,24 +603,11 @@
     },
     "public.user_preferences": {
       "kind": "table",
-      "anon": [
-        "DELETE",
-        "INSERT",
-        "MAINTAIN",
-        "REFERENCES",
-        "SELECT",
-        "TRIGGER",
-        "TRUNCATE",
-        "UPDATE"
-      ],
+      "anon": [],
       "authenticated": [
         "DELETE",
         "INSERT",
-        "MAINTAIN",
-        "REFERENCES",
         "SELECT",
-        "TRIGGER",
-        "TRUNCATE",
         "UPDATE"
       ],
       "service_role": [
@@ -996,24 +624,11 @@
     },
     "public.user_roles": {
       "kind": "table",
-      "anon": [
-        "DELETE",
-        "INSERT",
-        "MAINTAIN",
-        "REFERENCES",
-        "SELECT",
-        "TRIGGER",
-        "TRUNCATE",
-        "UPDATE"
-      ],
+      "anon": [],
       "authenticated": [
         "DELETE",
         "INSERT",
-        "MAINTAIN",
-        "REFERENCES",
         "SELECT",
-        "TRIGGER",
-        "TRUNCATE",
         "UPDATE"
       ],
       "service_role": [

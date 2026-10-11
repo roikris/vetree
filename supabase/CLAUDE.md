@@ -550,7 +550,10 @@ introduced, then never to paper over a difference: fix the grants or the file de
 audits production against it → merge. (Between push and merge the daily audit on `main` can mismatch.)
 **Limits:** direct relation privileges only — not role membership / inherited privileges, column grants, RLS,
 schema USAGE or grant options. A match proves neither that the app can do what it needs nor that a role is
-effectively denied. Follow-ups: infra-002 (least-privilege review of the baseline), infra-003 (make grants explicit
+effectively denied. **Least privilege since migration 079 (infra-002):** anon / authenticated hold only the commands
+their policies allow (anon: SELECT on articles, and on saved_articles until Trending is fixed); nobody but
+service_role / postgres holds TRUNCATE, TRIGGER, REFERENCES or MAINTAIN. A new policy for a role needs the matching
+grant, and a new grant needs a policy — keep the two in step. Follow-up: infra-003 (make grants explicit
 for objects created under the old defaults, e.g. `analytics_events` (041), so a fresh rebuild matches).
 
 ## SQL Function Security (required)
