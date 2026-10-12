@@ -87,7 +87,7 @@ for f in "$ROOT"/supabase/migrations/*.sql; do
   base=$(basename "$f")
   if ! q -1 < "$f" > "$OUT/migrate.log" 2>&1; then
     echo "replay ($MODE): migration $base FAILED — first error:"
-    grep -E 'ERROR|FATAL|DETAIL|HINT|LINE' "$OUT/migrate.log" | head -4 | sed 's/^/  /' | cut -c1-300
+    tail -6 "$OUT/migrate.log" | sed 's/^/  /' | cut -c1-300
     exit 2
   fi
   n=$((n + 1))
