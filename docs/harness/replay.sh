@@ -46,7 +46,7 @@ qsu() { docker exec -i "$NAME" psql -U supabase_admin -h 127.0.0.1 -d postgres -
 # Every default-privilege entry, one line each: role · schema|(global) · type · grantee:PRIVILEGE:grantable,… (merged
 # across grantors, sorted — the same form as the schema report's ACLs) — compared before / after
 dacl() { q -c "select pg_get_userbyid(d.defaclrole) || ' · ' || coalesce(n.nspname, '(global)') || ' · ' || d.defaclobjtype::text || ' · ' ||
-                      coalesce((select string_agg(g.grantee || ':' || g.privilege || ':' || g.grantable, ',' order by g.grantee, g.privilege)
+                      coalesce((select string_agg(g.grantee || ':' || g.privilege || ':' || case when g.grantable then 't' else 'f' end, ',' order by g.grantee, g.privilege)
                                 from (select case when a.grantee = 0 then 'PUBLIC' else pg_get_userbyid(a.grantee)::text end as grantee,
                                              a.privilege_type as privilege, bool_or(a.is_grantable) as grantable
                                       from aclexplode(d.defaclacl) a group by 1, 2) g), '')
