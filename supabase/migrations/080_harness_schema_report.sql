@@ -10,7 +10,10 @@
 -- UNVERIFIED): relations (r, p, v, m, S, f) with owner, full ACL incl. grant options, RLS flags, options,
 -- columns, constraints, indexes, triggers, view definitions, sequence settings and ownership; routines (f, p);
 -- enum / domain / composite types; schema public's owner and ACL; extensions; default privileges; the
--- Supabase roles' attributes and memberships; event triggers; publications. Generated dependents (a relation's
+-- Supabase roles' attributes and memberships (with ADMIN / INHERIT / SET); event triggers; publications (operations,
+-- schemas, tables with row filters and column lists). ACL entries from several grantors are merged per grantee +
+-- privilege (grant option = any). An inventory of every pg_class / pg_type / pg_proc / pg_constraint row in public
+-- lets the client check each object is reported exactly once. Generated dependents (a relation's
 -- row type, array types, index relations of covered tables) are classified, not counted as unsupported.
 -- Policies are 075's (supabase/rls.json). Objects that belong to an extension are covered by the extension.
 --
@@ -118,6 +121,14 @@ unsupported AS (
   WHERE x.dictnamespace = (SELECT oid FROM pub)
     AND NOT EXISTS (SELECT 1 FROM ext_member e WHERE e.classid = 'pg_catalog.pg_ts_dict'::pg_catalog.regclass AND e.objid = x.oid)
   UNION ALL
+  SELECT 'text search parser', x.prsname::text FROM pg_catalog.pg_ts_parser x
+  WHERE x.prsnamespace = (SELECT oid FROM pub)
+    AND NOT EXISTS (SELECT 1 FROM ext_member e WHERE e.classid = 'pg_catalog.pg_ts_parser'::pg_catalog.regclass AND e.objid = x.oid)
+  UNION ALL
+  SELECT 'text search template', x.tmplname::text FROM pg_catalog.pg_ts_template x
+  WHERE x.tmplnamespace = (SELECT oid FROM pub)
+    AND NOT EXISTS (SELECT 1 FROM ext_member e WHERE e.classid = 'pg_catalog.pg_ts_template'::pg_catalog.regclass AND e.objid = x.oid)
+  UNION ALL
   SELECT 'statistics object', s.stxname::text FROM pg_catalog.pg_statistic_ext s
   WHERE s.stxnamespace = (SELECT oid FROM pub)
   UNION ALL
@@ -138,11 +149,11 @@ SELECT pg_catalog.jsonb_build_object(
                              WHEN 'm' THEN 'materialized view' WHEN 'S' THEN 'sequence' WHEN 'f' THEN 'foreign table' END,
       'owner', pg_catalog.pg_get_userbyid(c.relowner)::text,
       'acl', COALESCE((
-        SELECT pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(
-                 'grantee', CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE pg_catalog.pg_get_userbyid(a.grantee)::text END,
-                 'privilege', a.privilege_type, 'grantable', a.is_grantable)
-               ORDER BY CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE pg_catalog.pg_get_userbyid(a.grantee)::text END, a.privilege_type)
-        FROM pg_catalog.aclexplode(COALESCE(c.relacl, pg_catalog.acldefault(CASE WHEN c.relkind = 'S' THEN 's' ELSE 'r' END::"char", c.relowner))) a
+        SELECT pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object('grantee', g.grantee, 'privilege', g.privilege, 'grantable', g.grantable)
+               ORDER BY g.grantee, g.privilege)
+        FROM (SELECT CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE pg_catalog.pg_get_userbyid(a.grantee)::text END AS grantee,
+                     a.privilege_type AS privilege, pg_catalog.bool_or(a.is_grantable) AS grantable
+              FROM pg_catalog.aclexplode(COALESCE(c.relacl, pg_catalog.acldefault(CASE WHEN c.relkind = 'S' THEN 's' ELSE 'r' END::"char", c.relowner))) a GROUP BY 1, 2) g
       ), '[]'::jsonb),
       'rls', c.relrowsecurity,
       'rls_forced', c.relforcerowsecurity,
@@ -160,11 +171,11 @@ SELECT pg_catalog.jsonb_build_object(
                  'identity', NULLIF(att.attidentity::text, ''),
                  'generated', NULLIF(att.attgenerated::text, ''),
                  'acl', COALESCE((
-                   SELECT pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(
-                            'grantee', CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE pg_catalog.pg_get_userbyid(a.grantee)::text END,
-                            'privilege', a.privilege_type, 'grantable', a.is_grantable)
-                          ORDER BY CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE pg_catalog.pg_get_userbyid(a.grantee)::text END, a.privilege_type)
-                   FROM pg_catalog.aclexplode(att.attacl) a
+                   SELECT pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object('grantee', g.grantee, 'privilege', g.privilege, 'grantable', g.grantable)
+                          ORDER BY g.grantee, g.privilege)
+                   FROM (SELECT CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE pg_catalog.pg_get_userbyid(a.grantee)::text END AS grantee,
+                                a.privilege_type AS privilege, pg_catalog.bool_or(a.is_grantable) AS grantable
+                         FROM pg_catalog.aclexplode(att.attacl) a GROUP BY 1, 2) g
                  ), '[]'::jsonb))
                ORDER BY att.attnum)
         FROM pg_catalog.pg_attribute att
@@ -224,11 +235,11 @@ SELECT pg_catalog.jsonb_build_object(
       'config', COALESCE(pg_catalog.to_jsonb(p.proconfig), '[]'::jsonb),
       'definition', pg_catalog.pg_get_functiondef(p.oid),
       'acl', COALESCE((
-        SELECT pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(
-                 'grantee', CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE pg_catalog.pg_get_userbyid(a.grantee)::text END,
-                 'privilege', a.privilege_type, 'grantable', a.is_grantable)
-               ORDER BY CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE pg_catalog.pg_get_userbyid(a.grantee)::text END, a.privilege_type)
-        FROM pg_catalog.aclexplode(COALESCE(p.proacl, pg_catalog.acldefault('f'::"char", p.proowner))) a
+        SELECT pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object('grantee', g.grantee, 'privilege', g.privilege, 'grantable', g.grantable)
+               ORDER BY g.grantee, g.privilege)
+        FROM (SELECT CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE pg_catalog.pg_get_userbyid(a.grantee)::text END AS grantee,
+                     a.privilege_type AS privilege, pg_catalog.bool_or(a.is_grantable) AS grantable
+              FROM pg_catalog.aclexplode(COALESCE(p.proacl, pg_catalog.acldefault('f'::"char", p.proowner))) a GROUP BY 1, 2) g
       ), '[]'::jsonb))
       ORDER BY p.oid::pg_catalog.regprocedure::text)
     FROM fn p WHERE p.prokind IN ('f', 'p')
@@ -240,11 +251,11 @@ SELECT pg_catalog.jsonb_build_object(
       'kind', k.class,
       'owner', pg_catalog.pg_get_userbyid(t.typowner)::text,
       'acl', COALESCE((
-        SELECT pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(
-                 'grantee', CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE pg_catalog.pg_get_userbyid(a.grantee)::text END,
-                 'privilege', a.privilege_type, 'grantable', a.is_grantable)
-               ORDER BY CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE pg_catalog.pg_get_userbyid(a.grantee)::text END, a.privilege_type)
-        FROM pg_catalog.aclexplode(COALESCE(t.typacl, pg_catalog.acldefault('T'::"char", t.typowner))) a
+        SELECT pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object('grantee', g.grantee, 'privilege', g.privilege, 'grantable', g.grantable)
+               ORDER BY g.grantee, g.privilege)
+        FROM (SELECT CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE pg_catalog.pg_get_userbyid(a.grantee)::text END AS grantee,
+                     a.privilege_type AS privilege, pg_catalog.bool_or(a.is_grantable) AS grantable
+              FROM pg_catalog.aclexplode(COALESCE(t.typacl, pg_catalog.acldefault('T'::"char", t.typowner))) a GROUP BY 1, 2) g
       ), '[]'::jsonb),
       'labels', CASE WHEN k.class = 'enum' THEN COALESCE((
         SELECT pg_catalog.jsonb_agg(en.enumlabel::text ORDER BY en.enumsortorder)
@@ -272,11 +283,11 @@ SELECT pg_catalog.jsonb_build_object(
     SELECT pg_catalog.jsonb_build_object(
       'owner', pg_catalog.pg_get_userbyid(n.nspowner)::text,
       'acl', COALESCE((
-        SELECT pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(
-                 'grantee', CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE pg_catalog.pg_get_userbyid(a.grantee)::text END,
-                 'privilege', a.privilege_type, 'grantable', a.is_grantable)
-               ORDER BY CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE pg_catalog.pg_get_userbyid(a.grantee)::text END, a.privilege_type)
-        FROM pg_catalog.aclexplode(COALESCE(n.nspacl, pg_catalog.acldefault('n'::"char", n.nspowner))) a
+        SELECT pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object('grantee', g.grantee, 'privilege', g.privilege, 'grantable', g.grantable)
+               ORDER BY g.grantee, g.privilege)
+        FROM (SELECT CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE pg_catalog.pg_get_userbyid(a.grantee)::text END AS grantee,
+                     a.privilege_type AS privilege, pg_catalog.bool_or(a.is_grantable) AS grantable
+              FROM pg_catalog.aclexplode(COALESCE(n.nspacl, pg_catalog.acldefault('n'::"char", n.nspowner))) a GROUP BY 1, 2) g
       ), '[]'::jsonb))
     FROM pg_catalog.pg_namespace n WHERE n.nspname = 'public'),
 
@@ -294,11 +305,11 @@ SELECT pg_catalog.jsonb_build_object(
       'schema', (SELECT n.nspname::text FROM pg_catalog.pg_namespace n WHERE n.oid = da.defaclnamespace),
       'object_type', da.defaclobjtype::text,
       'acl', COALESCE((
-        SELECT pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(
-                 'grantee', CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE pg_catalog.pg_get_userbyid(a.grantee)::text END,
-                 'privilege', a.privilege_type, 'grantable', a.is_grantable)
-               ORDER BY CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE pg_catalog.pg_get_userbyid(a.grantee)::text END, a.privilege_type)
-        FROM pg_catalog.aclexplode(da.defaclacl) a
+        SELECT pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object('grantee', g.grantee, 'privilege', g.privilege, 'grantable', g.grantable)
+               ORDER BY g.grantee, g.privilege)
+        FROM (SELECT CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE pg_catalog.pg_get_userbyid(a.grantee)::text END AS grantee,
+                     a.privilege_type AS privilege, pg_catalog.bool_or(a.is_grantable) AS grantable
+              FROM pg_catalog.aclexplode(da.defaclacl) a GROUP BY 1, 2) g
       ), '[]'::jsonb))
       ORDER BY pg_catalog.pg_get_userbyid(da.defaclrole), da.defaclnamespace, da.defaclobjtype)
     FROM pg_catalog.pg_default_acl da
@@ -308,10 +319,15 @@ SELECT pg_catalog.jsonb_build_object(
     SELECT pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(
       'name', r.rolname::text, 'superuser', r.rolsuper, 'inherit', r.rolinherit, 'create_role', r.rolcreaterole,
       'create_db', r.rolcreatedb, 'login', r.rolcanlogin, 'replication', r.rolreplication, 'bypass_rls', r.rolbypassrls,
+      -- one entry per granted role (grants by several grantors merged), with the options that decide what the
+      -- membership allows: ADMIN (grant it on), INHERIT (use its privileges), SET (SET ROLE to it)
       'member_of', COALESCE((
-        SELECT pg_catalog.jsonb_agg(g.rolname::text ORDER BY g.rolname)
-        FROM pg_catalog.pg_auth_members m JOIN pg_catalog.pg_roles g ON g.oid = m.roleid
-        WHERE m.member = r.oid), '[]'::jsonb))
+        SELECT pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object('role', mm.role, 'admin', mm.admin, 'inherit', mm.inherit, 'set', mm.set)
+                                    ORDER BY mm.role)
+        FROM (SELECT g.rolname::text AS role, pg_catalog.bool_or(m.admin_option) AS admin,
+                     pg_catalog.bool_or(m.inherit_option) AS inherit, pg_catalog.bool_or(m.set_option) AS set
+              FROM pg_catalog.pg_auth_members m JOIN pg_catalog.pg_roles g ON g.oid = m.roleid
+              WHERE m.member = r.oid GROUP BY g.rolname) mm), '[]'::jsonb))
       ORDER BY r.rolname)
     FROM pg_catalog.pg_roles r
     WHERE r.rolname IN ('anon', 'authenticated', 'service_role', 'authenticator', 'postgres')
@@ -328,11 +344,26 @@ SELECT pg_catalog.jsonb_build_object(
 
   'publications', COALESCE((
     SELECT pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(
-      'name', pb.pubname::text, 'all_tables', pb.puballtables,
+      'name', pb.pubname::text, 'owner', pg_catalog.pg_get_userbyid(pb.pubowner)::text, 'all_tables', pb.puballtables,
+      'insert', pb.pubinsert, 'update', pb.pubupdate, 'delete', pb.pubdelete, 'truncate', pb.pubtruncate,
+      'via_root', pb.pubviaroot,
+      'schemas', COALESCE((
+        SELECT pg_catalog.jsonb_agg(n.nspname::text ORDER BY n.nspname)
+        FROM pg_catalog.pg_publication_namespace pn JOIN pg_catalog.pg_namespace n ON n.oid = pn.pnnspid
+        WHERE pn.pnpubid = pb.oid), '[]'::jsonb),
+      -- every table in the publication, any schema, with its row filter and column list (NULL = all columns)
       'tables', COALESCE((
-        SELECT pg_catalog.jsonb_agg(('public.' || pc.relname)::text ORDER BY pc.relname)
-        FROM pg_catalog.pg_publication_rel pr JOIN pg_catalog.pg_class pc ON pc.oid = pr.prrelid
-        WHERE pr.prpubid = pb.oid AND pc.relnamespace = (SELECT oid FROM pub)), '[]'::jsonb))
+        SELECT pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(
+                 'name', pn.nspname || '.' || pc.relname,
+                 'row_filter', pg_catalog.pg_get_expr(pr.prqual, pr.prrelid),
+                 'columns', CASE WHEN pr.prattrs IS NULL THEN NULL ELSE (
+                   SELECT pg_catalog.jsonb_agg(att.attname::text ORDER BY att.attnum) FROM pg_catalog.pg_attribute att
+                   WHERE att.attrelid = pr.prrelid AND att.attnum = ANY (pr.prattrs::pg_catalog.int2[])) END)
+               ORDER BY pn.nspname, pc.relname)
+        FROM pg_catalog.pg_publication_rel pr
+        JOIN pg_catalog.pg_class pc ON pc.oid = pr.prrelid
+        JOIN pg_catalog.pg_namespace pn ON pn.oid = pc.relnamespace
+        WHERE pr.prpubid = pb.oid), '[]'::jsonb))
       ORDER BY pb.pubname)
     FROM pg_catalog.pg_publication pb
   ), '[]'::jsonb),
@@ -357,7 +388,16 @@ SELECT pg_catalog.jsonb_build_object(
     'default_acls', (SELECT count(*) FROM pg_catalog.pg_default_acl),
     'event_triggers', (SELECT count(*) FROM pg_catalog.pg_event_trigger),
     'publications', (SELECT count(*) FROM pg_catalog.pg_publication),
-    'unsupported', (SELECT count(*) FROM unsupported))
+    'unsupported', (SELECT count(*) FROM unsupported),
+    -- inventory: EVERY object of these catalogs in public (extension members aside), counted without any
+    -- classification — the client checks each one is reported exactly once (covered, generated or unsupported)
+    'all_class', (SELECT count(*) FROM pg_catalog.pg_class c WHERE c.relnamespace = (SELECT oid FROM pub)
+                  AND NOT EXISTS (SELECT 1 FROM ext_member e WHERE e.classid = 'pg_catalog.pg_class'::pg_catalog.regclass AND e.objid = c.oid)),
+    'all_type', (SELECT count(*) FROM typ),
+    'all_proc', (SELECT count(*) FROM fn),
+    'all_constraint', (SELECT count(*) FROM pg_catalog.pg_constraint con WHERE con.connamespace = (SELECT oid FROM pub)
+                       AND NOT EXISTS (SELECT 1 FROM ext_member e WHERE e.classid = 'pg_catalog.pg_class'::pg_catalog.regclass AND e.objid = con.conrelid)
+                       AND NOT EXISTS (SELECT 1 FROM ext_member e WHERE e.classid = 'pg_catalog.pg_type'::pg_catalog.regclass AND e.objid = con.contypid)))
 )
 $$;
 

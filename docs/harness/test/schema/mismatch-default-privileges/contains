@@ -1,1 +1,1 @@
-NEW   default privileges postgres public r · present = true
+NEW   default privileges ["postgres","public","r"] · present = true

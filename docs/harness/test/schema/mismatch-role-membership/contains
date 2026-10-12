@@ -1,1 +1,1 @@
-role anon · member_of
+NEW   role anon · member of service_role · set = true

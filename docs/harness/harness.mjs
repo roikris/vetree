@@ -658,12 +658,14 @@ const SCHEMA_SHAPE = {
   schema: { obj: { owner: 'str', acl: S_ACL } },
   extensions: { arr: { name: 'str', version: 'str', schema: 'str' } },
   default_acls: { arr: { role: 'str', schema: 'strN', object_type: 'str', acl: S_ACL } },
-  roles: { arr: { name: 'str', superuser: 'bool', inherit: 'bool', create_role: 'bool', create_db: 'bool', login: 'bool', replication: 'bool', bypass_rls: 'bool', member_of: 'strs' } },
+  roles: { arr: { name: 'str', superuser: 'bool', inherit: 'bool', create_role: 'bool', create_db: 'bool', login: 'bool', replication: 'bool', bypass_rls: 'bool',
+    member_of: { arr: { role: 'str', admin: 'bool', inherit: 'bool', set: 'bool' } } } },
   event_triggers: { arr: { name: 'str', event: 'str', enabled: 'str', function: 'str', tags: 'strs' } },
-  publications: { arr: { name: 'str', all_tables: 'bool', tables: 'strs' } },
+  publications: { arr: { name: 'str', owner: 'str', all_tables: 'bool', insert: 'bool', update: 'bool', delete: 'bool', truncate: 'bool', via_root: 'bool',
+    schemas: 'strs', tables: { arr: { name: 'str', row_filter: 'strN', columns: 'strsN' } } } },
   unsupported: { arr: { kind: 'str', name: 'str' } },
   counts: { obj: Object.fromEntries(['relations', 'columns', 'constraints', 'indexes', 'triggers', 'routines', 'types', 'generated_types',
-    'extensions', 'default_acls', 'event_triggers', 'publications', 'unsupported'].map(k => [k, 'int'])) },
+    'extensions', 'default_acls', 'event_triggers', 'publications', 'unsupported', 'all_class', 'all_type', 'all_proc', 'all_constraint'].map(k => [k, 'int'])) },
 }
 // Paths in messages are positions ("relations[3].columns[0]"), never content
 function checkShape(v, spec, at, errs) {
@@ -687,22 +689,37 @@ function schemaComplete(rep) {
     triggers: sum('triggers'), routines: rep.routines.length, types: rep.types.length, extensions: rep.extensions.length,
     default_acls: rep.default_acls.length, event_triggers: rep.event_triggers.length, publications: rep.publications.length,
     unsupported: rep.unsupported.length }
-  return Object.entries(listed).filter(([k, n]) => rep.counts[k] !== n).map(([k, n]) => `incomplete report: ${k} lists ${n}, the catalog counts ${rep.counts[k]}`)
+  const errs = Object.entries(listed).filter(([k, n]) => rep.counts[k] !== n).map(([k, n]) => `incomplete report: ${k} lists ${n}, the catalog counts ${rep.counts[k]}`)
+  // Inventory: every pg_class / pg_type / pg_proc / pg_constraint row in public is reported exactly once
+  const uns = prefix => rep.unsupported.filter(u => u.kind.startsWith(prefix)).length
+  const c = rep.counts
+  const inventory = [
+    ['pg_class', c.all_class, listed.relations + listed.indexes + rep.types.filter(x => x.kind === 'composite').length + uns('relation:')],
+    ['pg_type', c.all_type, listed.types + c.generated_types + uns('type:')],
+    ['pg_proc', c.all_proc, listed.routines + uns('routine:')],
+    ['pg_constraint', c.all_constraint, listed.constraints + rep.types.reduce((n, x) => n + (x.constraints || []).length, 0)],
+  ]
+  for (const [cat, all, accounted] of inventory) if (all !== accounted) errs.push(`incomplete report: ${cat} holds ${all} objects in public, the report accounts for ${accounted}`)
+  return errs
 }
+// Privilege names an ACL entry may carry (relations, columns, sequences, routines, types, schemas)
+const SCHEMA_PRIVS = new Set(['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'TRUNCATE', 'REFERENCES', 'TRIGGER', 'MAINTAIN', 'USAGE', 'EXECUTE', 'CREATE'])
 
 // Validated report → Map(fact key → value). Names that are empty, contain '·' or control characters make the
 // report malformed (keys must stay unambiguous); a fact seen twice (a duplicate name) too.
 function schemaFlat(rep, malformed) {
   const flat = new Map()
-  const bad = n => typeof n !== 'string' || !n.length || n.includes('·') || /[\u0000-\u001f\u007f-\u009f]/.test(n)
+  // A name must be printable and unambiguous in a key — and never secret-shaped (keys are committed and printed)
+  const bad = n => typeof n !== 'string' || !n.length || n.includes('·') || /[\u0000-\u001f\u007f-\u009f]/.test(n) || secretShaped(n)
   const put = (key, v) => { if (flat.has(key)) malformed.push(`a fact appears twice (duplicate name): ${escCtl(key)}`); else flat.set(key, v) }
   const each = (list, keyOf, label, fn) => list.forEach((x, i) => {
     const k = keyOf(x)
-    if (bad(k)) { malformed.push(`${label}: a name is empty or contains '·' / control characters`); return }
+    if (bad(k)) { malformed.push(`${label}: a name is empty, secret-shaped, or contains '·' / control characters`); return }
     fn(`${label} ${k}`, x, i)
   })
   const fields = (p, x, names) => { for (const f of names) put(`${p}${SEP}${f}`, x[f]) }
-  const acl = (p, list) => each(list, a => `${a.grantee} ${a.privilege}`, `${p}${SEP}acl`, (q, a) => put(q, a.grantable))
+  const acl = (p, list) => each(list, a => (SCHEMA_PRIVS.has(a.privilege) && !bad(a.grantee) ? `${a.grantee} ${a.privilege}` : ''),
+    `${p}${SEP}acl`, (q, a) => put(q, a.grantable))
   each(rep.relations, r => r.name, 'relation', (p, r) => {
     fields(p, r, ['kind', 'owner', 'rls', 'rls_forced', 'options', 'view_definition'])
     acl(p, r.acl)
@@ -730,13 +747,21 @@ function schemaFlat(rep, malformed) {
   put(`schema public${SEP}owner`, rep.schema.owner)
   acl('schema public', rep.schema.acl)
   each(rep.extensions, x => x.name, 'extension', (p, x) => fields(p, x, ['version', 'schema']))
-  each(rep.default_acls, d => `${d.role} ${d.schema ?? '(global)'} ${d.object_type}`, 'default privileges', (p, d) => {
+  // [role, schema (null = global), object type] JSON-encoded, so no two entries can share a key
+  each(rep.default_acls, d => ([d.role, d.schema, d.object_type].every(x => x === null || !bad(x)) ? JSON.stringify([d.role, d.schema, d.object_type]) : ''),
+    'default privileges', (p, d) => {
     put(`${p}${SEP}present`, true)
     acl(p, d.acl)
   })
-  each(rep.roles, r => r.name, 'role', (p, r) => fields(p, r, ['superuser', 'inherit', 'create_role', 'create_db', 'login', 'replication', 'bypass_rls', 'member_of']))
+  each(rep.roles, r => r.name, 'role', (p, r) => {
+    fields(p, r, ['superuser', 'inherit', 'create_role', 'create_db', 'login', 'replication', 'bypass_rls'])
+    each(r.member_of, m => m.role, `${p}${SEP}member of`, (q, m) => fields(q, m, ['admin', 'inherit', 'set']))
+  })
   each(rep.event_triggers, x => x.name, 'event trigger', (p, x) => fields(p, x, ['event', 'enabled', 'function', 'tags']))
-  each(rep.publications, x => x.name, 'publication', (p, x) => fields(p, x, ['all_tables', 'tables']))
+  each(rep.publications, x => x.name, 'publication', (p, x) => {
+    fields(p, x, ['owner', 'all_tables', 'insert', 'update', 'delete', 'truncate', 'via_root', 'schemas'])
+    each(x.tables, tb => tb.name, `${p}${SEP}table`, (q, tb) => fields(q, tb, ['row_filter', 'columns']))
+  })
   return flat
 }
 
@@ -757,7 +782,8 @@ async function schemaActual(argv, label) {
   if (!rep.relations.length) { console.log(`${label}: UNVERIFIED — no relations in the report`); process.exit(2) }
   if (rep.unsupported.length) {
     console.log(`${label}: UNVERIFIED — ${rep.unsupported.length} object(s) of a kind the audit does not cover (extend 080 + the audit, or remove them):`)
-    for (const u of rep.unsupported.slice(0, 20)) console.log(`  ${escCtl(u.kind)} ${escCtl(u.name)}`)
+    const show = n => (secretShaped(n) ? '<secret-shaped name>' : escCtl(n))
+    for (const u of rep.unsupported.slice(0, 20)) console.log(`  ${show(u.kind)} ${show(u.name)}`)
     process.exit(2)
   }
   return { flat, major: Math.floor(rep.server_version_num / 10000), rep }
@@ -774,10 +800,11 @@ function readSchemaExpected(path) {
   }
   const facts = new Map(), redacted = new Set()
   for (const k of j.redacted) {
-    if (typeof k !== 'string' || !hasOwn(j.facts, k) || !isSha(j.facts[k]) || redacted.has(k)) throw new Error(`${path}: "redacted" must list distinct fact keys whose values are {"sha256": …}`)
+    if (typeof k !== 'string' || secretShaped(k) || !hasOwn(j.facts, k) || !isSha(j.facts[k]) || redacted.has(k)) throw new Error(`${path}: "redacted" must list distinct fact keys whose values are {"sha256": …}`)
     redacted.add(k)
   }
   for (const k of Object.keys(j.facts)) {
+    if (secretShaped(k)) throw new Error(`${path}: a fact key is secret-shaped (key not shown)`)
     const v = j.facts[k]
     const plain = v === null || typeof v === 'string' || typeof v === 'boolean' || Number.isInteger(v) || SHAPE_T.strs(v)
     if (!plain && !isSha(v)) throw new Error(`${path}: fact ${escCtl(k)} has a value of the wrong type`)

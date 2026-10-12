@@ -57,7 +57,7 @@ jobs:
           node docs/harness/harness.mjs schema-report --report "$RUNNER_TEMP/report.json"
           node -e '
             const r = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"))
-            const need = { relations: ["public.items:table", "public.children:table", "public.v_items:view", "public.mv_items:materialized view", "public.items_id_seq:sequence", "public.items_ident_seq:sequence"],
+            const need = { relations: ["public.items:table", "public.children:table", "public.v_items:view", "public.mv_items:materialized view", "public.items_id_seq:sequence", "public.items_ident_seq:sequence", "public.parted:partitioned table", "public.parted_2026:table"],
                            types: ["public.mood:enum", "public.pos:domain", "public.pair:composite"] }
             const have = { relations: r.relations.map(x => `${x.name}:${x.kind}`), types: r.types.map(x => `${x.name}:${x.kind}`) }
             const missing = Object.entries(need).flatMap(([k, list]) => list.filter(n => !have[k].includes(n)))
@@ -68,6 +68,13 @@ jobs:
             if (!items.triggers.some(t => t.name === "items_touch" && t.enabled === "D")) missing.push("disabled trigger")
             if (!items.constraints.some(c => c.name === "name_len" && !c.validated)) missing.push("NOT VALID constraint")
             if (!r.relations.find(x => x.name === "public.children").columns.some(c => c.acl.length)) missing.push("column grant")
+            if (items.acl.filter(a => a.grantee === "anon" && a.privilege === "SELECT").length !== 1) missing.push("two grantors merged into one entry")
+            const pub = r.publications.find(p => p.name === "pub1")
+            if (!pub || !pub.insert || pub.update || pub.tables[0]?.row_filter === null || JSON.stringify(pub.tables[0]?.columns) !== JSON.stringify(["id", "name"])) missing.push("publication operations / row filter / columns")
+            if (!r.extensions.some(e => e.name === "pg_trgm" && e.schema === "public")) missing.push("pg_trgm in public")
+            if (r.routines.some(x => /similarity|gtrgm/.test(x.signature)) || r.types.some(x => /gtrgm/.test(x.name))) missing.push("pg_trgm members excluded")
+            const auth = r.roles.find(x => x.name === "authenticator")
+            if (!auth || !auth.member_of.some(m => m.role === "service_role" && typeof m.set === "boolean")) missing.push("membership options")
             console.log(`server_version_num ${r.server_version_num} · unsupported ${r.unsupported.length} · extensions ${r.extensions.map(e => e.name + "@" + e.schema).join(", ")}`)
             if (missing.length) { console.log("MISSING: " + missing.join(", ")); process.exit(1) }
             console.log("every covered kind present")
@@ -89,12 +96,13 @@ jobs:
       - name: Uncovered kinds make the audit UNVERIFIED
         run: |
           docker exec -i pg psql -U postgres -h 127.0.0.1 -v ON_ERROR_STOP=1 -q < docs/harness/test/schema-pg/unsupported.sql
+          docker exec -i pg psql -U supabase_admin -h 127.0.0.1 -d postgres -v ON_ERROR_STOP=1 -q < docs/harness/test/schema-pg/unsupported-superuser.sql
           docker exec pg psql -U postgres -h 127.0.0.1 -v ON_ERROR_STOP=1 -qAtc \
             "set role service_role; select public.harness_schema_report()" > "$RUNNER_TEMP/report2.json"
           rc=0; node docs/harness/harness.mjs schema-report --report "$RUNNER_TEMP/report2.json" > "$RUNNER_TEMP/out" || rc=$?
           cat "$RUNNER_TEMP/out"
           [ "$rc" = 2 ] || { echo "::error::expected exit 2, got $rc"; exit 1; }
-          for k in 'routine:a mysum' 'type:r rng' 'rule r1' 'statistics object st1' 'operator ==='; do
+          for k in 'routine:a mysum' 'type:r rng' 'rule r1' 'statistics object st1' 'operator ===' 'text search template tmpl' 'text search parser prs'; do
             grep -qF "  $k" "$RUNNER_TEMP/out" || { echo "::error::not listed as unsupported: $k"; exit 1; }
           done
           echo "all uncovered kinds listed"

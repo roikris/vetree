@@ -21,3 +21,13 @@ CREATE FUNCTION public.touch() RETURNS trigger LANGUAGE plpgsql SET search_path 
 CREATE TRIGGER items_touch BEFORE UPDATE ON public.items FOR EACH ROW EXECUTE FUNCTION public.touch();
 ALTER TABLE public.items DISABLE TRIGGER items_touch;
 CREATE PROCEDURE public.noop() LANGUAGE sql AS $f$ SELECT 1 $f$;
+-- production installs pg_trgm without a schema (so into public): its members must be excluded, not unsupported
+CREATE EXTENSION IF NOT EXISTS pg_trgm SCHEMA public;
+CREATE TABLE public.parted (id int, d date) PARTITION BY RANGE (d);
+CREATE TABLE public.parted_2026 PARTITION OF public.parted FOR VALUES FROM ('2026-01-01') TO ('2027-01-01');
+CREATE INDEX parted_d ON public.parted (d);
+-- the same privilege granted by two grantors is reported once
+CREATE ROLE grantor_x NOLOGIN;
+GRANT SELECT ON public.items TO grantor_x WITH GRANT OPTION;
+SET ROLE grantor_x; GRANT SELECT ON public.items TO anon; RESET ROLE;
+CREATE PUBLICATION pub1 FOR TABLE public.items (id, name) WHERE (id > 0) WITH (publish = 'insert');
