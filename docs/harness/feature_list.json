@@ -727,9 +727,9 @@
       "notes": "From infra-001 (2026-10-07). Tier 2. Careful: tightening can break client reads/writes. · claimed by 20261010-1903-claude-8c5f · CLOSED 2026-10-11 (6 PRs #120–#125, migrations 075–079). Follow-ups: feed-002 (Trending), admin-001 (re-queue buttons), scripts-001 (anon-key scripts)."
     },
     {
-      "status": "not_started",
+      "status": "in_progress",
       "evidence": [],
-      "branch": "",
+      "branch": "chore/infra-003-replay-grants",
       "pr": null,
       "head_sha": null,
       "wip_sha": null,
@@ -756,7 +756,7 @@
           "paid_calls": false
         }
       ],
-      "notes": "From infra-001 (2026-10-07). Production unaffected; matters for a rebuild after 2026-10-30."
+      "notes": "From infra-001 (2026-10-07). Production unaffected; matters for a rebuild after 2026-10-30. · claimed by 20261012-0624-claude-d170"
     },
     {
       "id": "seo-001",
