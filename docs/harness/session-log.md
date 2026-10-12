@@ -389,3 +389,37 @@ Newest at the bottom. The same entries (latest few) appear in primer.md → Rece
   first (the "same length" case first stopped at the old entry grep); put the precondition on origin so only the
   new check can refuse.
 - Next best step: infra-003 (replay safety); feed-002 / admin-001 / scripts-001 need Roi's decisions.
+
+### Session 20261012-0624-claude-d170 · 2026-10-12 · Claude Code · infra-003 (closed)
+- Goal / Completed: a database rebuilt from supabase/migrations/ now matches production (Roi chose option B over
+  "grants only"). Found locally: 9 public tables in no migration, 004 referencing them first, and under the
+  2026-10-30 defaults 29 of 33 objects short (analytics_events: no service_role access at all). PR 1 (#127): migration
+  080 harness_schema_report() + schema-audit vs supabase/schema.json (4,293 facts) in init.sh check, PR smoke, daily.
+  PR 2 (#128): docs/harness/replay.sh rebuilds on the pinned supabase/postgres:17.6.1.063 (--network none) under new
+  AND old default privileges and runs all three audits; gates the required smoke check; daily with Slack. 000 (pg_trgm,
+  15 dashboard-era tables, one dashboard function — never run on production), 081 (24 additive service_role grants),
+  082 (guarded reconciliation: RLS + 7 policies on 8 tables, 3 constraints, 4 dropped indexes, a dropped CHECK and
+  NOT NULL — nothing runs on production).
+- Start state: main a652c31, branch chore/infra-003-replay-grants, clean; baseline init.sh check GREEN.
+- Verification: replay PASS both modes (acl 33/33, rls 32 / 40, schema 3,954 facts; default privileges by an exact
+  rule); self-check 11 planted changes caught + atomic 081; a deliberately wrong migration failed both replays and the
+  smoke gate; schema selftest 86 fixtures, planted bugs caught (12 + 4); 080 tested on the PG17 image; lock selftest
+  251/251 (bash 3.2 + 5.2). Production (Roi's yes each): 080 pushed (auto mode blocked the first try; Roi: "try again"),
+  snapshot 0 secret-shaped values; migration repair 000; dry run only 081 + 082; push; all three audits identical
+  before / after; nothing pending. Post-merge on main: replay new + old PASS, audits PASS; production 342cacb.
+- Review: Codex · tier 2 · plan 3 rounds 48.2k / 33.1k / 23.2k · PR 1 code 3 rounds 66.5k / 62.1k / 50.1k (+3.1k empty
+  run, my runner bug) · PR 2 code 2 rounds 92.1k / 35.3k (one attempt hit the ChatGPT usage limit, re-run after reset)
+  ≈ 414k · BLOCKING: none (fixed on the way: secret-shaped names, ambiguous keys, membership options, publications,
+  inventory, extension-owned dependents, dotted names, inexact default-privilege rule).
+- Commits / PR: #127 → d13bbac, #128 → 342cacb, each merged on Roi's word. Migrations 080, 081, 082 pushed; 000
+  recorded as applied.
+- Pending Roi approvals: none. Roi decides: restore the 4 indexes production lost (idx_articles_needs_enrichment;
+  idx_growth_tasks_date / _status / _day)? Thursday's security scan; Vercel usage ~2026-10-14.
+- Known risks / unresolved: storage and auth's shape are listed replay gaps (stand-in / existence check only). The
+  Supabase image segfaults on `GRANT <role> TO CURRENT_USER` as postgres (test setup moved to supabase_admin).
+- Lesson: only a rebuild shows what the dashboard changed — 9 tables, a function, RLS + policies, constraints and
+  dropped indexes that no audit of production alone could reveal. The image's init runs a socket-only temporary
+  server: wait for loopback before setup. A mutation test only proves what it touches: check grants by content, not
+  by presence.
+- Next best step: social-001 (Facebook link limit vs the daily Facebook IL post — design is Roi's call); feed-002 /
+  admin-001 / scripts-001 need Roi's decisions.

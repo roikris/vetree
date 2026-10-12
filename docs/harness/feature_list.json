@@ -727,7 +727,7 @@
       "notes": "From infra-001 (2026-10-07). Tier 2. Careful: tightening can break client reads/writes. · claimed by 20261010-1903-claude-8c5f · CLOSED 2026-10-11 (6 PRs #120–#125, migrations 075–079). Follow-ups: feed-002 (Trending), admin-001 (re-queue buttons), scripts-001 (anon-key scripts)."
     },
     {
-      "status": "in_progress",
+      "status": "merged",
       "evidence": [
         {
           "date": "2026-10-12",
@@ -768,11 +768,41 @@
           "outcome": "pass",
           "approval": "Roi: \"push\" (auto mode blocked the first attempt; Roi: \"try again\"), \"merge\"",
           "link": "PR #127"
+        },
+        {
+          "date": "2026-10-12",
+          "session": "20261012-0624-claude-d170",
+          "sha": "ea8aace",
+          "command": "docs/harness/replay.sh on supabase/postgres:17.6.1.063 (--network none), new + old default privileges: all 82 migrations apply; acl 33/33, rls 32 tables / 40 policies, schema 3,954 facts PASS; default privileges: 3 added by pg_cron, each exactly as in production; self-check 11 planted changes caught + atomic 081; wrong migration 0cd88ef failed both replays and the smoke gate; schema selftest 86 PASS",
+          "target": "local",
+          "outcome": "pass",
+          "approval": "Roi: \"build\"",
+          "link": "PR #128"
+        },
+        {
+          "date": "2026-10-12",
+          "session": "20261012-0624-claude-d170",
+          "sha": "ea8aace",
+          "command": "Codex tier 2 PR 2 code review: round 1 92.1k (1 blocking: added default privileges checked by presence only — fixed, 11 fixtures) → round 2 35.3k BLOCKING: none",
+          "target": "none",
+          "outcome": "pass",
+          "approval": "Roi: \"proceed with codex now\"",
+          "link": "PR #128"
+        },
+        {
+          "date": "2026-10-12",
+          "session": "20261012-0624-claude-d170",
+          "sha": "342cacb",
+          "command": "Production: acl / rls / schema audits PASS before; migration repair --status applied 000; dry run listed only 081 + 082; db push; audits PASS after, identical (4,293 facts); nothing pending. PR #128 smoke PASS (replay gate, audits, 44 tests); merged as 342cacb; post-merge qa-smoke: replay new + old PASS, audits PASS; production /api/version = 342cacb",
+          "target": "production",
+          "outcome": "pass",
+          "approval": "Roi: \"you have my yes\" (repair + push), \"Merge\"",
+          "link": "PR #128"
         }
       ],
-      "branch": "chore/infra-003-replay-grants",
-      "pr": 127,
-      "head_sha": "d13bbac",
+      "branch": "chore/infra-003-replay",
+      "pr": 128,
+      "head_sha": "342cacb",
       "wip_sha": null,
       "expected_failures": [],
       "id": "infra-003",
@@ -811,7 +841,7 @@
           "paid_calls": false
         }
       ],
-      "notes": "From infra-001 (2026-10-07). Production unaffected; matters for a rebuild after 2026-10-30. · claimed by 20261012-0624-claude-d170 · scope changed to option B by Roi (2026-10-12): the rebuild itself must work. PR 1 (#127, schema audit) merged d13bbac. NEXT: PR 2 — replay job + 000 baseline + 081 grants (Codex tier 2), then repair 000 / push 081 on Roi's yes."
+      "notes": "From infra-001 (2026-10-07). Production unaffected; matters for a rebuild after 2026-10-30. · claimed by 20261012-0624-claude-d170 · scope changed to option B by Roi (2026-10-12): the rebuild itself must work. PR 1 (#127, schema audit) merged d13bbac. NEXT: PR 2 — replay job + 000 baseline + 081 grants (Codex tier 2), then repair 000 / push 081 on Roi's yes. · PR 2 (#128) merged 342cacb; 000 recorded as applied, 081 + 082 pushed (no-ops). CLOSED 2026-10-12. Roi decides separately whether production gets back the 4 dropped indexes."
     },
     {
       "id": "seo-001",
