@@ -41,13 +41,13 @@ q()   { docker exec -i "$NAME" psql -U postgres       -d postgres -v ON_ERROR_ST
 qsu() { docker exec -i "$NAME" psql -U supabase_admin -d postgres -v ON_ERROR_STOP=1 -qAt "$@"; }
 
 # Every default-privilege entry, one line each (role · schema|global · type · acl) — compared before / after
-dacl() { q -c "select pg_get_userbyid(d.defaclrole) || ' · ' || coalesce(n.nspname, '(global)') || ' · ' || d.defaclobjtype || ' · ' || d.defaclacl::text
+dacl() { q -c "select pg_get_userbyid(d.defaclrole) || ' · ' || coalesce(n.nspname, '(global)') || ' · ' || d.defaclobjtype::text || ' · ' || d.defaclacl::text
                from pg_default_acl d left join pg_namespace n on n.oid = d.defaclnamespace order by 1"; }
 
 # ---- simulate the default privileges
 if [ "$MODE" = new ]; then
   # Remove every grant to the four roles from table / sequence default privileges, for every creator role and scope
-  qsu <<'SQL' || fail2 "could not clear the default privileges"
+  qsu 2>"$OUT/err" <<'SQL' || fail2 "could not clear the default privileges: $(grep -m1 -E 'ERROR|FATAL' "$OUT/err" | cut -c1-240)"
 DO $$
 DECLARE d record; s text;
 BEGIN
@@ -68,7 +68,7 @@ fi
 dacl > "$OUT/defaults-before.txt"
 
 # ---- probe: what does a new table / sequence created by postgres in public get, before any migration?
-q -c "create table public.__replay_probe (id serial)" || fail2 "probe table could not be created"
+q -c "create table public.__replay_probe (id serial)" 2>"$OUT/err" || fail2 "probe table could not be created: $(grep -m1 -E 'ERROR|FATAL' "$OUT/err" | cut -c1-240)"
 probe=$(q -c "select count(*) from pg_class c, aclexplode(coalesce(c.relacl, acldefault(case when c.relkind = 'S' then 's' else 'r' end::\"char\", c.relowner))) a
               where c.oid in ('public.__replay_probe'::regclass, 'public.__replay_probe_id_seq'::regclass)
                 and (a.grantee = 0 or pg_get_userbyid(a.grantee) in ('anon','authenticated','service_role'))")
