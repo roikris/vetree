@@ -47,7 +47,7 @@ jobs:
       - name: Apply sample objects and 080
         run: |
           q() { docker exec -i pg psql -U postgres -h 127.0.0.1 -v ON_ERROR_STOP=1 -q "$@"; }
-          q < docs/harness/test/schema-pg/objects.sql
+          q -a < docs/harness/test/schema-pg/objects.sql
           q < supabase/migrations/080_harness_schema_report.sql
 
       - name: Report as service_role validates and covers every kind
@@ -106,3 +106,7 @@ jobs:
             grep -qF "  $k" "$RUNNER_TEMP/out" || { echo "::error::not listed as unsupported: $k"; exit 1; }
           done
           echo "all uncovered kinds listed"
+
+      - name: Database log (on failure)
+        if: failure()
+        run: docker logs pg 2>&1 | tail -60
