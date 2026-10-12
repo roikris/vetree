@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Copy, Check, Loader2 } from 'lucide-react'
 import { getCurrentCampaignDay, getWeekSchedule, getTodaysPlatform, CAMPAIGN_TOTAL_DAYS, PLATFORM_ROTATION } from '@/lib/growth-campaign'
 import { getTodaysTask, createTodaysTask, markTaskComplete, getCampaignStats } from '@/app/actions/admin'
@@ -60,7 +60,9 @@ export function CampaignCalendar() {
   const [memoryWriteFailed, setMemoryWriteFailed] = useState(false)
   const [linkedinTabMarked, setLinkedinTabMarked] = useState(false)
   // The article last marked as posted from the Facebook IL tab this session — vetree.app/il opens it (social-001)
-  const [facebookIlTabMarked, setFacebookIlTabMarked] = useState<string | null>(null)
+  // One 'approved' row per platform + article, whichever copy button is clicked and however often: the in-flight write
+  // is shared, a success is remembered, a failure lets the next click try again (/api/growth/feedback always inserts)
+  const approvedWrites = useRef(new Map<string, Promise<boolean>>())
   const [linkedinTabPostedUrl, setLinkedinTabPostedUrl] = useState('')
   const [linkedinTabSavedUrl, setLinkedinTabSavedUrl] = useState<string | null>(null)
   const [linkedinTabSavingUrl, setLinkedinTabSavingUrl] = useState(false)
@@ -562,7 +564,7 @@ export function CampaignCalendar() {
     const hookLine = generatedPost.split('\n').find(l => l.trim()) ?? undefined
 
     // Write memory row with hook_line — must succeed before marking posted
-    const ok = await recordToMemory(savedPostData.article_id, todaysPlatform?.platform || '', 'approved', undefined, hookLine)
+    const ok = await recordApprovedOnce(savedPostData.article_id, todaysPlatform?.platform || '', hookLine)
     if (!ok) {
       setMemoryWriteFailed(true)
       return
@@ -736,7 +738,7 @@ export function CampaignCalendar() {
     setTimeout(() => setMessage(null), 2000)
     if (platform === 'linkedin' && post.article_id) {
       const hookLine = (post.post_content as string).split('\n').find((l: string) => l.trim()) ?? undefined
-      const ok = await recordToMemory(post.article_id, 'linkedin', 'approved', undefined, hookLine)
+      const ok = await recordApprovedOnce(post.article_id, 'linkedin', hookLine)
       if (!ok) {
         setMessage({ type: 'error', text: '⚠️ Memory write failed — try again' })
         return
@@ -747,14 +749,13 @@ export function CampaignCalendar() {
     }
     // Facebook IL posts carry no link: the Page button (vetree.app/il) opens the article marked here — record it once
     // per article, before the post goes out
-    if (platform === 'facebook_il' && post.article_id && facebookIlTabMarked !== post.article_id) {
+    if (platform === 'facebook_il' && post.article_id) {
       const hookLine = (post.post_content as string).split('\n').find((l: string) => l.trim()) ?? undefined
-      const ok = await recordToMemory(post.article_id, 'facebook_il', 'approved', undefined, hookLine)
+      const ok = await recordApprovedOnce(post.article_id, 'facebook_il', hookLine)
       if (!ok) {
         setMessage({ type: 'error', text: '⚠️ Not marked as posted — the Page button would open the previous article. Try again' })
         return
       }
-      setFacebookIlTabMarked(post.article_id)
       setMessage({ type: 'success', text: '✅ Copied — the Page button (vetree.app/il) now opens this article' })
       refreshStats()
     }
@@ -1244,6 +1245,18 @@ export function CampaignCalendar() {
       console.warn('[growth] Failed to record memory:', e)
       return false
     }
+  }
+
+  const recordApprovedOnce = (articleId: string, platform: string, hookLine?: string): Promise<boolean> => {
+    const key = `${platform}:${articleId}`
+    const existing = approvedWrites.current.get(key)
+    if (existing) return existing
+    const write = recordToMemory(articleId, platform, 'approved', undefined, hookLine).then(ok => {
+      if (!ok) approvedWrites.current.delete(key)
+      return ok
+    })
+    approvedWrites.current.set(key, write)
+    return write
   }
 
   // Save LinkedIn posted URL to growth_agent_memory for activity_id matching.
