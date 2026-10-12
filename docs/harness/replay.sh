@@ -43,9 +43,17 @@ docker exec "$NAME" pg_isready -U postgres -h 127.0.0.1 -q || fail2 "database no
 q()   { docker exec -i "$NAME" psql -U postgres       -d postgres -v ON_ERROR_STOP=1 -qAt "$@"; }
 qsu() { docker exec -i "$NAME" psql -U supabase_admin -h 127.0.0.1 -d postgres -v ON_ERROR_STOP=1 -qAt "$@"; }  # loopback inside the container
 
-# Every default-privilege entry, one line each (role · schema|global · type · acl) — compared before / after
-dacl() { q -c "select pg_get_userbyid(d.defaclrole) || ' · ' || coalesce(n.nspname, '(global)') || ' · ' || d.defaclobjtype::text || ' · ' || d.defaclacl::text
+# Every default-privilege entry, one line each: role · schema|(global) · type · grantee:PRIVILEGE:grantable,… (merged
+# across grantors, sorted — the same form as the schema report's ACLs) — compared before / after
+dacl() { q -c "select pg_get_userbyid(d.defaclrole) || ' · ' || coalesce(n.nspname, '(global)') || ' · ' || d.defaclobjtype::text || ' · ' ||
+                      coalesce((select string_agg(g.grantee || ':' || g.privilege || ':' || g.grantable, ',' order by g.grantee, g.privilege)
+                                from (select case when a.grantee = 0 then 'PUBLIC' else pg_get_userbyid(a.grantee)::text end as grantee,
+                                             a.privilege_type as privilege, bool_or(a.is_grantable) as grantable
+                                      from aclexplode(d.defaclacl) a group by 1, 2) g), '')
                from pg_default_acl d left join pg_namespace n on n.oid = d.defaclnamespace order by 1"; }
+
+# ---- auth objects the migrations rely on must exist (their shape is Supabase's and is NOT compared — a listed gap)
+[ "$(q -c "select to_regclass('auth.users') is not null and to_regprocedure('auth.uid()') is not null")" = t ] || fail2 "the image has no auth.users / auth.uid()"
 
 # ---- environment the image lacks but migrations need (not compared — see the file)
 qsu < "$H/test/replay/storage-stub.sql" 2>"$OUT/err" || fail2 "storage stand-in failed: $(grep -m1 -E 'ERROR|FATAL' "$OUT/err" | cut -c1-240)"
@@ -76,15 +84,20 @@ dacl > "$OUT/defaults-before.txt"
 
 # ---- probe: what does a new table / sequence created by postgres in public get, before any migration?
 q -c "create table public.__replay_probe (id serial)" 2>"$OUT/err" || fail2 "probe table could not be created: $(grep -m1 -E 'ERROR|FATAL' "$OUT/err" | cut -c1-240)"
+# per object (table, sequence) and API role: does it get any privilege?
 probe=$(q -c "select count(*) from pg_class c, aclexplode(coalesce(c.relacl, acldefault(case when c.relkind = 'S' then 's' else 'r' end::\"char\", c.relowner))) a
               where c.oid in ('public.__replay_probe'::regclass, 'public.__replay_probe_id_seq'::regclass)
                 and (a.grantee = 0 or pg_get_userbyid(a.grantee) in ('anon','authenticated','service_role'))")
+probe_pairs=$(q -c "select count(distinct (c.relkind, a.grantee)) from pg_class c, aclexplode(coalesce(c.relacl, acldefault(case when c.relkind = 'S' then 's' else 'r' end::\"char\", c.relowner))) a
+              where c.oid in ('public.__replay_probe'::regclass, 'public.__replay_probe_id_seq'::regclass)
+                and pg_get_userbyid(a.grantee) in ('anon','authenticated','service_role')")
 q -c "drop table public.__replay_probe"
 if [ "$MODE" = new ]; then
   [ "$probe" = 0 ] || fail2 "probe: a new table / sequence still gets $probe grant(s) to the API roles — the simulation is wrong"
   echo "probe: a new table + sequence get no grants to anon / authenticated / service_role / PUBLIC (2026-10-30 defaults)"
 else
-  [ "$probe" -gt 0 ] || fail2 "probe: a new table gets no API-role grants — the image's old defaults are not active"
+  # old defaults: the table AND the sequence each get grants for anon, authenticated and service_role (2 × 3)
+  [ "$probe_pairs" = 6 ] || fail2 "probe: only $probe_pairs of 6 (table / sequence × anon / authenticated / service_role) get grants — the image's old defaults are not what production had"
   echo "probe: a new table + sequence get $probe grant(s) to the API roles (old defaults)"
 fi
 
@@ -119,26 +132,7 @@ worst node "$H/harness.mjs" schema-audit --report "$OUT/schema.json" --skip-defa
 # anon / authenticated / service_role / PUBLIC, and exist in production too (supabase/schema.json)
 dacl > "$OUT/defaults-after.txt"
 dp=0
-node - "$OUT/defaults-before.txt" "$OUT/defaults-after.txt" "$ROOT/supabase/schema.json" <<'JS' || dp=$?
-const fs = require('fs')
-const [before, after, schema] = process.argv.slice(2).map(f => fs.readFileSync(f, 'utf8'))
-const lines = t => t.split('\n').filter(Boolean)
-const b = new Set(lines(before)), a = new Set(lines(after))
-const facts = JSON.parse(schema).facts
-const removed = [...b].filter(l => !a.has(l)), added = [...a].filter(l => !b.has(l))
-let bad = removed.map(l => `removed or changed: ${l.split(' · ').slice(0, 3).join(' · ')}`)
-for (const l of added) {
-  const [role, schemaName, type, acl] = l.split(' · ')
-  const grantees = (acl.match(/(?:^\{|,)("?)([^=,"]*)\1=/g) || []).map(g => g.replace(/^[{,]"?|"?=$/g, ''))
-  const at = `${role} · ${schemaName} · ${type}`
-  if (schemaName === 'public') bad.push(`added in public: ${at}`)
-  if (grantees.some(g => g === '' || ['anon', 'authenticated', 'service_role'].includes(g))) bad.push(`added, grants to an API role or PUBLIC: ${at}`)
-  if (!(`default privileges ${JSON.stringify([role, schemaName === '(global)' ? null : schemaName, type])} · present` in facts)) bad.push(`added, not in production: ${at}`)
-}
-for (const x of bad) console.log(`default privileges: ${x}`)
-console.log(`default privileges: ${b.size} before, ${a.size} after${bad.length ? '' : ` (${added.length} added by migrations, each also in production and outside public)`}`)
-process.exit(bad.length ? 1 : 0)
-JS
+node "$H/harness.mjs" replay-defaults "$OUT/defaults-before.txt" "$OUT/defaults-after.txt" "$ROOT/supabase/schema.json" || dp=$?
 [ "$dp" -gt "$rc" ] && rc=$dp
 
 # ---- the report functions stay denied to the API roles
@@ -171,6 +165,7 @@ if [ "${REPLAY_SELFCHECK:-}" = 1 ] && [ "$rc" = 0 ]; then
   check 1 "NOT NULL added"           "alter table public.growth_tasks alter column scheduled_date set not null"
   check 1 "enum type added"          "create type public.replay_selfcheck as enum ('a')"
   check 1 "RLS forced"               "alter table public.articles force row level security"
+  check 1 "relation option changed"  "alter table public.articles set (fillfactor = 90)"
   check 2 "rule added (uncovered)"   "create rule replay_selfcheck as on insert to public.page_views do also nothing"
   # 081 is atomic: a copy whose last statement fails leaves none of its grants behind
   q -c "revoke all on public.analytics_events from service_role" >/dev/null
