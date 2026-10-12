@@ -30,10 +30,10 @@ fail2() { echo "replay ($MODE): UNVERIFIED — $*"; [ -n "${SHOW_LOG:-}" ] && do
 
 echo "== replay ($MODE defaults) on $IMAGE"
 docker run -d --name "$NAME" --network none -e POSTGRES_PASSWORD=postgres "$IMAGE" >/dev/null || fail2 "image did not start"
-for _ in $(seq 1 90); do docker exec "$NAME" pg_isready -U postgres -q 2>/dev/null && break; sleep 2; done
-docker exec "$NAME" pg_isready -U postgres -q || fail2 "database not ready"
-# the image restarts once after its init scripts; wait for a stable connection
-for _ in $(seq 1 30); do docker exec "$NAME" psql -U postgres -d postgres -qAtc 'select 1' >/dev/null 2>&1 && break; sleep 2; done
+# The image's init runs a temporary server on the Unix socket only, then restarts; the real server is the one that
+# listens on loopback — wait for that, or setup races the restart.
+for _ in $(seq 1 90); do docker exec "$NAME" pg_isready -U postgres -h 127.0.0.1 -q 2>/dev/null && break; sleep 2; done
+docker exec "$NAME" pg_isready -U postgres -h 127.0.0.1 -q || fail2 "database not ready"
 
 # q: as postgres (the role db push runs migrations as; it owns every public object in production)
 # qsu: as supabase_admin (the image's superuser), only for setup the postgres role may not do

@@ -12,6 +12,7 @@
 -- NEVER RUN ON PRODUCTION: production already has these tables. It is recorded there as applied without running
 -- (`supabase migration repair --status applied 000`, on Roi's yes). Every statement is guarded anyway (IF NOT
 -- EXISTS), so a run against production would change nothing.
+-- Also the one dashboard-made function, count_short_unquarantined_abstracts() (guarded, never replaced).
 -- Not here, on purpose: grants (081), policies and RLS (later migrations), and saved_articles' foreign key to
 -- articles, which 001 creates after this file (added by 082).
 
@@ -231,3 +232,29 @@ CREATE TABLE IF NOT EXISTS public."analytics_opportunities" (
   CONSTRAINT "analytics_opportunities_status_check" CHECK ((status = ANY (ARRAY['pending'::text, 'in_progress'::text, 'done'::text, 'dismissed'::text])))
 );
 CREATE INDEX IF NOT EXISTS idx_opportunities_score ON public.analytics_opportunities USING btree (opportunity_score DESC);
+
+-- count_short_unquarantined_abstracts(): also made in the dashboard (064 locks it down, no migration creates it).
+-- Created only if missing, never replaced; its body reads articles, which 001 creates later, so the body is not
+-- checked at creation (as pg_dump does). 064 then revokes PUBLIC's EXECUTE and grants service_role.
+DO $do$
+BEGIN
+  IF to_regprocedure('public.count_short_unquarantined_abstracts()') IS NULL THEN
+    SET LOCAL check_function_bodies = off;
+    EXECUTE $def$CREATE OR REPLACE FUNCTION public.count_short_unquarantined_abstracts()
+ RETURNS integer
+ LANGUAGE sql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+  SELECT COUNT(*)::integer
+  FROM public.articles
+  WHERE (
+    articles.summary IS NULL
+    OR char_length(articles.summary) < 50
+  )
+  AND (articles.quarantined IS NULL OR articles.quarantined = false)
+  AND articles.needs_enrichment = false;
+$function$$def$;
+  END IF;
+END
+$do$;
