@@ -586,7 +586,7 @@ and the dashboard-made `count_short_unquarantined_abstracts()` — NEVER run on 
 production); **082** reconciles what production changed in the dashboard (RLS + 7 policies on 8 tables, 3
 constraints, 4 dropped indexes, a dropped CHECK and NOT NULL on growth_tasks) — every statement behind a catalog
 check, so nothing runs on production. The replay's environment (`docs/harness/test/replay/`): a storage stand-in
-(storage is a listed gap, not compared) and production's project settings (GraphQL off, postgres in
+(storage is a listed gap, not compared; so is the auth schema's shape — only that `auth.users` and `auth.uid()` exist is checked) and production's project settings (GraphQL off, postgres in
 `supabase_privileged_role`). **Every new migration must apply on an empty database in order and keep the replay green.**
 
 ## SQL Function Security (required)
