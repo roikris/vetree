@@ -728,35 +728,90 @@
     },
     {
       "status": "in_progress",
-      "evidence": [],
+      "evidence": [
+        {
+          "date": "2026-10-12",
+          "session": "20261012-0624-claude-d170",
+          "sha": "a652c31",
+          "command": "Local replay of every migration's GRANT/REVOKE: 9 public tables created in no migration (saved_articles, feature_flags, followed_tags, topic_syntheses, synthesis_feedback, digest_logs, digest_runs, security_reports, sync_skipped_articles); 004 references them before any CREATE; under post-2026-10-30 defaults 29 of 33 objects differ (service_role; analytics_events gets nothing). Roi chose B",
+          "target": "local",
+          "outcome": "pass",
+          "approval": "Roi: \"B\"; storage = listed gap; edits of applied migrations proposed file by file",
+          "link": "PR #127"
+        },
+        {
+          "date": "2026-10-12",
+          "session": "20261012-0624-claude-d170",
+          "sha": "32bc5ad",
+          "command": "Codex plan review 3 rounds (48.2k / 33.1k / 23.2k) → BLOCKING: none (rev 3); code review 3 rounds (66.5k / 62.1k / 50.1k, plus a 3.1k empty run) → BLOCKING: none",
+          "target": "none",
+          "outcome": "pass",
+          "approval": "Roi: \"build\"",
+          "link": "PR #127"
+        },
+        {
+          "date": "2026-10-12",
+          "session": "20261012-0624-claude-d170",
+          "sha": "32bc5ad",
+          "command": "schema selftest 73 fixtures PASS, 12 planted bugs each caught; schema-report-test.yml on supabase/postgres:17.6.1.063 (covered kinds, pg_trgm in public excluded, extension-owned objects, two grantors, publications, dotted names, anon/authenticated denied, no replace, 11 uncovered kinds listed) PASS; lock selftest 251/251 on bash 3.2 and 5.2; PR smoke PASS incl. schema audit",
+          "target": "preview",
+          "outcome": "pass",
+          "approval": "n/a",
+          "link": "PR #127"
+        },
+        {
+          "date": "2026-10-12",
+          "session": "20261012-0624-claude-d170",
+          "sha": "d13bbac",
+          "command": "db push 080 (dry run listed only 080); production schema-report: 33 relations, 16 routines, 0 unsupported, 0 secret-shaped; schema-snapshot → supabase/schema.json (4,293 facts, nothing redacted, no emails / URLs / UUIDs); acl + rls audits PASS after the push; merged as d13bbac; post-merge qa-smoke: schema audit PASS",
+          "target": "production",
+          "outcome": "pass",
+          "approval": "Roi: \"push\" (auto mode blocked the first attempt; Roi: \"try again\"), \"merge\"",
+          "link": "PR #127"
+        }
+      ],
       "branch": "chore/infra-003-replay-grants",
-      "pr": null,
-      "head_sha": null,
+      "pr": 127,
+      "head_sha": "d13bbac",
       "wip_sha": null,
       "expected_failures": [],
       "id": "infra-003",
       "priority": 8,
       "area": "supabase",
       "type": "chore",
-      "title": "Replay safety: explicit grants for objects created under the old defaults (e.g. analytics_events, migration 041)",
-      "user_visible_behavior": "none (a fresh database rebuild gets the same grants as production)",
+      "title": "Replay safety: a database rebuilt from supabase/migrations/ matches production (option B, Roi 2026-10-12)",
+      "user_visible_behavior": "none (a fresh rebuild from migrations — staging copy, disaster recovery — gets production's schema, policies and grants)",
       "verification": [
         {
-          "step": "inventory objects whose grants come only from old defaults",
+          "step": "PR 1: migration 080 harness_schema_report() + schema-audit vs supabase/schema.json in init.sh check, PR smoke, daily — db push on Roi's yes",
+          "target": "production",
+          "db_reads": "prod",
+          "db_writes": "prod",
+          "paid_calls": false
+        },
+        {
+          "step": "PR 2: replay job (pinned Supabase Postgres image, new + old default privileges) applies every migration and matches access.json / rls.json / schema.json; 000 baseline for the dashboard-era tables; 081 additive service_role grants",
           "target": "local",
           "db_reads": "none",
           "db_writes": "none",
           "paid_calls": false
         },
         {
-          "step": "forward migration making them explicit; acl-audit still PASS",
+          "step": "Production rollout: migration repair --status applied 000 (Roi's yes), dry run lists only 081, db push (Roi's yes); all three audits PASS before and after",
           "target": "production",
           "db_reads": "prod",
           "db_writes": "prod",
           "paid_calls": false
+        },
+        {
+          "step": "Review: Codex tier 2 per PR → BLOCKING: none",
+          "target": "none",
+          "db_reads": "none",
+          "db_writes": "none",
+          "paid_calls": false
         }
       ],
-      "notes": "From infra-001 (2026-10-07). Production unaffected; matters for a rebuild after 2026-10-30. · claimed by 20261012-0624-claude-d170"
+      "notes": "From infra-001 (2026-10-07). Production unaffected; matters for a rebuild after 2026-10-30. · claimed by 20261012-0624-claude-d170 · scope changed to option B by Roi (2026-10-12): the rebuild itself must work. PR 1 (#127, schema audit) merged d13bbac. NEXT: PR 2 — replay job + 000 baseline + 081 grants (Codex tier 2), then repair 000 / push 081 on Roi's yes."
     },
     {
       "id": "seo-001",
