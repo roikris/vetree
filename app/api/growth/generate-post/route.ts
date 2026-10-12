@@ -163,6 +163,12 @@ export async function POST(request: NextRequest) {
     const saveClause = saveClauses[new Date().getDay() % saveClauses.length]
     const saveCta = `${saveClause}: ${saveUrl}`
 
+    // Facebook IL (social-001): the Page may attach only two external links a month (Meta's limit for some business /
+    // creator Pages), so its posts carry NO link and no web address at all — readers use the Page's action button,
+    // which points at vetree.app/il (app/il/route.ts → the article last marked as posted for facebook_il).
+    const linkFree = platform === 'facebook_il'
+    const pageButtonLine = '👆 הקישור למאמר המלא — בכפתור בראש העמוד'
+
     // Call Anthropic API to generate post for the selected article
     const Anthropic = (await import('@anthropic-ai/sdk')).default
     // Bounded so DB reads + generation (35s) + the twitter shortening step (12s) fit maxDuration 60.
@@ -422,17 +428,20 @@ Format:
 [2-3 sentences insight]
 
 📄 ${article.title}
-🔗 ${articleUrl}
-💾 ${saveCta}
+${linkFree ? pageButtonLine : `🔗 ${articleUrl}
+💾 ${saveCta}`}
 
-CRITICAL: The line starting with 📄 must contain the article title EXACTLY as written above — do not shorten, rephrase, or summarize it.
+CRITICAL: The line starting with 📄 must contain the article title EXACTLY as written above — do not shorten, rephrase, or summarize it.${linkFree ? `
+NO LINKS (CRITICAL): the post must contain no URL, no web address and no domain name — not even vetree.app. End with the 👆 line exactly as written above.` : ''}
 
 Return ONLY the post text. Follow the platform rule exactly.`
     }
 
     // Style rewrite: append instruction after the base platform prompt
     if (styleInstruction && existingPost) {
-      promptContent += `\n\nREWRITE INSTRUCTION: ${styleInstruction}\n\nCURRENT POST TO REWRITE:\n${existingPost}${abstractOverride ? `\n\nORIGINAL STUDY SUMMARY (use as authoritative source):\n${abstractOverride}` : ''}\n\nRewrite the post following the instruction above. Keep the platform format rules and UTM link unchanged.`
+      promptContent += `\n\nREWRITE INSTRUCTION: ${styleInstruction}\n\nCURRENT POST TO REWRITE:\n${existingPost}${abstractOverride ? `\n\nORIGINAL STUDY SUMMARY (use as authoritative source):\n${abstractOverride}` : ''}\n\nRewrite the post following the instruction above. ${linkFree
+        ? `Keep the platform format rules unchanged. The rewritten post must contain no URL, web address or domain name (even if the current post has one) and must end with this line exactly: ${pageButtonLine}`
+        : 'Keep the platform format rules and UTM link unchanged.'}`
     }
 
     const message = await anthropic.messages.create({
@@ -454,6 +463,20 @@ Return ONLY the post text. Follow the platform rule exactly.`
         error: 'Selected article is large-animal focused',
         details: `Claude declined article ${article.id}; generate again or pick another article`
       }, { status: 500 })
+    }
+
+    // Facebook IL: guarantee the post is link-free whatever the model wrote — a stray link would spend one of the Page's
+    // two monthly links. Drop 🔗 / 💾 lines, strip any remaining URL or domain, and make sure the 👆 line ends the post.
+    if (linkFree) {
+      const urlish = /\b(?:https?:\/\/|www\.)\S+|\b(?:[a-z0-9-]+\.)+(?:app|com|org|net|io|co\.il|org\.il|il)\b(?:\/\S*)?/gi
+      postContent = postContent
+        .split('\n')
+        .filter(line => !/^\s*(🔗|💾)/.test(line) && line.trim() !== pageButtonLine)
+        .map(line => line.replace(urlish, '').replace(/\s+$/, ''))
+        .join('\n')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim()
+      postContent = `${postContent}\n${pageButtonLine}`
     }
 
     // Twitter-specific length check
