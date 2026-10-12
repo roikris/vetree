@@ -1104,6 +1104,45 @@
         }
       ],
       "notes": "Found by Codex in infra-002's review of 079 (2026-10-11)."
+    },
+    {
+      "status": "not_started",
+      "evidence": [],
+      "branch": "",
+      "pr": null,
+      "head_sha": null,
+      "wip_sha": null,
+      "expected_failures": [],
+      "id": "social-001",
+      "priority": 12,
+      "area": "growth",
+      "type": "fix",
+      "title": "Facebook link limit: some free business accounts may attach only 2 links per month, but the Facebook IL campaign posts an article link every day",
+      "user_visible_behavior": "Facebook IL posts reach readers without relying on an attached link (e.g. link in a comment / first comment, a short vetree.app URL in the text, or another flow Roi chooses) — readers can open the article again",
+      "verification": [
+        {
+          "step": "confirm Facebook's current rule for the account type (Roi's account, read-only) and how the daily facebook_il post is built (Content Agent prompt, Campaign Calendar, Copy & mark posted, UTM)",
+          "target": "local",
+          "db_reads": "none",
+          "db_writes": "none",
+          "paid_calls": false
+        },
+        {
+          "step": "Roi chooses the posting design; implement it in the content generation + calendar for facebook_il (and any other affected platform)",
+          "target": "preview",
+          "db_reads": "prod",
+          "db_writes": "none",
+          "paid_calls": false
+        },
+        {
+          "step": "Review: Codex, tier 1 or 2 (tier 2 if it touches paid AI prompts) → BLOCKING: none",
+          "target": "none",
+          "db_reads": "none",
+          "db_writes": "none",
+          "paid_calls": false
+        }
+      ],
+      "notes": "Named by Roi 2026-10-12, to start after infra-003 ships: Facebook now allows only 2 links per month on posts for certain free business accounts; the Facebook IL account posts a link every day, so readers can no longer reach the articles. Design decision is Roi's."
     }
   ]
 }
