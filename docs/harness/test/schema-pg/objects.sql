@@ -28,6 +28,7 @@ CREATE TABLE public.parted_2026 PARTITION OF public.parted FOR VALUES FROM ('202
 CREATE INDEX parted_d ON public.parted (d);
 -- the same privilege granted by two grantors is reported once
 CREATE ROLE grantor_x NOLOGIN;
+GRANT grantor_x TO CURRENT_USER;  -- PostgreSQL 16+: a non-superuser creator may not SET ROLE without this
 GRANT SELECT ON public.items TO grantor_x WITH GRANT OPTION;
 SET ROLE grantor_x; GRANT SELECT ON public.items TO anon; RESET ROLE;
 CREATE PUBLICATION pub1 FOR TABLE public.items (id, name) WHERE (id > 0) WITH (publish = 'insert');
