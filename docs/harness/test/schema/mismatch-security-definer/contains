@@ -1,0 +1,1 @@
+routine public.touch() · security_definer — expected false, production true

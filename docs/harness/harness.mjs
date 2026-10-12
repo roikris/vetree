@@ -140,7 +140,8 @@ function classify(sigsDir, featureList, itemId, headSha) {
   const failed = existsSync(failedPath) ? readFileSync(failedPath, 'utf8').split('\n').filter(Boolean) : []
   if (!failed.length) { console.log('REGRESSION: no record of which checks failed — no evidence to match'); process.exit(1) }
   const results = []
-  const audits = [failed.includes('acl') && 'the access-control audit', failed.includes('rls') && 'the policy audit'].filter(Boolean)
+  const audits = [failed.includes('acl') && 'the access-control audit', failed.includes('rls') && 'the policy audit',
+    failed.includes('schema') && 'the schema audit'].filter(Boolean)
   if (audits.length) {
     console.log(`REGRESSION: ${audits.join(' and ')} failed — never an expected WIP failure`)
     process.exit(1)
@@ -203,7 +204,8 @@ const KINDS = new Set(['table', 'partitioned table', 'view', 'materialized view'
 // Diagnostics never echo response content: names are shown only when they look like plain identifiers.
 const safeName = n => (typeof n === 'string' && /^public\.[A-Za-z0-9_]{1,63}$/.test(n) ? n : '<unprintable name>')
 
-async function fetchAclReport(rpc = 'harness_acl_report') {
+// shape: 'array' (074 / 075 return rows) or 'object' (080 returns one jsonb value)
+async function fetchAclReport(rpc = 'harness_acl_report', shape = 'array') {
   const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY
   if (!url || !key) return { error: 'missing SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY' }
@@ -223,7 +225,9 @@ async function fetchAclReport(rpc = 'harness_acl_report') {
   try { body = await res.json() } catch { body = null }
   const code = body && typeof body.code === 'string' && /^[A-Z0-9]{2,12}$/.test(body.code) ? ` (${body.code})` : ''
   if (!res.ok) return { error: `HTTP ${res.status}${code}` }
-  if (!Array.isArray(body)) return { error: 'report is not an array' }
+  if (shape === 'object') {
+    if (body === null || typeof body !== 'object' || Array.isArray(body)) return { error: 'report is not an object' }
+  } else if (!Array.isArray(body)) return { error: 'report is not an array' }
   return { rows: body }
 }
 
@@ -601,6 +605,299 @@ function rlsSelftest() {
   process.exit(failures ? 1 : 0)
 }
 
+// ---------------------------------------------------------------- schema audit (infra-003)
+// Compares production's public schema STRUCTURE (public.harness_schema_report(), migration 080 — catalog only, never
+// row data) with supabase/schema.json, exactly. schema.json is flat: one key per fact ("relation public.x · column y
+// · type") → its value, keys sorted, so a PR diff shows exactly which fact changed. Exit 0 = match, 1 = mismatch,
+// 2 = unverified (not fetched; malformed or incomplete report; an object kind outside the contract; another
+// PostgreSQL major version; an invalid schema.json) — never a pass. Output never contains a definition, default or
+// other text from the database: names, booleans and numbers are printed, text and lists only as a short sha256.
+// Secret-shaped text is stored in schema.json as {"sha256": …} and listed under "redacted" (compared by hash).
+const SCHEMA_FILE = 'supabase/schema.json'
+const SCHEMA_NOTE = 'Expected structure of the public schema — EXACT, one key per fact. Checked against the live catalog by `node docs/harness/harness.mjs schema-audit` (init.sh check, PR smoke, daily). A migration that changes the schema updates this file in the same PR (schema-snapshot after db push — never to paper over a difference). Values under "redacted" held secret-shaped text and are stored as sha256 only. Policies: rls.json; table privileges also: access.json.'
+const SEP = ' · '
+// Secret-shaped text: never committed in clear (stored as sha256) and never printed
+const SECRET_PATTERNS = [
+  /eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/,                                  // JWT
+  /\bsk[-_](?:live[-_]|test[-_]|proj[-_]|ant[-_])?[A-Za-z0-9_-]{16,}/,         // secret API keys
+  /\bBearer\s+[A-Za-z0-9._~+/-]{16,}/i,
+  /\b(?:api[_-]?key|apikey|secret|password|passwd|pwd|token|service[_-]?role[_-]?key)\b["']?\s*(?:=>|:=|=|:)\s*['"]?[^\s'",;)]{8,}/i,
+  /[a-z][a-z0-9+.-]*:\/\/[^/\s:@'"]+:[^/\s@'"]+@/i,                           // URL with credentials
+  /[A-Za-z0-9+/]{40,}={0,2}/,                                                  // long base64
+  /\b[0-9a-f]{32,}\b/i,                                                        // long hex
+]
+const secretShaped = v => (typeof v === 'string' ? [v] : Array.isArray(v) ? v : []).some(s => typeof s === 'string' && SECRET_PATTERNS.some(re => re.test(s)))
+const sha = v => createHash('sha256').update(JSON.stringify(v)).digest('hex')
+const isSha = v => isObj(v) && exactKeys(v, ['sha256']) && typeof v.sha256 === 'string' && /^[0-9a-f]{64}$/.test(v.sha256)
+
+// The report's exact shape (080). 'strN' = string or null; { arr } = array of objects with exactly these keys.
+const SHAPE_T = {
+  str: v => typeof v === 'string', strN: v => v === null || typeof v === 'string',
+  bool: v => typeof v === 'boolean', boolN: v => v === null || typeof v === 'boolean',
+  int: v => Number.isInteger(v),
+  strs: v => Array.isArray(v) && v.every(x => typeof x === 'string'),
+  strsN: v => v === null || (Array.isArray(v) && v.every(x => typeof x === 'string')),
+}
+const S_ACL = { arr: { grantee: 'str', privilege: 'str', grantable: 'bool' } }
+const SCHEMA_SHAPE = {
+  format: 'int', server_version_num: 'int',
+  relations: { arr: {
+    name: 'str', kind: 'str', owner: 'str', acl: S_ACL, rls: 'bool', rls_forced: 'bool', options: 'strs',
+    columns: { arr: { name: 'str', type: 'str', collation: 'strN', not_null: 'bool', default: 'strN', identity: 'strN', generated: 'strN', acl: S_ACL } },
+    constraints: { arr: { name: 'str', type: 'str', definition: 'str', deferrable: 'bool', deferred: 'bool', validated: 'bool' } },
+    indexes: { arr: { name: 'str', definition: 'str', valid: 'bool', ready: 'bool', constraint: 'strN' } },
+    triggers: { arr: { name: 'str', definition: 'str', enabled: 'str' } },
+    view_definition: 'strN',
+    sequence: { objN: { type: 'str', start: 'str', increment: 'str', min: 'str', max: 'str', cache: 'str', cycle: 'bool', owned_by: 'strN' } },
+  } },
+  routines: { arr: { signature: 'str', kind: 'str', language: 'strN', owner: 'str', security_definer: 'bool', volatility: 'str', config: 'strs', definition: 'str', acl: S_ACL } },
+  types: { arr: {
+    name: 'str', kind: 'str', owner: 'str', acl: S_ACL, labels: 'strsN', base_type: 'strN', not_null: 'boolN', default: 'strN',
+    constraints: { arrN: { name: 'str', definition: 'str', validated: 'bool' } }, attributes: { arrN: { name: 'str', type: 'str' } },
+  } },
+  schema: { obj: { owner: 'str', acl: S_ACL } },
+  extensions: { arr: { name: 'str', version: 'str', schema: 'str' } },
+  default_acls: { arr: { role: 'str', schema: 'strN', object_type: 'str', acl: S_ACL } },
+  roles: { arr: { name: 'str', superuser: 'bool', inherit: 'bool', create_role: 'bool', create_db: 'bool', login: 'bool', replication: 'bool', bypass_rls: 'bool', member_of: 'strs' } },
+  event_triggers: { arr: { name: 'str', event: 'str', enabled: 'str', function: 'str', tags: 'strs' } },
+  publications: { arr: { name: 'str', all_tables: 'bool', tables: 'strs' } },
+  unsupported: { arr: { kind: 'str', name: 'str' } },
+  counts: { obj: Object.fromEntries(['relations', 'columns', 'constraints', 'indexes', 'triggers', 'routines', 'types', 'generated_types',
+    'extensions', 'default_acls', 'event_triggers', 'publications', 'unsupported'].map(k => [k, 'int'])) },
+}
+// Paths in messages are positions ("relations[3].columns[0]"), never content
+function checkShape(v, spec, at, errs) {
+  if (errs.length >= 20) return
+  if (typeof spec === 'string') { if (!SHAPE_T[spec](v)) errs.push(`${at}: not ${spec}`); return }
+  const [mode, inner] = Object.entries(spec)[0]
+  if ((mode === 'objN' || mode === 'arrN') && v === null) return
+  if (mode === 'obj' || mode === 'objN') {
+    if (!isObj(v) || !exactKeys(v, Object.keys(inner))) { errs.push(`${at}: not an object with exactly the keys ${Object.keys(inner).join(', ')}`); return }
+    for (const k of Object.keys(inner)) checkShape(v[k], inner[k], `${at}.${k}`, errs)
+  } else {
+    if (!Array.isArray(v)) { errs.push(`${at}: not an array`); return }
+    v.forEach((x, i) => checkShape(x, { obj: inner }, `${at}[${i}]`, errs))
+  }
+}
+
+// The report's own catalog counts must equal what its sections list (a cut-short report is never a pass)
+function schemaComplete(rep) {
+  const sum = f => rep.relations.reduce((n, r) => n + r[f].length, 0)
+  const listed = { relations: rep.relations.length, columns: sum('columns'), constraints: sum('constraints'), indexes: sum('indexes'),
+    triggers: sum('triggers'), routines: rep.routines.length, types: rep.types.length, extensions: rep.extensions.length,
+    default_acls: rep.default_acls.length, event_triggers: rep.event_triggers.length, publications: rep.publications.length,
+    unsupported: rep.unsupported.length }
+  return Object.entries(listed).filter(([k, n]) => rep.counts[k] !== n).map(([k, n]) => `incomplete report: ${k} lists ${n}, the catalog counts ${rep.counts[k]}`)
+}
+
+// Validated report → Map(fact key → value). Names that are empty, contain '·' or control characters make the
+// report malformed (keys must stay unambiguous); a fact seen twice (a duplicate name) too.
+function schemaFlat(rep, malformed) {
+  const flat = new Map()
+  const bad = n => typeof n !== 'string' || !n.length || n.includes('·') || /[\u0000-\u001f\u007f-\u009f]/.test(n)
+  const put = (key, v) => { if (flat.has(key)) malformed.push(`a fact appears twice (duplicate name): ${escCtl(key)}`); else flat.set(key, v) }
+  const each = (list, keyOf, label, fn) => list.forEach((x, i) => {
+    const k = keyOf(x)
+    if (bad(k)) { malformed.push(`${label}: a name is empty or contains '·' / control characters`); return }
+    fn(`${label} ${k}`, x, i)
+  })
+  const fields = (p, x, names) => { for (const f of names) put(`${p}${SEP}${f}`, x[f]) }
+  const acl = (p, list) => each(list, a => `${a.grantee} ${a.privilege}`, `${p}${SEP}acl`, (q, a) => put(q, a.grantable))
+  each(rep.relations, r => r.name, 'relation', (p, r) => {
+    fields(p, r, ['kind', 'owner', 'rls', 'rls_forced', 'options', 'view_definition'])
+    acl(p, r.acl)
+    each(r.columns, c => c.name, `${p}${SEP}column`, (q, c, i) => {
+      put(`${q}${SEP}position`, i + 1)
+      fields(q, c, ['type', 'collation', 'not_null', 'default', 'identity', 'generated'])
+      acl(q, c.acl)
+    })
+    each(r.constraints, c => c.name, `${p}${SEP}constraint`, (q, c) => fields(q, c, ['type', 'definition', 'deferrable', 'deferred', 'validated']))
+    each(r.indexes, x => x.name, `${p}${SEP}index`, (q, x) => fields(q, x, ['definition', 'valid', 'ready', 'constraint']))
+    each(r.triggers, x => x.name, `${p}${SEP}trigger`, (q, x) => fields(q, x, ['definition', 'enabled']))
+    put(`${p}${SEP}sequence`, r.sequence !== null)
+    if (r.sequence) fields(`${p}${SEP}sequence`, r.sequence, ['type', 'start', 'increment', 'min', 'max', 'cache', 'cycle', 'owned_by'])
+  })
+  each(rep.routines, r => r.signature, 'routine', (p, r) => {
+    fields(p, r, ['kind', 'language', 'owner', 'security_definer', 'volatility', 'config', 'definition'])
+    acl(p, r.acl)
+  })
+  each(rep.types, t => t.name, 'type', (p, t) => {
+    fields(p, t, ['kind', 'owner', 'labels', 'base_type', 'not_null', 'default'])
+    acl(p, t.acl)
+    each(t.constraints || [], c => c.name, `${p}${SEP}constraint`, (q, c) => fields(q, c, ['definition', 'validated']))
+    each(t.attributes || [], a => a.name, `${p}${SEP}attribute`, (q, a, i) => { put(`${q}${SEP}position`, i + 1); put(`${q}${SEP}type`, a.type) })
+  })
+  put(`schema public${SEP}owner`, rep.schema.owner)
+  acl('schema public', rep.schema.acl)
+  each(rep.extensions, x => x.name, 'extension', (p, x) => fields(p, x, ['version', 'schema']))
+  each(rep.default_acls, d => `${d.role} ${d.schema ?? '(global)'} ${d.object_type}`, 'default privileges', (p, d) => {
+    put(`${p}${SEP}present`, true)
+    acl(p, d.acl)
+  })
+  each(rep.roles, r => r.name, 'role', (p, r) => fields(p, r, ['superuser', 'inherit', 'create_role', 'create_db', 'login', 'replication', 'bypass_rls', 'member_of']))
+  each(rep.event_triggers, x => x.name, 'event trigger', (p, x) => fields(p, x, ['event', 'enabled', 'function', 'tags']))
+  each(rep.publications, x => x.name, 'publication', (p, x) => fields(p, x, ['all_tables', 'tables']))
+  return flat
+}
+
+// Fetch (or read --report) and validate; returns { flat, major } or prints UNVERIFIED and exits 2
+async function schemaActual(argv, label) {
+  const opt = n => { const i = argv.indexOf(n); return i >= 0 ? argv[i + 1] : null }
+  let fetched
+  if (opt('--report')) { try { fetched = { rows: readJson(opt('--report')) } } catch { fetched = { error: 'report file is not valid JSON' } } }
+  else fetched = await fetchAclReport('harness_schema_report', 'object')
+  if (fetched.error) { console.log(`${label}: UNVERIFIED — ${fetched.error}`); process.exit(2) }
+  const rep = fetched.rows
+  const malformed = []
+  checkShape(rep, { obj: SCHEMA_SHAPE }, 'report', malformed)
+  if (!malformed.length && rep.format !== 1) malformed.push('report format is not 1')
+  if (!malformed.length) malformed.push(...schemaComplete(rep))
+  const flat = malformed.length ? null : schemaFlat(rep, malformed)
+  if (malformed.length) { console.log(`${label}: UNVERIFIED — malformed report:`); for (const m of malformed.slice(0, 20)) console.log(`  ${escCtl(m)}`); process.exit(2) }
+  if (!rep.relations.length) { console.log(`${label}: UNVERIFIED — no relations in the report`); process.exit(2) }
+  if (rep.unsupported.length) {
+    console.log(`${label}: UNVERIFIED — ${rep.unsupported.length} object(s) of a kind the audit does not cover (extend 080 + the audit, or remove them):`)
+    for (const u of rep.unsupported.slice(0, 20)) console.log(`  ${escCtl(u.kind)} ${escCtl(u.name)}`)
+    process.exit(2)
+  }
+  return { flat, major: Math.floor(rep.server_version_num / 10000), rep }
+}
+
+// schema.json → { major, facts: Map, redacted: Set }; throws on anything outside the contract — including
+// secret-shaped text stored in clear (it must be a sha256)
+function readSchemaExpected(path) {
+  let j
+  try { j = readJson(path) } catch { throw new Error(`${path}: not readable JSON`) }
+  if (!isObj(j) || !exactKeys(j, ['note', 'format', 'server_major', 'redacted', 'facts']) || typeof j.note !== 'string' ||
+      j.format !== 1 || !Number.isInteger(j.server_major) || !Array.isArray(j.redacted) || !isObj(j.facts)) {
+    throw new Error(`${path}: must have exactly "note", "format" (1), "server_major" (integer), "redacted" (list), "facts" (object)`)
+  }
+  const facts = new Map(), redacted = new Set()
+  for (const k of j.redacted) {
+    if (typeof k !== 'string' || !hasOwn(j.facts, k) || !isSha(j.facts[k]) || redacted.has(k)) throw new Error(`${path}: "redacted" must list distinct fact keys whose values are {"sha256": …}`)
+    redacted.add(k)
+  }
+  for (const k of Object.keys(j.facts)) {
+    const v = j.facts[k]
+    const plain = v === null || typeof v === 'string' || typeof v === 'boolean' || Number.isInteger(v) || SHAPE_T.strs(v)
+    if (!plain && !isSha(v)) throw new Error(`${path}: fact ${escCtl(k)} has a value of the wrong type`)
+    if (isSha(v) && !redacted.has(k)) throw new Error(`${path}: fact ${escCtl(k)} is a sha256 but not listed under "redacted"`)
+    if (plain && secretShaped(v)) throw new Error(`${path}: fact ${escCtl(k)} holds secret-shaped text in clear — store it as {"sha256": …}`)
+    facts.set(k, v)
+  }
+  return { major: j.server_major, facts, redacted }
+}
+
+const schemaShow = v => (v === null || typeof v === 'boolean' || typeof v === 'number' ? String(v) : `sha256:${sha(v).slice(0, 12)}`)
+function compareSchema(actual, expected) {
+  const diffs = []
+  for (const k of [...new Set([...actual.keys(), ...expected.keys()])].sort()) {
+    const n = escCtl(k)
+    if (!expected.has(k)) { diffs.push(`NEW   ${n} = ${schemaShow(actual.get(k))}`); continue }
+    if (!actual.has(k)) { diffs.push(`GONE  ${n}`); continue }
+    const a = actual.get(k), e = expected.get(k)
+    const same = isSha(e) ? sha(a) === e.sha256 : JSON.stringify(a) === JSON.stringify(e)
+    if (!same) diffs.push(`DIFF  ${n} — expected ${isSha(e) ? `sha256:${e.sha256.slice(0, 12)}` : schemaShow(e)}, production ${schemaShow(a)}`)
+  }
+  return diffs
+}
+
+// schema-audit [--report <file.json>] [--expected <schema.json>]
+async function schemaAudit(argv) {
+  const opt = n => { const i = argv.indexOf(n); return i >= 0 ? argv[i + 1] : null }
+  const file = opt('--expected') || SCHEMA_FILE
+  let expected
+  try { expected = readSchemaExpected(file) } catch (e) { console.log(`schema audit: UNVERIFIED — ${escCtl(e.message)}`); process.exit(2) }
+  const { flat, major } = await schemaActual(argv, 'schema audit')
+  if (major !== expected.major) { console.log(`schema audit: UNVERIFIED — production runs PostgreSQL ${major}, ${escCtl(file)} was taken on ${expected.major} (deparsed text may differ: review and re-snapshot in a PR)`); process.exit(2) }
+  const diffs = compareSchema(flat, expected.facts)
+  if (diffs.length) {
+    console.log(`schema audit: FAIL — ${diffs.length} difference(s) from ${escCtl(file)}:`)
+    for (const d of diffs.slice(0, 60)) console.log(`  ${d}`)
+    if (diffs.length > 60) console.log(`  … and ${diffs.length - 60} more`)
+    process.exit(1)
+  }
+  console.log(`schema audit: PASS — ${flat.size} facts match ${escCtl(file)}${expected.redacted.size ? ` (${expected.redacted.size} compared by sha256)` : ''}`)
+}
+
+// schema-report [--report <file.json>] [--out <file.json>]: validate and summarise (counts per section, the
+// secret-shaped facts by key). --out writes the validated report itself — a local file for reading, never committed.
+async function schemaReport(argv) {
+  const opt = n => { const i = argv.indexOf(n); return i >= 0 ? argv[i + 1] : null }
+  const { flat, major, rep } = await schemaActual(argv, 'schema report')
+  const c = rep.counts
+  console.log(`schema report: PostgreSQL ${major} · ${c.relations} relations · ${c.columns} columns · ${c.constraints} constraints · ${c.indexes} indexes · ${c.triggers} triggers · ${c.routines} routines · ${c.types} types (+${c.generated_types} generated) · ${c.extensions} extensions · ${c.default_acls} default-privilege entries · ${c.event_triggers} event triggers · ${c.publications} publications · ${flat.size} facts`)
+  const secret = [...flat.keys()].filter(k => secretShaped(flat.get(k))).sort()
+  console.log(`secret-shaped values: ${secret.length}${secret.length ? ' (stored as sha256 by schema-snapshot):' : ''}`)
+  for (const k of secret) console.log(`  ${escCtl(k)}`)
+  if (opt('--out')) {
+    try { writeJson(opt('--out'), rep) } catch (e) { console.log(`schema report: could not write --out (${e?.code && /^[A-Z]{2,20}$/.test(e.code) ? e.code : 'error'})`); process.exit(2) }
+    console.log(`wrote ${escCtl(opt('--out'))} (local only — it holds definitions in clear: never commit it)`)
+  }
+}
+
+// schema-snapshot [--report <file.json>] [--out <schema.json>]: write the expectation from a validated, complete,
+// fully covered report (read-only query). Baseline only — never to paper over a difference. Secret-shaped values are
+// written as sha256 and listed. On any error the existing file is left untouched (temp file, checked, renamed).
+async function schemaSnapshot(argv) {
+  const opt = n => { const i = argv.indexOf(n); return i >= 0 ? argv[i + 1] : null }
+  const out = opt('--out') || SCHEMA_FILE
+  const { flat, major } = await schemaActual(argv, 'schema snapshot')
+  const facts = {}, redacted = []
+  for (const k of [...flat.keys()].sort()) {
+    const v = flat.get(k)
+    const stored = secretShaped(v) ? (redacted.push(k), { sha256: sha(v) }) : v
+    Object.defineProperty(facts, k, { value: stored, enumerable: true, writable: true, configurable: true })
+  }
+  const tmp = `${out}.tmp-${process.pid}`
+  try {
+    writeJson(tmp, { note: SCHEMA_NOTE, format: 1, server_major: major, redacted, facts })
+    const back = readSchemaExpected(tmp)
+    if (back.major !== major || compareSchema(flat, back.facts).length) throw new Error('round trip differs')
+    renameSync(tmp, out)
+  } catch (e) {
+    try { rmSync(tmp, { force: true }) } catch { /* the temp file may not exist */ }
+    console.log(`schema snapshot: failed — ${e?.code && /^[A-Z]{2,20}$/.test(e.code) ? e.code : escCtl(e?.message || 'error')}`); process.exit(2)
+  }
+  console.log(`schema snapshot: wrote ${escCtl(out)} — ${flat.size} facts, ${redacted.length} stored as sha256${redacted.length ? ':' : ''}`)
+  for (const k of redacted) console.log(`  ${escCtl(k)}`)
+}
+
+// schema-selftest: every case under docs/harness/test/schema/<case>/ — report.json, schema.json, expect (exit code),
+// optional contains / forbid (one string per line), argv (one line; placeholders {report} {expected} {out} {tmp};
+// default schema-audit --report {report} --expected {expected}), env.json (the child's whole environment; default
+// empty), before.json (copied to {out} first), after.json ({out} must equal it) or after-absent ({out} must not exist).
+function schemaSelftest() {
+  const dir = join(dirname(new URL(import.meta.url).pathname), 'test', 'schema')
+  const lines = f => (existsSync(f) ? readFileSync(f, 'utf8').split('\n').filter(Boolean) : [])
+  let failures = 0
+  for (const name of readdirSync(dir).sort()) {
+    const c = join(dir, name)
+    const want = Number(readFileSync(join(c, 'expect'), 'utf8').trim())
+    const tmp = mkdtempSync(join(tmpdir(), 'schema-selftest-')), out = join(tmp, 'schema.json')
+    if (existsSync(join(c, 'before.json'))) copyFileSync(join(c, 'before.json'), out)
+    const fill = s => s.replace('{report}', join(c, 'report.json')).replace('{expected}', join(c, 'schema.json')).replace('{out}', out).replace('{tmp}', tmp)
+    const argv = existsSync(join(c, 'argv')) ? readFileSync(join(c, 'argv'), 'utf8').trim().split(/\s+/).map(fill)
+      : ['schema-audit', '--report', join(c, 'report.json'), '--expected', join(c, 'schema.json')]
+    const env = existsSync(join(c, 'env.json')) ? readJson(join(c, 'env.json')) : {}
+    const r = spawnSync(process.execPath, [new URL(import.meta.url).pathname, ...argv], { encoding: 'utf8', env })
+    const output = `${r.stdout || ''}${r.stderr || ''}`
+    const missing = lines(join(c, 'contains')).filter(x => !output.includes(x))
+    const leaked = lines(join(c, 'forbid')).filter(x => output.includes(x))
+    let fileProblem = ''
+    if (existsSync(join(c, 'after.json')) && (!existsSync(out) || readFileSync(out, 'utf8') !== readFileSync(join(c, 'after.json'), 'utf8'))) fileProblem = ' — output file differs from after.json'
+    if (existsSync(join(c, 'after-absent')) && existsSync(out)) fileProblem = ' — output file was written'
+    if (readdirSync(tmp).some(f => f.includes('.tmp-'))) fileProblem += ' — temp file left behind'
+    rmSync(tmp, { recursive: true, force: true })
+    const ok = r.status === want && !missing.length && !leaked.length && !fileProblem
+    if (!ok) failures++
+    const detail = ok ? '' : leaked.length ? ' — output contains a forbidden string; output withheld' : `${fileProblem}${missing.length ? ` — missing: ${missing.join(' | ')}` : ''}\n${output}`
+    console.log(`  ${ok ? '✓' : '✗'} ${name}: exit ${r.status} (want ${want})${detail}`)
+  }
+  console.log(failures ? `schema selftest: FAIL — ${failures} case(s)` : 'schema selftest: PASS')
+  process.exit(failures ? 1 : 0)
+}
+
 // log-grew <base> <new> <session-id> (harness-004): exit 0 only when <new> is <base> byte for byte followed by
 // appended text that contains this session's entry header. Used by `init.sh unlock` on the exact blobs it compares
 // and publishes. Byte exact (Buffers: no decoding, no newline normalisation). Prints sizes / offsets only, never
@@ -639,6 +936,10 @@ const commands = {
   'rls-selftest': () => rlsSelftest(),
   'rls-audit': () => rlsAudit(args),
   'rls-snapshot': () => rlsSnapshot(args),
+  'schema-report': () => schemaReport(args),
+  'schema-audit': () => schemaAudit(args),
+  'schema-snapshot': () => schemaSnapshot(args),
+  'schema-selftest': () => schemaSelftest(),
   'log-grew': () => logGrew(args[0], args[1], args[2]),
 }
 if (!commands[cmd]) { console.error(`unknown command: ${cmd}`); process.exit(2) }

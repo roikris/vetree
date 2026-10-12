@@ -492,6 +492,7 @@ Service role only. Records data migrations and each `purge_expired_logs()` run.
 | `record_enrichment_failure(id, error)` | 072 | One failed enrichment attempt, locked; the 3rd hides the article (`quarantine_reason = 'enrichment_failed'`) unless already quarantined |
 | `harness_acl_report()` | 074 | Read-only: every public relation × (anon, authenticated, service_role, PUBLIC) with its actual privileges (explicit empty arrays), plus informational default-privilege rows — the access-control audit's source |
 | `harness_rls_report()` | 075 | Read-only: every public table's row-level security (on / forced) plus every policy on it (command, roles, USING / WITH CHECK) — catalog only, never row data; `node docs/harness/harness.mjs rls-report` prints it (infra-002) |
+| `harness_schema_report()` | 080 | Read-only: the public schema's whole structure as ONE jsonb value (relations, columns, constraints, indexes, triggers, views, sequences, routines, types, schema ACL, extensions, default privileges, Supabase roles, event triggers, publications) plus independent counts and every object of an uncovered kind — catalog only, never row data or sequence values; the schema audit's source (infra-003) |
 | `requeue_failed_articles()` | 072, 073 | Admin "Retry failed": re-queues failed, unpublished articles; lifts only `enrichment_failed` quarantines; never selects `ai_refused` (073) |
 | `purge_expired_logs()` | 069/070 | 12-month retention purge (pg_cron daily) |
 | `delete_user_account(uuid)` | 070 | GDPR deletion of a user's rows across all PII tables |
@@ -556,8 +557,18 @@ toggles RLS, or adds / drops a table updates `rls.json` in the same PR.** `rls-s
 2026-10-11) — never to paper over a difference. Scope: public ordinary + partitioned tables — not other schemas,
 views' security settings, or what a helper function called inside a policy does; a scheduled audit catches drift that
 persists, not a change made and reverted between runs.
+**The schema audit (infra-003)** — `node docs/harness/harness.mjs schema-audit` compares production's public schema
+structure (`public.harness_schema_report()`, 080) with `supabase/schema.json`, exactly. The file is flat — one key per
+fact (`relation public.x · column y · default`) — so a PR diff names every change. Same exit codes and places as the
+other two audits. Output never shows database text (definitions, defaults): only names, booleans, numbers and short
+sha256s. Secret-shaped text (keys, tokens, credentials in a function body…) is stored as `{"sha256": …}` and listed
+under `redacted`; an audit refuses a schema.json holding it in clear. An object of a kind outside the contract (rules,
+aggregates, range types, operators, statistics objects…) makes it UNVERIFIED — extend 080 + the audit first. A
+different PostgreSQL major version is UNVERIFIED too (deparsed text may change): review, re-snapshot in a PR.
+`schema-snapshot` after every schema-changing push (never to paper over a difference); `schema-report --out <file>`
+writes the full report locally for reading — never commit it.
 **Order for a new table:** migration with grants → `db push` (Roi's yes, rule 15) → update `access.json` (and
-`rls.json`) → PR CI audits production against them → merge. (Between push and merge the daily audit on `main` can mismatch.)
+`rls.json`, `schema.json`) → PR CI audits production against them → merge. (Between push and merge the daily audit on `main` can mismatch.)
 **Limits:** direct relation privileges only — not role membership / inherited privileges, column grants, RLS,
 schema USAGE or grant options. A match proves neither that the app can do what it needs nor that a role is
 effectively denied. **Least privilege since migration 079 (infra-002):** anon / authenticated hold only the commands

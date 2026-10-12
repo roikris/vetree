@@ -35,7 +35,7 @@ jobs:
         with:
           node-version: '20'
 
-      # Offline self-tests of both audits first, so a broken audit can't report a false PASS below.
+      # Offline self-tests of the audits first, so a broken audit can't report a false PASS below.
       - name: Audit self-tests (offline)
         id: audit_selftests
         continue-on-error: true
@@ -43,6 +43,7 @@ jobs:
           rc=0
           node docs/harness/harness.mjs acl-selftest || rc=1
           node docs/harness/harness.mjs rls-selftest || rc=1
+          node docs/harness/harness.mjs schema-selftest || rc=1
           exit $rc
 
       # Daily + post-deploy drift check (infra-001): production's actual privileges vs
@@ -86,6 +87,27 @@ jobs:
           [ -n "$SLACK_WEBHOOK_URL" ] || exit 0
           curl -s -X POST -H 'Content-Type: application/json' \
             -d "{\"text\":\"🔐 *Vetree* — policy audit or audit self-tests FAILED (row-level security differs from supabase/rls.json, the report could not be read, or a self-test failed)\\n$RUN_URL\"}" "$SLACK_WEBHOOK_URL" \
+            -o /dev/null -w 'Slack HTTP %{http_code}\n' -f || echo "::warning::Slack delivery failed"
+
+      # Same, for the public schema's structure (infra-003): production's catalog vs supabase/schema.json, exactly
+      # — catches a table, column, index, function, type or grant changed outside a migration (dashboard drift).
+      - name: Schema audit
+        id: schema
+        continue-on-error: true
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node docs/harness/harness.mjs schema-audit
+
+      - name: Slack on failed schema audit
+        if: steps.schema.outcome == 'failure'
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          [ -n "$SLACK_WEBHOOK_URL" ] || exit 0
+          curl -s -X POST -H 'Content-Type: application/json' \
+            -d "{\"text\":\"🔐 *Vetree* — schema audit FAILED (the public schema differs from supabase/schema.json, or the report could not be read)\\n$RUN_URL\"}" "$SLACK_WEBHOOK_URL" \
             -o /dev/null -w 'Slack HTTP %{http_code}\n' -f || echo "::warning::Slack delivery failed"
 
       # On push: test the release that was just pushed, never the previous one. Poll
@@ -232,6 +254,10 @@ jobs:
 
       - name: Fail job if the policy audit failed
         if: steps.rls.outcome == 'failure'
+        run: exit 1
+
+      - name: Fail job if the schema audit failed
+        if: steps.schema.outcome == 'failure'
         run: exit 1
 
       - name: Fail job if the audit self-tests failed

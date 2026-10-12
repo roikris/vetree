@@ -1,0 +1,734 @@
+{
+ "roles": [
+  {
+   "name": "anon",
+   "login": false,
+   "inherit": true,
+   "create_db": false,
+   "member_of": [],
+   "superuser": false,
+   "bypass_rls": false,
+   "create_role": false,
+   "replication": false
+  },
+  {
+   "name": "authenticated",
+   "login": false,
+   "inherit": true,
+   "create_db": false,
+   "member_of": [],
+   "superuser": false,
+   "bypass_rls": false,
+   "create_role": false,
+   "replication": false
+  },
+  {
+   "name": "authenticator",
+   "login": true,
+   "inherit": false,
+   "create_db": false,
+   "member_of": [
+    "anon",
+    "authenticated",
+    "service_role"
+   ],
+   "superuser": false,
+   "bypass_rls": false,
+   "create_role": false,
+   "replication": false
+  },
+  {
+   "name": "postgres",
+   "login": true,
+   "inherit": true,
+   "create_db": true,
+   "member_of": [],
+   "superuser": true,
+   "bypass_rls": true,
+   "create_role": true,
+   "replication": true
+  },
+  {
+   "name": "service_role",
+   "login": false,
+   "inherit": true,
+   "create_db": false,
+   "member_of": [],
+   "superuser": false,
+   "bypass_rls": true,
+   "create_role": false,
+   "replication": false
+  }
+ ],
+ "types": [
+  {
+   "acl": [
+    {
+     "grantee": "PUBLIC",
+     "grantable": false,
+     "privilege": "USAGE"
+    },
+    {
+     "grantee": "postgres",
+     "grantable": false,
+     "privilege": "USAGE"
+    }
+   ],
+   "kind": "enum",
+   "name": "public.mood",
+   "owner": "postgres",
+   "labels": [
+    "sad",
+    "ok",
+    "happy"
+   ],
+   "default": null,
+   "not_null": null,
+   "base_type": null,
+   "attributes": null,
+   "constraints": null
+  },
+  {
+   "acl": [
+    {
+     "grantee": "PUBLIC",
+     "grantable": false,
+     "privilege": "USAGE"
+    },
+    {
+     "grantee": "postgres",
+     "grantable": false,
+     "privilege": "USAGE"
+    }
+   ],
+   "kind": "composite",
+   "name": "public.pair",
+   "owner": "postgres",
+   "labels": null,
+   "default": null,
+   "not_null": null,
+   "base_type": null,
+   "attributes": [
+    {
+     "name": "a",
+     "type": "integer"
+    },
+    {
+     "name": "b",
+     "type": "text"
+    }
+   ],
+   "constraints": null
+  },
+  {
+   "acl": [
+    {
+     "grantee": "PUBLIC",
+     "grantable": false,
+     "privilege": "USAGE"
+    },
+    {
+     "grantee": "postgres",
+     "grantable": false,
+     "privilege": "USAGE"
+    }
+   ],
+   "kind": "domain",
+   "name": "public.pos",
+   "owner": "postgres",
+   "labels": null,
+   "default": "1",
+   "not_null": true,
+   "base_type": "integer",
+   "attributes": null,
+   "constraints": [
+    {
+     "name": "pos_check",
+     "validated": true,
+     "definition": "CHECK ((VALUE > 0))"
+    },
+    {
+     "name": "pos_not_null",
+     "validated": true,
+     "definition": "NOT NULL"
+    }
+   ]
+  }
+ ],
+ "counts": {
+  "types": 3,
+  "columns": 11,
+  "indexes": 4,
+  "routines": 3,
+  "triggers": 1,
+  "relations": 4,
+  "extensions": 1,
+  "constraints": 7,
+  "unsupported": 0,
+  "default_acls": 0,
+  "publications": 0,
+  "event_triggers": 0,
+  "generated_types": 9
+ },
+ "format": 1,
+ "schema": {
+  "acl": [
+   {
+    "grantee": "PUBLIC",
+    "grantable": false,
+    "privilege": "USAGE"
+   },
+   {
+    "grantee": "anon",
+    "grantable": false,
+    "privilege": "USAGE"
+   },
+   {
+    "grantee": "authenticated",
+    "grantable": false,
+    "privilege": "USAGE"
+   },
+   {
+    "grantee": "pg_database_owner",
+    "grantable": false,
+    "privilege": "CREATE"
+   },
+   {
+    "grantee": "pg_database_owner",
+    "grantable": false,
+    "privilege": "USAGE"
+   },
+   {
+    "grantee": "service_role",
+    "grantable": false,
+    "privilege": "USAGE"
+   }
+  ],
+  "owner": "pg_database_owner"
+ },
+ "routines": [
+  {
+   "acl": [
+    {
+     "grantee": "PUBLIC",
+     "grantable": false,
+     "privilege": "EXECUTE"
+    },
+    {
+     "grantee": "postgres",
+     "grantable": false,
+     "privilege": "EXECUTE"
+    }
+   ],
+   "kind": "f",
+   "owner": "postgres",
+   "config": [],
+   "language": "sql",
+   "signature": "public.call_out()",
+   "definition": "CREATE OR REPLACE FUNCTION public.call_out()\n RETURNS text\n LANGUAGE sql\nAS $function$ SELECT 'Bearer SENTINELtok3nabcdefghijklmnop' $function$\n",
+   "volatility": "v",
+   "security_definer": false
+  },
+  {
+   "acl": [
+    {
+     "grantee": "postgres",
+     "grantable": false,
+     "privilege": "EXECUTE"
+    },
+    {
+     "grantee": "service_role",
+     "grantable": false,
+     "privilege": "EXECUTE"
+    }
+   ],
+   "kind": "f",
+   "owner": "postgres",
+   "config": [
+    "search_path=pg_catalog, pg_temp"
+   ],
+   "language": "sql",
+   "signature": "public.harness_schema_report()",
+   "definition": "CREATE OR REPLACE FUNCTION public.harness_schema_report()\n RETURNS jsonb\n LANGUAGE sql\n STABLE\n SET search_path TO 'pg_catalog', 'pg_temp'\nAS $function$\nWITH\npub AS (SELECT oid FROM pg_catalog.pg_namespace WHERE nspname = 'public'),\n-- every object that belongs to an extension (covered by the extensions section)\next_member AS (\n  SELECT d.classid, d.objid FROM pg_catalog.pg_depend d WHERE d.deptype = 'e'\n),\nrel AS (\n  SELECT c.* FROM pg_catalog.pg_class c\n  WHERE c.relnamespace = (SELECT oid FROM pub)\n    AND c.relkind IN ('r', 'p', 'v', 'm', 'S', 'f')\n    AND NOT EXISTS (SELECT 1 FROM ext_member e WHERE e.classid = 'pg_catalog.pg_class'::pg_catalog.regclass AND e.objid = c.oid)\n),\nfn AS (\n  SELECT p.* FROM pg_catalog.pg_proc p\n  WHERE p.pronamespace = (SELECT oid FROM pub)\n    AND NOT EXISTS (SELECT 1 FROM ext_member e WHERE e.classid = 'pg_catalog.pg_proc'::pg_catalog.regclass AND e.objid = p.oid)\n),\ntyp AS (\n  SELECT t.* FROM pg_catalog.pg_type t\n  WHERE t.typnamespace = (SELECT oid FROM pub)\n    AND NOT EXISTS (SELECT 1 FROM ext_member e WHERE e.classid = 'pg_catalog.pg_type'::pg_catalog.regclass AND e.objid = t.oid)\n),\n-- type classification: covered kinds, generated dependents, and the rest (unsupported)\ntyp_class AS (\n  SELECT t.oid, t.typname,\n    CASE\n      WHEN t.typtype = 'e' THEN 'enum'\n      WHEN t.typtype = 'd' THEN 'domain'\n      WHEN t.typtype = 'c' AND tr.relkind = 'c' THEN 'composite'\n      WHEN t.typtype = 'c' AND tr.oid IS NOT NULL\n           AND (tr.oid IN (SELECT oid FROM rel)) THEN 'generated'\n      WHEN t.typcategory = 'A' AND t.typelem <> 0\n           AND (te.typnamespace <> (SELECT oid FROM pub)\n                OR te.typtype IN ('e', 'd')\n                OR (te.typtype = 'c' AND (ter.relkind = 'c' OR ter.oid IN (SELECT oid FROM rel)))\n                OR EXISTS (SELECT 1 FROM ext_member e WHERE e.classid = 'pg_catalog.pg_type'::pg_catalog.regclass AND e.objid = te.oid))\n           THEN 'generated'\n      ELSE 'unsupported'\n    END AS class\n  FROM typ t\n  LEFT JOIN pg_catalog.pg_class tr ON tr.oid = t.typrelid\n  LEFT JOIN pg_catalog.pg_type te ON te.oid = t.typelem\n  LEFT JOIN pg_catalog.pg_class ter ON ter.oid = te.typrelid\n),\nunsupported AS (\n  -- relations of other kinds (indexes count only when they index a covered relation; composite relations\n  -- are their types' business)\n  SELECT 'relation:' || c.relkind::text AS kind, c.relname::text AS name\n  FROM pg_catalog.pg_class c\n  WHERE c.relnamespace = (SELECT oid FROM pub)\n    AND c.relkind NOT IN ('r', 'p', 'v', 'm', 'S', 'f', 'c')\n    AND NOT EXISTS (SELECT 1 FROM ext_member e WHERE e.classid = 'pg_catalog.pg_class'::pg_catalog.regclass AND e.objid = c.oid)\n    AND NOT (c.relkind IN ('i', 'I') AND EXISTS (\n      SELECT 1 FROM pg_catalog.pg_index i WHERE i.indexrelid = c.oid AND i.indrelid IN (SELECT oid FROM rel)))\n  UNION ALL\n  SELECT 'type:' || t.typtype::text, t.typname::text FROM typ t JOIN typ_class k ON k.oid = t.oid WHERE k.class = 'unsupported'\n  UNION ALL\n  SELECT 'routine:' || p.prokind::text, p.proname::text FROM fn p WHERE p.prokind NOT IN ('f', 'p')\n  UNION ALL\n  SELECT 'rule', r.rulename::text FROM pg_catalog.pg_rewrite r JOIN rel c ON c.oid = r.ev_class\n  WHERE NOT (r.rulename = '_RETURN' AND c.relkind IN ('v', 'm'))\n  UNION ALL\n  SELECT 'operator', o.oprname::text FROM pg_catalog.pg_operator o\n  WHERE o.oprnamespace = (SELECT oid FROM pub)\n    AND NOT EXISTS (SELECT 1 FROM ext_member e WHERE e.classid = 'pg_catalog.pg_operator'::pg_catalog.regclass AND e.objid = o.oid)\n  UNION ALL\n  SELECT 'operator class', oc.opcname::text FROM pg_catalog.pg_opclass oc\n  WHERE oc.opcnamespace = (SELECT oid FROM pub)\n    AND NOT EXISTS (SELECT 1 FROM ext_member e WHERE e.classid = 'pg_catalog.pg_opclass'::pg_catalog.regclass AND e.objid = oc.oid)\n  UNION ALL\n  SELECT 'operator family', ofa.opfname::text FROM pg_catalog.pg_opfamily ofa\n  WHERE ofa.opfnamespace = (SELECT oid FROM pub)\n    AND NOT EXISTS (SELECT 1 FROM ext_member e WHERE e.classid = 'pg_catalog.pg_opfamily'::pg_catalog.regclass AND e.objid = ofa.oid)\n  UNION ALL\n  SELECT 'collation', co.collname::text FROM pg_catalog.pg_collation co\n  WHERE co.collnamespace = (SELECT oid FROM pub)\n    AND NOT EXISTS (SELECT 1 FROM ext_member e WHERE e.classid = 'pg_catalog.pg_collation'::pg_catalog.regclass AND e.objid = co.oid)\n  UNION ALL\n  SELECT 'conversion', cv.conname::text FROM pg_catalog.pg_conversion cv\n  WHERE cv.connamespace = (SELECT oid FROM pub)\n    AND NOT EXISTS (SELECT 1 FROM ext_member e WHERE e.classid = 'pg_catalog.pg_conversion'::pg_catalog.regclass AND e.objid = cv.oid)\n  UNION ALL\n  SELECT 'text search configuration', x.cfgname::text FROM pg_catalog.pg_ts_config x\n  WHERE x.cfgnamespace = (SELECT oid FROM pub)\n    AND NOT EXISTS (SELECT 1 FROM ext_member e WHERE e.classid = 'pg_catalog.pg_ts_config'::pg_catalog.regclass AND e.objid = x.oid)\n  UNION ALL\n  SELECT 'text search dictionary', x.dictname::text FROM pg_catalog.pg_ts_dict x\n  WHERE x.dictnamespace = (SELECT oid FROM pub)\n    AND NOT EXISTS (SELECT 1 FROM ext_member e WHERE e.classid = 'pg_catalog.pg_ts_dict'::pg_catalog.regclass AND e.objid = x.oid)\n  UNION ALL\n  SELECT 'statistics object', s.stxname::text FROM pg_catalog.pg_statistic_ext s\n  WHERE s.stxnamespace = (SELECT oid FROM pub)\n  UNION ALL\n  SELECT 'cast', pg_catalog.format_type(ca.castsource, NULL) || ' -> ' || pg_catalog.format_type(ca.casttarget, NULL)\n  FROM pg_catalog.pg_cast ca\n  WHERE (ca.castsource IN (SELECT oid FROM typ) OR ca.casttarget IN (SELECT oid FROM typ)\n         OR ca.castfunc IN (SELECT oid FROM fn))\n    AND NOT EXISTS (SELECT 1 FROM ext_member e WHERE e.classid = 'pg_catalog.pg_cast'::pg_catalog.regclass AND e.objid = ca.oid)\n)\nSELECT pg_catalog.jsonb_build_object(\n  'format', 1,\n  'server_version_num', pg_catalog.current_setting('server_version_num')::int,\n\n  'relations', COALESCE((\n    SELECT pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(\n      'name', 'public.' || c.relname,\n      'kind', CASE c.relkind WHEN 'r' THEN 'table' WHEN 'p' THEN 'partitioned table' WHEN 'v' THEN 'view'\n                             WHEN 'm' THEN 'materialized view' WHEN 'S' THEN 'sequence' WHEN 'f' THEN 'foreign table' END,\n      'owner', pg_catalog.pg_get_userbyid(c.relowner)::text,\n      'acl', COALESCE((\n        SELECT pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(\n                 'grantee', CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE pg_catalog.pg_get_userbyid(a.grantee)::text END,\n                 'privilege', a.privilege_type, 'grantable', a.is_grantable)\n               ORDER BY CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE pg_catalog.pg_get_userbyid(a.grantee)::text END, a.privilege_type)\n        FROM pg_catalog.aclexplode(COALESCE(c.relacl, pg_catalog.acldefault(CASE WHEN c.relkind = 'S' THEN 's' ELSE 'r' END::\"char\", c.relowner))) a\n      ), '[]'::jsonb),\n      'rls', c.relrowsecurity,\n      'rls_forced', c.relforcerowsecurity,\n      'options', COALESCE(pg_catalog.to_jsonb(c.reloptions), '[]'::jsonb),\n      'columns', COALESCE((\n        SELECT pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(\n                 'name', att.attname::text,\n                 'type', pg_catalog.format_type(att.atttypid, att.atttypmod),\n                 'collation', CASE WHEN att.attcollation = 0 THEN NULL ELSE (\n                   SELECT cn.nspname || '.' || co.collname FROM pg_catalog.pg_collation co\n                   JOIN pg_catalog.pg_namespace cn ON cn.oid = co.collnamespace WHERE co.oid = att.attcollation) END,\n                 'not_null', att.attnotnull,\n                 'default', (SELECT pg_catalog.pg_get_expr(ad.adbin, ad.adrelid) FROM pg_catalog.pg_attrdef ad\n                             WHERE ad.adrelid = att.attrelid AND ad.adnum = att.attnum),\n                 'identity', NULLIF(att.attidentity::text, ''),\n                 'generated', NULLIF(att.attgenerated::text, ''),\n                 'acl', COALESCE((\n                   SELECT pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(\n                            'grantee', CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE pg_catalog.pg_get_userbyid(a.grantee)::text END,\n                            'privilege', a.privilege_type, 'grantable', a.is_grantable)\n                          ORDER BY CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE pg_catalog.pg_get_userbyid(a.grantee)::text END, a.privilege_type)\n                   FROM pg_catalog.aclexplode(att.attacl) a\n                 ), '[]'::jsonb))\n               ORDER BY att.attnum)\n        FROM pg_catalog.pg_attribute att\n        WHERE att.attrelid = c.oid AND att.attnum > 0 AND NOT att.attisdropped\n      ), '[]'::jsonb),\n      'constraints', COALESCE((\n        SELECT pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(\n                 'name', con.conname::text, 'type', con.contype::text,\n                 'definition', pg_catalog.pg_get_constraintdef(con.oid),\n                 'deferrable', con.condeferrable, 'deferred', con.condeferred, 'validated', con.convalidated)\n               ORDER BY con.conname)\n        FROM pg_catalog.pg_constraint con WHERE con.conrelid = c.oid\n      ), '[]'::jsonb),\n      'indexes', COALESCE((\n        SELECT pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(\n                 'name', ic.relname::text,\n                 'definition', pg_catalog.pg_get_indexdef(i.indexrelid),\n                 'valid', i.indisvalid, 'ready', i.indisready,\n                 'constraint', (SELECT con.conname::text FROM pg_catalog.pg_constraint con\n                                WHERE con.conindid = i.indexrelid AND con.conrelid = c.oid AND con.contype IN ('p', 'u', 'x')))\n               ORDER BY ic.relname)\n        FROM pg_catalog.pg_index i JOIN pg_catalog.pg_class ic ON ic.oid = i.indexrelid\n        WHERE i.indrelid = c.oid\n      ), '[]'::jsonb),\n      'triggers', COALESCE((\n        SELECT pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(\n                 'name', tg.tgname::text, 'definition', pg_catalog.pg_get_triggerdef(tg.oid), 'enabled', tg.tgenabled::text)\n               ORDER BY tg.tgname)\n        FROM pg_catalog.pg_trigger tg WHERE tg.tgrelid = c.oid AND NOT tg.tgisinternal\n      ), '[]'::jsonb),\n      'view_definition', CASE WHEN c.relkind IN ('v', 'm') THEN pg_catalog.pg_get_viewdef(c.oid) END,\n      'sequence', CASE WHEN c.relkind = 'S' THEN (\n        SELECT pg_catalog.jsonb_build_object(\n                 'type', pg_catalog.format_type(s.seqtypid, NULL),\n                 'start', s.seqstart::text, 'increment', s.seqincrement::text,\n                 'min', s.seqmin::text, 'max', s.seqmax::text, 'cache', s.seqcache::text, 'cycle', s.seqcycle,\n                 'owned_by', (SELECT 'public.' || oc.relname || '.' || oa.attname || ' (' || d.deptype::text || ')'\n                              FROM pg_catalog.pg_depend d\n                              JOIN pg_catalog.pg_class oc ON oc.oid = d.refobjid\n                              JOIN pg_catalog.pg_attribute oa ON oa.attrelid = d.refobjid AND oa.attnum = d.refobjsubid\n                              WHERE d.classid = 'pg_catalog.pg_class'::pg_catalog.regclass AND d.objid = c.oid\n                                AND d.refclassid = 'pg_catalog.pg_class'::pg_catalog.regclass AND d.deptype IN ('a', 'i')\n                              LIMIT 1))\n        FROM pg_catalog.pg_sequence s WHERE s.seqrelid = c.oid) END)\n      ORDER BY c.relname)\n    FROM rel c\n  ), '[]'::jsonb),\n\n  'routines', COALESCE((\n    SELECT pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(\n      'signature', p.oid::pg_catalog.regprocedure::text,\n      'kind', p.prokind::text,\n      'language', (SELECT l.lanname::text FROM pg_catalog.pg_language l WHERE l.oid = p.prolang),\n      'owner', pg_catalog.pg_get_userbyid(p.proowner)::text,\n      'security_definer', p.prosecdef,\n      'volatility', p.provolatile::text,\n      'config', COALESCE(pg_catalog.to_jsonb(p.proconfig), '[]'::jsonb),\n      'definition', pg_catalog.pg_get_functiondef(p.oid),\n      'acl', COALESCE((\n        SELECT pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(\n                 'grantee', CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE pg_catalog.pg_get_userbyid(a.grantee)::text END,\n                 'privilege', a.privilege_type, 'grantable', a.is_grantable)\n               ORDER BY CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE pg_catalog.pg_get_userbyid(a.grantee)::text END, a.privilege_type)\n        FROM pg_catalog.aclexplode(COALESCE(p.proacl, pg_catalog.acldefault('f'::\"char\", p.proowner))) a\n      ), '[]'::jsonb))\n      ORDER BY p.oid::pg_catalog.regprocedure::text)\n    FROM fn p WHERE p.prokind IN ('f', 'p')\n  ), '[]'::jsonb),\n\n  'types', COALESCE((\n    SELECT pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(\n      'name', 'public.' || t.typname,\n      'kind', k.class,\n      'owner', pg_catalog.pg_get_userbyid(t.typowner)::text,\n      'acl', COALESCE((\n        SELECT pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(\n                 'grantee', CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE pg_catalog.pg_get_userbyid(a.grantee)::text END,\n                 'privilege', a.privilege_type, 'grantable', a.is_grantable)\n               ORDER BY CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE pg_catalog.pg_get_userbyid(a.grantee)::text END, a.privilege_type)\n        FROM pg_catalog.aclexplode(COALESCE(t.typacl, pg_catalog.acldefault('T'::\"char\", t.typowner))) a\n      ), '[]'::jsonb),\n      'labels', CASE WHEN k.class = 'enum' THEN COALESCE((\n        SELECT pg_catalog.jsonb_agg(en.enumlabel::text ORDER BY en.enumsortorder)\n        FROM pg_catalog.pg_enum en WHERE en.enumtypid = t.oid), '[]'::jsonb) END,\n      'base_type', CASE WHEN k.class = 'domain' THEN pg_catalog.format_type(t.typbasetype, t.typtypmod) END,\n      'not_null', CASE WHEN k.class = 'domain' THEN t.typnotnull END,\n      'default', CASE WHEN k.class = 'domain' THEN pg_catalog.pg_get_expr(t.typdefaultbin, 0) END,\n      'constraints', CASE WHEN k.class = 'domain' THEN COALESCE((\n        SELECT pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(\n                 'name', con.conname::text, 'definition', pg_catalog.pg_get_constraintdef(con.oid), 'validated', con.convalidated)\n               ORDER BY con.conname)\n        FROM pg_catalog.pg_constraint con WHERE con.contypid = t.oid), '[]'::jsonb) END,\n      'attributes', CASE WHEN k.class = 'composite' THEN COALESCE((\n        SELECT pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(\n                 'name', att.attname::text, 'type', pg_catalog.format_type(att.atttypid, att.atttypmod))\n               ORDER BY att.attnum)\n        FROM pg_catalog.pg_attribute att\n        WHERE att.attrelid = t.typrelid AND att.attnum > 0 AND NOT att.attisdropped), '[]'::jsonb) END)\n      ORDER BY t.typname)\n    FROM typ t JOIN typ_class k ON k.oid = t.oid\n    WHERE k.class IN ('enum', 'domain', 'composite')\n  ), '[]'::jsonb),\n\n  'schema', (\n    SELECT pg_catalog.jsonb_build_object(\n      'owner', pg_catalog.pg_get_userbyid(n.nspowner)::text,\n      'acl', COALESCE((\n        SELECT pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(\n                 'grantee', CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE pg_catalog.pg_get_userbyid(a.grantee)::text END,\n                 'privilege', a.privilege_type, 'grantable', a.is_grantable)\n               ORDER BY CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE pg_catalog.pg_get_userbyid(a.grantee)::text END, a.privilege_type)\n        FROM pg_catalog.aclexplode(COALESCE(n.nspacl, pg_catalog.acldefault('n'::\"char\", n.nspowner))) a\n      ), '[]'::jsonb))\n    FROM pg_catalog.pg_namespace n WHERE n.nspname = 'public'),\n\n  'extensions', COALESCE((\n    SELECT pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(\n      'name', x.extname::text, 'version', x.extversion,\n      'schema', (SELECT n.nspname::text FROM pg_catalog.pg_namespace n WHERE n.oid = x.extnamespace))\n      ORDER BY x.extname)\n    FROM pg_catalog.pg_extension x\n  ), '[]'::jsonb),\n\n  'default_acls', COALESCE((\n    SELECT pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(\n      'role', pg_catalog.pg_get_userbyid(da.defaclrole)::text,\n      'schema', (SELECT n.nspname::text FROM pg_catalog.pg_namespace n WHERE n.oid = da.defaclnamespace),\n      'object_type', da.defaclobjtype::text,\n      'acl', COALESCE((\n        SELECT pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(\n                 'grantee', CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE pg_catalog.pg_get_userbyid(a.grantee)::text END,\n                 'privilege', a.privilege_type, 'grantable', a.is_grantable)\n               ORDER BY CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE pg_catalog.pg_get_userbyid(a.grantee)::text END, a.privilege_type)\n        FROM pg_catalog.aclexplode(da.defaclacl) a\n      ), '[]'::jsonb))\n      ORDER BY pg_catalog.pg_get_userbyid(da.defaclrole), da.defaclnamespace, da.defaclobjtype)\n    FROM pg_catalog.pg_default_acl da\n  ), '[]'::jsonb),\n\n  'roles', COALESCE((\n    SELECT pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(\n      'name', r.rolname::text, 'superuser', r.rolsuper, 'inherit', r.rolinherit, 'create_role', r.rolcreaterole,\n      'create_db', r.rolcreatedb, 'login', r.rolcanlogin, 'replication', r.rolreplication, 'bypass_rls', r.rolbypassrls,\n      'member_of', COALESCE((\n        SELECT pg_catalog.jsonb_agg(g.rolname::text ORDER BY g.rolname)\n        FROM pg_catalog.pg_auth_members m JOIN pg_catalog.pg_roles g ON g.oid = m.roleid\n        WHERE m.member = r.oid), '[]'::jsonb))\n      ORDER BY r.rolname)\n    FROM pg_catalog.pg_roles r\n    WHERE r.rolname IN ('anon', 'authenticated', 'service_role', 'authenticator', 'postgres')\n  ), '[]'::jsonb),\n\n  'event_triggers', COALESCE((\n    SELECT pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(\n      'name', et.evtname::text, 'event', et.evtevent::text, 'enabled', et.evtenabled::text,\n      'function', et.evtfoid::pg_catalog.regprocedure::text,\n      'tags', COALESCE(pg_catalog.to_jsonb(et.evttags), '[]'::jsonb))\n      ORDER BY et.evtname)\n    FROM pg_catalog.pg_event_trigger et\n  ), '[]'::jsonb),\n\n  'publications', COALESCE((\n    SELECT pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(\n      'name', pb.pubname::text, 'all_tables', pb.puballtables,\n      'tables', COALESCE((\n        SELECT pg_catalog.jsonb_agg(('public.' || pc.relname)::text ORDER BY pc.relname)\n        FROM pg_catalog.pg_publication_rel pr JOIN pg_catalog.pg_class pc ON pc.oid = pr.prrelid\n        WHERE pr.prpubid = pb.oid AND pc.relnamespace = (SELECT oid FROM pub)), '[]'::jsonb))\n      ORDER BY pb.pubname)\n    FROM pg_catalog.pg_publication pb\n  ), '[]'::jsonb),\n\n  'unsupported', COALESCE((\n    SELECT pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object('kind', u.kind, 'name', u.name) ORDER BY u.kind, u.name)\n    FROM unsupported u\n  ), '[]'::jsonb),\n\n  -- independent counts, straight from the catalogs, for the client's completeness check\n  'counts', pg_catalog.jsonb_build_object(\n    'relations', (SELECT count(*) FROM rel),\n    'columns', (SELECT count(*) FROM pg_catalog.pg_attribute att JOIN rel c ON c.oid = att.attrelid\n                WHERE att.attnum > 0 AND NOT att.attisdropped),\n    'constraints', (SELECT count(*) FROM pg_catalog.pg_constraint con JOIN rel c ON c.oid = con.conrelid),\n    'indexes', (SELECT count(*) FROM pg_catalog.pg_index i JOIN rel c ON c.oid = i.indrelid),\n    'triggers', (SELECT count(*) FROM pg_catalog.pg_trigger tg JOIN rel c ON c.oid = tg.tgrelid WHERE NOT tg.tgisinternal),\n    'routines', (SELECT count(*) FROM fn WHERE prokind IN ('f', 'p')),\n    'types', (SELECT count(*) FROM typ_class WHERE class IN ('enum', 'domain', 'composite')),\n    'generated_types', (SELECT count(*) FROM typ_class WHERE class = 'generated'),\n    'extensions', (SELECT count(*) FROM pg_catalog.pg_extension),\n    'default_acls', (SELECT count(*) FROM pg_catalog.pg_default_acl),\n    'event_triggers', (SELECT count(*) FROM pg_catalog.pg_event_trigger),\n    'publications', (SELECT count(*) FROM pg_catalog.pg_publication),\n    'unsupported', (SELECT count(*) FROM unsupported))\n)\n$function$\n",
+   "volatility": "s",
+   "security_definer": false
+  },
+  {
+   "acl": [
+    {
+     "grantee": "PUBLIC",
+     "grantable": false,
+     "privilege": "EXECUTE"
+    },
+    {
+     "grantee": "postgres",
+     "grantable": false,
+     "privilege": "EXECUTE"
+    }
+   ],
+   "kind": "f",
+   "owner": "postgres",
+   "config": [
+    "search_path=public"
+   ],
+   "language": "plpgsql",
+   "signature": "public.touch()",
+   "definition": "CREATE OR REPLACE FUNCTION public.touch()\n RETURNS trigger\n LANGUAGE plpgsql\n SET search_path TO 'public'\nAS $function$ BEGIN RETURN NEW; END $function$\n",
+   "volatility": "v",
+   "security_definer": false
+  }
+ ],
+ "relations": [
+  {
+   "acl": [
+    {
+     "grantee": "postgres",
+     "grantable": false,
+     "privilege": "DELETE"
+    },
+    {
+     "grantee": "postgres",
+     "grantable": false,
+     "privilege": "INSERT"
+    },
+    {
+     "grantee": "postgres",
+     "grantable": false,
+     "privilege": "MAINTAIN"
+    },
+    {
+     "grantee": "postgres",
+     "grantable": false,
+     "privilege": "REFERENCES"
+    },
+    {
+     "grantee": "postgres",
+     "grantable": false,
+     "privilege": "SELECT"
+    },
+    {
+     "grantee": "postgres",
+     "grantable": false,
+     "privilege": "TRIGGER"
+    },
+    {
+     "grantee": "postgres",
+     "grantable": false,
+     "privilege": "TRUNCATE"
+    },
+    {
+     "grantee": "postgres",
+     "grantable": false,
+     "privilege": "UPDATE"
+    }
+   ],
+   "rls": false,
+   "kind": "table",
+   "name": "public.a · b",
+   "owner": "postgres",
+   "columns": [
+    {
+     "acl": [],
+     "name": "id",
+     "type": "integer",
+     "default": null,
+     "identity": null,
+     "not_null": true,
+     "collation": null,
+     "generated": null
+    },
+    {
+     "acl": [
+      {
+       "grantee": "authenticated",
+       "grantable": false,
+       "privilege": "SELECT"
+      }
+     ],
+     "name": "item_id",
+     "type": "bigint",
+     "default": null,
+     "identity": null,
+     "not_null": false,
+     "collation": null,
+     "generated": null
+    }
+   ],
+   "indexes": [
+    {
+     "name": "children_pkey",
+     "ready": true,
+     "valid": true,
+     "constraint": "children_pkey",
+     "definition": "CREATE UNIQUE INDEX children_pkey ON public.children USING btree (id)"
+    }
+   ],
+   "options": [],
+   "sequence": null,
+   "triggers": [],
+   "rls_forced": false,
+   "constraints": [
+    {
+     "name": "children_id_not_null",
+     "type": "n",
+     "deferred": false,
+     "validated": true,
+     "deferrable": false,
+     "definition": "NOT NULL id"
+    },
+    {
+     "name": "children_item_id_fkey",
+     "type": "f",
+     "deferred": false,
+     "validated": true,
+     "deferrable": false,
+     "definition": "FOREIGN KEY (item_id) REFERENCES public.items(id) ON DELETE CASCADE"
+    },
+    {
+     "name": "children_pkey",
+     "type": "p",
+     "deferred": false,
+     "validated": true,
+     "deferrable": false,
+     "definition": "PRIMARY KEY (id)"
+    }
+   ],
+   "view_definition": null
+  },
+  {
+   "acl": [
+    {
+     "grantee": "anon",
+     "grantable": false,
+     "privilege": "SELECT"
+    },
+    {
+     "grantee": "postgres",
+     "grantable": false,
+     "privilege": "DELETE"
+    },
+    {
+     "grantee": "postgres",
+     "grantable": false,
+     "privilege": "INSERT"
+    },
+    {
+     "grantee": "postgres",
+     "grantable": false,
+     "privilege": "MAINTAIN"
+    },
+    {
+     "grantee": "postgres",
+     "grantable": false,
+     "privilege": "REFERENCES"
+    },
+    {
+     "grantee": "postgres",
+     "grantable": false,
+     "privilege": "SELECT"
+    },
+    {
+     "grantee": "postgres",
+     "grantable": false,
+     "privilege": "TRIGGER"
+    },
+    {
+     "grantee": "postgres",
+     "grantable": false,
+     "privilege": "TRUNCATE"
+    },
+    {
+     "grantee": "postgres",
+     "grantable": false,
+     "privilege": "UPDATE"
+    },
+    {
+     "grantee": "service_role",
+     "grantable": false,
+     "privilege": "INSERT"
+    },
+    {
+     "grantee": "service_role",
+     "grantable": false,
+     "privilege": "SELECT"
+    }
+   ],
+   "rls": true,
+   "kind": "table",
+   "name": "public.items",
+   "owner": "postgres",
+   "columns": [
+    {
+     "acl": [],
+     "name": "id",
+     "type": "bigint",
+     "default": "nextval('public.items_id_seq'::regclass)",
+     "identity": null,
+     "not_null": true,
+     "collation": null,
+     "generated": null
+    },
+    {
+     "acl": [],
+     "name": "name",
+     "type": "text",
+     "default": "'x'::text",
+     "identity": null,
+     "not_null": true,
+     "collation": "pg_catalog.default",
+     "generated": null
+    },
+    {
+     "acl": [],
+     "name": "m",
+     "type": "public.mood",
+     "default": null,
+     "identity": null,
+     "not_null": false,
+     "collation": null,
+     "generated": null
+    },
+    {
+     "acl": [],
+     "name": "n",
+     "type": "public.pos",
+     "default": null,
+     "identity": null,
+     "not_null": false,
+     "collation": null,
+     "generated": null
+    }
+   ],
+   "indexes": [
+    {
+     "name": "items_m",
+     "ready": true,
+     "valid": true,
+     "constraint": null,
+     "definition": "CREATE INDEX items_m ON public.items USING btree (m) WHERE (m IS NOT NULL)"
+    },
+    {
+     "name": "items_name_key",
+     "ready": true,
+     "valid": true,
+     "constraint": "items_name_key",
+     "definition": "CREATE UNIQUE INDEX items_name_key ON public.items USING btree (name)"
+    },
+    {
+     "name": "items_pkey",
+     "ready": true,
+     "valid": true,
+     "constraint": "items_pkey",
+     "definition": "CREATE UNIQUE INDEX items_pkey ON public.items USING btree (id)"
+    }
+   ],
+   "options": [],
+   "sequence": null,
+   "triggers": [
+    {
+     "name": "items_touch",
+     "enabled": "O",
+     "definition": "CREATE TRIGGER items_touch BEFORE UPDATE ON public.items FOR EACH ROW EXECUTE FUNCTION public.touch()"
+    }
+   ],
+   "rls_forced": false,
+   "constraints": [
+    {
+     "name": "items_id_not_null",
+     "type": "n",
+     "deferred": false,
+     "validated": true,
+     "deferrable": false,
+     "definition": "NOT NULL id"
+    },
+    {
+     "name": "items_name_key",
+     "type": "u",
+     "deferred": true,
+     "validated": true,
+     "deferrable": true,
+     "definition": "UNIQUE (name) DEFERRABLE INITIALLY DEFERRED"
+    },
+    {
+     "name": "items_name_not_null",
+     "type": "n",
+     "deferred": false,
+     "validated": true,
+     "deferrable": false,
+     "definition": "NOT NULL name"
+    },
+    {
+     "name": "items_pkey",
+     "type": "p",
+     "deferred": false,
+     "validated": true,
+     "deferrable": false,
+     "definition": "PRIMARY KEY (id)"
+    }
+   ],
+   "view_definition": null
+  },
+  {
+   "acl": [
+    {
+     "grantee": "postgres",
+     "grantable": false,
+     "privilege": "SELECT"
+    },
+    {
+     "grantee": "postgres",
+     "grantable": false,
+     "privilege": "UPDATE"
+    },
+    {
+     "grantee": "postgres",
+     "grantable": false,
+     "privilege": "USAGE"
+    }
+   ],
+   "rls": false,
+   "kind": "sequence",
+   "name": "public.items_id_seq",
+   "owner": "postgres",
+   "columns": [
+    {
+     "acl": [],
+     "name": "last_value",
+     "type": "bigint",
+     "default": null,
+     "identity": null,
+     "not_null": true,
+     "collation": null,
+     "generated": null
+    },
+    {
+     "acl": [],
+     "name": "log_cnt",
+     "type": "bigint",
+     "default": null,
+     "identity": null,
+     "not_null": true,
+     "collation": null,
+     "generated": null
+    },
+    {
+     "acl": [],
+     "name": "is_called",
+     "type": "boolean",
+     "default": null,
+     "identity": null,
+     "not_null": true,
+     "collation": null,
+     "generated": null
+    }
+   ],
+   "indexes": [],
+   "options": [],
+   "sequence": {
+    "max": "9223372036854775807",
+    "min": "1",
+    "type": "bigint",
+    "cache": "1",
+    "cycle": false,
+    "start": "1",
+    "owned_by": "public.items.id (a)",
+    "increment": "1"
+   },
+   "triggers": [],
+   "rls_forced": false,
+   "constraints": [],
+   "view_definition": null
+  },
+  {
+   "acl": [
+    {
+     "grantee": "postgres",
+     "grantable": false,
+     "privilege": "DELETE"
+    },
+    {
+     "grantee": "postgres",
+     "grantable": false,
+     "privilege": "INSERT"
+    },
+    {
+     "grantee": "postgres",
+     "grantable": false,
+     "privilege": "MAINTAIN"
+    },
+    {
+     "grantee": "postgres",
+     "grantable": false,
+     "privilege": "REFERENCES"
+    },
+    {
+     "grantee": "postgres",
+     "grantable": false,
+     "privilege": "SELECT"
+    },
+    {
+     "grantee": "postgres",
+     "grantable": false,
+     "privilege": "TRIGGER"
+    },
+    {
+     "grantee": "postgres",
+     "grantable": false,
+     "privilege": "TRUNCATE"
+    },
+    {
+     "grantee": "postgres",
+     "grantable": false,
+     "privilege": "UPDATE"
+    }
+   ],
+   "rls": false,
+   "kind": "view",
+   "name": "public.v_items",
+   "owner": "postgres",
+   "columns": [
+    {
+     "acl": [],
+     "name": "id",
+     "type": "bigint",
+     "default": null,
+     "identity": null,
+     "not_null": false,
+     "collation": null,
+     "generated": null
+    },
+    {
+     "acl": [],
+     "name": "name",
+     "type": "text",
+     "default": null,
+     "identity": null,
+     "not_null": false,
+     "collation": "pg_catalog.default",
+     "generated": null
+    }
+   ],
+   "indexes": [],
+   "options": [
+    "security_invoker=true"
+   ],
+   "sequence": null,
+   "triggers": [],
+   "rls_forced": false,
+   "constraints": [],
+   "view_definition": " SELECT id,\n    name\n   FROM public.items;"
+  }
+ ],
+ "extensions": [
+  {
+   "name": "plpgsql",
+   "schema": "pg_catalog",
+   "version": "1.0"
+  }
+ ],
+ "unsupported": [],
+ "default_acls": [],
+ "publications": [],
+ "event_triggers": [],
+ "server_version_num": 180003
+}

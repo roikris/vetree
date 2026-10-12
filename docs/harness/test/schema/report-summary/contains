@@ -1,0 +1,3 @@
+schema report: PostgreSQL
+secret-shaped values: 1
+routine public.call_out() · definition

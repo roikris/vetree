@@ -1,0 +1,100 @@
+name: Schema report test
+
+# Runs migration 080's harness_schema_report() on the Supabase Postgres image production runs (pinned), against
+# sample objects — never production, no secrets, no Vercel CPU (infra-003). Checks: the report validates
+# (`schema-report`), every covered kind appears, anon / authenticated are denied, a second CREATE refuses to
+# replace the function, and objects of uncovered kinds make the audit UNVERIFIED (fail closed).
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'supabase/migrations/080_harness_schema_report.sql'
+      - 'docs/harness/harness.mjs'
+      - 'docs/harness/test/schema-pg/**'
+      - '.github/workflows/schema-report-test.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  # production's version (supabase/.temp/postgres-version)
+  PG_IMAGE: supabase/postgres:17.6.1.063
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Start the pinned Postgres image (local only)
+        run: |
+          docker run -d --name pg -e POSTGRES_PASSWORD=postgres "$PG_IMAGE" >/dev/null
+          for i in $(seq 1 60); do
+            docker exec pg pg_isready -U postgres -h 127.0.0.1 >/dev/null 2>&1 && break
+            sleep 2
+          done
+          docker exec pg pg_isready -U postgres -h 127.0.0.1
+          docker exec pg psql -U postgres -h 127.0.0.1 -Atc "select version()"
+
+      - name: Apply sample objects and 080
+        run: |
+          q() { docker exec -i pg psql -U postgres -h 127.0.0.1 -v ON_ERROR_STOP=1 -q "$@"; }
+          q < docs/harness/test/schema-pg/objects.sql
+          q < supabase/migrations/080_harness_schema_report.sql
+
+      - name: Report as service_role validates and covers every kind
+        run: |
+          docker exec pg psql -U postgres -h 127.0.0.1 -v ON_ERROR_STOP=1 -Atc \
+            "set role service_role; select public.harness_schema_report()" > "$RUNNER_TEMP/report.json"
+          node docs/harness/harness.mjs schema-report --report "$RUNNER_TEMP/report.json"
+          node -e '
+            const r = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"))
+            const need = { relations: ["public.items:table", "public.children:table", "public.v_items:view", "public.mv_items:materialized view", "public.items_id_seq:sequence", "public.items_ident_seq:sequence"],
+                           types: ["public.mood:enum", "public.pos:domain", "public.pair:composite"] }
+            const have = { relations: r.relations.map(x => `${x.name}:${x.kind}`), types: r.types.map(x => `${x.name}:${x.kind}`) }
+            const missing = Object.entries(need).flatMap(([k, list]) => list.filter(n => !have[k].includes(n)))
+            const sigs = r.routines.map(x => x.signature)
+            for (const s of ["public.touch()", "public.noop()", "public.harness_schema_report()"]) if (!sigs.includes(s)) missing.push(s)
+            const items = r.relations.find(x => x.name === "public.items")
+            if (!items.acl.some(a => a.grantee === "service_role" && a.privilege === "SELECT" && a.grantable)) missing.push("grant option")
+            if (!items.triggers.some(t => t.name === "items_touch" && t.enabled === "D")) missing.push("disabled trigger")
+            if (!items.constraints.some(c => c.name === "name_len" && !c.validated)) missing.push("NOT VALID constraint")
+            if (!r.relations.find(x => x.name === "public.children").columns.some(c => c.acl.length)) missing.push("column grant")
+            console.log(`server_version_num ${r.server_version_num} · unsupported ${r.unsupported.length} · extensions ${r.extensions.map(e => e.name + "@" + e.schema).join(", ")}`)
+            if (missing.length) { console.log("MISSING: " + missing.join(", ")); process.exit(1) }
+            console.log("every covered kind present")
+          ' "$RUNNER_TEMP/report.json"
+
+      - name: anon and authenticated are denied; a second CREATE refuses to replace
+        run: |
+          for role in anon authenticated; do
+            if docker exec pg psql -U postgres -h 127.0.0.1 -v ON_ERROR_STOP=1 -Atc "set role $role; select public.harness_schema_report()" >/dev/null 2>"$RUNNER_TEMP/err"; then
+              echo "::error::$role can call harness_schema_report()"; exit 1
+            fi
+            grep -q 'permission denied' "$RUNNER_TEMP/err" && echo "$role: denied"
+          done
+          if docker exec -i pg psql -U postgres -h 127.0.0.1 -v ON_ERROR_STOP=1 -q < supabase/migrations/080_harness_schema_report.sql 2>"$RUNNER_TEMP/err"; then
+            echo "::error::a second run of 080 succeeded (it must never replace an existing function)"; exit 1
+          fi
+          grep -q 'already exists' "$RUNNER_TEMP/err" && echo "second run: refused"
+
+      - name: Uncovered kinds make the audit UNVERIFIED
+        run: |
+          docker exec -i pg psql -U postgres -h 127.0.0.1 -v ON_ERROR_STOP=1 -q < docs/harness/test/schema-pg/unsupported.sql
+          docker exec pg psql -U postgres -h 127.0.0.1 -v ON_ERROR_STOP=1 -Atc \
+            "set role service_role; select public.harness_schema_report()" > "$RUNNER_TEMP/report2.json"
+          rc=0; node docs/harness/harness.mjs schema-report --report "$RUNNER_TEMP/report2.json" > "$RUNNER_TEMP/out" || rc=$?
+          cat "$RUNNER_TEMP/out"
+          [ "$rc" = 2 ] || { echo "::error::expected exit 2, got $rc"; exit 1; }
+          for k in 'routine:a mysum' 'type:r rng' 'rule r1' 'statistics object st1' 'operator ==='; do
+            grep -qF "  $k" "$RUNNER_TEMP/out" || { echo "::error::not listed as unsupported: $k"; exit 1; }
+          done
+          echo "all uncovered kinds listed"
