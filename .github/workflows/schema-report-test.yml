@@ -48,6 +48,7 @@ jobs:
         run: |
           q() { docker exec -i pg psql -U postgres -h 127.0.0.1 -v ON_ERROR_STOP=1 -q "$@"; }
           q -a < docs/harness/test/schema-pg/objects.sql
+          docker exec -i pg psql -U supabase_admin -h 127.0.0.1 -d postgres -v ON_ERROR_STOP=1 -q -a < docs/harness/test/schema-pg/objects-superuser.sql
           q < supabase/migrations/080_harness_schema_report.sql
 
       - name: Report as service_role validates and covers every kind
