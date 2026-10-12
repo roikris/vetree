@@ -829,7 +829,9 @@ function compareSchema(actual, expected) {
   return diffs
 }
 
-// schema-audit [--report <file.json>] [--expected <schema.json>]
+// schema-audit [--report <file.json>] [--expected <schema.json>] [--skip-default-privileges]
+// --skip-default-privileges: leave that one section out on both sides — only for the replay (docs/harness/replay.sh),
+// whose two simulations differ from production there by design and check it themselves.
 async function schemaAudit(argv) {
   const opt = n => { const i = argv.indexOf(n); return i >= 0 ? argv[i + 1] : null }
   const file = opt('--expected') || SCHEMA_FILE
@@ -837,6 +839,10 @@ async function schemaAudit(argv) {
   try { expected = readSchemaExpected(file) } catch (e) { console.log(`schema audit: UNVERIFIED — ${escCtl(e.message)}`); process.exit(2) }
   const { flat, major } = await schemaActual(argv, 'schema audit')
   if (major !== expected.major) { console.log(`schema audit: UNVERIFIED — production runs PostgreSQL ${major}, ${escCtl(file)} was taken on ${expected.major} (deparsed text may differ: review and re-snapshot in a PR)`); process.exit(2) }
+  if (argv.includes('--skip-default-privileges')) {
+    const dp = k => k.startsWith('default privileges ')
+    for (const m of [flat, expected.facts]) for (const k of [...m.keys()]) if (dp(k)) m.delete(k)
+  }
   const diffs = compareSchema(flat, expected.facts)
   if (diffs.length) {
     console.log(`schema audit: FAIL — ${diffs.length} difference(s) from ${escCtl(file)}:`)

@@ -63,6 +63,30 @@ jobs:
             echo "code=false" >> "$GITHUB_OUTPUT"; echo "Docs-only change: smoke skipped"
           fi
 
+  # Replay safety (infra-003): rebuild the database from supabase/migrations/ on an empty, pinned Supabase Postgres
+  # image — under the 2026-10-30 default privileges (new) and the old ones (old) — and compare it with
+  # supabase/access.json, rls.json and schema.json. Local Docker only (--network none), no secrets, no Vercel CPU, no
+  # draft gate: it runs on every PR.
+  replay:
+    name: replay
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [new, old]
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Replay every migration (${{ matrix.mode }} default privileges)
+        run: bash docs/harness/replay.sh ${{ matrix.mode }}
+
   smoke:
     name: smoke
     needs: scope
