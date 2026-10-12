@@ -1,6 +1,6 @@
 -- Migration 000: the tables that existed before the migration workflow (2026-10-12, infra-003)
 --
--- Fifteen public tables were first created in the Supabase dashboard. Nine of them are created by no migration
+-- pg_trgm and fifteen public tables were first created in the Supabase dashboard. Nine of them are created by no migration
 -- (saved_articles, feature_flags, followed_tags, topic_syntheses, synthesis_feedback, digest_logs, digest_runs,
 -- security_reports, sync_skipped_articles) and six only by 054, after earlier migrations already alter them
 -- (articles_blacklist and the five analytics tables). So a database rebuilt from supabase/migrations/ stopped at 004.
@@ -14,6 +14,10 @@
 -- EXISTS), so a run against production would change nothing.
 -- Not here, on purpose: grants (081), policies and RLS (later migrations), and saved_articles' foreign key to
 -- articles, which 001 creates after this file (added by 082).
+
+-- pg_trgm: also from the dashboard era — 026 uses similarity() long before 054 creates the extension. Production has
+-- it in public (its members are extension-owned, so the schema audit leaves them out).
+CREATE EXTENSION IF NOT EXISTS pg_trgm SCHEMA public;
 
 CREATE TABLE IF NOT EXISTS public."saved_articles" (
   "id" uuid DEFAULT gen_random_uuid() NOT NULL,
