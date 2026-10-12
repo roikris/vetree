@@ -38,7 +38,7 @@ for _ in $(seq 1 30); do docker exec "$NAME" psql -U postgres -d postgres -qAtc 
 # q: as postgres (the role db push runs migrations as; it owns every public object in production)
 # qsu: as supabase_admin (the image's superuser), only for setup the postgres role may not do
 q()   { docker exec -i "$NAME" psql -U postgres       -d postgres -v ON_ERROR_STOP=1 -qAt "$@"; }
-qsu() { docker exec -i "$NAME" psql -U supabase_admin -d postgres -v ON_ERROR_STOP=1 -qAt "$@"; }
+qsu() { docker exec -i "$NAME" psql -U supabase_admin -h 127.0.0.1 -d postgres -v ON_ERROR_STOP=1 -qAt "$@"; }  # loopback inside the container
 
 # Every default-privilege entry, one line each (role · schema|global · type · acl) — compared before / after
 dacl() { q -c "select pg_get_userbyid(d.defaclrole) || ' · ' || coalesce(n.nspname, '(global)') || ' · ' || d.defaclobjtype::text || ' · ' || d.defaclacl::text
@@ -87,7 +87,7 @@ for f in "$ROOT"/supabase/migrations/*.sql; do
   base=$(basename "$f")
   if ! q -1 < "$f" > "$OUT/migrate.log" 2>&1; then
     echo "replay ($MODE): migration $base FAILED — first error:"
-    grep -m1 -E 'ERROR' "$OUT/migrate.log" | sed 's/^/  /' | cut -c1-300
+    grep -E 'ERROR|FATAL|DETAIL|HINT|LINE' "$OUT/migrate.log" | head -4 | sed 's/^/  /' | cut -c1-300
     exit 2
   fi
   n=$((n + 1))
