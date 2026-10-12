@@ -1,0 +1,2 @@
+NEW   publication pub2 · table public.a.b · columns
+GONE  publication pub2 · table public."a.b" · columns

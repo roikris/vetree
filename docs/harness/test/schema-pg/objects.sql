@@ -27,3 +27,8 @@ CREATE TABLE public.parted (id int, d date) PARTITION BY RANGE (d);
 CREATE TABLE public.parted_2026 PARTITION OF public.parted FOR VALUES FROM ('2026-01-01') TO ('2027-01-01');
 CREATE INDEX parted_d ON public.parted (d);
 CREATE PUBLICATION pub1 FOR TABLE public.items (id, name) WHERE (id > 0) WITH (publish = 'insert');
+-- dotted names: public."a.b" and "public.a".b must stay two different publication tables
+CREATE SCHEMA "public.a";
+CREATE TABLE "public.a".b (id int PRIMARY KEY);
+CREATE TABLE public."a.b" (id int PRIMARY KEY);
+CREATE PUBLICATION pub2 FOR TABLE public."a.b", "public.a".b;

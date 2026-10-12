@@ -37,11 +37,31 @@ pub AS (SELECT oid FROM pg_catalog.pg_namespace WHERE nspname = 'public'),
 ext_member AS (
   SELECT d.classid, d.objid FROM pg_catalog.pg_depend d WHERE d.deptype = 'e'
 ),
+-- relations owned by an extension, with what PostgreSQL creates for them: a relation that is an extension member,
+-- the relation backing an extension-owned composite type, and an index on an extension-owned relation
+ext_cls AS (
+  SELECT c.oid FROM pg_catalog.pg_class c
+  WHERE c.relnamespace = (SELECT oid FROM pub)
+    AND (EXISTS (SELECT 1 FROM ext_member e WHERE e.classid = 'pg_catalog.pg_class'::pg_catalog.regclass AND e.objid = c.oid)
+         OR EXISTS (SELECT 1 FROM ext_member e WHERE e.classid = 'pg_catalog.pg_type'::pg_catalog.regclass AND e.objid = c.reltype)
+         OR EXISTS (SELECT 1 FROM pg_catalog.pg_index i JOIN ext_member e
+                      ON e.classid = 'pg_catalog.pg_class'::pg_catalog.regclass AND e.objid = i.indrelid
+                    WHERE i.indexrelid = c.oid))
+),
+-- types owned by an extension: members, the row types of its relations, and the array types of its types
+ext_typ AS (
+  SELECT t.oid FROM pg_catalog.pg_type t
+  WHERE t.typnamespace = (SELECT oid FROM pub)
+    AND (EXISTS (SELECT 1 FROM ext_member e WHERE e.classid = 'pg_catalog.pg_type'::pg_catalog.regclass AND e.objid = t.oid)
+         OR t.typrelid IN (SELECT oid FROM ext_cls)
+         OR (t.typcategory = 'A' AND t.typelem <> 0
+             AND EXISTS (SELECT 1 FROM ext_member e WHERE e.classid = 'pg_catalog.pg_type'::pg_catalog.regclass AND e.objid = t.typelem)))
+),
 rel AS (
   SELECT c.* FROM pg_catalog.pg_class c
   WHERE c.relnamespace = (SELECT oid FROM pub)
     AND c.relkind IN ('r', 'p', 'v', 'm', 'S', 'f')
-    AND NOT EXISTS (SELECT 1 FROM ext_member e WHERE e.classid = 'pg_catalog.pg_class'::pg_catalog.regclass AND e.objid = c.oid)
+    AND c.oid NOT IN (SELECT oid FROM ext_cls)
 ),
 fn AS (
   SELECT p.* FROM pg_catalog.pg_proc p
@@ -51,7 +71,7 @@ fn AS (
 typ AS (
   SELECT t.* FROM pg_catalog.pg_type t
   WHERE t.typnamespace = (SELECT oid FROM pub)
-    AND NOT EXISTS (SELECT 1 FROM ext_member e WHERE e.classid = 'pg_catalog.pg_type'::pg_catalog.regclass AND e.objid = t.oid)
+    AND t.oid NOT IN (SELECT oid FROM ext_typ)
 ),
 -- type classification: covered kinds, generated dependents, and the rest (unsupported)
 typ_class AS (
@@ -82,7 +102,7 @@ unsupported AS (
   FROM pg_catalog.pg_class c
   WHERE c.relnamespace = (SELECT oid FROM pub)
     AND c.relkind NOT IN ('r', 'p', 'v', 'm', 'S', 'f', 'c')
-    AND NOT EXISTS (SELECT 1 FROM ext_member e WHERE e.classid = 'pg_catalog.pg_class'::pg_catalog.regclass AND e.objid = c.oid)
+    AND c.oid NOT IN (SELECT oid FROM ext_cls)
     AND NOT (c.relkind IN ('i', 'I') AND EXISTS (
       SELECT 1 FROM pg_catalog.pg_index i WHERE i.indexrelid = c.oid AND i.indrelid IN (SELECT oid FROM rel)))
   UNION ALL
@@ -163,7 +183,7 @@ SELECT pg_catalog.jsonb_build_object(
                  'name', att.attname::text,
                  'type', pg_catalog.format_type(att.atttypid, att.atttypmod),
                  'collation', CASE WHEN att.attcollation = 0 THEN NULL ELSE (
-                   SELECT cn.nspname || '.' || co.collname FROM pg_catalog.pg_collation co
+                   SELECT pg_catalog.quote_ident(cn.nspname) || '.' || pg_catalog.quote_ident(co.collname) FROM pg_catalog.pg_collation co
                    JOIN pg_catalog.pg_namespace cn ON cn.oid = co.collnamespace WHERE co.oid = att.attcollation) END,
                  'not_null', att.attnotnull,
                  'default', (SELECT pg_catalog.pg_get_expr(ad.adbin, ad.adrelid) FROM pg_catalog.pg_attrdef ad
@@ -212,7 +232,7 @@ SELECT pg_catalog.jsonb_build_object(
                  'type', pg_catalog.format_type(s.seqtypid, NULL),
                  'start', s.seqstart::text, 'increment', s.seqincrement::text,
                  'min', s.seqmin::text, 'max', s.seqmax::text, 'cache', s.seqcache::text, 'cycle', s.seqcycle,
-                 'owned_by', (SELECT 'public.' || oc.relname || '.' || oa.attname || ' (' || d.deptype::text || ')'
+                 'owned_by', (SELECT 'public.' || pg_catalog.quote_ident(oc.relname) || '.' || pg_catalog.quote_ident(oa.attname) || ' (' || d.deptype::text || ')'
                               FROM pg_catalog.pg_depend d
                               JOIN pg_catalog.pg_class oc ON oc.oid = d.refobjid
                               JOIN pg_catalog.pg_attribute oa ON oa.attrelid = d.refobjid AND oa.attnum = d.refobjsubid
@@ -354,12 +374,12 @@ SELECT pg_catalog.jsonb_build_object(
       -- every table in the publication, any schema, with its row filter and column list (NULL = all columns)
       'tables', COALESCE((
         SELECT pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(
-                 'name', pn.nspname || '.' || pc.relname,
+                 'name', pg_catalog.quote_ident(pn.nspname) || '.' || pg_catalog.quote_ident(pc.relname),
                  'row_filter', pg_catalog.pg_get_expr(pr.prqual, pr.prrelid),
                  'columns', CASE WHEN pr.prattrs IS NULL THEN NULL ELSE (
                    SELECT pg_catalog.jsonb_agg(att.attname::text ORDER BY att.attnum) FROM pg_catalog.pg_attribute att
                    WHERE att.attrelid = pr.prrelid AND att.attnum = ANY (pr.prattrs::pg_catalog.int2[])) END)
-               ORDER BY pn.nspname, pc.relname)
+               ORDER BY pg_catalog.quote_ident(pn.nspname) || '.' || pg_catalog.quote_ident(pc.relname))
         FROM pg_catalog.pg_publication_rel pr
         JOIN pg_catalog.pg_class pc ON pc.oid = pr.prrelid
         JOIN pg_catalog.pg_namespace pn ON pn.oid = pc.relnamespace
@@ -392,12 +412,12 @@ SELECT pg_catalog.jsonb_build_object(
     -- inventory: EVERY object of these catalogs in public (extension members aside), counted without any
     -- classification — the client checks each one is reported exactly once (covered, generated or unsupported)
     'all_class', (SELECT count(*) FROM pg_catalog.pg_class c WHERE c.relnamespace = (SELECT oid FROM pub)
-                  AND NOT EXISTS (SELECT 1 FROM ext_member e WHERE e.classid = 'pg_catalog.pg_class'::pg_catalog.regclass AND e.objid = c.oid)),
+                  AND c.oid NOT IN (SELECT oid FROM ext_cls)),
     'all_type', (SELECT count(*) FROM typ),
     'all_proc', (SELECT count(*) FROM fn),
     'all_constraint', (SELECT count(*) FROM pg_catalog.pg_constraint con WHERE con.connamespace = (SELECT oid FROM pub)
-                       AND NOT EXISTS (SELECT 1 FROM ext_member e WHERE e.classid = 'pg_catalog.pg_class'::pg_catalog.regclass AND e.objid = con.conrelid)
-                       AND NOT EXISTS (SELECT 1 FROM ext_member e WHERE e.classid = 'pg_catalog.pg_type'::pg_catalog.regclass AND e.objid = con.contypid)))
+                       AND con.conrelid NOT IN (SELECT oid FROM ext_cls)
+                       AND con.contypid NOT IN (SELECT oid FROM ext_typ)))
 )
 $$;
 

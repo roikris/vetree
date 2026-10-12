@@ -7,3 +7,9 @@ GRANT SELECT ON public.items TO grantor_x WITH GRANT OPTION;
 SET ROLE grantor_x;
 GRANT SELECT ON public.items TO anon;
 RESET ROLE;
+-- Objects owned by an extension, with what PostgreSQL creates for them (a composite type's backing relation, a
+-- table's row type and index): all excluded, and the inventory still reconciles.
+CREATE TYPE public.extcomp AS (a int);
+ALTER EXTENSION pg_trgm ADD TYPE public.extcomp;
+CREATE TABLE public.exttab (id int PRIMARY KEY);
+ALTER EXTENSION pg_trgm ADD TABLE public.exttab;
