@@ -17,7 +17,10 @@ case "$MODE" in new|old) ;; *) echo "usage: replay.sh <new|old>"; exit 2 ;; esac
 IMAGE=${PG_IMAGE:-supabase/postgres:17.6.1.063}
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 H="$ROOT/docs/harness"
-OUT=$(mktemp -d "${RUNNER_TEMP:-${TMPDIR:-/tmp}}/replay-$MODE.XXXXXX")
+# REPLAY_OUT: where the rebuilt database's reports go (CI uploads them — they hold only what the repo's own
+# migration files define, never production data)
+OUT=${REPLAY_OUT:-$(mktemp -d "${RUNNER_TEMP:-${TMPDIR:-/tmp}}/replay-$MODE.XXXXXX")}
+mkdir -p "$OUT"
 NAME="replay-$MODE-$$"
 
 for v in SUPABASE_URL NEXT_PUBLIC_SUPABASE_URL SUPABASE_SERVICE_ROLE_KEY SUPABASE_ACCESS_TOKEN SUPABASE_DB_PASSWORD DATABASE_URL PGHOST; do

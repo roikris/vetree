@@ -85,7 +85,18 @@ jobs:
         with:
           node-version: '20'
       - name: Replay every migration (${{ matrix.mode }} default privileges)
+        env:
+          REPLAY_OUT: ${{ runner.temp }}/replay-${{ matrix.mode }}
         run: bash docs/harness/replay.sh ${{ matrix.mode }}
+      # The rebuilt database's reports, for reading a difference in full (they hold only what the migration files
+      # in this repo define — no production data)
+      - name: Upload the replay reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: replay-${{ matrix.mode }}
+          path: ${{ runner.temp }}/replay-${{ matrix.mode }}
+          retention-days: 7
 
   smoke:
     name: smoke
