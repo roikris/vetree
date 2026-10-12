@@ -22,6 +22,37 @@ permissions:
   contents: read   # the deploy wait compares commits via the GitHub API
 
 jobs:
+  # Replay safety (infra-003), daily + after each merge: rebuild the database from supabase/migrations/ on an empty,
+  # pinned Supabase Postgres image (new + old default privileges) and compare it with access.json, rls.json and
+  # schema.json. Local Docker only, no production access, no Vercel CPU. Slack on failure.
+  replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [new, old]
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Replay every migration (${{ matrix.mode }} default privileges)
+        id: replay
+        run: bash docs/harness/replay.sh ${{ matrix.mode }}
+      - name: Slack on failed replay
+        if: failure() && steps.replay.outcome == 'failure'
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          [ -n "$SLACK_WEBHOOK_URL" ] || exit 0
+          curl -s -X POST -H 'Content-Type: application/json' \
+            -d "{\"text\":\"🔐 *Vetree* — replay FAILED (${{ matrix.mode }} defaults): a database rebuilt from supabase/migrations/ no longer matches production's snapshots\\n$RUN_URL\"}" "$SLACK_WEBHOOK_URL" \
+            -o /dev/null -w 'Slack HTTP %{http_code}\n' -f || echo "::warning::Slack delivery failed"
+
   # Deliberately not named `smoke`: that is the PR workflow's required check
   smoke-production:
     runs-on: ubuntu-latest

@@ -829,7 +829,9 @@ function compareSchema(actual, expected) {
   return diffs
 }
 
-// schema-audit [--report <file.json>] [--expected <schema.json>]
+// schema-audit [--report <file.json>] [--expected <schema.json>] [--skip-default-privileges]
+// --skip-default-privileges: leave that one section out on both sides — only for the replay (docs/harness/replay.sh),
+// whose two simulations differ from production there by design and check it themselves.
 async function schemaAudit(argv) {
   const opt = n => { const i = argv.indexOf(n); return i >= 0 ? argv[i + 1] : null }
   const file = opt('--expected') || SCHEMA_FILE
@@ -837,6 +839,10 @@ async function schemaAudit(argv) {
   try { expected = readSchemaExpected(file) } catch (e) { console.log(`schema audit: UNVERIFIED — ${escCtl(e.message)}`); process.exit(2) }
   const { flat, major } = await schemaActual(argv, 'schema audit')
   if (major !== expected.major) { console.log(`schema audit: UNVERIFIED — production runs PostgreSQL ${major}, ${escCtl(file)} was taken on ${expected.major} (deparsed text may differ: review and re-snapshot in a PR)`); process.exit(2) }
+  if (argv.includes('--skip-default-privileges')) {
+    const dp = k => k.startsWith('default privileges ')
+    for (const m of [flat, expected.facts]) for (const k of [...m.keys()]) if (dp(k)) m.delete(k)
+  }
   const diffs = compareSchema(flat, expected.facts)
   if (diffs.length) {
     console.log(`schema audit: FAIL — ${diffs.length} difference(s) from ${escCtl(file)}:`)
@@ -888,6 +894,42 @@ async function schemaSnapshot(argv) {
   }
   console.log(`schema snapshot: wrote ${escCtl(out)} — ${flat.size} facts, ${redacted.length} stored as sha256${redacted.length ? ':' : ''}`)
   for (const k of redacted) console.log(`  ${escCtl(k)}`)
+}
+
+// replay-defaults <before.txt> <after.txt> <schema.json> (infra-003, used by docs/harness/replay.sh): the default
+// privileges of the rebuilt database, listed before and after every migration (one entry per line: role · schema |
+// (global) · type · grantee:PRIVILEGE:t|f,… merged across grantors), stay what the simulation set: nothing removed or
+// changed; an entry ADDED by a migration (e.g. CREATE EXTENSION pg_cron's Supabase hook, schema cron) must be outside
+// public, grant nothing to anon / authenticated / service_role / PUBLIC, and equal production's entry exactly
+// (grantees, privileges, grant options — supabase/schema.json). Exit 0 ok, 1 not, 2 unreadable. Names only in output.
+function replayDefaults(beforePath, afterPath, schemaPath) {
+  let before, after, facts
+  try { before = readFileSync(beforePath, 'utf8'); after = readFileSync(afterPath, 'utf8'); facts = readSchemaExpected(schemaPath).facts }
+  catch (e) { console.log(`default privileges: UNVERIFIED — ${escCtl(e.message || 'unreadable input')}`); process.exit(2) }
+  const lines = txt => txt.split('\n').filter(Boolean)
+  const b = new Set(lines(before)), a = new Set(lines(after))
+  const name = l => escCtl(l.split(' · ').slice(0, 3).join(' · '))
+  const bad = [...b].filter(l => !a.has(l)).map(l => `removed or changed: ${name(l)}`)
+  const added = [...a].filter(l => !b.has(l))
+  for (const l of added) {
+    const parts = l.split(' · ')
+    if (parts.length < 3 || parts.length > 4) { bad.push('an entry is not role · schema · type · acl'); continue }
+    const [role, schemaName, type, acl = ''] = parts
+    const at = name(l)
+    const entries = acl ? acl.split(',').map(e => e.split(':')) : []
+    if (entries.some(e => e.length !== 3 || !['t', 'f'].includes(e[2]))) { bad.push(`added, unreadable ACL: ${at}`); continue }
+    if (schemaName === 'public') bad.push(`added in public: ${at}`)
+    if (entries.some(([g]) => ['PUBLIC', 'anon', 'authenticated', 'service_role'].includes(g))) bad.push(`added, grants to an API role or PUBLIC: ${at}`)
+    const key = `default privileges ${JSON.stringify([role, schemaName === '(global)' ? null : schemaName, type])}`
+    if (!facts.has(`${key}${SEP}present`)) { bad.push(`added, not in production: ${at}`); continue }
+    const pre = `${key}${SEP}acl `
+    const want = [...facts.keys()].filter(k => k.startsWith(pre)).map(k => `${k.slice(pre.length)}:${facts.get(k) ? 't' : 'f'}`).sort()
+    const have = entries.map(([g, p, o]) => `${g} ${p}:${o}`).sort()
+    if (JSON.stringify(want) !== JSON.stringify(have)) bad.push(`added, privileges differ from production: ${at}`)
+  }
+  for (const x of bad) console.log(`default privileges: ${x}`)
+  console.log(`default privileges: ${b.size} before, ${a.size} after${bad.length ? ` — ${bad.length} problem(s)` : ` (${added.length} added by migrations, each exactly as in production and outside public)`}`)
+  process.exit(bad.length ? 1 : 0)
 }
 
 // schema-selftest: every case under docs/harness/test/schema/<case>/ — report.json, schema.json, expect (exit code),
@@ -967,6 +1009,7 @@ const commands = {
   'schema-audit': () => schemaAudit(args),
   'schema-snapshot': () => schemaSnapshot(args),
   'schema-selftest': () => schemaSelftest(),
+  'replay-defaults': () => replayDefaults(args[0], args[1], args[2]),
   'log-grew': () => logGrew(args[0], args[1], args[2]),
 }
 if (!commands[cmd]) { console.error(`unknown command: ${cmd}`); process.exit(2) }

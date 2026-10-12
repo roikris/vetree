@@ -86,7 +86,9 @@ The **access-control audit** (infra-001) checks production's actual table / view
 same for row-level security against `supabase/rls.json` (RLS on / forced, every policy's command, roles and
 expressions) with the same rules, and the **schema audit** (infra-003) for the public schema's whole structure against
 `supabase/schema.json` (tables, columns, constraints, indexes, triggers, views, sequences, functions, types, grants,
-extensions, roles; an object kind it does not cover is UNVERIFIED, never skipped). Rules: supabase/CLAUDE.md "Required Grants".
+extensions, roles; an object kind it does not cover is UNVERIFIED, never skipped). The **replay** (infra-003,
+`docs/harness/replay.sh`, CI only — it needs Docker) rebuilds the database from `supabase/migrations/` on an empty
+Supabase image and must match all three snapshots; it gates every PR's `smoke` check. Rules: supabase/CLAUDE.md "Required Grants".
 
 Lint is a **ratchet** (D9): `lint-baseline.json` lists the known errors per file + rule; only
 errors above those counts fail. A PR that fixes lint errors shrinks the file in the same PR

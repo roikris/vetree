@@ -262,7 +262,10 @@ All schema changes (new tables, columns, constraints, indexes, RLS policies, fun
 **Dashboard drift rule:** If a schema change was previously applied via the dashboard editor
 (not via a migration file), a backfill migration must be created to record it so
 `supabase/migrations/` matches the live schema exactly. Run `npx supabase db diff --linked`
-to detect drift; Docker is required for this command.
+to detect drift; Docker is required for this command. Since infra-003 (2026-10-12) drift is caught for you: the daily
+schema audit compares production with `supabase/schema.json`, and every PR's `replay` job rebuilds the database from
+`supabase/migrations/` on an empty Supabase image and must match production's snapshots — so a migration must also
+apply on an EMPTY database (in order), and a dashboard change fails the next audit until a migration records it.
 
 **Constraint history for `linkedin_post_metrics.match_method`** (fully reconciled):
 - 038 → ('slug', 'date', 'haiku', 'manual')
