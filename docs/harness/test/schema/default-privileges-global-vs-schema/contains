@@ -1,0 +1,2 @@
+NEW   default privileges ["postgres","(global)","r"]
+GONE  default privileges ["postgres",null,"r"]

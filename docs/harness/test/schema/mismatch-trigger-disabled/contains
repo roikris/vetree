@@ -1,0 +1,1 @@
+relation public.items · trigger items_touch · enabled

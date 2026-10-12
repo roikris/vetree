@@ -107,9 +107,10 @@ jobs:
         with:
           node-version: '20'
 
-      # Access-control + policy audits (infra-001, infra-002): production's actual privileges (074's
-      # report) vs supabase/access.json and its row-level security (075's) vs supabase/rls.json, exactly —
-      # so a new table without its grants, or a new / changed policy, fails here before the code ships.
+      # Access-control + policy + schema audits (infra-001, -002, -003): production's actual privileges (074's
+      # report) vs supabase/access.json, its row-level security (075's) vs supabase/rls.json and its public
+      # schema structure (080's) vs supabase/schema.json, exactly — so a new table without its grants, a new /
+      # changed policy, or a schema change made outside a migration fails here before the code ships.
       # Self-tests first (offline), so an outage can't skip them. Exit 1 (mismatch) and 2
       # (unverified) both fail. Plain node + fetch, no install, no Vercel CPU.
       # Credentials only in this step; output carries status / error codes and diffs, never keys.
@@ -120,8 +121,10 @@ jobs:
         run: |
           node docs/harness/harness.mjs acl-selftest
           node docs/harness/harness.mjs rls-selftest
+          node docs/harness/harness.mjs schema-selftest
           node docs/harness/harness.mjs acl-audit
           node docs/harness/harness.mjs rls-audit
+          node docs/harness/harness.mjs schema-audit
 
       # Session-lock commands (harness-003): offline tests against throwaway git repos — no
       # network, no secrets, no Vercel CPU. Run only when init.sh or the tests change (scope job).

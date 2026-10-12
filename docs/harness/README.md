@@ -69,7 +69,7 @@ current HEAD counts.
 
 | Result (exit) | Meaning | Do |
 |---|---|---|
-| GREEN (0) | tsc, lint ratchet, the access-control audit (production privileges = `supabase/access.json`), the policy audit (production row-level security = `supabase/rls.json`) and build pass (`GREEN (quick — build not run)` with `--quick`: say so in evidence) | work |
+| GREEN (0) | tsc, lint ratchet, the access-control audit (production privileges = `supabase/access.json`), the policy audit (production row-level security = `supabase/rls.json`), the schema audit (production's public schema structure = `supabase/schema.json`) and build pass (`GREEN (quick — build not run)` with `--quick`: say so in evidence) | work |
 | POSSIBLE TRANSIENT (3) | tsc + lint passed, neither audit blocked, and the build failed with the known Supabase/network signature — or an audit couldn't reach production (a genuine network error) | re-run once; exit 3 again → treat as RED |
 | EXPECTED-WIP (10) | WIP mode — HEAD is the item's `wip_sha`, a `WIP (build red):` commit, on the item's branch, with a clean working tree (anything inconsistent → STOP). The build is skipped; tsc + lint are clean, or every failure they report left parsed signatures matching `expected_failures`. **Never GREEN:** the build did not run. A failed build is never expected. | continue the item; a normal commit still needs GREEN |
 | RED / REGRESSION (1) | anything else — a failure this session didn't cause | record it, release the lock, tell Roi; fixing it becomes an item only with Roi's OK |
@@ -84,7 +84,9 @@ The **access-control audit** (infra-001) checks production's actual table / view
 `supabase/access.json`, exactly — a mismatch or an unreadable report is RED, never "expected WIP", and never
 "transient" (only a network failure reaching the report may be POSSIBLE TRANSIENT). The **policy audit** (infra-002) does the
 same for row-level security against `supabase/rls.json` (RLS on / forced, every policy's command, roles and
-expressions) with the same rules. Rules: supabase/CLAUDE.md "Required Grants".
+expressions) with the same rules, and the **schema audit** (infra-003) for the public schema's whole structure against
+`supabase/schema.json` (tables, columns, constraints, indexes, triggers, views, sequences, functions, types, grants,
+extensions, roles; an object kind it does not cover is UNVERIFIED, never skipped). Rules: supabase/CLAUDE.md "Required Grants".
 
 Lint is a **ratchet** (D9): `lint-baseline.json` lists the known errors per file + rule; only
 errors above those counts fail. A PR that fixes lint errors shrinks the file in the same PR

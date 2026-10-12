@@ -1,0 +1,1 @@
+role anon · bypass_rls — expected false, production true
