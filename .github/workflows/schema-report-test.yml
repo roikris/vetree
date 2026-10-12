@@ -75,7 +75,7 @@ jobs:
             if (!r.extensions.some(e => e.name === "pg_trgm" && e.schema === "public")) missing.push("pg_trgm in public")
             if (r.relations.some(x => /exttab/.test(x.name)) || r.types.some(x => /extcomp/.test(x.name))) missing.push("extension-owned objects excluded")
             const p2 = r.publications.find(p => p.name === "pub2")
-            if (!p2 || JSON.stringify(p2.tables.map(t => t.name)) !== JSON.stringify(['"public.a".b', 'public."a.b"'])) missing.push("dotted names quoted")
+            if (!p2 || JSON.stringify(p2.tables.map(t => t.name)) !== JSON.stringify(["\"public.a\".b", "public.\"a.b\""])) missing.push("dotted names quoted")
             if (r.routines.some(x => /similarity|gtrgm/.test(x.signature)) || r.types.some(x => /gtrgm/.test(x.name))) missing.push("pg_trgm members excluded")
             const auth = r.roles.find(x => x.name === "authenticator")
             if (!auth || !auth.member_of.some(m => m.role === "service_role" && typeof m.set === "boolean")) missing.push("membership options")
