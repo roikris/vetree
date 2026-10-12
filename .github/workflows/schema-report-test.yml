@@ -52,7 +52,7 @@ jobs:
 
       - name: Report as service_role validates and covers every kind
         run: |
-          docker exec pg psql -U postgres -h 127.0.0.1 -v ON_ERROR_STOP=1 -Atc \
+          docker exec pg psql -U postgres -h 127.0.0.1 -v ON_ERROR_STOP=1 -qAtc \
             "set role service_role; select public.harness_schema_report()" > "$RUNNER_TEMP/report.json"
           node docs/harness/harness.mjs schema-report --report "$RUNNER_TEMP/report.json"
           node -e '
@@ -89,7 +89,7 @@ jobs:
       - name: Uncovered kinds make the audit UNVERIFIED
         run: |
           docker exec -i pg psql -U postgres -h 127.0.0.1 -v ON_ERROR_STOP=1 -q < docs/harness/test/schema-pg/unsupported.sql
-          docker exec pg psql -U postgres -h 127.0.0.1 -v ON_ERROR_STOP=1 -Atc \
+          docker exec pg psql -U postgres -h 127.0.0.1 -v ON_ERROR_STOP=1 -qAtc \
             "set role service_role; select public.harness_schema_report()" > "$RUNNER_TEMP/report2.json"
           rc=0; node docs/harness/harness.mjs schema-report --report "$RUNNER_TEMP/report2.json" > "$RUNNER_TEMP/out" || rc=$?
           cat "$RUNNER_TEMP/out"
