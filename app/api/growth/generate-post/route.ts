@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
 import { NextRequest, NextResponse } from 'next/server'
+import { PAGE_BUTTON_LINE, makeLinkFree } from '@/lib/growth/linkFree'
 import { ratelimitModerate, getClientIP } from '@/lib/ratelimit'
 import { createClient } from '@/lib/supabase/server'
 import { CLAUDE_MODEL, NO_UPFRONT_THINKING, responseText } from '@/lib/ai/model'
@@ -163,11 +164,9 @@ export async function POST(request: NextRequest) {
     const saveClause = saveClauses[new Date().getDay() % saveClauses.length]
     const saveCta = `${saveClause}: ${saveUrl}`
 
-    // Facebook IL (social-001): the Page may attach only two external links a month (Meta's limit for some business /
-    // creator Pages), so its posts carry NO link and no web address at all — readers use the Page's action button,
-    // which points at vetree.app/il (app/il/route.ts → the article last marked as posted for facebook_il).
+    // Facebook IL (social-001): no link and no web address at all — see lib/growth/linkFree.ts
     const linkFree = platform === 'facebook_il'
-    const pageButtonLine = '👆 הקישור למאמר המלא — בכפתור בראש העמוד'
+    const pageButtonLine = PAGE_BUTTON_LINE
 
     // Call Anthropic API to generate post for the selected article
     const Anthropic = (await import('@anthropic-ai/sdk')).default
@@ -466,18 +465,8 @@ Return ONLY the post text. Follow the platform rule exactly.`
     }
 
     // Facebook IL: guarantee the post is link-free whatever the model wrote — a stray link would spend one of the Page's
-    // two monthly links. Drop 🔗 / 💾 lines, strip any remaining URL or domain, and make sure the 👆 line ends the post.
-    if (linkFree) {
-      const urlish = /\b(?:https?:\/\/|www\.)\S+|\b(?:[a-z0-9-]+\.)+(?:app|com|org|net|io|co\.il|org\.il|il)\b(?:\/\S*)?/gi
-      postContent = postContent
-        .split('\n')
-        .filter(line => !/^\s*(🔗|💾)/.test(line) && line.trim() !== pageButtonLine)
-        .map(line => line.replace(urlish, '').replace(/\s+$/, ''))
-        .join('\n')
-        .replace(/\n{3,}/g, '\n\n')
-        .trim()
-      postContent = `${postContent}\n${pageButtonLine}`
-    }
+    // two monthly links
+    if (linkFree) postContent = makeLinkFree(postContent)
 
     // Twitter-specific length check
     if (platform === 'twitter' && postContent.length > 280) {

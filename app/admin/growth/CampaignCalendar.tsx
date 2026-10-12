@@ -59,6 +59,8 @@ export function CampaignCalendar() {
   const [markedPosted, setMarkedPosted] = useState(false)
   const [memoryWriteFailed, setMemoryWriteFailed] = useState(false)
   const [linkedinTabMarked, setLinkedinTabMarked] = useState(false)
+  // The article last marked as posted from the Facebook IL tab this session — vetree.app/il opens it (social-001)
+  const [facebookIlTabMarked, setFacebookIlTabMarked] = useState<string | null>(null)
   const [linkedinTabPostedUrl, setLinkedinTabPostedUrl] = useState('')
   const [linkedinTabSavedUrl, setLinkedinTabSavedUrl] = useState<string | null>(null)
   const [linkedinTabSavingUrl, setLinkedinTabSavingUrl] = useState(false)
@@ -725,7 +727,7 @@ export function CampaignCalendar() {
     }
   }
 
-  // Copy for all-platforms tab view; marks posted when it's the LinkedIn tab.
+  // Copy for all-platforms tab view; marks posted when it's the LinkedIn or the Facebook IL tab.
   const handleCopyPlatformTab = async (platform: string) => {
     const post = allPlatformPosts[platform]
     if (!post) return
@@ -741,6 +743,19 @@ export function CampaignCalendar() {
       }
       markAsApproved(today)
       setLinkedinTabMarked(true)
+      refreshStats()
+    }
+    // Facebook IL posts carry no link: the Page button (vetree.app/il) opens the article marked here — record it once
+    // per article, before the post goes out
+    if (platform === 'facebook_il' && post.article_id && facebookIlTabMarked !== post.article_id) {
+      const hookLine = (post.post_content as string).split('\n').find((l: string) => l.trim()) ?? undefined
+      const ok = await recordToMemory(post.article_id, 'facebook_il', 'approved', undefined, hookLine)
+      if (!ok) {
+        setMessage({ type: 'error', text: '⚠️ Not marked as posted — the Page button would open the previous article. Try again' })
+        return
+      }
+      setFacebookIlTabMarked(post.article_id)
+      setMessage({ type: 'success', text: '✅ Copied — the Page button (vetree.app/il) now opens this article' })
       refreshStats()
     }
   }
@@ -1646,7 +1661,7 @@ export function CampaignCalendar() {
                   {allPlatformPosts[activePlatformTab].post_content}
                 </pre>
 
-                {/* Action row: Copy (+ mark posted for LinkedIn) */}
+                {/* Action row: Copy (+ mark posted for LinkedIn and Facebook IL) */}
                 <div className="flex items-center gap-2 mt-3 flex-wrap">
                   <button
                     type="button"
@@ -1654,7 +1669,7 @@ export function CampaignCalendar() {
                     className="flex items-center gap-1.5 text-sm text-zinc-400 hover:text-white cursor-pointer bg-zinc-700 hover:bg-zinc-600 px-3 py-1.5 rounded-md transition"
                   >
                     <Copy size={14} />
-                    {activePlatformTab === 'linkedin' ? 'Copy & mark posted' : 'Copy'}
+                    {activePlatformTab === 'linkedin' || activePlatformTab === 'facebook_il' ? 'Copy & mark posted' : 'Copy'}
                   </button>
                   {/* Image generation hidden — requires separate Google AI API billing */}
                 </div>

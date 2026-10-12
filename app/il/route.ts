@@ -22,10 +22,11 @@ function go(path: string) {
 }
 
 export async function GET(request: NextRequest) {
-  const { success } = await ratelimitLoose.limit(`il:${getClientIP(request)}`)
-  if (!success) return go('/')
-
   try {
+    // inside the try: a limiter outage (Redis) also ends on the home page, reported, never on an error page
+    const { success } = await ratelimitLoose.limit(`il:${getClientIP(request)}`)
+    if (!success) return go('/')
+
     const supabase = createAdminClient()
     const { data: post, error } = await supabase
       .from('growth_agent_memory')
