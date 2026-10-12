@@ -44,6 +44,9 @@ qsu() { docker exec -i "$NAME" psql -U supabase_admin -h 127.0.0.1 -d postgres -
 dacl() { q -c "select pg_get_userbyid(d.defaclrole) || ' · ' || coalesce(n.nspname, '(global)') || ' · ' || d.defaclobjtype::text || ' · ' || d.defaclacl::text
                from pg_default_acl d left join pg_namespace n on n.oid = d.defaclnamespace order by 1"; }
 
+# ---- environment the image lacks but migrations need (not compared — see the file)
+qsu < "$H/test/replay/storage-stub.sql" 2>"$OUT/err" || fail2 "storage stand-in failed: $(grep -m1 -E 'ERROR|FATAL' "$OUT/err" | cut -c1-240)"
+
 # ---- simulate the default privileges
 if [ "$MODE" = new ]; then
   # Remove every grant to the four roles from table / sequence default privileges, for every creator role and scope
