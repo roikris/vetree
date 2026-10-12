@@ -49,6 +49,7 @@ dacl() { q -c "select pg_get_userbyid(d.defaclrole) || ' · ' || coalesce(n.nspn
 
 # ---- environment the image lacks but migrations need (not compared — see the file)
 qsu < "$H/test/replay/storage-stub.sql" 2>"$OUT/err" || fail2 "storage stand-in failed: $(grep -m1 -E 'ERROR|FATAL' "$OUT/err" | cut -c1-240)"
+qsu < "$H/test/replay/platform.sql" 2>"$OUT/err" || fail2 "platform settings failed: $(grep -m1 -E 'ERROR|FATAL' "$OUT/err" | cut -c1-240)"
 
 # ---- simulate the default privileges
 if [ "$MODE" = new ]; then
