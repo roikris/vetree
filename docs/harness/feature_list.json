@@ -1136,9 +1136,9 @@
       "notes": "Found by Codex in infra-002's review of 079 (2026-10-11)."
     },
     {
-      "status": "not_started",
+      "status": "in_progress",
       "evidence": [],
-      "branch": "",
+      "branch": "fix/social-001-facebook-links",
       "pr": null,
       "head_sha": null,
       "wip_sha": null,
@@ -1172,7 +1172,7 @@
           "paid_calls": false
         }
       ],
-      "notes": "Named by Roi 2026-10-12, to start after infra-003 ships: Facebook now allows only 2 links per month on posts for certain free business accounts; the Facebook IL account posts a link every day, so readers can no longer reach the articles. Design decision is Roi's."
+      "notes": "Named by Roi 2026-10-12, to start after infra-003 ships: Facebook now allows only 2 links per month on posts for certain free business accounts; the Facebook IL account posts a link every day, so readers can no longer reach the articles. Design decision is Roi's. · claimed by 20261012-1839-claude-df86"
     }
   ]
 }
