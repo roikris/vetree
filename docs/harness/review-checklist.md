@@ -65,7 +65,8 @@ The critical rules in one line each — the full text is in CLAUDE.md under the 
 Also: a new or changed public table / view / sequence has explicit least-privilege grants (REVOKE ALL first) AND a
 matching `supabase/access.json` entry, a new / changed / dropped policy or RLS toggle a matching `supabase/rls.json`
 entry, and any schema change a matching `supabase/schema.json` (schema-snapshot after the push — never secret-shaped
-text in clear) — no policy that lets PUBLIC / anon read or write user data with `true` (supabase/CLAUDE.md "Required Grants"); never log emails or pass user text / request bodies to Sentry; the CLAUDE.md branch / PR /
+text in clear); every migration applies on an EMPTY database in order (the `replay` job) — never edit 000, and a
+dashboard-made change is recorded by a guarded forward migration, not by editing history — no policy that lets PUBLIC / anon read or write user data with `true` (supabase/CLAUDE.md "Required Grants"); never log emails or pass user text / request bodies to Sentry; the CLAUDE.md branch / PR /
 merge policy and its two exceptions.
 
 ## 4. Ask for short output

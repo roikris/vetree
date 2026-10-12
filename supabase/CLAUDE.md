@@ -574,8 +574,20 @@ schema USAGE or grant options. A match proves neither that the app can do what i
 effectively denied. **Least privilege since migration 079 (infra-002):** anon / authenticated hold only the commands
 their policies allow (anon: SELECT on articles, and on saved_articles until Trending is fixed); nobody but
 service_role / postgres holds TRUNCATE, TRIGGER, REFERENCES or MAINTAIN. A new policy for a role needs the matching
-grant, and a new grant needs a policy — keep the two in step. Follow-up: infra-003 (make grants explicit
-for objects created under the old defaults, e.g. `analytics_events` (041), so a fresh rebuild matches).
+grant, and a new grant needs a policy — keep the two in step.
+**Replay safety (infra-003, 2026-10-12)** — `docs/harness/replay.sh <new|old>` rebuilds the database from
+`supabase/migrations/` on an EMPTY, pinned Supabase Postgres image (Docker, `--network none`, never production), under
+the 2026-10-30 default privileges (`new`, proved by a probe table) and the old ones (`old`), and runs the acl, rls and
+schema audits against the rebuilt database. It runs on every PR (job `replay`; the required `smoke` check fails unless
+it passed) and daily (`qa-smoke.yml`, Slack). A self-check plants catalog changes that must each fail the compare.
+How the history was made rebuildable: **000** creates pg_trgm, the fifteen dashboard-era tables (production's shape)
+and the dashboard-made `count_short_unquarantined_abstracts()` — NEVER run on production (recorded there with
+`supabase migration repair --status applied 000`); **081** adds service_role's missing grants (additive, a no-op on
+production); **082** reconciles what production changed in the dashboard (RLS + 7 policies on 8 tables, 3
+constraints, 4 dropped indexes, a dropped CHECK and NOT NULL on growth_tasks) — every statement behind a catalog
+check, so nothing runs on production. The replay's environment (`docs/harness/test/replay/`): a storage stand-in
+(storage is a listed gap, not compared) and production's project settings (GraphQL off, postgres in
+`supabase_privileged_role`). **Every new migration must apply on an empty database in order and keep the replay green.**
 
 ## SQL Function Security (required)
 ```sql
