@@ -87,6 +87,8 @@ jobs:
       - name: Replay every migration (${{ matrix.mode }} default privileges)
         env:
           REPLAY_OUT: ${{ runner.temp }}/replay-${{ matrix.mode }}
+          # planted catalog changes must each fail the compare (once is enough: the new-defaults run)
+          REPLAY_SELFCHECK: ${{ matrix.mode == 'new' && '1' || '' }}
         run: bash docs/harness/replay.sh ${{ matrix.mode }}
       # The rebuilt database's reports, for reading a difference in full (they hold only what the migration files
       # in this repo define — no production data)
