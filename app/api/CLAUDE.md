@@ -270,9 +270,9 @@ Article choice is shared with the recommendations panel: `rankGrowthCandidates()
 Meta limits some business / creator Pages to two external links a month (posts **and** comments), and the Facebook IL
 Page posts every day. So `facebook_il` posts have **no URL, web address or domain name except the WhatsApp Community
 link in the closing line** — no 🔗 article link, no 💾 save link. The model ends the post at the 📄 title line; `makeLinkFree` (`lib/growth/linkFree.ts`) strips any link it wrote
-anyway (a stray one spends the Page's allowance), drops any closing / call-to-action line it copied or reworded (a line
-naming the address, the button or WhatsApp that starts with 📲 / 💬 / 👆 or holds ≤ 8 other words — other lines keep their
-text and lose only links), and appends the closing lines itself — the one place to change them:
+anyway (a stray one spends the Page's allowance), drops any closing / call-to-action line it copied or reworded (judged on the line's text
+without links: names the address, the button or WhatsApp and starts with 📲 / 💬 / 👆 or holds ≤ 8 words; or a link with
+≤ 3 words around it; never the 📄 title line — every other line keeps its text and loses only links), and appends the closing lines itself — the one place to change them:
 - `📲 המאמר המלא: vetree . app/il (…)` — the short address written so Facebook doesn't detect a link (Roi's composer test:
   `vetree.app/il` shows the link counter); readers type it. The Page's action button points at `vetree.app/il` too.
 - `💬 … https://chat.whatsapp.com/…` — the Vetree WhatsApp Community; Roi's composer test showed no link counter for this

@@ -12,11 +12,14 @@ export const WHATSAPP_COMMUNITY_URL = 'https://chat.whatsapp.com/LtqjP6AZXDa0Yxn
 export const WHATSAPP_LINE = `💬 כל מאמר חדש מגיע לקהילת הוואטסאפ שלנו: ${WHATSAPP_COMMUNITY_URL}`
 export const CLOSING_LINES = [ARTICLE_LINE, WHATSAPP_LINE]
 
-// A closing / call-to-action line the model may have copied or reworded (rewrites start from an existing post): it
-// mentions the address, the Page button or WhatsApp AND either starts with one of the closing emojis or holds almost
-// nothing else (≤ 8 words once links and the address are removed). Such a line is dropped whole; any other line keeps
-// its text and loses only its links — a clinical sentence that ends with a link stays.
-const CHANNEL = /app\s*\/\s*il|vetree\s*(?:\.|\(\.\)|נקודה)\s*app|whatsapp|וואטסאפ|בכפתור/i
+// A closing / call-to-action line the model may have copied or reworded (rewrites start from an existing post) is
+// dropped whole; any other line keeps its text and loses only its links — a clinical sentence that ends with a link
+// stays. Evidence is read from the line's TEXT with its links removed (the invite URL itself says "whatsapp"):
+// - it names the address (…app/il), the Page button or WhatsApp, and starts with 📲 / 💬 / 👆 or has ≤ 8 words; or
+// - it carried a link and almost nothing else is left (≤ 3 words: "Join:", "הצטרפו:").
+// Never the 📄 title line.
+const CHANNEL_WORDS = /whatsapp|וואטסאפ|בכפתור/i
+const ADDRESS_MENTION = /app\s*\/\s*il/i
 const CLOSING_MARK = /^\s*(?:📲|💬|👆)/
 const ADDRESS = /vetree\s*(?:\.|\(\.\)|נקודה)\s*app\s*\/\s*il/gi
 
@@ -37,10 +40,12 @@ export function hasLink(text: string): boolean {
 }
 
 function isClosingLine(line: string): boolean {
-  if (!CHANNEL.test(line)) return false
-  if (CLOSING_MARK.test(line)) return true
-  const words = line.replace(LINKISH, ' ').replace(ADDRESS, ' ').match(/[\p{L}\p{N}]+/gu) ?? []
-  return words.length <= 8
+  if (/^\s*📄/.test(line)) return false // the title line always stays (route checks it), only its links go
+  const text = line.replace(LINKISH, m => (isLink(m) ? ' ' : m)).replace(ADDRESS, ' ')
+  const words = (text.match(/[\p{L}\p{N}]+/gu) ?? []).length
+  const named = CHANNEL_WORDS.test(text) || ADDRESS_MENTION.test(line)
+  if (named && (CLOSING_MARK.test(line) || words <= 8)) return true
+  return text !== line && words <= 3
 }
 
 /**
