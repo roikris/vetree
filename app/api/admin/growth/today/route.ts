@@ -8,7 +8,9 @@ export const dynamic = 'force-dynamic'
 // GET /api/admin/growth/today — what Growth OS's daily panel starts from (growth-002): today's "posted" rows (Israel
 // day) and the posting streak, from growth_agent_memory instead of one browser's localStorage. Read-only. The day's
 // article = the newest approved row today (lib/growth/daily.ts reconcileDay); its title comes along for the header.
-const STREAK_WINDOW_DAYS = 120
+const STREAK_WINDOW_DAYS = 120 // the streak shown is capped here (the panel says "120+" at the cap)
+const PAGE = 1000
+const MAX_ROWS = 20_000 // a bound on the paging, far above 6 platforms × 121 days
 
 export async function GET() {
   try {
@@ -23,22 +25,33 @@ export async function GET() {
     const { start, end } = israelDayBounds(today)
     const since = israelDayBounds(israelDateMinus(today, STREAK_WINDOW_DAYS)).start
 
-    const [todayRes, recentRes] = await Promise.all([
+    // the streak window, page by page (PostgREST returns at most 1000 rows per request)
+    const recentDays = async () => {
+      const days = new Set<string>()
+      for (let from = 0; ; from += PAGE) {
+        const { data, error } = await supabase.from('growth_agent_memory')
+          .select('created_at')
+          .eq('outcome', 'approved').not('article_id', 'is', null)
+          .gte('created_at', since).lt('created_at', end)
+          .order('created_at', { ascending: false }).order('id', { ascending: true })
+          .range(from, from + PAGE - 1)
+        if (error) throw new Error(`recent rows: ${error.message}`)
+        for (const r of data ?? []) days.add(israelDate(r.created_at))
+        if (!data || data.length < PAGE) return days
+        if (from + PAGE >= MAX_ROWS) throw new Error(`more than ${MAX_ROWS} approved rows in ${STREAK_WINDOW_DAYS} days`)
+      }
+    }
+    const [todayRes, days] = await Promise.all([
       supabase.from('growth_agent_memory')
         .select('id, article_id, platform, created_at, posted_url')
         .eq('outcome', 'approved').not('article_id', 'is', null)
         .gte('created_at', start).lt('created_at', end)
         .order('created_at', { ascending: true }),
-      supabase.from('growth_agent_memory')
-        .select('created_at')
-        .eq('outcome', 'approved').not('article_id', 'is', null)
-        .gte('created_at', since).lt('created_at', end),
+      recentDays(),
     ])
     if (todayRes.error) throw new Error(`today's rows: ${todayRes.error.message}`)
-    if (recentRes.error) throw new Error(`recent rows: ${recentRes.error.message}`)
 
     const rows = (todayRes.data ?? []) as ApprovedRow[]
-    const days = new Set((recentRes.data ?? []).map(r => israelDate(r.created_at)))
 
     // the day's article title, for the header (fresh browser after posting)
     let article: { id: string; title: string } | null = null

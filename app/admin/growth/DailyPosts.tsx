@@ -34,7 +34,7 @@ const TIGHTEN_INSTRUCTION = 'Rewrite this post staying strictly faithful to the 
 const NORMALLY_EXCLUDED = ['Equine', 'equine', 'Large Animal', 'large animal', 'Livestock', 'livestock', 'Poultry', 'poultry', 'Food Animal', 'food animal']
 
 type Post = Draft & { language: string; hook_line?: string; crowd_favorite?: boolean; article_labels?: string[] }
-type DayStore = { articleId: string | null; articleTitle: string | null; posts: Record<string, Post> }
+type DayStore = { articleId: string | null; articleTitle: string | null; posts: Record<string, Post>; failed?: string[] }
 type Article = { id: string; title: string; crowdFavorite?: boolean }
 
 // Drafts are this browser's, per Israel day (posted state is in the database)
@@ -77,13 +77,28 @@ const toPost = (d: GenerateResult, language: string): Post => ({
 })
 const hookOf = (text: string) => text.split('\n').find(l => l.trim())?.trim()
 
+// The panel lives for one Israel day: at midnight (or on Retry loading) it is rebuilt from scratch — today's posted
+// state reloaded, yesterday's article / flags / double-click guard gone, drafts read from the new day's key.
 export function DailyPosts() {
   // the Israel date — identical on the server and in the browser (fixed time zone), so no hydration mismatch
-  const [today] = useState(() => israelDate(new Date()))
+  const [day, setDay] = useState(() => israelDate(new Date()))
+  const [attempt, setAttempt] = useState(0)
+  useEffect(() => {
+    const check = () => setDay(israelDate(new Date()))
+    const timer = setInterval(check, 30_000)
+    document.addEventListener('visibilitychange', check)
+    window.addEventListener('focus', check)
+    return () => { clearInterval(timer); document.removeEventListener('visibilitychange', check); window.removeEventListener('focus', check) }
+  }, [])
+  return <DailyDay key={`${day}:${attempt}`} today={day}
+    onDayChange={() => setDay(israelDate(new Date()))} onReload={() => setAttempt(a => a + 1)} />
+}
+
+function DailyDay({ today, onDayChange, onReload }: { today: string; onDayChange: () => void; onReload: () => void }) {
   const [loaded, setLoaded] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [rows, setRows] = useState<ApprovedRow[]>([])
-  const [streak, setStreak] = useState<number | null>(null)
+  const [streak, setStreak] = useState<{ days: number; capped: boolean } | null>(null)
   const [dayArticle, setDayArticle] = useState<Article | null>(null) // fixed once anything is posted today
   const [posts, setPosts] = useState<Record<string, Post>>({})
   const [activeTab, setActiveTab] = useState<string>('')
@@ -109,15 +124,25 @@ export function DailyPosts() {
   const [urlDrafts, setUrlDrafts] = useState<Record<string, string>>({})
   const [urlSaving, setUrlSaving] = useState<Record<string, boolean>>({})
 
-  const [photoArticle, setPhotoArticle] = useState<{ abstract?: string | null; summary?: string; clinical_bottom_line?: string } | null>(null)
+  const [photoArticle, setPhotoArticle] = useState<{ id: string; abstract?: string | null; summary?: string; clinical_bottom_line?: string } | null>(null)
   const [photoError, setPhotoError] = useState<string | null>(null)
   const [photoCopied, setPhotoCopied] = useState(false)
   const [image, setImage] = useState<string | null>(null)
   const [copiedTab, setCopiedTab] = useState<string | null>(null)
+  const [copyFailed, setCopyFailed] = useState<string | null>(null) // the card whose copy failed: mark only on an explicit "copied by hand"
 
   const articleId = dayArticle?.id ?? Object.values(posts)[0]?.article_id ?? null
   const articleTitle = dayArticle?.title ?? Object.values(posts)[0]?.article_title ?? null
   const posted = postedPlatforms(rows, articleId)
+  // nothing that can write a "posted" row or change the article runs until today's posted state is known
+  const ready = loaded && !loadError
+  const photo = photoArticle?.id === articleId ? photoArticle : null // never the previous article's abstract
+  const dayChanged = () => {
+    if (israelDate(new Date()) === today) return false
+    setMessage({ type: 'error', text: "It's past midnight in Israel — a new day has started; the panel is reloading" })
+    onDayChange()
+    return true
+  }
 
   // The text a card shows / copies — Telegram is always rebuilt from WhatsApp
   const textFor = useCallback((platform: string): string | null => {
@@ -129,14 +154,16 @@ export function DailyPosts() {
     return posts[platform]?.post_content ?? null
   }, [posts])
 
-  const persist = useCallback((next: Record<string, Post>, article: Article | null) => {
-    const first = Object.values(next)[0]
+  // the drafts and which platforms failed, kept per Israel day (after the start reconciliation only)
+  useEffect(() => {
+    if (!loaded) return
+    const first = Object.values(posts)[0]
     writeStore(today, {
-      articleId: article?.id ?? first?.article_id ?? null,
-      articleTitle: article?.title ?? first?.article_title ?? null,
-      posts: next,
+      articleId: dayArticle?.id ?? first?.article_id ?? null,
+      articleTitle: dayArticle?.title ?? first?.article_title ?? null,
+      posts, failed,
     })
-  }, [today])
+  }, [loaded, today, posts, failed, dayArticle])
 
   const loadMissingUrls = async () => {
     try {
@@ -160,21 +187,22 @@ export function DailyPosts() {
         const res = await fetch('/api/admin/growth/today')
         const data = await res.json()
         if (!res.ok) throw new Error(data.details || data.error || `HTTP ${res.status}`)
+        if (data.date !== today) { onDayChange(); throw new Error(`the server's day is ${data.date}, this page's is ${today}`) }
         todayRows = data.rows || []
         fixed = data.article ? { id: data.article.id, title: data.article.title } : null
-        if (!cancelled) setStreak(data.streak ?? null)
+        if (!cancelled && typeof data.streak === 'number') setStreak({ days: data.streak, capped: data.streak >= (data.window_days ?? Infinity) })
       } catch (e) {
-        if (!cancelled) setLoadError(`Couldn't load today's posted state (${e instanceof Error ? e.message : String(e)}) — reload before marking anything posted`)
+        if (!cancelled) setLoadError(`Couldn't load today's posted state (${e instanceof Error ? e.message : String(e)}) — generating and marking posted are off until it loads`)
       }
       if (cancelled) return
       const r = reconcileDay(stored?.posts ?? {}, todayRows)
       setRows(todayRows)
       setDayArticle(fixed)
       setPosts(r.drafts as Record<string, Post>)
-      if (r.dropped.length) {
-        setMessage({ type: 'error', text: `Dropped ${r.dropped.length} draft(s) for a different article than today's — regenerate them if needed` })
-        persist(r.drafts as Record<string, Post>, fixed)
-      }
+      // platforms still without a post (failed earlier, or a dropped draft) stay retryable after a reload
+      const drafts = r.drafts as Record<string, Post>
+      setFailed([...new Set([...(stored?.failed ?? []), ...r.dropped])].filter(p => GENERATED_PLATFORMS.some(g => g.platform === p) && !drafts[p]))
+      if (r.dropped.length) setMessage({ type: 'error', text: `Dropped ${r.dropped.length} draft(s) for a different article than today's — use Retry Failed to regenerate them` })
       const firstTab = POSTING_PLATFORMS.find(p => (r.drafts as Record<string, Post>)[p.derivedFrom ?? p.platform])?.platform
       if (firstTab) setActiveTab(firstTab)
       setLoaded(true)
@@ -199,7 +227,7 @@ export function DailyPosts() {
       try {
         const { data, error } = await createClient().from('articles').select('abstract, summary, clinical_bottom_line').eq('id', articleId).single()
         if (error || !data) throw new Error(error?.message ?? 'no data')
-        if (!cancelled) { setPhotoArticle(data); setPhotoError(null) }
+        if (!cancelled) { setPhotoArticle({ id: articleId, ...data }); setPhotoError(null) }
       } catch {
         if (!cancelled) setPhotoError("Couldn't load the article's abstract — switch tabs and back to retry.")
       }
@@ -269,14 +297,13 @@ export function DailyPosts() {
   // One article for every platform: the day's article if anything is posted today, else the selection, else the
   // server picks one with the first platform and every other platform is forced to it.
   const generateAll = async (keepExisting = false) => {
-    if (!loaded) return
+    if (!ready || marking || dayChanged()) return
     const locked: Article | null = dayArticle ?? selected
     setBusy('all'); setMessage(null); setFailed([])
     const recent = recentPosts()
     const next: Record<string, Post> = keepExisting ? { ...posts } : {}
     const todo = GENERATED_PLATFORMS.filter(p => !(keepExisting && next[p.platform]))
     let shared: string | null = locked?.id ?? (keepExisting ? articleId : null)
-    let sharedTitle: string | null = locked?.title ?? (keepExisting ? articleTitle : null)
     const failedNow: string[] = []
     try {
       // the first platform fixes the article when the server picks (up to 3 tries if it lands on a large-animal one)
@@ -290,7 +317,7 @@ export function DailyPosts() {
           else if (r.status >= 400 && r.status < 500) { setMessage({ type: 'error', text: r.error }); return }
         }
         if (!got) { setMessage({ type: 'error', text: 'Could not find a suitable article after 3 attempts' }); return }
-        shared = got.article_id; sharedTitle = got.article_title ?? got.article_id
+        shared = got.article_id
         next[first.platform] = { ...toPost(got, first.language), crowd_favorite: !!got.crowd_favorite }
         noteExclusions(got.article_labels)
       }
@@ -318,9 +345,7 @@ export function DailyPosts() {
         }
         if (queue.length) await new Promise(res => setTimeout(res, 500))
       }
-      const article = locked ?? (shared ? { id: shared, title: sharedTitle ?? shared } : null)
       setPosts(next)
-      persist(next, dayArticle ?? article)
       setFailed(failedNow)
       if (!activeTab || !next[activeTab]) setActiveTab(POSTING_PLATFORMS.find(p => next[p.derivedFrom ?? p.platform])?.platform ?? '')
       const made = Object.keys(next).length
@@ -334,7 +359,8 @@ export function DailyPosts() {
   }
 
   const regenerateAll = async () => {
-    setPosts({}); persist({}, dayArticle); setImage(null)
+    if (!ready || marking || posted.size > 0) return
+    setPosts({}); setImage(null)
     await generateAll(false)
   }
 
@@ -359,7 +385,7 @@ export function DailyPosts() {
       if (!r.ok) { setMessage({ type: 'error', text: r.error }); return }
       if (r.data.article_id !== articleId) { setMessage({ type: 'error', text: `Came back for another article ("${r.data.article_title}") — not kept` }); return }
       const next = { ...posts, [platform]: { ...toPost(r.data, info.language), crowd_favorite: current?.crowd_favorite } }
-      setPosts(next); persist(next, dayArticle)
+      setPosts(next)
       setFailed(f => f.filter(p => p !== platform))
     } finally {
       setBusy(null)
@@ -383,9 +409,26 @@ export function DailyPosts() {
   const copyAndMark = async (platform: string) => {
     const text = textFor(platform)
     if (!text || !articleId) return
-    try { await navigator.clipboard.writeText(text) } catch { setMessage({ type: 'error', text: 'Copy failed — select the text and copy it by hand' }) }
+    try {
+      await navigator.clipboard.writeText(text)
+    } catch {
+      setCopyFailed(platform)
+      setMessage({ type: 'error', text: `Copy failed — nothing was marked. Select the text and copy it by hand${posted.has(platform) ? '' : ', then press "I copied it by hand"'}` })
+      return
+    }
+    setCopyFailed(null)
     setCopiedTab(platform); setTimeout(() => setCopiedTab(t => (t === platform ? null : t)), 2000)
-    if (posted.has(platform)) return
+    await markPosted(platform, text)
+  }
+
+  // the approval write — never while the article can still change (Generate All / Retry running), never before
+  // today's posted state loaded, never across midnight
+  const markPosted = async (platform: string, text: string) => {
+    if (!articleId || posted.has(platform)) return
+    if (!ready) { setMessage({ type: 'error', text: "Copied — but NOT marked posted: today's posted state didn't load. Press Retry loading, then mark again." }); return }
+    if (busy === 'all') { setMessage({ type: 'error', text: 'Copied — but NOT marked posted while posts are generating. Mark it once they are done.' }); return }
+    if (dayChanged()) return
+    setCopyFailed(null)
     setMarking(platform)
     const id = await guard.current(JSON.stringify([platform, articleId, hookOf(text)]))
     setMarking(null)
@@ -406,7 +449,7 @@ export function DailyPosts() {
     }).catch(() => { /* a lost skip only weakens the agent's learning */ })
     const next = { ...posts }
     delete next[platform]
-    setPosts(next); persist(next, dayArticle)
+    setPosts(next)
     setMessage({ type: 'success', text: `Skipped ${platformInfo(platform)?.name}` })
   }
 
@@ -498,13 +541,18 @@ export function DailyPosts() {
           <div>
             <h2 className="text-xl font-semibold text-[#1A1A1A] dark:text-[#E8E8E8]">Today&apos;s Posts</h2>
             <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1">
-              {today} · one article, every platform{streak !== null && ` · 🔥 ${streak}-day streak`}
+              {today} · one article, every platform{streak && ` · 🔥 ${streak.days}${streak.capped ? '+' : ''}-day streak`}
             </p>
           </div>
           <div className="text-sm text-zinc-500" data-testid="posted-count">{posted.size}/{POSTING_PLATFORMS.length} posted</div>
         </div>
 
-        {loadError && <div className="mb-4 p-3 rounded-lg text-sm bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-200">{loadError}</div>}
+        {loadError && (
+          <div className="mb-4 p-3 rounded-lg text-sm bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-200 flex flex-wrap items-center gap-3" data-testid="load-error">
+            <span className="flex-1">{loadError}</span>
+            <button type="button" onClick={onReload} className="px-3 py-1 text-xs rounded bg-red-700 hover:bg-red-600 text-white">↻ Retry loading</button>
+          </div>
+        )}
         {message && (
           <div data-testid="daily-message" className={`mb-4 p-3 rounded-lg text-sm ${message.type === 'success' ? 'bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-200' : 'bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-200'}`}>
             {message.text}
@@ -611,7 +659,7 @@ export function DailyPosts() {
         {/* Actions */}
         <div className="flex flex-wrap gap-3 mb-4">
           {!hasPosts ? (
-            <button type="button" onClick={() => generateAll(false)} disabled={!loaded || !!busy} data-testid="generate-all"
+            <button type="button" onClick={() => generateAll(false)} disabled={!ready || !!busy || !!marking} data-testid="generate-all"
               className="px-6 py-3 bg-[#3D7A5F] dark:bg-[#4E9A78] text-white rounded-lg hover:bg-[#2F5F4A] dark:hover:bg-[#5FAA88] transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium flex items-center gap-2">
               {busy === 'all' ? <><Loader2 size={14} className="animate-spin" /> Generating all...</>
                 : dayArticle ? `⚡ Generate All — ${dayArticle.title.slice(0, 40)}${dayArticle.title.length > 40 ? '…' : ''}`
@@ -620,12 +668,12 @@ export function DailyPosts() {
             </button>
           ) : (
             <>
-              <button type="button" onClick={regenerateAll} disabled={!!busy || posted.size > 0} title={posted.size > 0 ? 'Some posts are already out — regenerate single cards instead' : undefined}
+              <button type="button" onClick={regenerateAll} disabled={!ready || !!busy || !!marking || posted.size > 0} title={posted.size > 0 ? 'Some posts are already out — regenerate single cards instead' : undefined}
                 className="px-4 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
                 {busy === 'all' ? <><Loader2 size={14} className="animate-spin" /> Regenerating...</> : '🔄 Regenerate All'}
               </button>
               {failed.length > 0 && (
-                <button type="button" onClick={() => generateAll(true)} disabled={!!busy}
+                <button type="button" onClick={() => generateAll(true)} disabled={!ready || !!busy || !!marking}
                   className="px-4 py-3 bg-orange-700 hover:bg-orange-600 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
                   🔁 Retry Failed ({failed.length})
                 </button>
@@ -667,11 +715,15 @@ export function DailyPosts() {
                   <pre className="whitespace-pre-wrap text-sm font-mono text-zinc-200 dark:text-zinc-300" data-testid="post-text">{text}</pre>
 
                   <div className="flex items-center gap-2 mt-3 flex-wrap">
-                    <button type="button" onClick={() => copyAndMark(activeTab)} disabled={marking === activeTab} data-testid="copy-mark"
+                    <button type="button" onClick={() => copyAndMark(activeTab)} disabled={marking === activeTab || busy === 'all'} data-testid="copy-mark"
                       className={`flex items-center gap-1.5 text-sm px-4 py-2 rounded-md transition font-medium ${isPosted ? 'bg-zinc-700 text-zinc-300 hover:bg-zinc-600' : 'bg-green-600 hover:bg-green-700 text-white'} disabled:opacity-60`}>
                       {copiedTab === activeTab ? <Check size={14} /> : <Copy size={14} />}
                       {marking === activeTab ? 'Marking…' : isPosted ? 'Copy again (posted ✅)' : 'Copy & mark posted'}
                     </button>
+                    {copyFailed === activeTab && !isPosted && (
+                      <button type="button" onClick={() => markPosted(activeTab, text)} disabled={marking === activeTab || busy === 'all'} data-testid="mark-manual"
+                        className="text-sm px-3 py-2 bg-amber-700 hover:bg-amber-600 text-white rounded-md transition disabled:opacity-50">I copied it by hand — mark posted</button>
+                    )}
                     {!isPosted && !info.derivedFrom && (
                       <button type="button" onClick={() => skip(activeTab)} disabled={!!busy} className="text-sm px-3 py-2 bg-zinc-700 text-zinc-300 rounded-md hover:bg-zinc-600 transition disabled:opacity-50">⏭ Skip</button>
                     )}
@@ -723,16 +775,16 @@ export function DailyPosts() {
             {/* AI Photos — the prompt for ChatGPT from the source abstract, and Generate Images */}
             {activeTab === 'ai_photos' && (
               <div className="bg-zinc-900 dark:bg-zinc-950 rounded-lg p-4 border border-zinc-700 dark:border-zinc-800">
-                {photoArticle && !photoArticle.abstract && <p className="text-xs text-amber-400 mb-2">⚠️ This article has no source abstract — the prompt uses the AI summary instead.</p>}
+                {photo && !photo.abstract && <p className="text-xs text-amber-400 mb-2">⚠️ This article has no source abstract — the prompt uses the AI summary instead.</p>}
                 <p className="text-xs text-zinc-300 font-mono leading-relaxed whitespace-pre-wrap mb-3" data-testid="ai-photos-prompt">
-                  {photoArticle ? buildPhotoPrompt(photoArticle.abstract || photoArticle.summary || photoArticle.clinical_bottom_line || '') : (photoError ?? 'Loading article abstract...')}
+                  {photo ? buildPhotoPrompt(photo.abstract || photo.summary || photo.clinical_bottom_line || '') : (photoError ?? 'Loading article abstract...')}
                 </p>
                 <div className="flex gap-2 mb-4">
-                  <button type="button" disabled={!photoArticle}
+                  <button type="button" disabled={!photo}
                     onClick={async () => {
-                      if (!photoArticle) return
+                      if (!photo) return
                       try {
-                        await navigator.clipboard.writeText(buildPhotoPrompt(photoArticle.abstract || photoArticle.summary || photoArticle.clinical_bottom_line || ''))
+                        await navigator.clipboard.writeText(buildPhotoPrompt(photo.abstract || photo.summary || photo.clinical_bottom_line || ''))
                         setPhotoError(null); setPhotoCopied(true); setTimeout(() => setPhotoCopied(false), 2000)
                       } catch { setPhotoError('Copy failed — select the prompt text above and copy it manually.') }
                     }}
@@ -740,8 +792,8 @@ export function DailyPosts() {
                     {photoCopied ? <><Check size={14} /> Copied</> : <><Copy size={14} /> Copy prompt for ChatGPT</>}
                   </button>
                 </div>
-                {photoArticle && photoError && <p className="text-xs text-red-400 -mt-2 mb-4">{photoError}</p>}
-                <button type="button" onClick={generateImage} disabled={!!busy || !photoArticle}
+                {photo && photoError && <p className="text-xs text-red-400 -mt-2 mb-4">{photoError}</p>}
+                <button type="button" onClick={generateImage} disabled={!!busy || !photo}
                   className="flex items-center gap-1.5 text-sm text-zinc-300 hover:text-white bg-zinc-700 hover:bg-zinc-600 px-3 py-1.5 rounded-md transition disabled:opacity-50">
                   {busy === 'img' ? <><Loader2 size={14} className="animate-spin" /> Generating...</> : '🎨 Generate Images'}
                 </button>
