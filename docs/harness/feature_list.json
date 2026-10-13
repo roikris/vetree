@@ -1,6 +1,6 @@
 {
   "project": "vetree",
-  "last_updated": "2026-10-12",
+  "last_updated": "2026-10-13",
   "rules": {
     "single_active_feature": true,
     "passing_requires_evidence": true,
@@ -1136,11 +1136,42 @@
       "notes": "Found by Codex in infra-002's review of 079 (2026-10-11)."
     },
     {
-      "status": "in_progress",
-      "evidence": [],
-      "branch": "fix/social-001-facebook-links",
-      "pr": null,
-      "head_sha": null,
+      "status": "merged",
+      "evidence": [
+        {
+          "date": "2026-10-13",
+          "session": "20261012-1839-claude-df86",
+          "sha": "512e549",
+          "command": "linkFree offline tests 23/23 (Codex's bare-domain examples, https / www / co.il stripped; clinical text, titles and organism names E.coli / S.aureus kept; X.com / T.co / x.com still links; idempotent); guard simulation (3 clicks → 1 write, failure → retry); Playwright screenshots: hint only with utm_content=page-button, no horizontal overflow, gone at ~15 s; init.sh check GREEN",
+          "target": "local",
+          "outcome": "pass",
+          "approval": "Roi chose design A (link-free posts + Page button vetree.app/il)",
+          "link": "PR #129"
+        },
+        {
+          "date": "2026-10-13",
+          "session": "20261012-1839-claude-df86",
+          "sha": "512e549",
+          "command": "Codex tier 2: r1 65.9k (3 blocking) → r2 delta 36.8k (2 blocking; +28.1k attempt lost to the ChatGPT usage limit) → r3 delta 24.9k BLOCKING: none; PR #129 smoke + replay new/old pass; merged as e05aae3, production /api/version = e05aae3",
+          "target": "preview",
+          "outcome": "pass",
+          "approval": "Roi: \"merge\"",
+          "link": "PR #129"
+        },
+        {
+          "date": "2026-10-13",
+          "session": "20261012-1839-claude-df86",
+          "sha": "4cf3963",
+          "command": "Roi tapped vetree.app/il after #129: opened a months-old article (rows saved as facebook_il only on the deprecated rotation's day). #130: /il = newest approved row with an article, any platform; CLAUDE.md Campaign Calendar documents the real daily flow. Codex r1 46.7k (1 blocking: Content Agent approvals — Roi: tab unused, documented) → r2 delta 30.0k BLOCKING: none; smoke + replay pass; merged as 4cf3963, production /api/version = 4cf3963, home 200. /il on production NOT re-checked by me (prod read denied by auto mode)",
+          "target": "production",
+          "outcome": "pass",
+          "approval": "Roi: \"merge\"; \"nope, no need for it\" (Content Agent tab)",
+          "link": "PR #130"
+        }
+      ],
+      "branch": "fix/social-001-il-any-platform",
+      "pr": 130,
+      "head_sha": "4cf3963",
       "wip_sha": null,
       "expected_failures": [],
       "id": "social-001",
@@ -1172,7 +1203,46 @@
           "paid_calls": false
         }
       ],
-      "notes": "Named by Roi 2026-10-12, to start after infra-003 ships: Facebook now allows only 2 links per month on posts for certain free business accounts; the Facebook IL account posts a link every day, so readers can no longer reach the articles. Design decision is Roi's. · claimed by 20261012-1839-claude-df86"
+      "notes": "Named by Roi 2026-10-12, to start after infra-003 ships: Facebook now allows only 2 links per month on posts for certain free business accounts; the Facebook IL account posts a link every day, so readers can no longer reach the articles. Design decision is Roi's. · claimed by 20261012-1839-claude-df86 · design A (Roi 2026-10-12): link-free facebook_il posts + Page action button → vetree.app/il (Roi set it) + 15-s \"save it\" hint. #129 merged e05aae3. Roi 2026-10-13: every day ONE article to EVERY platform via Generate All; the 90-day rotation is deprecated → #130 merged 4cf3963 (/il any platform). CLOSED 2026-10-13. Open: yesterday's post (pubmed-42806282) may never have been saved as posted — the read was blocked by auto mode; Roi presses Copy & mark posted once and taps vetree.app/il. facebook_intl unchanged (Roi didn't say it is limited). Follow-up: growth-002."
+    },
+    {
+      "status": "not_started",
+      "evidence": [],
+      "branch": "",
+      "pr": null,
+      "head_sha": null,
+      "wip_sha": null,
+      "expected_failures": [],
+      "id": "growth-002",
+      "priority": 1,
+      "area": "growth",
+      "type": "feature",
+      "title": "Growth OS redesign for the real daily flow: one article posted to every platform each day (Generate All); remove the deprecated rotation; Codex's open suggestions",
+      "user_visible_behavior": "Growth OS (/admin/growth) is built around the day's one article and its per-platform posts; each \"posted\" record says which platform it really went to and that it belongs to the daily campaign; no \"today's platform\" rotation; the unused standalone Content Agent tab removed or reworked",
+      "verification": [
+        {
+          "step": "Plan first (Roi approves, Codex tier 2 plan review): rule 14 rebuild-vs-patch assessment for CampaignCalendar.tsx (3 fixes in 7 days by social-001); the daily-campaign marker on growth_agent_memory (migration → db push on Roi's yes); what replaces todaysPlatform / todaysTask / growth_tasks; what the stats + LinkedIn matching read",
+          "target": "none",
+          "db_reads": "none",
+          "db_writes": "none",
+          "paid_calls": false
+        },
+        {
+          "step": "Build; regression tests Codex asked for: generate-post sanitization (generation, rewrite, hook_line), /il latest-post selection, public-filter rejection, limiter / database failures; SaveHint browser coverage (hydration, 15-s dismissal, reduced motion, mobile overflow, guest Save, Caveat not loaded on ordinary visits)",
+          "target": "preview",
+          "db_reads": "prod",
+          "db_writes": "none",
+          "paid_calls": false
+        },
+        {
+          "step": "Review: Codex tier 2 (Supabase writes, paid AI prompts) → BLOCKING: none",
+          "target": "none",
+          "db_reads": "none",
+          "db_writes": "none",
+          "paid_calls": false
+        }
+      ],
+      "notes": "Named by Roi 2026-10-13 after social-001 (\"redesign the growth OS to match the current daily flow along with codex suggestions\"). Known today: the main Copy & mark posted labels rows with the rotation's platform; the Content Agent tab's Approve writes approved rows for its own article (would move /il); recordToMemory sends language 'en' for every platform. Ask Roi whether facebook_intl is under the same link limit."
     }
   ]
 }

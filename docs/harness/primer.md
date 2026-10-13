@@ -8,20 +8,24 @@ Routine: `docs/harness/README.md` on `main`. Pre-harness primer (frozen): root `
 ---
 
 ## 1. Current Verified State
-*Updated 2026-10-12 — Session 20261012-0624-claude-d170 (infra-003 closed)*
+*Updated 2026-10-13 — Session 20261012-1839-claude-df86 (social-001 closed)*
 
 - **Repo root:** `~/dev/vetree` · state worktree: `.harness-state/` (branch `harness-state`)
-- **main:** `342cacb` (#127 schema audit + #128 replay safety, migrations 080–082 + 000 recorded, 2026-10-12; #126 unlock log guard, 2026-10-12; PRs #120–#125 least privilege + policy audit, migrations 075–079 applied, 2026-10-11; #119 lint cleanup, 2026-10-10; #118 build warnings / middleware → proxy, 2026-10-10; #117 init.sh lock / unlock, 2026-10-10; #116 "new this week" count, 2026-10-10; #115 shorter digest footer, 2026-10-09; #114 Search Console fixes, 2026-10-07; before it #113 access-control audit,
-  migration 074 applied) — last verified: post-merge qa-smoke on 342cacb: replay new + old PASS, acl 33/33, rls 32 / 40, schema 4,293 facts
+- **main:** `4cf3963` (#129 + #130 Facebook IL link-free posts, vetree.app/il, "save it" hint, 2026-10-13; #127 schema audit + #128 replay safety, migrations 080–082 + 000 recorded, 2026-10-12; #126 unlock log guard, 2026-10-12; PRs #120–#125 least privilege + policy audit, migrations 075–079 applied, 2026-10-11; #119 lint cleanup, 2026-10-10; #118 build warnings / middleware → proxy, 2026-10-10; #117 init.sh lock / unlock, 2026-10-10; #116 "new this week" count, 2026-10-10; #115 shorter digest footer, 2026-10-09; #114 Search Console fixes, 2026-10-07; before it #113 access-control audit,
+  migration 074 applied) — last verified: production /api/version = 4cf3963, home 200; PR #130 smoke + replay new / old PASS
 - **Standard startup:** `docs/harness/init.sh` (state, then check) — see README for exit codes. Take / release
   the lock only with `init.sh lock <item> --agent …` / `init.sh unlock "<message>"` (D12), never by hand
 - **Standard verification:** `docs/harness/init.sh check [--item <id>]`; build reads production
   Supabase (read-only); never Playwright as a baseline
-- **Highest-priority unfinished item:** **social-001** (Facebook link limit vs the daily Facebook IL post — the posting
-  design is Roi's call). feed-002 / admin-001 / scripts-001 need Roi's decisions; ai-001 parked (~2026-11-01).
+- **Highest-priority unfinished item:** **growth-002** (Roi 2026-10-13: redesign Growth OS for the real daily flow — one
+  article to every platform via Generate All, rotation deprecated — plus Codex's open test suggestions; plan first, rule
+  14 for CampaignCalendar.tsx). feed-002 / admin-001 / scripts-001 need Roi's decisions; ai-001 parked (~2026-11-01).
+- **The daily posting flow (Roi, 2026-10-13):** every day ONE article is posted to EVERY platform (Generate All). The 90-day
+  rotation is deprecated; a growth_agent_memory row's `platform` is the rotation's label, not where Roi posted (CLAUDE.md
+  "Campaign Calendar").
 - **Current blocker:** none
-- **Open PRs awaiting Roi:** none · Roi: restore the 4 indexes production lost? (infra-003: idx_articles_needs_enrichment,
-  idx_growth_tasks_date / _status / _day) · check Vercel usage
+- **Open PRs awaiting Roi:** none · Roi: press "Copy & mark posted" once on today's post, tap vetree.app/il; is
+  facebook_intl link-limited too? · the 4 dropped indexes stay dropped (Roi 2026-10-13) · check Vercel usage
   ~2026-10-14 (proxy now a Node function, build-001) · Thursday's security scan is the first after 079
 
 ## 2. Open Issues & Known Risks
@@ -210,6 +214,37 @@ works today was spot-checked in the code on 2026-10-05.
 (Newest first — only the latest 5 are kept here (D11); every entry, older ones included, is in
 `session-log.md`, which is never trimmed.)
 
+### Session 20261012-1839-claude-df86 · 2026-10-12 → 2026-10-13 · Claude Code · social-001 (closed)
+- Goal / Completed: Facebook lets some business / creator Pages attach only 2 external links a month; the Facebook IL
+  Page posts daily. Roi chose design A: facebook_il posts carry no link (prompt + `lib/growth/linkFree.ts` strips any URL /
+  bare domain, keeps organism names like E.coli) and end with a line pointing at the Page button; the button (set by Roi)
+  → `vetree.app/il` (`app/il/route.ts`, no-store 307 to today's article, UTM utm_content=page-button, home on any
+  problem); readers arriving that way get a 15-s handwritten "save it" hint with sun rays at the Save button
+  (`components/articles/SaveHint.tsx`, preview artifact for Roi); the Facebook IL tab in Generate All now "Copy & mark
+  posted" (one approval row per post, shared guard). Roi then made the daily flow explicit: **every day ONE article to
+  EVERY platform via Generate All; the 90-day rotation is deprecated** → #130: /il takes the newest approved row with an
+  article on any platform; CLAUDE.md "Campaign Calendar" rewritten.
+- Start state: main 342cacb, branch fix/social-001-facebook-links, clean; baseline init.sh check GREEN.
+- Verification: linkFree 23/23 offline; guard simulation (3 clicks → 1 write; failure → retry); Playwright screenshots
+  (hint only from the Page button, no overflow, gone ~15 s); init.sh check GREEN on both heads; PR smoke + replay pass on
+  both; production e05aae3 then 4cf3963 (/api/version), home 200. Roi tapped /il after #129: a months-old article (rows
+  labelled facebook_il only on the rotation's day) → #130. /il after #130 not re-checked by me: the read-only prod query
+  for the last posted rows was blocked by auto mode despite Roi's yes; I left it.
+- Review: Codex · tier 2 · #129 code 3 rounds 65.9k / 36.8k / 24.9k (+28.1k attempt lost to the ChatGPT usage limit,
+  re-run after the reset) · #130 code 2 rounds 46.7k / 30.0k ≈ 232k · BLOCKING: none (fixed on the way: bare domains,
+  Facebook IL tab not recorded, limiter outside the fallback, organism names stripped, double approval rows; accepted by
+  Roi: Content Agent approvals would move /il — tab unused, documented, growth-002).
+- Commits / PR: 66853bc, 5398bf5, 512e549 → #129 merged e05aae3; 77c6333 + e7476a8 → #130 merged 4cf3963 — each on Roi's word.
+- Pending Roi approvals: none. Roi: press "Copy & mark posted" once on today's post and tap vetree.app/il (yesterday's
+  pubmed-42806282 may never have been saved as posted); is facebook_intl under the same link limit? Thursday's security
+  scan; Vercel usage ~2026-10-14. The 4 dropped indexes stay dropped (Roi, 2026-10-13).
+- Known risks / unresolved: CampaignCalendar.tsx had 3 fixes in 7 days (rule 14 applies to the next one); records'
+  platform label is the rotation's, not where Roi posted; `next dev` rewrites AGENTS.md (restore it, never commit it).
+- Lesson: docs can describe a flow the owner abandoned months ago — before building on "how it works", ask how Roi
+  actually does it today. A fix that widens a pattern (any bare domain) needs its false-positive cases tested too.
+- Next best step: growth-002 (Growth OS redesign for the daily all-platforms flow + Codex's open test suggestions) —
+  plan first, rule 14 assessment, Roi approves.
+
 ### Session 20261012-0624-claude-d170 · 2026-10-12 · Claude Code · infra-003 (closed)
 - Goal / Completed: a database rebuilt from supabase/migrations/ now matches production (Roi chose option B over
   "grants only"). Found locally: 9 public tables in no migration, 004 referencing them first, and under the
@@ -313,19 +348,3 @@ works today was spot-checked in the code on 2026-10-05.
   emptied it, then wrote one entry (f81d84f: 28 entries → 1; repeated once here). Restored in this handoff from 7c89e29
   (history byte-identical) + the build-001 and lint-001 entries. Write state files only after reading them fully.
 - Next best step: infra-002 (least privilege) — needs Roi for anything touching production grants.
-
-### Session 20261010-1034-claude-41e2 · 2026-10-10 · Claude Code · build-001 (closed)
-- Goal / Completed: cleared all build warnings. middleware.ts → proxy.ts (Next 16; now Node.js runtime — Edge is not
-  allowed) with its own Sentry reporting (Next 16.3.8 forwards proxy errors only on Edge); Sentry
-  onRouterTransitionStart warning suppressed (tracing off on purpose); security-scan route: fs reads marked
-  turbopackIgnore + outputFileTracingIncludes, trace 676 files / 6.2 MB (whole repo) → 1,396 / 5.7 MB (package files
-  kept for npm audit — Roi chose A). Scan CHECK 17 now reads proxy.ts. First session opened with `init.sh lock`.
-- Verification: init.sh check GREEN, 0 build warnings; local probe (throw + beforeSend log-and-drop): one Sentry event,
-  no query; PR smoke pass; production ba9fb77 live checks pass.
-- Review: Codex · tier 2 · 2 rounds · 58.6k + 39.5k tokens · BLOCKING: none (1 fixed: proxy errors lost on Node).
-- Commits / PR: 88cac12, 8762402, e4052d1 → #118, merged as ba9fb77 on Roi's word. The first production deploy
-  failed before building ("Git information retrieval failed" — Vercel couldn't fetch the commit); Roi redeployed.
-- Lesson: `/*turbopackIgnore: true*/` must sit on the path expression (`path.join(/*…*/ cwd, x)`), not only inside
-  fs.readFileSync( — and listing package.json in outputFileTracingIncludes pulls in every dependency's package.json.
-- Pending Roi: Vercel usage in a few days (proxy billed as a Node function); Thursday's security scan.
-- Next best step: lint-001.
