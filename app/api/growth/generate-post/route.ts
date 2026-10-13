@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
 import { NextRequest, NextResponse } from 'next/server'
-import { PAGE_BUTTON_LINE, makeLinkFree } from '@/lib/growth/linkFree'
+import { makeLinkFree } from '@/lib/growth/linkFree'
 import { ratelimitModerate, getClientIP } from '@/lib/ratelimit'
 import { createClient } from '@/lib/supabase/server'
 import { CLAUDE_MODEL, NO_UPFRONT_THINKING, responseText } from '@/lib/ai/model'
@@ -164,9 +164,9 @@ export async function POST(request: NextRequest) {
     const saveClause = saveClauses[new Date().getDay() % saveClauses.length]
     const saveCta = `${saveClause}: ${saveUrl}`
 
-    // Facebook IL (social-001): no link and no web address at all — see lib/growth/linkFree.ts
+    // Facebook IL (social-001, social-002): no web link at all; the app appends the closing lines (short address +
+    // WhatsApp Community) itself — see lib/growth/linkFree.ts
     const linkFree = platform === 'facebook_il'
-    const pageButtonLine = PAGE_BUTTON_LINE
 
     // Call Anthropic API to generate post for the selected article
     const Anthropic = (await import('@anthropic-ai/sdk')).default
@@ -426,12 +426,12 @@ Format:
 
 [2-3 sentences insight]
 
-📄 ${article.title}
-${linkFree ? pageButtonLine : `🔗 ${articleUrl}
+📄 ${article.title}${linkFree ? '' : `
+🔗 ${articleUrl}
 💾 ${saveCta}`}
 
 CRITICAL: The line starting with 📄 must contain the article title EXACTLY as written above — do not shorten, rephrase, or summarize it.${linkFree ? `
-NO LINKS (CRITICAL): the post must contain no URL, no web address and no domain name — not even vetree.app. End with the 👆 line exactly as written above.` : ''}
+NO LINKS (CRITICAL): the post must contain no URL, no web address and no domain name — not even vetree.app. End with the 📄 line; add no closing line, call to action or link after it (the app adds them).` : ''}
 
 Return ONLY the post text. Follow the platform rule exactly.`
     }
@@ -439,7 +439,7 @@ Return ONLY the post text. Follow the platform rule exactly.`
     // Style rewrite: append instruction after the base platform prompt
     if (styleInstruction && existingPost) {
       promptContent += `\n\nREWRITE INSTRUCTION: ${styleInstruction}\n\nCURRENT POST TO REWRITE:\n${existingPost}${abstractOverride ? `\n\nORIGINAL STUDY SUMMARY (use as authoritative source):\n${abstractOverride}` : ''}\n\nRewrite the post following the instruction above. ${linkFree
-        ? `Keep the platform format rules unchanged. The rewritten post must contain no URL, web address or domain name (even if the current post has one) and must end with this line exactly: ${pageButtonLine}`
+        ? `Keep the platform format rules unchanged. The rewritten post must contain no URL, web address or domain name (even if the current post has one) and must end with the 📄 line — drop any closing lines after it (the app adds them).`
         : 'Keep the platform format rules and UTM link unchanged.'}`
     }
 
