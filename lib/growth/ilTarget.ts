@@ -1,8 +1,8 @@
 // vetree.app/il → where to send the reader (app/il/route.ts, social-001). Kept free of Next.js so it can be tested
 // offline (tests/unit/ilTarget.test.ts). Every day ONE article is posted to EVERY platform, so today's article = the
 // newest 'approved' growth_agent_memory row with an article, whatever its platform label. Only the daily posts may write
-// such rows (synthesis posts carry no article; recommendation dismissals use other outcomes; the unused Content Agent
-// tab's Approve still does until growth-002 removes it) — keep it that way, or this opens the wrong article.
+// such rows (DailyPosts' Copy & mark posted; synthesis posts carry no article; recommendation dismissals use other
+// outcomes) — keep it that way, or this opens the wrong article.
 
 // The query surface used here — a Supabase client satisfies it; tests pass a recording fake
 type Result<T> = PromiseLike<{ data: T | null; error: { code?: string } | null }>

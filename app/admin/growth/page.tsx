@@ -9,7 +9,7 @@ export default async function AdminGrowthPage() {
           Growth OS
         </h1>
         <p className="text-zinc-600 dark:text-zinc-400">
-          90-day content campaign powered by AI
+          One article, every platform, every day
         </p>
       </div>
 
