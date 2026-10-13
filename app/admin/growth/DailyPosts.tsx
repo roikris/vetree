@@ -106,6 +106,14 @@ function DailyDay({ today, onDayChange, onReload }: { today: string; onDayChange
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [busy, setBusy] = useState<string | null>(null) // 'all' | 'retry' | `rewrite:<platform>` | `img`
   const [marking, setMarking] = useState<string | null>(null)
+  // read live (not from a render's closure): an approval write and an article-changing generation never overlap,
+  // and a panel replaced at midnight stops generating
+  const op = useRef({ generating: false, marking: 0, alive: true })
+  useEffect(() => {
+    const o = op.current
+    o.alive = true
+    return () => { o.alive = false }
+  }, [])
   const [exclusionNote, setExclusionNote] = useState<string | null>(null)
 
   const [selected, setSelected] = useState<Article | null>(null)
@@ -190,7 +198,7 @@ function DailyDay({ today, onDayChange, onReload }: { today: string; onDayChange
         if (data.date !== today) { onDayChange(); throw new Error(`the server's day is ${data.date}, this page's is ${today}`) }
         todayRows = data.rows || []
         fixed = data.article ? { id: data.article.id, title: data.article.title } : null
-        if (!cancelled && typeof data.streak === 'number') setStreak({ days: data.streak, capped: data.streak >= (data.window_days ?? Infinity) })
+        if (!cancelled && typeof data.streak === 'number') setStreak({ days: data.streak, capped: !!data.streak_capped })
       } catch (e) {
         if (!cancelled) setLoadError(`Couldn't load today's posted state (${e instanceof Error ? e.message : String(e)}) — generating and marking posted are off until it loads`)
       }
@@ -297,9 +305,10 @@ function DailyDay({ today, onDayChange, onReload }: { today: string; onDayChange
   // One article for every platform: the day's article if anything is posted today, else the selection, else the
   // server picks one with the first platform and every other platform is forced to it.
   const generateAll = async (keepExisting = false) => {
-    if (!ready || marking || dayChanged()) return
+    if (!ready || op.current.generating || op.current.marking || dayChanged()) return
+    op.current.generating = true
     const locked: Article | null = dayArticle ?? selected
-    setBusy('all'); setMessage(null); setFailed([])
+    setBusy('all'); setMessage(null) // `failed` stays until replaced, so a reload mid-retry keeps it
     const recent = recentPosts()
     const next: Record<string, Post> = keepExisting ? { ...posts } : {}
     const todo = GENERATED_PLATFORMS.filter(p => !(keepExisting && next[p.platform]))
@@ -312,6 +321,7 @@ function DailyDay({ today, onDayChange, onReload }: { today: string; onDayChange
         const first = queue.shift()!
         let got: GenerateResult | null = null
         for (let attempt = 0; attempt < 3 && !got; attempt++) {
+          if (!op.current.alive) return
           const r = await generate({ platform: first.platform, language: first.language, recentPosts: recent })
           if (r.ok) got = r.data
           else if (r.status >= 400 && r.status < 500) { setMessage({ type: 'error', text: r.error }); return }
@@ -326,6 +336,7 @@ function DailyDay({ today, onDayChange, onReload }: { today: string; onDayChange
         const batch = queue.splice(0, 3)
         const settled = await Promise.all(batch.map(async p => {
           for (let attempt = 0; attempt < 2; attempt++) {
+            if (!op.current.alive) return { p, error: 'stopped' }
             const r = await generate({ platform: p.platform, language: p.language, recentPosts: recent, article_id: shared! })
             if (r.ok && r.data.article_id === shared) return { p, data: r.data }
             if (r.ok) return { p, mismatch: r.data.article_title ?? r.data.article_id }
@@ -343,6 +354,11 @@ function DailyDay({ today, onDayChange, onReload }: { today: string; onDayChange
             if ('mismatch' in s) setMessage({ type: 'error', text: `${s.p.platform} came back for another article ("${s.mismatch}") — not kept` })
           }
         }
+        if (!op.current.alive) {
+          // replaced (a new Israel day): no more calls; what was made stays under this day's key
+          writeStore(today, { articleId: shared, articleTitle: null, posts: next, failed: [...failedNow, ...queue.map(p => p.platform)] })
+          return
+        }
         if (queue.length) await new Promise(res => setTimeout(res, 500))
       }
       setPosts(next)
@@ -354,12 +370,13 @@ function DailyDay({ today, onDayChange, onReload }: { today: string; onDayChange
         text: `${failedNow.length ? '⚠️' : '✅'} ${made}/${GENERATED_PLATFORMS.length} posts for one article${failedNow.length ? ` — failed: ${failedNow.join(', ')}` : ''} (Telegram follows WhatsApp)`,
       })
     } finally {
+      op.current.generating = false
       setBusy(null)
     }
   }
 
   const regenerateAll = async () => {
-    if (!ready || marking || posted.size > 0) return
+    if (!ready || op.current.generating || op.current.marking || posted.size > 0) return
     setPosts({}); setImage(null)
     await generateAll(false)
   }
@@ -409,16 +426,23 @@ function DailyDay({ today, onDayChange, onReload }: { today: string; onDayChange
   const copyAndMark = async (platform: string) => {
     const text = textFor(platform)
     if (!text || !articleId) return
+    const already = posted.has(platform)
+    if (!already && op.current.generating) { setMessage({ type: 'error', text: 'Posts are generating — copy and mark once they are done' }); return }
+    if (!already) op.current.marking++ // held from before the clipboard wait: no generation can start in between
     try {
-      await navigator.clipboard.writeText(text)
-    } catch {
-      setCopyFailed(platform)
-      setMessage({ type: 'error', text: `Copy failed — nothing was marked. Select the text and copy it by hand${posted.has(platform) ? '' : ', then press "I copied it by hand"'}` })
-      return
+      try {
+        await navigator.clipboard.writeText(text)
+      } catch {
+        setCopyFailed(platform)
+        setMessage({ type: 'error', text: `Copy failed — nothing was marked. Select the text and copy it by hand${already ? '' : ', then press "I copied it by hand"'}` })
+        return
+      }
+      setCopyFailed(null)
+      setCopiedTab(platform); setTimeout(() => setCopiedTab(t => (t === platform ? null : t)), 2000)
+      await markPosted(platform, text)
+    } finally {
+      if (!already) op.current.marking--
     }
-    setCopyFailed(null)
-    setCopiedTab(platform); setTimeout(() => setCopiedTab(t => (t === platform ? null : t)), 2000)
-    await markPosted(platform, text)
   }
 
   // the approval write — never while the article can still change (Generate All / Retry running), never before
@@ -426,12 +450,18 @@ function DailyDay({ today, onDayChange, onReload }: { today: string; onDayChange
   const markPosted = async (platform: string, text: string) => {
     if (!articleId || posted.has(platform)) return
     if (!ready) { setMessage({ type: 'error', text: "Copied — but NOT marked posted: today's posted state didn't load. Press Retry loading, then mark again." }); return }
-    if (busy === 'all') { setMessage({ type: 'error', text: 'Copied — but NOT marked posted while posts are generating. Mark it once they are done.' }); return }
+    if (op.current.generating) { setMessage({ type: 'error', text: 'Copied — but NOT marked posted while posts are generating. Mark it once they are done.' }); return }
     if (dayChanged()) return
     setCopyFailed(null)
     setMarking(platform)
-    const id = await guard.current(JSON.stringify([platform, articleId, hookOf(text)]))
-    setMarking(null)
+    op.current.marking++
+    let id: string | null
+    try {
+      id = await guard.current(JSON.stringify([platform, articleId, hookOf(text)]))
+    } finally {
+      op.current.marking--
+      setMarking(null)
+    }
     if (!id) {
       setMessage({ type: 'error', text: `⚠️ ${platformInfo(platform)?.name}: copied, but NOT marked as posted — try again${platform === 'facebook_il' ? ' (vetree.app/il would open the previous article)' : ''}` })
       return

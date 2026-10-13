@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic'
 // GET /api/admin/growth/today — what Growth OS's daily panel starts from (growth-002): today's "posted" rows (Israel
 // day) and the posting streak, from growth_agent_memory instead of one browser's localStorage. Read-only. The day's
 // article = the newest approved row today (lib/growth/daily.ts reconcileDay); its title comes along for the header.
-const STREAK_WINDOW_DAYS = 120 // the streak shown is capped here (the panel says "120+" at the cap)
+const STREAK_WINDOW_DAYS = 120 // the window holds today + 120 days; a longer streak is reported as 120, capped
 const PAGE = 1000
 const MAX_ROWS = 20_000 // a bound on the paging, far above 6 platforms × 121 days
 
@@ -52,6 +52,7 @@ export async function GET() {
     if (todayRes.error) throw new Error(`today's rows: ${todayRes.error.message}`)
 
     const rows = (todayRes.data ?? []) as ApprovedRow[]
+    const streak = postingStreak(days, today)
 
     // the day's article title, for the header (fresh browser after posting)
     let article: { id: string; title: string } | null = null
@@ -66,7 +67,8 @@ export async function GET() {
       date: today,
       rows,
       article,
-      streak: postingStreak(days, today),
+      streak: Math.min(streak, STREAK_WINDOW_DAYS),
+      streak_capped: streak > STREAK_WINDOW_DAYS,
       days_posted: days.size,
       window_days: STREAK_WINDOW_DAYS,
     })
