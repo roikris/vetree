@@ -313,36 +313,31 @@ test('mobile article page: no horizontal scroll for guests', { tag: '@mobile-onl
 // ─── "save it" hint for readers from the Facebook IL address / Page button (social-001) ─────────────────────
 // vetree.app/il tags the visit utm_content=page-button; only then a 15-second handwritten hint points at Save. It
 // never blocks the guest Save flow, never widens a phone page, is static under reduced motion, and its font (Caveat,
-// not preloaded) is fetched only when the hint shows. Phone only: the layout that matters, one run of Vercel CPU.
-// Two article visits only — a third would meet the guest article wall.
+// not preloaded) loads only when the hint shows. Phone only: the layout that matters, one run of Vercel CPU.
+// Two article visits only — a third would meet the guest article wall. Not networkidle (previews never settle).
 test('save-it hint: only from the Page button, 15 s, never in the way', { tag: '@mobile-only' }, async ({ page, context, request }) => {
   await clearCookiesKeepPreviewAccess(context)
   const [id] = await sitemapArticleIds(request)
-  const fonts = (list: string[]) => (r: import('@playwright/test').Request) => {
-    if (/\/_next\/static\/media\/.+\.woff2/.test(r.url())) list.push(new URL(r.url()).pathname)
-  }
   const hint = page.locator('[data-testid="save-hint"]')
+  // next/font names the face "__Caveat_<hash>" (its metric fallback "__Caveat_Fallback_<hash>" is a local font)
+  const caveatLoaded = () => page.evaluate(() =>
+    [...document.fonts].some(f => /caveat/i.test(f.family) && !/fallback/i.test(f.family) && f.status === 'loaded'))
 
-  // An ordinary visit: no hint, and note which font files load
-  const plain: string[] = []
-  page.on('request', fonts(plain))
+  // An ordinary visit: no hint, and Caveat never loads
   await page.goto(`/article/${id}`)
   await expect(page.locator('[data-testid="article-title"]')).toBeVisible()
-  await page.waitForLoadState('networkidle')
+  await page.evaluate(() => document.fonts.ready)
   await expect(hint).toHaveCount(0)
-  page.removeAllListeners('request')
+  expect(await caveatLoaded(), 'Caveat must not load on an ordinary visit').toBe(false)
 
-  // From the Page button: the hint shows, an extra font (Caveat) loads, nothing scrolls sideways at 375 px
-  const tagged: string[] = []
-  page.on('request', fonts(tagged))
-  await page.clock.install()
+  // From the Page button, with the page's clock paused BEFORE navigation: the hint mounts at a known instant
+  const t0 = new Date('2030-01-01T08:00:00Z').getTime()
+  await page.clock.install({ time: t0 })
+  await page.clock.pauseAt(t0 + 60_000)
   await page.setViewportSize({ width: 375, height: 800 })
   await page.goto(`/article/${id}?utm_source=facebook&utm_medium=social&utm_campaign=il&utm_content=page-button`)
   await expect(hint).toBeVisible()
-  // stop the page's clock here (it runs in real time once installed); the hint mounted moments ago
-  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 100))
-  // (the test clock is frozen, so wait for the request itself rather than network idle)
-  await expect.poll(() => tagged.filter(f => !plain.includes(f)).length, { message: 'the hint\'s font loads only when the hint shows' }).toBeGreaterThan(0)
+  await expect.poll(caveatLoaded, { message: 'Caveat loads when the hint shows' }).toBe(true)
   const m = await page.evaluate(() => ({ scrollW: document.documentElement.scrollWidth, innerW: window.innerWidth }))
   expect(m.scrollW, 'the hint must not widen the page').toBeLessThanOrEqual(m.innerW)
 
@@ -355,10 +350,10 @@ test('save-it hint: only from the Page button, 15 s, never in the way', { tag: '
   await page.locator('[data-testid="appbar-save"]').click()
   await expectSavePrompt(page, new RegExp(`/article/${id}`))
 
-  // Still there 10 s after it appeared, gone by 16 s
-  await page.clock.fastForward(10_000)
+  // The clock has not moved since the hint mounted: still there at +14 s, gone at +15 s
+  await page.clock.fastForward(14_000)
   await expect(hint).toHaveCount(1)
-  await page.clock.fastForward(6_000)
+  await page.clock.fastForward(1_000)
   await expect(hint).toHaveCount(0)
 })
 
