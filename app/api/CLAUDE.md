@@ -268,13 +268,15 @@ Article choice is shared with the recommendations panel: `rankGrowthCandidates()
 
 ## Facebook IL posts carry no web link (social-001 / social-002, Roi 2026-10-12 / 13)
 Meta limits some business / creator Pages to two external links a month (posts **and** comments), and the Facebook IL
-Page posts every day. So `facebook_il` posts have **no URL, web address or domain name** — no 🔗 article link, no 💾 save
-link. The model ends the post at the 📄 title line; `makeLinkFree` (`lib/growth/linkFree.ts`) strips any link it wrote
-anyway (a stray one spends the Page's allowance) and appends the closing lines itself — the one place to change them:
+Page posts every day. So `facebook_il` posts have **no URL, web address or domain name except the WhatsApp Community
+link in the closing line** — no 🔗 article link, no 💾 save link. The model ends the post at the 📄 title line; `makeLinkFree` (`lib/growth/linkFree.ts`) strips any link it wrote
+anyway (a stray one spends the Page's allowance), drops any closing / call-to-action line it copied or reworded (a line
+naming the address, the button or WhatsApp that starts with 📲 / 💬 / 👆 or holds ≤ 8 other words — other lines keep their
+text and lose only links), and appends the closing lines itself — the one place to change them:
 - `📲 המאמר המלא: vetree . app/il (…)` — the short address written so Facebook doesn't detect a link (Roi's composer test:
   `vetree.app/il` shows the link counter); readers type it. The Page's action button points at `vetree.app/il` too.
-- `💬 … https://chat.whatsapp.com/…` — the Vetree WhatsApp Community; links to Meta's own apps don't count toward the
-  limit (composer test: no counter). Daily posts go to its announcements group, muted for members.
+- `💬 … https://chat.whatsapp.com/…` — the Vetree WhatsApp Community; Roi's composer test showed no link counter for this
+  invite link (reports say links to Meta's apps don't count; only this link was tested). Daily posts go to its announcements group, muted for members.
 
 **`vetree.app/il`** (`app/il/route.ts`): a no-store 307 to the article last marked as posted on **any platform**
 (growth_agent_memory, newest `approved` row with an article — every day one article goes to every platform, see CLAUDE.md
