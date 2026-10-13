@@ -1206,11 +1206,52 @@
       "notes": "Named by Roi 2026-10-12, to start after infra-003 ships: Facebook now allows only 2 links per month on posts for certain free business accounts; the Facebook IL account posts a link every day, so readers can no longer reach the articles. Design decision is Roi's. · claimed by 20261012-1839-claude-df86 · design A (Roi 2026-10-12): link-free facebook_il posts + Page action button → vetree.app/il (Roi set it) + 15-s \"save it\" hint. #129 merged e05aae3. Roi 2026-10-13: every day ONE article to EVERY platform via Generate All; the 90-day rotation is deprecated → #130 merged 4cf3963 (/il any platform). CLOSED 2026-10-13. Open: yesterday's post (pubmed-42806282) may never have been saved as posted — the read was blocked by auto mode; Roi presses Copy & mark posted once and taps vetree.app/il. facebook_intl unchanged (Roi didn't say it is limited). Follow-up: growth-002."
     },
     {
-      "status": "in_progress",
-      "evidence": [],
-      "branch": "feat/growth-002-daily-flow",
-      "pr": null,
-      "head_sha": null,
+      "status": "merged",
+      "evidence": [
+        {
+          "date": "2026-10-13",
+          "session": "20261013-1029-claude-35c5",
+          "sha": "62b242f",
+          "command": "Plan rev 3 (Roi approved: rebuild, Content Agent tab removed, single-post flow dropped, six platforms, Telegram = WhatsApp with its UTM, AI Photos kept); Codex plan 2 rounds 68.4k / 27.3k → BLOCKING: none. PR 1 (#132): tests — linkFree / ilTarget / postProcess 38 unit tests (tsx --test) in init.sh check (hard RED) + PR smoke; SaveHint browser test on the preview; Codex 2 rounds 64.9k / 27.7k → BLOCKING: none; merged as 62b242f",
+          "target": "preview",
+          "outcome": "pass",
+          "approval": "Roi: \"build\", \"merge\"",
+          "link": "PR #132"
+        },
+        {
+          "date": "2026-10-13",
+          "session": "20261013-1029-claude-35c5",
+          "sha": "ea85fea",
+          "command": "PR 2 (#133): DailyPosts panel, lib/growth/daily.ts + approvals.ts, feedback dedup per article + platform + Israel day, GET /api/admin/growth/today; 53 unit tests; 15 mocked-network Playwright scenarios against a temporary local page (all requests mocked, anything leaving localhost aborted; not committed) — each fix's test fails on the code before it; init.sh check GREEN on every head; PR smoke + replay new / old pass on ea85fea",
+          "target": "local",
+          "outcome": "pass",
+          "approval": "n/a",
+          "link": "PR #133"
+        },
+        {
+          "date": "2026-10-13",
+          "session": "20261013-1029-claude-35c5",
+          "sha": "ea85fea",
+          "command": "Codex tier 2 PR 2: r1 80.8k (5 blocking) → r2 delta 43.6k (3 blocking) → r3 delta 34.3k (1 blocking, from my r2 fix) → r4 delta 26.5k (beyond the cap, Roi: \"run one more review\") BLOCKING: none; one earlier attempt lost to the ChatGPT usage limit",
+          "target": "none",
+          "outcome": "pass",
+          "approval": "Roi: \"run one more review\"",
+          "link": "PR #133"
+        },
+        {
+          "date": "2026-10-13",
+          "session": "20261013-1029-claude-35c5",
+          "sha": "a2cd626",
+          "command": "Merged as a2cd626 (a cancelled duplicate smoke run blocked the merge; re-ran it on the same head → pass); production /api/version = a2cd626, home 200. Live run of the panel = Roi's next daily posting; no production rows read by me",
+          "target": "production",
+          "outcome": "pass",
+          "approval": "Roi: \"merge\"",
+          "link": "PR #133"
+        }
+      ],
+      "branch": "feat/growth-002-daily-panel",
+      "pr": 133,
+      "head_sha": "a2cd626",
       "wip_sha": null,
       "expected_failures": [],
       "id": "growth-002",
@@ -1242,7 +1283,7 @@
           "paid_calls": false
         }
       ],
-      "notes": "Named by Roi 2026-10-13 after social-001 (\"redesign the growth OS to match the current daily flow along with codex suggestions\"). Known today: the main Copy & mark posted labels rows with the rotation's platform; the Content Agent tab's Approve writes approved rows for its own article (would move /il); recordToMemory sends language 'en' for every platform. · Roi 2026-10-13: Facebook international is NOT link-limited for now — facebook_intl keeps its links. · claimed by 20261013-1029-claude-35c5"
+      "notes": "Named by Roi 2026-10-13 after social-001 (\"redesign the growth OS to match the current daily flow along with codex suggestions\"). Known today: the main Copy & mark posted labels rows with the rotation's platform; the Content Agent tab's Approve writes approved rows for its own article (would move /il); recordToMemory sends language 'en' for every platform. · Roi 2026-10-13: Facebook international is NOT link-limited for now — facebook_intl keeps its links. · claimed by 20261013-1029-claude-35c5 · PR 1 #132 (branch feat/growth-002-daily-flow) merged 62b242f; PR 2 #133 merged a2cd626. CLOSED 2026-10-13. Open: first live daily posting with the new panel (Roi); with Roi's yes, a read-only check of that day's approved rows + vetree.app/il. Rows before 2026-10-13 keep the rotation's platform label. NON-BLOCKING left: Telegram has no Skip; the generate-post threads hook read (rule 14: that route changed 3× in 7 days)."
     },
     {
       "status": "merged",

@@ -8,25 +8,24 @@ Routine: `docs/harness/README.md` on `main`. Pre-harness primer (frozen): root `
 ---
 
 ## 1. Current Verified State
-*Updated 2026-10-13 — Session 20261013-0829-claude-fb5e (social-002 closed)*
+*Updated 2026-10-13 — Session 20261013-1029-claude-35c5 (growth-002 closed)*
 
 - **Repo root:** `~/dev/vetree` · state worktree: `.harness-state/` (branch `harness-state`)
-- **main:** `cba7324` (#131 Facebook IL closing lines: typeable address + WhatsApp Community, 2026-10-13; #129 + #130 Facebook IL link-free posts, vetree.app/il, "save it" hint, 2026-10-13; #127 schema audit + #128 replay safety, migrations 080–082 + 000 recorded, 2026-10-12; #126 unlock log guard, 2026-10-12; PRs #120–#125 least privilege + policy audit, migrations 075–079 applied, 2026-10-11; #119 lint cleanup, 2026-10-10; #118 build warnings / middleware → proxy, 2026-10-10; #117 init.sh lock / unlock, 2026-10-10; #116 "new this week" count, 2026-10-10; #115 shorter digest footer, 2026-10-09; #114 Search Console fixes, 2026-10-07; before it #113 access-control audit,
-  migration 074 applied) — last verified: production /api/version = cba7324, home 200; PR #131 smoke + replay new / old PASS
+- **main:** `a2cd626` (#133 Growth OS daily posts panel, one article → every platform, 2026-10-13; #132 unit tests in init.sh check + PR smoke, 2026-10-13; #131 Facebook IL closing lines: typeable address + WhatsApp Community, 2026-10-13; #129 + #130 Facebook IL link-free posts, vetree.app/il, "save it" hint, 2026-10-13; #127 schema audit + #128 replay safety, migrations 080–082 + 000 recorded, 2026-10-12; #126 unlock log guard, 2026-10-12; PRs #120–#125 least privilege + policy audit, migrations 075–079 applied, 2026-10-11; #119 lint cleanup, 2026-10-10; #118 build warnings / middleware → proxy, 2026-10-10; #117 init.sh lock / unlock, 2026-10-10; #116 "new this week" count, 2026-10-10; #115 shorter digest footer, 2026-10-09; #114 Search Console fixes, 2026-10-07; before it #113 access-control audit,
+  migration 074 applied) — last verified: production /api/version = a2cd626, home 200; PR #133 smoke + replay new / old PASS
 - **Standard startup:** `docs/harness/init.sh` (state, then check) — see README for exit codes. Take / release
   the lock only with `init.sh lock <item> --agent …` / `init.sh unlock "<message>"` (D12), never by hand
-- **Standard verification:** `docs/harness/init.sh check [--item <id>]`; build reads production
-  Supabase (read-only); never Playwright as a baseline
-- **Highest-priority unfinished item:** **growth-002** (Roi 2026-10-13: redesign Growth OS for the real daily flow — one
-  article to every platform via Generate All, rotation deprecated — plus Codex's open test suggestions; plan first, rule
-  14 for CampaignCalendar.tsx). feed-002 / admin-001 / scripts-001 need Roi's decisions; ai-001 parked (~2026-11-01).
-- **The daily posting flow (Roi, 2026-10-13):** every day ONE article is posted to EVERY platform (Generate All). The 90-day
-  rotation is deprecated; a growth_agent_memory row's `platform` is the rotation's label, not where Roi posted (CLAUDE.md
-  "Campaign Calendar").
+- **Standard verification:** `docs/harness/init.sh check [--item <id>]` (now incl. `npm run test:unit`, hard RED); build
+  reads production Supabase (read-only); never Playwright as a baseline
+- **Highest-priority unfinished item:** none ready — feed-002 / admin-001 / scripts-001 need Roi's decisions; ai-001
+  parked (~2026-11-01). Ask Roi.
+- **The daily posting flow (Roi, 2026-10-13):** every day ONE article is posted to EVERY platform from Growth OS → Daily
+  Posts (CLAUDE.md "Growth OS daily posts"). Each tab's Copy & mark posted records its real platform; one approved row per
+  article + platform + Israel day. Rows before 2026-10-13 carry the deprecated rotation's platform label.
 - **Current blocker:** none
-- **Open PRs awaiting Roi:** none · Roi: generate a fresh Facebook IL post (new ending), "Copy & mark posted" before publishing, tap vetree.app/il; is
-  facebook_intl link-limited too? · the 4 dropped indexes stay dropped (Roi 2026-10-13) · check Vercel usage
-  ~2026-10-14 (proxy now a Node function, build-001) · Thursday's security scan is the first after 079
+- **Open PRs awaiting Roi:** none · Roi: first daily posting with the new panel, then (his yes) a read-only check of
+  today's approved rows + vetree.app/il · check Vercel usage ~2026-10-14 (proxy now a Node function, build-001) ·
+  Thursday's security scan is the first after 079 · the 4 dropped indexes stay dropped (Roi 2026-10-13)
 
 ## 2. Open Issues & Known Risks
 - **Lint is red on main:** 117 errors (103 no-explicit-any, 13 set-state-in-effect, 1 immutability) / 68 warnings,
@@ -214,6 +213,42 @@ works today was spot-checked in the code on 2026-10-05.
 (Newest first — only the latest 5 are kept here (D11); every entry, older ones included, is in
 `session-log.md`, which is never trimmed.)
 
+### Session 20261013-1029-claude-35c5 · 2026-10-13 · Claude Code · growth-002 (closed)
+- Goal / Completed: Growth OS rebuilt for the real daily flow — one article to every platform each day. PR 1 (#132):
+  the test net Codex asked for — 38 unit tests (linkFree, /il target selection + failures, generate-post
+  post-processing) run by `npm run test:unit` in init.sh check (hard RED) and PR smoke; a SaveHint browser test on the
+  preview. PR 2 (#133): `app/admin/growth/DailyPosts.tsx` replaces CampaignCalendar.tsx — Generate All (server pick,
+  every other platform forced + echo-checked, batches of 3, Retry Failed), one tab per platform (Facebook IL, WhatsApp,
+  Telegram = WhatsApp with its UTM, LinkedIn, Facebook Intl, X), Copy & mark posted with the card's own platform +
+  language, LinkedIn URL by row id, AI Photos kept (Roi uses it), recommendations / dismissals / search kept. The
+  feedback route keeps one approved row per article + platform + Israel day and returns its id; GET
+  /api/admin/growth/today gives today's rows, the day's article and the streak. Removed: the 90-day rotation, the Content
+  Agent tab, the single-post flow, the growth_tasks server actions (table stays), six unused components.
+- Start state: main cba7324, clean; baseline init.sh check GREEN.
+- Verification: 53 unit tests; init.sh check GREEN on every head; 15 mocked-network Playwright scenarios on a
+  temporary local page (nothing left localhost; not committed), each fix's test failing on the code before it; PR
+  smoke + replay new / old pass on both PRs; production a2cd626, home 200. Not verified live: Roi's first daily posting
+  with the panel (no production rows read by me).
+- Review: Codex · tier 2 · plan 2 rounds 68.4k / 27.3k · PR 1 2 rounds 64.9k / 27.7k · PR 2 4 rounds 80.8k / 43.6k /
+  34.3k / 26.5k (round 4 beyond the cap on Roi's word; one attempt lost to the ChatGPT usage limit, re-run at the
+  reset) ≈ 374k · BLOCKING: none (fixed on the way: marking before today's state loaded, generation and marking
+  overlapping — twice, the clipboard wait, midnight in an open tab, failed platforms lost on reload — twice, a failed
+  copy recorded as posted, a replaced panel still generating, then overwriting a newer panel's drafts — my own
+  round-2 fix).
+- Commits / PR: #132 → 62b242f, #133 → a2cd626, each merged on Roi's word. #133's merge was first refused: the
+  cancelled duplicate smoke run counted as a failed required check; re-ran it on the same head.
+- Pending Roi approvals: none. Roi: today's posts through the new panel (Copy & mark posted on each tab); then, with his
+  yes, a read-only check of today's approved rows and vetree.app/il. Thursday's security scan; Vercel usage ~2026-10-14.
+- Known risks / unresolved: approved rows before 2026-10-13 carry the rotation's platform label; Telegram has no Skip;
+  the generate-post threads hook read stays (rule 14: that route changed 3× in 7 days); drafts made before Israel
+  midnight don't show after the panel starts the new day; the lint baseline still lists deleted files (harmless).
+- Lesson: a fix for a race can open a new one one level up — the round-2 "stop and save what you made" overwrote a
+  newer panel's drafts; when an instance is replaced, the old one should stop and write nothing. Count mocked calls on
+  arrival, not after their delay, or a timing test proves nothing. Dev StrictMode doubles every load effect — never
+  assert request counts with ==.
+- Next best step: Roi's daily posting (first live run); feed-002 / admin-001 / scripts-001 need Roi's decisions;
+  ai-001 ~2026-11-01.
+
 ### Session 20261013-0829-claude-fb5e · 2026-10-13 · Claude Code · social-002 (closed)
 - Goal / Completed: Facebook IL posts now work from a reader's feed. Every facebook_il post ends with two lines the app
   appends (the model stops at the 📄 title): `📲 … vetree . app/il …` — a typeable address Facebook doesn't detect, plus
@@ -311,25 +346,3 @@ works today was spot-checked in the code on 2026-10-05.
   by presence.
 - Next best step: social-001 (Facebook link limit vs the daily Facebook IL post — design is Roi's call); feed-002 /
   admin-001 / scripts-001 need Roi's decisions.
-
-### Session 20261011-1725-claude-656c · 2026-10-11 → 2026-10-12 · Claude Code · harness-004 (closed)
-- Goal / Completed: `init.sh unlock` now publishes session-log.md only if it is origin's log, byte for byte, with this
-  session's entry in the appended text (`harness.mjs log-grew`: exit 1 = shrunk / not grown / earlier byte changed /
-  entry not in the appended part, exit 2 = could not check; prints sizes and offsets only). Refused → NOT published,
-  lock still held, with restore instructions. README: a deliberate fix of an old entry needs Roi's OK and its own
-  state commit.
-- Start state: main 5545ab5, branch chore/harness-004-unlock-log-guard, clean.
-- Verification: lock selftest 244/244 on bash 3.2 + 5.3 (before b2053fb), the new cases 73/73 after it, 251/251 in PR
-  CI (bash 5.2); 16 new cases (truncated, one byte edited, line deleted, reordered, same length, LF↔CRLF, BOM removed,
-  entry only in the old part; passes with exact published bytes incl. CRLF + BOM + invalid UTF-8, origin
-  fast-forward, edit while paused, fix and re-run); with the check disabled 10 cases fail. PR smoke pass; post-merge
-  smoke pass; production a652c31. This release is the first under the new rule.
-- Review: Codex · tier 2 · plan 1 round 43.6k + code 2 rounds 56.3k / 48.2k ≈ 148k · BLOCKING: none (3 non-blocking
-  fixed in b2053fb: the no-log case didn't reach the new guard — documented, check_dirty refuses first; two passing
-  cases lacked byte comparisons; BOM-removal refusal added).
-- Commits / PR: 32bfcc5, b2053fb → #126, merged as a652c31 on Roi's word.
-- Pending Roi approvals: none. Roi: Thursday's security scan (first after 079); Vercel usage ~2026-10-14.
-- Lesson: a mutation test only proves what its fixtures reach — a case can pass because an earlier check refuses
-  first (the "same length" case first stopped at the old entry grep); put the precondition on origin so only the
-  new check can refuse.
-- Next best step: infra-003 (replay safety); feed-002 / admin-001 / scripts-001 need Roi's decisions.

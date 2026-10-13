@@ -487,3 +487,39 @@ Newest at the bottom. The same entries (latest few) appear in primer.md → Rece
 - Lesson: a heuristic that deletes whole lines must read its evidence from the text, not from what it is about to
   remove (the invite URL itself says "whatsapp"); test the short cases, where word-count rules bite.
 - Next best step: growth-002 (Growth OS redesign for the daily all-platforms flow) — plan first, rule 14, Roi approves.
+
+### Session 20261013-1029-claude-35c5 · 2026-10-13 · Claude Code · growth-002 (closed)
+- Goal / Completed: Growth OS rebuilt for the real daily flow — one article to every platform each day. PR 1 (#132):
+  the test net Codex asked for — 38 unit tests (linkFree, /il target selection + failures, generate-post
+  post-processing) run by `npm run test:unit` in init.sh check (hard RED) and PR smoke; a SaveHint browser test on the
+  preview. PR 2 (#133): `app/admin/growth/DailyPosts.tsx` replaces CampaignCalendar.tsx — Generate All (server pick,
+  every other platform forced + echo-checked, batches of 3, Retry Failed), one tab per platform (Facebook IL, WhatsApp,
+  Telegram = WhatsApp with its UTM, LinkedIn, Facebook Intl, X), Copy & mark posted with the card's own platform +
+  language, LinkedIn URL by row id, AI Photos kept (Roi uses it), recommendations / dismissals / search kept. The
+  feedback route keeps one approved row per article + platform + Israel day and returns its id; GET
+  /api/admin/growth/today gives today's rows, the day's article and the streak. Removed: the 90-day rotation, the Content
+  Agent tab, the single-post flow, the growth_tasks server actions (table stays), six unused components.
+- Start state: main cba7324, clean; baseline init.sh check GREEN.
+- Verification: 53 unit tests; init.sh check GREEN on every head; 15 mocked-network Playwright scenarios on a
+  temporary local page (nothing left localhost; not committed), each fix's test failing on the code before it; PR
+  smoke + replay new / old pass on both PRs; production a2cd626, home 200. Not verified live: Roi's first daily posting
+  with the panel (no production rows read by me).
+- Review: Codex · tier 2 · plan 2 rounds 68.4k / 27.3k · PR 1 2 rounds 64.9k / 27.7k · PR 2 4 rounds 80.8k / 43.6k /
+  34.3k / 26.5k (round 4 beyond the cap on Roi's word; one attempt lost to the ChatGPT usage limit, re-run at the
+  reset) ≈ 374k · BLOCKING: none (fixed on the way: marking before today's state loaded, generation and marking
+  overlapping — twice, the clipboard wait, midnight in an open tab, failed platforms lost on reload — twice, a failed
+  copy recorded as posted, a replaced panel still generating, then overwriting a newer panel's drafts — my own
+  round-2 fix).
+- Commits / PR: #132 → 62b242f, #133 → a2cd626, each merged on Roi's word. #133's merge was first refused: the
+  cancelled duplicate smoke run counted as a failed required check; re-ran it on the same head.
+- Pending Roi approvals: none. Roi: today's posts through the new panel (Copy & mark posted on each tab); then, with his
+  yes, a read-only check of today's approved rows and vetree.app/il. Thursday's security scan; Vercel usage ~2026-10-14.
+- Known risks / unresolved: approved rows before 2026-10-13 carry the rotation's platform label; Telegram has no Skip;
+  the generate-post threads hook read stays (rule 14: that route changed 3× in 7 days); drafts made before Israel
+  midnight don't show after the panel starts the new day; the lint baseline still lists deleted files (harmless).
+- Lesson: a fix for a race can open a new one one level up — the round-2 "stop and save what you made" overwrote a
+  newer panel's drafts; when an instance is replaced, the old one should stop and write nothing. Count mocked calls on
+  arrival, not after their delay, or a timing test proves nothing. Dev StrictMode doubles every load effect — never
+  assert request counts with ==.
+- Next best step: Roi's daily posting (first live run); feed-002 / admin-001 / scripts-001 need Roi's decisions;
+  ai-001 ~2026-11-01.
