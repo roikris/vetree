@@ -59,7 +59,7 @@ Routes verified from `app/api/` directory tree.
 | `/api/stats/public` | GET | Public counts (cached 1 h): confirmed users rounded down to 5, visible articles; 500 on data error | Public |
 | `/api/digest/send` | POST | Send weekly email | DIGEST_SECRET |
 | `/api/growth/generate-post` | POST | AI content agent | Admin session |
-| `/api/growth/feedback` | POST | Approve/skip feedback | Admin |
+| `/api/growth/feedback` | POST | Approve/skip feedback — one approved row per article + platform + Israel day; returns the row `id` | Admin |
 | `/api/growth/stats` | GET | Agent learning stats | Admin |
 | `/api/growth/generate-image` | POST | Gemini image generation | Admin |
 | `/api/growth/generate-synthesis-post` | POST | Synthesis-to-post agent | Admin |
@@ -73,6 +73,7 @@ Routes verified from `app/api/` directory tree.
 | `/api/admin/articles/[id]/labels` | PATCH | Override article labels | Admin |
 | `/api/admin/growth/memory/posted-url` | PATCH | Set posted_url on memory row | Admin |
 | `/api/admin/growth/recommendations` | GET | AI content recommendations | Admin |
+| `/api/admin/growth/today` | GET | Daily posts' state: today's approved rows (Israel day), the day's article, streak (read-only) | Admin |
 | `/api/admin/analytics/aggregate` | POST | Daily snapshot | DIGEST_SECRET |
 | `/api/admin/analytics/signals` | POST | Signal extraction | DIGEST_SECRET |
 | `/api/admin/analytics/insights` | POST | Weekly LLM analysis | DIGEST_SECRET |
@@ -280,12 +281,12 @@ without links: names the address, the button or WhatsApp and starts with 📲 / 
 
 **`vetree.app/il`** (`app/il/route.ts`): a no-store 307 to the article last marked as posted on **any platform**
 (growth_agent_memory, newest `approved` row with an article — every day one article goes to every platform, see CLAUDE.md
-"Campaign Calendar"; the row's platform label is not trusted), tagged
+"Growth OS daily posts"; `lib/growth/ilTarget.ts`), tagged
 `utm_source=facebook&utm_medium=social&utm_campaign=il&utm_content=page-button`; a hidden article, no post or an error → the
 home page. Readers arriving that way see a 15-second handwritten "save it" hint at the Save button
 (`components/articles/SaveHint.tsx`). Mark today's post as posted (any platform's "Copy & mark posted") before publishing
-it, or the address opens yesterday's article. An Approve in the (unused) standalone Content Agent tab would also move it —
-no "daily campaign" marker on the rows yet (growth-002).
+it, or the address opens yesterday's article. Only the daily posts write approved rows with an article (the standalone
+Content Agent tab was removed in growth-002) — a new writer would move this address.
 
 ## Recommendations panel (`/api/admin/growth/recommendations`)
 - 9 top picks + 1 **wildcard** (owner, 2026-10-01): drawn first from the bottom half of the scored

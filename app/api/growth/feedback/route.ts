@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { approvedRowToday, type ApprovalClient } from '@/lib/growth/approvals'
 
 // Force this route to use Node.js runtime
 export const runtime = 'nodejs'
@@ -65,8 +66,25 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // One 'approved' row per article + platform + Israel day (growth-002): a second Copy & mark posted — another click,
+    // a reload, another browser — returns the existing row and records nothing new (LinkedIn matching reads these rows;
+    // duplicates make its slug / date tiers ambiguous). A repost on a later day is a new row.
+    if (outcome === 'approved') {
+      let existing: { id: string } | null
+      try {
+        // cast: the full Supabase client type is too deep for TypeScript to check against the small ApprovalClient surface
+        existing = await approvedRowToday(supabase as unknown as ApprovalClient, article_id, platform, new Date())
+      } catch (e) {
+        console.error('Error checking memory:', e)
+        return NextResponse.json({ error: 'Failed to save feedback', details: String(e) }, { status: 500 })
+      }
+      if (existing) {
+        return NextResponse.json({ success: true, id: existing.id, already_recorded: true })
+      }
+    }
+
     // Save to growth_agent_memory
-    const { error: memoryError } = await supabase
+    const { data: inserted, error: memoryError } = await supabase
       .from('growth_agent_memory')
       .insert({
         article_id,
@@ -77,6 +95,8 @@ export async function POST(request: NextRequest) {
         hook_line: hook_line || null,
         posted_url: posted_url || null,
       })
+      .select('id')
+      .single()
 
     if (memoryError) {
       console.error('Error saving to memory:', memoryError)
@@ -150,6 +170,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
+      id: inserted.id,
       message: 'Feedback saved successfully'
     })
 
