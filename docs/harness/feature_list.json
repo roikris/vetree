@@ -1245,9 +1245,9 @@
       "notes": "Named by Roi 2026-10-13 after social-001 (\"redesign the growth OS to match the current daily flow along with codex suggestions\"). Known today: the main Copy & mark posted labels rows with the rotation's platform; the Content Agent tab's Approve writes approved rows for its own article (would move /il); recordToMemory sends language 'en' for every platform. Ask Roi whether facebook_intl is under the same link limit."
     },
     {
-      "status": "not_started",
+      "status": "in_progress",
       "evidence": [],
-      "branch": "",
+      "branch": "fix/social-002-feed-reachable",
       "pr": null,
       "head_sha": null,
       "wip_sha": null,
@@ -1281,7 +1281,7 @@
           "paid_calls": false
         }
       ],
-      "notes": "Named by Roi 2026-10-13 after social-001: in a reader's feed \"the button at the top of the page\" means nothing. Roi chose A + C and the WhatsApp Community (announcements group muted for members + a discussion group). Invite link given by Roi in chat (chat.whatsapp.com/…). Rule 14: generate-post/route.ts has 2 changes in 7 days (e05aae3, 9429086) → this is the 3rd; CampaignCalendar.tsx not touched."
+      "notes": "Named by Roi 2026-10-13 after social-001: in a reader's feed \"the button at the top of the page\" means nothing. Roi chose A + C and the WhatsApp Community (announcements group muted for members + a discussion group). Invite link given by Roi in chat (chat.whatsapp.com/…). Rule 14: generate-post/route.ts has 2 changes in 7 days (e05aae3, 9429086) → this is the 3rd; CampaignCalendar.tsx not touched. · claimed by 20261013-0829-claude-fb5e"
     }
   ]
 }
