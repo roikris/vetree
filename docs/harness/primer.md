@@ -8,7 +8,7 @@ Routine: `docs/harness/README.md` on `main`. Pre-harness primer (frozen): root `
 ---
 
 ## 1. Current Verified State
-*Updated 2026-10-13 — Session 20261012-1839-claude-df86 (social-001 closed)*
+*Updated 2026-10-13 — Session 20261013-0828-claude-62c4 (social-002 added)*
 
 - **Repo root:** `~/dev/vetree` · state worktree: `.harness-state/` (branch `harness-state`)
 - **main:** `4cf3963` (#129 + #130 Facebook IL link-free posts, vetree.app/il, "save it" hint, 2026-10-13; #127 schema audit + #128 replay safety, migrations 080–082 + 000 recorded, 2026-10-12; #126 unlock log guard, 2026-10-12; PRs #120–#125 least privilege + policy audit, migrations 075–079 applied, 2026-10-11; #119 lint cleanup, 2026-10-10; #118 build warnings / middleware → proxy, 2026-10-10; #117 init.sh lock / unlock, 2026-10-10; #116 "new this week" count, 2026-10-10; #115 shorter digest footer, 2026-10-09; #114 Search Console fixes, 2026-10-07; before it #113 access-control audit,
@@ -17,7 +17,7 @@ Routine: `docs/harness/README.md` on `main`. Pre-harness primer (frozen): root `
   the lock only with `init.sh lock <item> --agent …` / `init.sh unlock "<message>"` (D12), never by hand
 - **Standard verification:** `docs/harness/init.sh check [--item <id>]`; build reads production
   Supabase (read-only); never Playwright as a baseline
-- **Highest-priority unfinished item:** **growth-002** (Roi 2026-10-13: redesign Growth OS for the real daily flow — one
+- **Highest-priority unfinished item:** **social-002** (Facebook IL posts usable from a reader's feed: typeable address + WhatsApp Community link + Page button; Roi 2026-10-13), then **growth-002** (Roi 2026-10-13: redesign Growth OS for the real daily flow — one
   article to every platform via Generate All, rotation deprecated — plus Codex's open test suggestions; plan first, rule
   14 for CampaignCalendar.tsx). feed-002 / admin-001 / scripts-001 need Roi's decisions; ai-001 parked (~2026-11-01).
 - **The daily posting flow (Roi, 2026-10-13):** every day ONE article is posted to EVERY platform (Generate All). The 90-day
@@ -214,6 +214,17 @@ works today was spot-checked in the code on 2026-10-05.
 (Newest first — only the latest 5 are kept here (D11); every entry, older ones included, is in
 `session-log.md`, which is never trimmed.)
 
+### Session 20261013-0828-claude-62c4 · 2026-10-13 · Claude Code · backlog (social-002 added)
+- Goal / Completed: Roi found that in a reader's feed the Facebook IL post's "the link is in the button at the top of
+  the page" means nothing. Read secondary reports (not Meta's own pages): comment links now count; links to Meta apps
+  (WhatsApp) don't; extra links may show as plain text. Roi's composer test: a WhatsApp link shows no link counter,
+  vetree.app/il does. Roi chose A (a typeable address Facebook doesn't detect) + C (keep the Page button) + a link to
+  the Vetree WhatsApp Community. Added social-002 (priority 1).
+- Start state: main 4cf3963, clean; lock free.
+- Verification: n/a (state only) · Review: n/a (exception 1) · Commits / PR: state only.
+- Pending Roi: which address form shows no counter ('vetree . app/il', 'vetree(.)app/il', 'vetree נקודה app/il').
+- Next best step: social-002 (lock it, build, Codex tier 2).
+
 ### Session 20261012-1839-claude-df86 · 2026-10-12 → 2026-10-13 · Claude Code · social-001 (closed)
 - Goal / Completed: Facebook lets some business / creator Pages attach only 2 external links a month; the Facebook IL
   Page posts daily. Roi chose design A: facebook_il posts carry no link (prompt + `lib/growth/linkFree.ts` strips any URL /
@@ -331,20 +342,3 @@ works today was spot-checked in the code on 2026-10-05.
   "permission denied". fetch refuses some ports (9, discard): use a high port for an ECONNREFUSED test. Never compare
   lists by joining them into one string.
 - Next best step: harness-004 (unlock refuses a shrunken session log), then infra-003; feed-002 / admin-001 need Roi.
-
-### Session 20261010-1719-claude-9084 · 2026-10-10 · Claude Code · lint-001 (closed)
-- Goal / Completed: lint baseline 177 → 117 (70 → 44 entries). eslint.config.mjs: design prototype ignored;
-  require() allowed in the CommonJS scripts only; no-unescaped-entities keeps > and }, allows ' and ". Onboarding's
-  HandDrawnArrow moved to module level; prefer-const ×2. Left: 103 no-explicit-any, 13 set-state-in-effect,
-  useFollowedTags immutability (benign hoisting). The three Session-001 "possible bugs": none was a real bug.
-- Verification: init.sh check GREEN; no new file+rule pair and no grown count vs main; PR smoke pass; production
-  9429086 live.
-- Review: Codex · tier 2 · 2 rounds · 45.0k + 26.1k tokens · BLOCKING: none (1 fixed: reordering useFollowedTags swapped
-  in a new file+rule pair — D9 forbids that even when the total falls; reverted).
-- Commits / PR: 38fd077, 55ce2b3 → #119, merged as 9429086 on Roi's word.
-- Lesson: an eslint flat-config rule override for a plugin rule needs the same `files` as the config object that
-  defines the plugin (else "could not find plugin"). The ratchet is per file + rule — check pairs, not the total.
-- Incident (mine): closing build-001, my script opened session-log.md for writing before reading it, which
-  emptied it, then wrote one entry (f81d84f: 28 entries → 1; repeated once here). Restored in this handoff from 7c89e29
-  (history byte-identical) + the build-001 and lint-001 entries. Write state files only after reading them fully.
-- Next best step: infra-002 (least privilege) — needs Roi for anything touching production grants.

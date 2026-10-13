@@ -1243,6 +1243,45 @@
         }
       ],
       "notes": "Named by Roi 2026-10-13 after social-001 (\"redesign the growth OS to match the current daily flow along with codex suggestions\"). Known today: the main Copy & mark posted labels rows with the rotation's platform; the Content Agent tab's Approve writes approved rows for its own article (would move /il); recordToMemory sends language 'en' for every platform. Ask Roi whether facebook_intl is under the same link limit."
+    },
+    {
+      "status": "not_started",
+      "evidence": [],
+      "branch": "",
+      "pr": null,
+      "head_sha": null,
+      "wip_sha": null,
+      "expected_failures": [],
+      "id": "social-002",
+      "priority": 1,
+      "area": "growth",
+      "type": "fix",
+      "title": "Facebook IL posts reach readers in the feed: a typeable vetree.app/il address Facebook doesn't count as a link + a clickable WhatsApp Community link + the Page button",
+      "user_visible_behavior": "Every Facebook IL post ends with the short address written so Facebook doesn't detect it (readers type it), a clickable link to the Vetree WhatsApp Community (links to Meta apps don't count toward the 2-a-month limit — Roi checked in the composer, 2026-10-13), and the Page button as a fallback",
+      "verification": [
+        {
+          "step": "Roi's composer test: WhatsApp link shows no link counter (done 2026-10-13); vetree.app/il does → pick the first of 'vetree . app/il', 'vetree(.)app/il', 'vetree נקודה app/il' that shows no counter",
+          "target": "none",
+          "db_reads": "none",
+          "db_writes": "none",
+          "paid_calls": false
+        },
+        {
+          "step": "prompt + makeLinkFree end facebook_il posts with exactly the two lines; only the WhatsApp Community link survives the stripper; offline tests; init.sh check GREEN",
+          "target": "local",
+          "db_reads": "none",
+          "db_writes": "none",
+          "paid_calls": false
+        },
+        {
+          "step": "Review: Codex tier 2 (paid AI prompt) → BLOCKING: none",
+          "target": "none",
+          "db_reads": "none",
+          "db_writes": "none",
+          "paid_calls": false
+        }
+      ],
+      "notes": "Named by Roi 2026-10-13 after social-001: in a reader's feed \"the button at the top of the page\" means nothing. Roi chose A + C and the WhatsApp Community (announcements group muted for members + a discussion group). Invite link given by Roi in chat (chat.whatsapp.com/…). Rule 14: generate-post/route.ts has 2 changes in 7 days (e05aae3, 9429086) → this is the 3rd; CampaignCalendar.tsx not touched."
     }
   ]
 }

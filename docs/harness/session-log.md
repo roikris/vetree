@@ -454,3 +454,14 @@ Newest at the bottom. The same entries (latest few) appear in primer.md → Rece
   actually does it today. A fix that widens a pattern (any bare domain) needs its false-positive cases tested too.
 - Next best step: growth-002 (Growth OS redesign for the daily all-platforms flow + Codex's open test suggestions) —
   plan first, rule 14 assessment, Roi approves.
+
+### Session 20261013-0828-claude-62c4 · 2026-10-13 · Claude Code · backlog (social-002 added)
+- Goal / Completed: Roi found that in a reader's feed the Facebook IL post's "the link is in the button at the top of
+  the page" means nothing. Read secondary reports (not Meta's own pages): comment links now count; links to Meta apps
+  (WhatsApp) don't; extra links may show as plain text. Roi's composer test: a WhatsApp link shows no link counter,
+  vetree.app/il does. Roi chose A (a typeable address Facebook doesn't detect) + C (keep the Page button) + a link to
+  the Vetree WhatsApp Community. Added social-002 (priority 1).
+- Start state: main 4cf3963, clean; lock free.
+- Verification: n/a (state only) · Review: n/a (exception 1) · Commits / PR: state only.
+- Pending Roi: which address form shows no counter ('vetree . app/il', 'vetree(.)app/il', 'vetree נקודה app/il').
+- Next best step: social-002 (lock it, build, Codex tier 2).
