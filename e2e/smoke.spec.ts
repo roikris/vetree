@@ -310,6 +310,53 @@ test('mobile article page: no horizontal scroll for guests', { tag: '@mobile-onl
   await expect(page.getByRole('button', { name: 'Share' })).toBeVisible()
 })
 
+// ─── "save it" hint for readers from the Facebook IL address / Page button (social-001) ─────────────────────
+// vetree.app/il tags the visit utm_content=page-button; only then a 15-second handwritten hint points at Save. It
+// never blocks the guest Save flow, never widens a phone page, is static under reduced motion, and its font (Caveat,
+// not preloaded) loads only when the hint shows. Phone only: the layout that matters, one run of Vercel CPU.
+// Two article visits only — a third would meet the guest article wall. Not networkidle (previews never settle).
+test('save-it hint: only from the Page button, 15 s, never in the way', { tag: '@mobile-only' }, async ({ page, context, request }) => {
+  await clearCookiesKeepPreviewAccess(context)
+  const [id] = await sitemapArticleIds(request)
+  const hint = page.locator('[data-testid="save-hint"]')
+  // next/font names the face "__Caveat_<hash>" (its metric fallback "__Caveat_Fallback_<hash>" is a local font)
+  const caveatLoaded = () => page.evaluate(() =>
+    [...document.fonts].some(f => /caveat/i.test(f.family) && !/fallback/i.test(f.family) && f.status === 'loaded'))
+
+  // An ordinary visit: no hint, and Caveat never loads
+  await page.goto(`/article/${id}`)
+  await expect(page.locator('[data-testid="article-title"]')).toBeVisible()
+  await page.evaluate(() => document.fonts.ready)
+  await expect(hint).toHaveCount(0)
+  expect(await caveatLoaded(), 'Caveat must not load on an ordinary visit').toBe(false)
+
+  // From the Page button, with the page's clock paused BEFORE navigation: the hint mounts at a known instant
+  const t0 = new Date('2030-01-01T08:00:00Z').getTime()
+  await page.clock.install({ time: t0 })
+  await page.clock.pauseAt(t0 + 60_000)
+  await page.setViewportSize({ width: 375, height: 800 })
+  await page.goto(`/article/${id}?utm_source=facebook&utm_medium=social&utm_campaign=il&utm_content=page-button`)
+  await expect(hint).toBeVisible()
+  await expect.poll(caveatLoaded, { message: 'Caveat loads when the hint shows' }).toBe(true)
+  const m = await page.evaluate(() => ({ scrollW: document.documentElement.scrollWidth, innerW: window.innerWidth }))
+  expect(m.scrollW, 'the hint must not widen the page').toBeLessThanOrEqual(m.innerW)
+
+  // Reduced motion: drawn at once, no animation
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  expect(await hint.evaluate(el => getComputedStyle(el).animationName)).toBe('none')
+  await page.emulateMedia({ reducedMotion: 'no-preference' })
+
+  // While it shows, the guest Save button underneath still opens the sign-in prompt
+  await page.locator('[data-testid="appbar-save"]').click()
+  await expectSavePrompt(page, new RegExp(`/article/${id}`))
+
+  // The clock has not moved since the hint mounted: still there at +14 s, gone at +15 s
+  await page.clock.fastForward(14_000)
+  await expect(hint).toHaveCount(1)
+  await page.clock.fastForward(1_000)
+  await expect(hint).toHaveCount(0)
+})
+
 // /sitemap.xml is a sitemap index (app/sitemap.xml/route.ts); articles are in shards.
 // Follow the index to shard 0 by PATH — its <loc> is absolute https://vetree.app, which
 // would test production instead of the preview under test.

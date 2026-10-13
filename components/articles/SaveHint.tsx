@@ -40,6 +40,7 @@ export function SaveHint({ saved }: { saved: boolean }) {
   return (
     <div
       aria-hidden="true"
+      data-testid="save-hint"
       className="vt-savehint"
       style={{
         position: 'absolute', top: 'calc(100% + 2px)', right: 'calc(100% - 30px)', width: 118,
