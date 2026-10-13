@@ -266,19 +266,24 @@ Article choice is shared with the recommendations panel: `rankGrowthCandidates()
 5. Check length limits (twitter ≤ 280), embed UTM in article URL
 6. Return `{ post_content, article_id, article_title, article_labels, crowd_favorite, hook_line, ... }`
 
-## Facebook IL posts carry no link (social-001, Roi 2026-10-12)
-Meta limits some business / creator Pages to two external links a month (in the post, possibly in comments too), and the
-Facebook IL Page posts every day. So `facebook_il` posts have **no URL, web address or domain name** — no 🔗 article
-link, no 💾 save link; they end with `👆 הקישור למאמר המלא — בכפתור בראש העמוד` ("the link is in the button at the top of
-the page"). The prompt asks for it and the route strips any link the model writes anyway (a stray one spends the Page's
-allowance). The Page's action button points at **`vetree.app/il`** (`app/il/route.ts`): a no-store 307 to the article last
-marked as posted on **any platform** (growth_agent_memory, newest `approved` row with an article — every day one article
-goes to every platform, see CLAUDE.md "Campaign Calendar"; the row's platform label is not trusted), tagged
+## Facebook IL posts carry no web link (social-001 / social-002, Roi 2026-10-12 / 13)
+Meta limits some business / creator Pages to two external links a month (posts **and** comments), and the Facebook IL
+Page posts every day. So `facebook_il` posts have **no URL, web address or domain name** — no 🔗 article link, no 💾 save
+link. The model ends the post at the 📄 title line; `makeLinkFree` (`lib/growth/linkFree.ts`) strips any link it wrote
+anyway (a stray one spends the Page's allowance) and appends the closing lines itself — the one place to change them:
+- `📲 המאמר המלא: vetree . app/il (…)` — the short address written so Facebook doesn't detect a link (Roi's composer test:
+  `vetree.app/il` shows the link counter); readers type it. The Page's action button points at `vetree.app/il` too.
+- `💬 … https://chat.whatsapp.com/…` — the Vetree WhatsApp Community; links to Meta's own apps don't count toward the
+  limit (composer test: no counter). Daily posts go to its announcements group, muted for members.
+
+**`vetree.app/il`** (`app/il/route.ts`): a no-store 307 to the article last marked as posted on **any platform**
+(growth_agent_memory, newest `approved` row with an article — every day one article goes to every platform, see CLAUDE.md
+"Campaign Calendar"; the row's platform label is not trusted), tagged
 `utm_source=facebook&utm_medium=social&utm_campaign=il&utm_content=page-button`; a hidden article, no post or an error → the
 home page. Readers arriving that way see a 15-second handwritten "save it" hint at the Save button
-(`components/articles/SaveHint.tsx`). Mark today's post as posted (any platform's "Copy & mark posted") before publishing it, or the button opens yesterday's
-article. An Approve in the (unused) standalone Content Agent tab would also move the button — no "daily campaign" marker
-on the rows yet (growth-002).
+(`components/articles/SaveHint.tsx`). Mark today's post as posted (any platform's "Copy & mark posted") before publishing
+it, or the address opens yesterday's article. An Approve in the (unused) standalone Content Agent tab would also move it —
+no "daily campaign" marker on the rows yet (growth-002).
 
 ## Recommendations panel (`/api/admin/growth/recommendations`)
 - 9 top picks + 1 **wildcard** (owner, 2026-10-01): drawn first from the bottom half of the scored
