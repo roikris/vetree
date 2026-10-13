@@ -1206,9 +1206,9 @@
       "notes": "Named by Roi 2026-10-12, to start after infra-003 ships: Facebook now allows only 2 links per month on posts for certain free business accounts; the Facebook IL account posts a link every day, so readers can no longer reach the articles. Design decision is Roi's. · claimed by 20261012-1839-claude-df86 · design A (Roi 2026-10-12): link-free facebook_il posts + Page action button → vetree.app/il (Roi set it) + 15-s \"save it\" hint. #129 merged e05aae3. Roi 2026-10-13: every day ONE article to EVERY platform via Generate All; the 90-day rotation is deprecated → #130 merged 4cf3963 (/il any platform). CLOSED 2026-10-13. Open: yesterday's post (pubmed-42806282) may never have been saved as posted — the read was blocked by auto mode; Roi presses Copy & mark posted once and taps vetree.app/il. facebook_intl unchanged (Roi didn't say it is limited). Follow-up: growth-002."
     },
     {
-      "status": "not_started",
+      "status": "in_progress",
       "evidence": [],
-      "branch": "",
+      "branch": "feat/growth-002-daily-flow",
       "pr": null,
       "head_sha": null,
       "wip_sha": null,
@@ -1242,7 +1242,7 @@
           "paid_calls": false
         }
       ],
-      "notes": "Named by Roi 2026-10-13 after social-001 (\"redesign the growth OS to match the current daily flow along with codex suggestions\"). Known today: the main Copy & mark posted labels rows with the rotation's platform; the Content Agent tab's Approve writes approved rows for its own article (would move /il); recordToMemory sends language 'en' for every platform. Ask Roi whether facebook_intl is under the same link limit."
+      "notes": "Named by Roi 2026-10-13 after social-001 (\"redesign the growth OS to match the current daily flow along with codex suggestions\"). Known today: the main Copy & mark posted labels rows with the rotation's platform; the Content Agent tab's Approve writes approved rows for its own article (would move /il); recordToMemory sends language 'en' for every platform. · Roi 2026-10-13: Facebook international is NOT link-limited for now — facebook_intl keeps its links. · claimed by 20261013-1029-claude-35c5"
     },
     {
       "status": "merged",
