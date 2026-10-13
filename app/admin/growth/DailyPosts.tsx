@@ -354,11 +354,9 @@ function DailyDay({ today, onDayChange, onReload }: { today: string; onDayChange
             if ('mismatch' in s) setMessage({ type: 'error', text: `${s.p.platform} came back for another article ("${s.mismatch}") — not kept` })
           }
         }
-        if (!op.current.alive) {
-          // replaced (a new Israel day): no more calls; what was made stays under this day's key
-          writeStore(today, { articleId: shared, articleTitle: null, posts: next, failed: [...failedNow, ...queue.map(p => p.platform)] })
-          return
-        }
+        // replaced (a new Israel day, or Growth OS switched to another tab): no more calls, and nothing written —
+        // a newer panel owns this day's drafts now
+        if (!op.current.alive) return
         if (queue.length) await new Promise(res => setTimeout(res, 500))
       }
       setPosts(next)
