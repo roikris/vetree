@@ -15,6 +15,7 @@
     "security:local": "./scripts/security-check.sh",
     "license:check": "npx license-checker --onlyAllow 'MIT;ISC;Apache-2.0;BSD-2-Clause;BSD-3-Clause;0BSD;CC0-1.0;Unlicense' --production",
     "test:smoke": "playwright test",
+    "test:unit": "tsx --test tests/unit/*.test.ts",
     "enrich:refused": "node --env-file=.env.local scripts/enrich-refused.mjs"
   },
   "security": {

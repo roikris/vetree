@@ -146,6 +146,10 @@ function classify(sigsDir, featureList, itemId, headSha) {
     console.log(`REGRESSION: ${audits.join(' and ')} failed — never an expected WIP failure`)
     process.exit(1)
   }
+  if (failed.includes('unit')) {
+    console.log('REGRESSION: the unit tests failed — never an expected WIP failure (they run offline in every mode)')
+    process.exit(1)
+  }
   if (failed.includes('build')) {
     console.log('REGRESSION: the build failed — a build failure is never an expected WIP failure ' +
       '(on the recorded WIP commit the build is skipped; tsc + lint decide)')

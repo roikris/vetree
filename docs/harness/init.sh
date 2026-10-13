@@ -4,7 +4,7 @@
 #   docs/harness/init.sh                         state, then check
 #   docs/harness/init.sh state                   repo info + set up / sync .harness-state/
 #   docs/harness/init.sh check [--quick] [--item <id>]
-#                                                deps + tsc + lint (ratchet) + build (unless --quick);
+#                                                deps + tsc + lint (ratchet) + unit tests + build (unless --quick);
 #                                                --item classifies red results against that item's WIP
 #   docs/harness/init.sh lock <item-id|backlog> --agent <claude|codex>
 #                                                take the session lock (refuses when any lock exists)
@@ -226,7 +226,7 @@ cmd_check() {
   head_ "Checks on $(git branch --show-current || echo detached) @ $(git rev-parse --short HEAD)"
   { [ $quick = 1 ] || [ $wipmode = 1 ]; } || say "effects: next build READS production Supabase (sitemap, static article pages) — it writes nothing"
   rm -f "$LOGDIR"/*.sigs.json "$LOGDIR/failed-checks" "$LOGDIR/lint.json"
-  local red=0 transient=0 tsc_red=0 lint_red=0 acl_block=0 rls_block=0 schema_block=0
+  local red=0 transient=0 tsc_red=0 lint_red=0 unit_block=0 acl_block=0 rls_block=0 schema_block=0
 
   # sigs <check> — record a failed check and its signatures; a crash in the parser = unparsed.
   sigs() {
@@ -260,6 +260,14 @@ cmd_check() {
        [ -s "$LOGDIR/lint.sigs.json" ] || printf '{"check":"lint","unparsed":true,"failures":[]}\n' > "$LOGDIR/lint.sigs.json" ;;
   esac
 
+  # Unit tests (growth-002): tests/unit/*.test.ts, offline (no database, no network, no model). Every mode,
+  # --quick and WIP included. A failure always blocks: never POSSIBLE TRANSIENT, never EXPECTED-WIP (classify rejects
+  # a failed 'unit' check).
+  if ! run_timed unit npm run --silent test:unit; then
+    red=1; unit_block=1; printf 'unit\n' >> "$LOGDIR/failed-checks"
+    grep -E '^not ok|^✖' "$LOGDIR/unit.log" | sed -n '1,10p'
+  fi
+
   # Access-control audit (infra-001): production's actual privileges vs supabase/access.json, exactly.
   # Every mode. A mismatch, or an unverified result that is not a network error, blocks: never
   # POSSIBLE TRANSIENT and never EXPECTED-WIP (classify rejects a failed 'acl' check).
@@ -270,7 +278,7 @@ cmd_check() {
     1) say "acl audit: FAIL — privileges differ from supabase/access.json:"; grep -E '^  (NEW|GONE|KIND|ACL) ' "$LOGDIR/acl.log" | sed -n '1,20p'
        red=1; acl_block=1; printf 'acl\n' >> "$LOGDIR/failed-checks" ;;
     *) red=1; printf 'acl\n' >> "$LOGDIR/failed-checks"
-       if grep -q '^acl audit: UNVERIFIED — network:' "$LOGDIR/acl.log" && [ $tsc_red = 0 ] && [ $lint_red = 0 ]; then
+       if grep -q '^acl audit: UNVERIFIED — network:' "$LOGDIR/acl.log" && [ $tsc_red = 0 ] && [ $lint_red = 0 ] && [ $unit_block = 0 ]; then
          transient=1; say "$(grep '^acl audit:' "$LOGDIR/acl.log") — possible transient: re-run once"
        else
          acl_block=1; say "$(grep '^acl audit:' "$LOGDIR/acl.log")"; grep -E '^  ' "$LOGDIR/acl.log" | grep -v '^  info' | sed -n '1,10p'
@@ -286,7 +294,7 @@ cmd_check() {
     1) say "rls audit: FAIL — policies differ from supabase/rls.json:"; grep -E '^  (NEW|GONE|RLS|FORCED|POLICY) ' "$LOGDIR/rls.log" | sed -n '1,20p'
        red=1; rls_block=1; printf 'rls\n' >> "$LOGDIR/failed-checks" ;;
     *) red=1; printf 'rls\n' >> "$LOGDIR/failed-checks"
-       if grep -q '^rls audit: UNVERIFIED — network:' "$LOGDIR/rls.log" && [ $tsc_red = 0 ] && [ $lint_red = 0 ]; then
+       if grep -q '^rls audit: UNVERIFIED — network:' "$LOGDIR/rls.log" && [ $tsc_red = 0 ] && [ $lint_red = 0 ] && [ $unit_block = 0 ]; then
          transient=1; say "$(grep '^rls audit:' "$LOGDIR/rls.log") — possible transient: re-run once"
        else
          rls_block=1; say "$(grep '^rls audit:' "$LOGDIR/rls.log")"; grep -E '^  ' "$LOGDIR/rls.log" | sed -n '1,10p'
@@ -302,7 +310,7 @@ cmd_check() {
     1) say "schema audit: FAIL — the schema differs from supabase/schema.json:"; grep -E '^  (NEW|GONE|DIFF) ' "$LOGDIR/schema.log" | sed -n '1,20p'
        red=1; schema_block=1; printf 'schema\n' >> "$LOGDIR/failed-checks" ;;
     *) red=1; printf 'schema\n' >> "$LOGDIR/failed-checks"
-       if grep -q '^schema audit: UNVERIFIED — network:' "$LOGDIR/schema.log" && [ $tsc_red = 0 ] && [ $lint_red = 0 ]; then
+       if grep -q '^schema audit: UNVERIFIED — network:' "$LOGDIR/schema.log" && [ $tsc_red = 0 ] && [ $lint_red = 0 ] && [ $unit_block = 0 ]; then
          transient=1; say "$(grep '^schema audit:' "$LOGDIR/schema.log") — possible transient: re-run once"
        else
          schema_block=1; say "$(grep '^schema audit:' "$LOGDIR/schema.log")"; grep -E '^  ' "$LOGDIR/schema.log" | sed -n '1,10p'
@@ -315,7 +323,7 @@ cmd_check() {
     if ! run_timed build npm run build; then
       red=1; sigs build
       # Only the known Supabase/network blip counts as transient, and only when tsc + lint passed.
-      if [ $tsc_red = 0 ] && [ $lint_red = 0 ] && [ $acl_block = 0 ] && [ $rls_block = 0 ] && [ $schema_block = 0 ] && \
+      if [ $tsc_red = 0 ] && [ $lint_red = 0 ] && [ $unit_block = 0 ] && [ $acl_block = 0 ] && [ $rls_block = 0 ] && [ $schema_block = 0 ] && \
          grep -qE '^[[:space:]]*\[?[A-Za-z]*Error\]?:? .*(sitemap: .* failed after [0-9]+ attempts|fetch failed|getaddrinfo ENOTFOUND|connect ETIMEDOUT|read ECONNRESET|socket hang up)' "$LOGDIR/build.log"; then
         transient=1
         say "build failure matches the known Supabase/network blip — possible transient: re-run once"
@@ -327,7 +335,7 @@ cmd_check() {
 
   head_ "Result"
   if [ $red = 0 ] && [ $wipmode = 1 ]; then
-    say "EXPECTED-WIP: tsc + lint clean on $item's recorded WIP commit — build NOT run (this is never GREEN)"
+    say "EXPECTED-WIP: tsc + lint + unit tests clean on $item's recorded WIP commit — build NOT run (this is never GREEN)"
     return 10
   fi
   if [ $red = 0 ]; then
@@ -335,7 +343,7 @@ cmd_check() {
     else say "GREEN"; fi
     return 0
   fi
-  if [ $transient = 1 ] && [ $acl_block = 0 ] && [ $rls_block = 0 ] && [ $schema_block = 0 ]; then say "POSSIBLE TRANSIENT — re-run once; a second exit 3 in a row = treat as a regression (controlled stop, tell Roi)"; return 3; fi
+  if [ $transient = 1 ] && [ $unit_block = 0 ] && [ $acl_block = 0 ] && [ $rls_block = 0 ] && [ $schema_block = 0 ]; then say "POSSIBLE TRANSIENT — re-run once; a second exit 3 in a row = treat as a regression (controlled stop, tell Roi)"; return 3; fi
   if [ -n "$item" ]; then
     local fl="$WT/$H/feature_list.json"
     [ -f "$fl" ] || stop "--item given but $fl not found (run init.sh state first)"

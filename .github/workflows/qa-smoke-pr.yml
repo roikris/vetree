@@ -250,6 +250,12 @@ jobs:
         if: ${{ needs.scope.outputs.code != 'false' }}
         run: npm ci
 
+      # Unit tests (growth-002): tests/unit/*.test.ts — offline (no database, no network, no model, no Vercel CPU).
+      # A failure fails the required smoke check before the suite runs.
+      - name: Unit tests
+        if: ${{ needs.scope.outputs.code != 'false' }}
+        run: npm run test:unit
+
       - name: Install Playwright browsers
         if: ${{ needs.scope.outputs.code != 'false' }}
         run: npx playwright install --with-deps chromium

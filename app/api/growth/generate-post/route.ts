@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
 import { NextRequest, NextResponse } from 'next/server'
-import { makeLinkFree } from '@/lib/growth/linkFree'
+import { processModelPost, hookLineOf, isLinkFreePlatform } from '@/lib/growth/postProcess'
 import { ratelimitModerate, getClientIP } from '@/lib/ratelimit'
 import { createClient } from '@/lib/supabase/server'
 import { CLAUDE_MODEL, NO_UPFRONT_THINKING, responseText } from '@/lib/ai/model'
@@ -166,7 +166,7 @@ export async function POST(request: NextRequest) {
 
     // Facebook IL (social-001, social-002): no web link at all; the app appends the closing lines (short address +
     // WhatsApp Community) itself — see lib/growth/linkFree.ts
-    const linkFree = platform === 'facebook_il'
+    const linkFree = isLinkFreePlatform(platform)
 
     // Call Anthropic API to generate post for the selected article
     const Anthropic = (await import('@anthropic-ai/sdk')).default
@@ -454,19 +454,15 @@ Return ONLY the post text. Follow the platform rule exactly.`
       system: `You are a veterinary content writer. Write specific, clinically relevant posts for DVMs in small animal practice. ${language === 'he' ? 'Write in natural Hebrew.' : 'Write in English.'}${hotQueries.length > 0 ? `\n\nCurrent audience demand — topics your audience is actively searching for with no results yet: ${hotQueries.join(', ')}. If this article is directly relevant to any of these, make that connection explicit in your post (e.g. "Searching for answers on hyperthyroidism? This study..." but more natural). Otherwise, ignore this context.` : ''}`
     })
 
-    postContent = responseText(message)
-
-    // The model refused the article as large-animal — an error, never post content
-    if (postContent.includes('SKIP_LARGE_ANIMAL')) {
+    // Large-animal refusal → an error; facebook_il → link-free + its closing lines (lib/growth/postProcess.ts)
+    const processed = processModelPost(platform, responseText(message))
+    if (!processed.ok) {
       return NextResponse.json({
         error: 'Selected article is large-animal focused',
         details: `Claude declined article ${article.id}; generate again or pick another article`
       }, { status: 500 })
     }
-
-    // Facebook IL: guarantee the post is link-free whatever the model wrote — a stray link would spend one of the Page's
-    // two monthly links
-    if (linkFree) postContent = makeLinkFree(postContent)
+    postContent = processed.post
 
     // Twitter-specific length check
     if (platform === 'twitter' && postContent.length > 280) {
@@ -511,7 +507,7 @@ Return ONLY the shortened tweet (under 280 chars).`
     }
 
     // Extract hook line from generated content
-    hookLine = postContent.split('\n')[0].trim()
+    hookLine = hookLineOf(postContent)
 
     return NextResponse.json({
       post_content: postContent,

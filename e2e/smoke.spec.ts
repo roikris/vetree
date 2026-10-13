@@ -310,6 +310,58 @@ test('mobile article page: no horizontal scroll for guests', { tag: '@mobile-onl
   await expect(page.getByRole('button', { name: 'Share' })).toBeVisible()
 })
 
+// ─── "save it" hint for readers from the Facebook IL address / Page button (social-001) ─────────────────────
+// vetree.app/il tags the visit utm_content=page-button; only then a 15-second handwritten hint points at Save. It
+// never blocks the guest Save flow, never widens a phone page, is static under reduced motion, and its font (Caveat,
+// not preloaded) is fetched only when the hint shows. Phone only: the layout that matters, one run of Vercel CPU.
+// Two article visits only — a third would meet the guest article wall.
+test('save-it hint: only from the Page button, 15 s, never in the way', { tag: '@mobile-only' }, async ({ page, context, request }) => {
+  await clearCookiesKeepPreviewAccess(context)
+  const [id] = await sitemapArticleIds(request)
+  const fonts = (list: string[]) => (r: import('@playwright/test').Request) => {
+    if (/\/_next\/static\/media\/.+\.woff2/.test(r.url())) list.push(new URL(r.url()).pathname)
+  }
+  const hint = page.locator('[data-testid="save-hint"]')
+
+  // An ordinary visit: no hint, and note which font files load
+  const plain: string[] = []
+  page.on('request', fonts(plain))
+  await page.goto(`/article/${id}`)
+  await expect(page.locator('[data-testid="article-title"]')).toBeVisible()
+  await page.waitForLoadState('networkidle')
+  await expect(hint).toHaveCount(0)
+  page.removeAllListeners('request')
+
+  // From the Page button: the hint shows, an extra font (Caveat) loads, nothing scrolls sideways at 375 px
+  const tagged: string[] = []
+  page.on('request', fonts(tagged))
+  await page.clock.install()
+  await page.setViewportSize({ width: 375, height: 800 })
+  await page.goto(`/article/${id}?utm_source=facebook&utm_medium=social&utm_campaign=il&utm_content=page-button`)
+  await expect(hint).toBeVisible()
+  // stop the page's clock here (it runs in real time once installed); the hint mounted moments ago
+  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 100))
+  // (the test clock is frozen, so wait for the request itself rather than network idle)
+  await expect.poll(() => tagged.filter(f => !plain.includes(f)).length, { message: 'the hint\'s font loads only when the hint shows' }).toBeGreaterThan(0)
+  const m = await page.evaluate(() => ({ scrollW: document.documentElement.scrollWidth, innerW: window.innerWidth }))
+  expect(m.scrollW, 'the hint must not widen the page').toBeLessThanOrEqual(m.innerW)
+
+  // Reduced motion: drawn at once, no animation
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  expect(await hint.evaluate(el => getComputedStyle(el).animationName)).toBe('none')
+  await page.emulateMedia({ reducedMotion: 'no-preference' })
+
+  // While it shows, the guest Save button underneath still opens the sign-in prompt
+  await page.locator('[data-testid="appbar-save"]').click()
+  await expectSavePrompt(page, new RegExp(`/article/${id}`))
+
+  // Still there 10 s after it appeared, gone by 16 s
+  await page.clock.fastForward(10_000)
+  await expect(hint).toHaveCount(1)
+  await page.clock.fastForward(6_000)
+  await expect(hint).toHaveCount(0)
+})
+
 // /sitemap.xml is a sitemap index (app/sitemap.xml/route.ts); articles are in shards.
 // Follow the index to shard 0 by PATH — its <loc> is absolute https://vetree.app, which
 // would test production instead of the preview under test.
