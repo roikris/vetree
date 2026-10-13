@@ -465,3 +465,25 @@ Newest at the bottom. The same entries (latest few) appear in primer.md → Rece
 - Verification: n/a (state only) · Review: n/a (exception 1) · Commits / PR: state only.
 - Pending Roi: which address form shows no counter ('vetree . app/il', 'vetree(.)app/il', 'vetree נקודה app/il').
 - Next best step: social-002 (lock it, build, Codex tier 2).
+
+### Session 20261013-0829-claude-fb5e · 2026-10-13 · Claude Code · social-002 (closed)
+- Goal / Completed: Facebook IL posts now work from a reader's feed. Every facebook_il post ends with two lines the app
+  appends (the model stops at the 📄 title): `📲 … vetree . app/il …` — a typeable address Facebook doesn't detect, plus
+  the Page button as fallback — and `💬 …` with the Vetree WhatsApp Community invite link, the only link left in the post.
+  `makeLinkFree` drops copied / old / reworded closing lines (judged on text without links), keeps clinical text and the
+  title line, strips every other link. Roi's composer tests: the WhatsApp link and the spaced address show no counter;
+  `vetree.app/il` does.
+- Start state: main 4cf3963, branch fix/social-002-feed-reachable, clean; baseline init.sh check GREEN.
+- Verification: offline 44/44; init.sh check GREEN on each head; PR smoke + replay new / old pass; production cba7324,
+  home 200.
+- Review: Codex · tier 2 · 3 rounds · 35.3k / 21.4k / 32.2k ≈ 89k · BLOCKING: none (fixed on the way: exact-match-only
+  ending removal, clinical text deleted with a link — twice, the URL's own "whatsapp" counted as a mention; found myself:
+  short title line and "E.coli in cats" dropped).
+- Commits / PR: cd73b97, 2796a66, 4161229 → #131, merged as cba7324 on Roi's word.
+- Pending Roi approvals: none. Roi: generate a fresh Facebook IL post (earlier ones have the old 👆 ending); "Copy & mark
+  posted" before publishing; is facebook_intl link-limited too? Thursday's security scan; Vercel usage ~2026-10-14.
+- Known risks / unresolved: the Facebook rules come from secondary reports and Roi's composer tests, not Meta's docs —
+  Meta may change detection. generate-post/route.ts now has 3 changes in 7 days (rule 14 for the next).
+- Lesson: a heuristic that deletes whole lines must read its evidence from the text, not from what it is about to
+  remove (the invite URL itself says "whatsapp"); test the short cases, where word-count rules bite.
+- Next best step: growth-002 (Growth OS redesign for the daily all-platforms flow) — plan first, rule 14, Roi approves.

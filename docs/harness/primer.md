@@ -8,23 +8,23 @@ Routine: `docs/harness/README.md` on `main`. Pre-harness primer (frozen): root `
 ---
 
 ## 1. Current Verified State
-*Updated 2026-10-13 — Session 20261013-0828-claude-62c4 (social-002 added)*
+*Updated 2026-10-13 — Session 20261013-0829-claude-fb5e (social-002 closed)*
 
 - **Repo root:** `~/dev/vetree` · state worktree: `.harness-state/` (branch `harness-state`)
-- **main:** `4cf3963` (#129 + #130 Facebook IL link-free posts, vetree.app/il, "save it" hint, 2026-10-13; #127 schema audit + #128 replay safety, migrations 080–082 + 000 recorded, 2026-10-12; #126 unlock log guard, 2026-10-12; PRs #120–#125 least privilege + policy audit, migrations 075–079 applied, 2026-10-11; #119 lint cleanup, 2026-10-10; #118 build warnings / middleware → proxy, 2026-10-10; #117 init.sh lock / unlock, 2026-10-10; #116 "new this week" count, 2026-10-10; #115 shorter digest footer, 2026-10-09; #114 Search Console fixes, 2026-10-07; before it #113 access-control audit,
-  migration 074 applied) — last verified: production /api/version = 4cf3963, home 200; PR #130 smoke + replay new / old PASS
+- **main:** `cba7324` (#131 Facebook IL closing lines: typeable address + WhatsApp Community, 2026-10-13; #129 + #130 Facebook IL link-free posts, vetree.app/il, "save it" hint, 2026-10-13; #127 schema audit + #128 replay safety, migrations 080–082 + 000 recorded, 2026-10-12; #126 unlock log guard, 2026-10-12; PRs #120–#125 least privilege + policy audit, migrations 075–079 applied, 2026-10-11; #119 lint cleanup, 2026-10-10; #118 build warnings / middleware → proxy, 2026-10-10; #117 init.sh lock / unlock, 2026-10-10; #116 "new this week" count, 2026-10-10; #115 shorter digest footer, 2026-10-09; #114 Search Console fixes, 2026-10-07; before it #113 access-control audit,
+  migration 074 applied) — last verified: production /api/version = cba7324, home 200; PR #131 smoke + replay new / old PASS
 - **Standard startup:** `docs/harness/init.sh` (state, then check) — see README for exit codes. Take / release
   the lock only with `init.sh lock <item> --agent …` / `init.sh unlock "<message>"` (D12), never by hand
 - **Standard verification:** `docs/harness/init.sh check [--item <id>]`; build reads production
   Supabase (read-only); never Playwright as a baseline
-- **Highest-priority unfinished item:** **social-002** (Facebook IL posts usable from a reader's feed: typeable address + WhatsApp Community link + Page button; Roi 2026-10-13), then **growth-002** (Roi 2026-10-13: redesign Growth OS for the real daily flow — one
+- **Highest-priority unfinished item:** **growth-002** (Roi 2026-10-13: redesign Growth OS for the real daily flow — one
   article to every platform via Generate All, rotation deprecated — plus Codex's open test suggestions; plan first, rule
   14 for CampaignCalendar.tsx). feed-002 / admin-001 / scripts-001 need Roi's decisions; ai-001 parked (~2026-11-01).
 - **The daily posting flow (Roi, 2026-10-13):** every day ONE article is posted to EVERY platform (Generate All). The 90-day
   rotation is deprecated; a growth_agent_memory row's `platform` is the rotation's label, not where Roi posted (CLAUDE.md
   "Campaign Calendar").
 - **Current blocker:** none
-- **Open PRs awaiting Roi:** none · Roi: press "Copy & mark posted" once on today's post, tap vetree.app/il; is
+- **Open PRs awaiting Roi:** none · Roi: generate a fresh Facebook IL post (new ending), "Copy & mark posted" before publishing, tap vetree.app/il; is
   facebook_intl link-limited too? · the 4 dropped indexes stay dropped (Roi 2026-10-13) · check Vercel usage
   ~2026-10-14 (proxy now a Node function, build-001) · Thursday's security scan is the first after 079
 
@@ -214,6 +214,28 @@ works today was spot-checked in the code on 2026-10-05.
 (Newest first — only the latest 5 are kept here (D11); every entry, older ones included, is in
 `session-log.md`, which is never trimmed.)
 
+### Session 20261013-0829-claude-fb5e · 2026-10-13 · Claude Code · social-002 (closed)
+- Goal / Completed: Facebook IL posts now work from a reader's feed. Every facebook_il post ends with two lines the app
+  appends (the model stops at the 📄 title): `📲 … vetree . app/il …` — a typeable address Facebook doesn't detect, plus
+  the Page button as fallback — and `💬 …` with the Vetree WhatsApp Community invite link, the only link left in the post.
+  `makeLinkFree` drops copied / old / reworded closing lines (judged on text without links), keeps clinical text and the
+  title line, strips every other link. Roi's composer tests: the WhatsApp link and the spaced address show no counter;
+  `vetree.app/il` does.
+- Start state: main 4cf3963, branch fix/social-002-feed-reachable, clean; baseline init.sh check GREEN.
+- Verification: offline 44/44; init.sh check GREEN on each head; PR smoke + replay new / old pass; production cba7324,
+  home 200.
+- Review: Codex · tier 2 · 3 rounds · 35.3k / 21.4k / 32.2k ≈ 89k · BLOCKING: none (fixed on the way: exact-match-only
+  ending removal, clinical text deleted with a link — twice, the URL's own "whatsapp" counted as a mention; found myself:
+  short title line and "E.coli in cats" dropped).
+- Commits / PR: cd73b97, 2796a66, 4161229 → #131, merged as cba7324 on Roi's word.
+- Pending Roi approvals: none. Roi: generate a fresh Facebook IL post (earlier ones have the old 👆 ending); "Copy & mark
+  posted" before publishing; is facebook_intl link-limited too? Thursday's security scan; Vercel usage ~2026-10-14.
+- Known risks / unresolved: the Facebook rules come from secondary reports and Roi's composer tests, not Meta's docs —
+  Meta may change detection. generate-post/route.ts now has 3 changes in 7 days (rule 14 for the next).
+- Lesson: a heuristic that deletes whole lines must read its evidence from the text, not from what it is about to
+  remove (the invite URL itself says "whatsapp"); test the short cases, where word-count rules bite.
+- Next best step: growth-002 (Growth OS redesign for the daily all-platforms flow) — plan first, rule 14, Roi approves.
+
 ### Session 20261013-0828-claude-62c4 · 2026-10-13 · Claude Code · backlog (social-002 added)
 - Goal / Completed: Roi found that in a reader's feed the Facebook IL post's "the link is in the button at the top of
   the page" means nothing. Read secondary reports (not Meta's own pages): comment links now count; links to Meta apps
@@ -311,34 +333,3 @@ works today was spot-checked in the code on 2026-10-05.
   first (the "same length" case first stopped at the old entry grep); put the precondition on origin so only the
   new check can refuse.
 - Next best step: infra-003 (replay safety); feed-002 / admin-001 / scripts-001 need Roi's decisions.
-
-### Session 20261010-1903-claude-8c5f · 2026-10-10 → 2026-10-11 · Claude Code · infra-002 (closed)
-- Goal / Completed: least privilege for the Data API. Migration 075 + `rls-report` showed production's RLS policies;
-  076 closed topic_syntheses (anyone could read / insert / rewrite cached syntheses incl. query + user_id); 077 and 078
-  closed the four insert-anyone tables (synthesis_feedback, page_views, search_logs, analytics_events) after #122 moved
-  the tracking routes to the service role; 079 trimmed anon / authenticated grants to what their policies allow (no
-  TRUNCATE / TRIGGER / REFERENCES / MAINTAIN for either). Guard: `rls-audit` vs supabase/rls.json (32 tables, 40
-  policies) in init.sh check, PR smoke and daily, like acl-audit. 077 also fixed scan CHECK 9's table list (076 would
-  have raised a false "missing grants" on Thursday).
-- Start state: main 9429086, branch chore/infra-002-least-privilege, clean.
-- Verification: after every push acl-audit PASS 33/33 and rls-report as expected; tracking still records (count-only
-  reads, Roi's yes: 12 → 13 page views + 1 search after 078); check_table_grants() 0; Roi checked signed-in, admin and
-  guest pages after 079; rls selftest 57 (42 audit) + mutations caught; init.sh 5 audit scenarios; lock selftest
-  178/178; init.sh check GREEN; PR smoke ran rls audit PASS.
-- Review: Codex · tier 2 · 14 rounds over 6 PRs · 52.5k / 48.6k / 41.7k (#120), 45.7k (#121), 58.6k / 20.8k (#122),
-  66.7k / 20.9k (#123), 98.0k (#124), plan 54.4k / 24.9k + code 72.0k / 43.3k / 31.1k (#125) ≈ 679k · BLOCKING: none
-  (fixed on the way: rls-report accepted malformed reports; guard plan — missing env read as network, no rls.json
-  validation, empty snapshot; guard code — roles compared by joined string, snapshot errors outside the handler,
-  unescaped paths).
-- Commits / PR: #120 5e5cc4c, #121 4175a92, #122 e4a8995, #123 2fd4bef, #124 cbcf274, #125 5545ab5 — each merged on Roi's
-  word. Migrations 075–079 applied with Roi's yes each.
-- Pending Roi approvals: none. Roi: Thursday's security scan (first with 079's grants); Vercel usage ~2026-10-14.
-- Known risks / unresolved: a removed grant turns an empty RLS result into 42501 — guest paths were swept, admin
-  re-queue buttons now error (admin-001); anon keeps SELECT on saved_articles for Trending (feed-002); acl-audit prints
-  its --expected path unescaped (test-only option). Auto mode blocked the first 076 push and a prod probe script that
-  included an anon INSERT (my mistake — never probe with writes); Roi pushed on, the probe never ran. I named PR #124
-  before it existed. A reader's sign-up / login / reset at 07:50 UTC (WhatsApp link) was before 079 and ended signed in.
-- Lesson: before trimming a grant, sweep every guest / signed-in code path for that table — "no rows" becomes
-  "permission denied". fetch refuses some ports (9, discard): use a high port for an ECONNREFUSED test. Never compare
-  lists by joining them into one string.
-- Next best step: harness-004 (unlock refuses a shrunken session log), then infra-003; feed-002 / admin-001 need Roi.

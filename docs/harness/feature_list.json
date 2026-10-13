@@ -1245,11 +1245,42 @@
       "notes": "Named by Roi 2026-10-13 after social-001 (\"redesign the growth OS to match the current daily flow along with codex suggestions\"). Known today: the main Copy & mark posted labels rows with the rotation's platform; the Content Agent tab's Approve writes approved rows for its own article (would move /il); recordToMemory sends language 'en' for every platform. Ask Roi whether facebook_intl is under the same link limit."
     },
     {
-      "status": "in_progress",
-      "evidence": [],
+      "status": "merged",
+      "evidence": [
+        {
+          "date": "2026-10-13",
+          "session": "20261013-0829-claude-fb5e",
+          "sha": "4161229",
+          "command": "Roi's composer tests (Facebook IL Page, nothing published): chat.whatsapp.com invite link → no link counter; 'vetree.app/il' → counter; 'vetree . app/il' (spaces) → no counter",
+          "target": "production",
+          "outcome": "pass",
+          "approval": "Roi ran them",
+          "link": "PR #131"
+        },
+        {
+          "date": "2026-10-13",
+          "session": "20261013-0829-claude-fb5e",
+          "sha": "4161229",
+          "command": "makeLinkFree offline 44/44 (bare domains stripped, organism names kept, current / old / reworded closing lines → exactly one ending, clinical text before a link kept and stays hook_line, 📄 title line always kept, only the Community link left); init.sh check GREEN",
+          "target": "local",
+          "outcome": "pass",
+          "approval": "n/a",
+          "link": "PR #131"
+        },
+        {
+          "date": "2026-10-13",
+          "session": "20261013-0829-claude-fb5e",
+          "sha": "cba7324",
+          "command": "Codex tier 2: r1 35.3k (2 blocking) → r2 delta 21.4k (1 blocking) → r3 delta 32.2k BLOCKING: none; PR #131 smoke + replay new/old pass; merged as cba7324, production /api/version = cba7324, home 200",
+          "target": "production",
+          "outcome": "pass",
+          "approval": "Roi: \"merge\"",
+          "link": "PR #131"
+        }
+      ],
       "branch": "fix/social-002-feed-reachable",
-      "pr": null,
-      "head_sha": null,
+      "pr": 131,
+      "head_sha": "cba7324",
       "wip_sha": null,
       "expected_failures": [],
       "id": "social-002",
@@ -1281,7 +1312,7 @@
           "paid_calls": false
         }
       ],
-      "notes": "Named by Roi 2026-10-13 after social-001: in a reader's feed \"the button at the top of the page\" means nothing. Roi chose A + C and the WhatsApp Community (announcements group muted for members + a discussion group). Invite link given by Roi in chat (chat.whatsapp.com/…). Rule 14: generate-post/route.ts has 2 changes in 7 days (e05aae3, 9429086) → this is the 3rd; CampaignCalendar.tsx not touched. · claimed by 20261013-0829-claude-fb5e"
+      "notes": "Named by Roi 2026-10-13 after social-001: in a reader's feed \"the button at the top of the page\" means nothing. Roi chose A + C and the WhatsApp Community (announcements group muted for members + a discussion group). Invite link given by Roi in chat (chat.whatsapp.com/…). Rule 14: generate-post/route.ts has 2 changes in 7 days (e05aae3, 9429086) → this is the 3rd; CampaignCalendar.tsx not touched. · claimed by 20261013-0829-claude-fb5e · address form: 'vetree . app/il' (Roi's test). CLOSED 2026-10-13. Roi: generate a fresh Facebook IL post (earlier ones carry the old 👆 ending); mark posted before publishing."
     }
   ]
 }
