@@ -266,6 +266,17 @@ Article choice is shared with the recommendations panel: `rankGrowthCandidates()
 5. Check length limits (twitter ≤ 280), embed UTM in article URL
 6. Return `{ post_content, article_id, article_title, article_labels, crowd_favorite, hook_line, ... }`
 
+## Facebook IL posts carry no link (social-001, Roi 2026-10-12)
+Meta limits some business / creator Pages to two external links a month (in the post, possibly in comments too), and the
+Facebook IL Page posts every day. So `facebook_il` posts have **no URL, web address or domain name** — no 🔗 article
+link, no 💾 save link; they end with `👆 הקישור למאמר המלא — בכפתור בראש העמוד` ("the link is in the button at the top of
+the page"). The prompt asks for it and the route strips any link the model writes anyway (a stray one spends the Page's
+allowance). The Page's action button points at **`vetree.app/il`** (`app/il/route.ts`): a no-store 307 to the article last
+marked as posted for facebook_il (growth_agent_memory, outcome `approved`), tagged
+`utm_source=facebook&utm_medium=social&utm_campaign=il&utm_content=page-button`; a hidden article, no post or an error → the
+home page. Readers arriving that way see a 15-second handwritten "save it" hint at the Save button
+(`components/articles/SaveHint.tsx`). Mark the post as posted before publishing it, or the button opens yesterday's article.
+
 ## Recommendations panel (`/api/admin/growth/recommendations`)
 - 9 top picks + 1 **wildcard** (owner, 2026-10-01): drawn first from the bottom half of the scored
   pool, random position, shown as "🎲 Wildcard" — room for serendipity; a dismissal is training data
@@ -283,7 +294,7 @@ const platformRules = {
     BANNED PHRASES: "game changer", "major upgrade", "revolutionary", "groundbreaking",
     "excited to share", "proud to announce". Write like a colleague, not a marketer.`,
   facebook: 'Conversational, 100-200 words. Personal tone.',
-  facebook_il: 'Same as facebook but Hebrew. Natural clinical Hebrew.',
+  facebook_il: 'Same as facebook but Hebrew. Natural clinical Hebrew.',  // + NO link at all (social-001, below)
   whatsapp: 'Very short, casual. 50-80 words max. Hebrew for IL.',
   instagram: 'Hook + insight + hashtags. 100-150 words.',
   telegram: 'Informative. 100-150 words. Slightly technical ok.',

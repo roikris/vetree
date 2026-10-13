@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useAuth } from '@/lib/hooks/useAuth'
 import { useSavedArticles } from '@/lib/hooks/useSavedArticles'
 import { requestGuestSave } from '@/lib/saveIntent'
+import { SaveHint } from './SaveHint'
 
 type ArticleAppBarProps = {
   articleId: string
@@ -66,7 +67,8 @@ export function ArticleAppBar({ articleId, articleUrl, articleTitle }: ArticleAp
         </div>
 
         <div className="gap-2 md:gap-2.5" style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-          {/* Save button */}
+          {/* Save button (+ the "save it" hint for readers from the Facebook IL Page button) */}
+          <div style={{ position: 'relative' }}>
           <button
             onClick={() => user ? toggleSave(articleId) : requestGuestSave(articleId, { onArticlePage: true })}
             data-testid="appbar-save"
@@ -91,6 +93,8 @@ export function ArticleAppBar({ articleId, articleUrl, articleTitle }: ArticleAp
             </svg>
             <span className="hidden md:inline">{saved ? 'Saved' : 'Save'}</span>
           </button>
+          <SaveHint saved={saved} />
+          </div>
 
           {/* Share button */}
           <button

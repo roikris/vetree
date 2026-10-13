@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Copy, Check, Loader2 } from 'lucide-react'
 import { getCurrentCampaignDay, getWeekSchedule, getTodaysPlatform, CAMPAIGN_TOTAL_DAYS, PLATFORM_ROTATION } from '@/lib/growth-campaign'
 import { getTodaysTask, createTodaysTask, markTaskComplete, getCampaignStats } from '@/app/actions/admin'
@@ -59,6 +59,10 @@ export function CampaignCalendar() {
   const [markedPosted, setMarkedPosted] = useState(false)
   const [memoryWriteFailed, setMemoryWriteFailed] = useState(false)
   const [linkedinTabMarked, setLinkedinTabMarked] = useState(false)
+  // The article last marked as posted from the Facebook IL tab this session — vetree.app/il opens it (social-001)
+  // One 'approved' row per platform + article, whichever copy button is clicked and however often: the in-flight write
+  // is shared, a success is remembered, a failure lets the next click try again (/api/growth/feedback always inserts)
+  const approvedWrites = useRef(new Map<string, Promise<boolean>>())
   const [linkedinTabPostedUrl, setLinkedinTabPostedUrl] = useState('')
   const [linkedinTabSavedUrl, setLinkedinTabSavedUrl] = useState<string | null>(null)
   const [linkedinTabSavingUrl, setLinkedinTabSavingUrl] = useState(false)
@@ -560,7 +564,7 @@ export function CampaignCalendar() {
     const hookLine = generatedPost.split('\n').find(l => l.trim()) ?? undefined
 
     // Write memory row with hook_line — must succeed before marking posted
-    const ok = await recordToMemory(savedPostData.article_id, todaysPlatform?.platform || '', 'approved', undefined, hookLine)
+    const ok = await recordApprovedOnce(savedPostData.article_id, todaysPlatform?.platform || '', hookLine)
     if (!ok) {
       setMemoryWriteFailed(true)
       return
@@ -725,7 +729,7 @@ export function CampaignCalendar() {
     }
   }
 
-  // Copy for all-platforms tab view; marks posted when it's the LinkedIn tab.
+  // Copy for all-platforms tab view; marks posted when it's the LinkedIn or the Facebook IL tab.
   const handleCopyPlatformTab = async (platform: string) => {
     const post = allPlatformPosts[platform]
     if (!post) return
@@ -734,13 +738,25 @@ export function CampaignCalendar() {
     setTimeout(() => setMessage(null), 2000)
     if (platform === 'linkedin' && post.article_id) {
       const hookLine = (post.post_content as string).split('\n').find((l: string) => l.trim()) ?? undefined
-      const ok = await recordToMemory(post.article_id, 'linkedin', 'approved', undefined, hookLine)
+      const ok = await recordApprovedOnce(post.article_id, 'linkedin', hookLine)
       if (!ok) {
         setMessage({ type: 'error', text: '⚠️ Memory write failed — try again' })
         return
       }
       markAsApproved(today)
       setLinkedinTabMarked(true)
+      refreshStats()
+    }
+    // Facebook IL posts carry no link: the Page button (vetree.app/il) opens the article marked here — record it once
+    // per article, before the post goes out
+    if (platform === 'facebook_il' && post.article_id) {
+      const hookLine = (post.post_content as string).split('\n').find((l: string) => l.trim()) ?? undefined
+      const ok = await recordApprovedOnce(post.article_id, 'facebook_il', hookLine)
+      if (!ok) {
+        setMessage({ type: 'error', text: '⚠️ Not marked as posted — the Page button would open the previous article. Try again' })
+        return
+      }
+      setMessage({ type: 'success', text: '✅ Copied — the Page button (vetree.app/il) now opens this article' })
       refreshStats()
     }
   }
@@ -1231,6 +1247,18 @@ export function CampaignCalendar() {
     }
   }
 
+  const recordApprovedOnce = (articleId: string, platform: string, hookLine?: string): Promise<boolean> => {
+    const key = `${platform}:${articleId}`
+    const existing = approvedWrites.current.get(key)
+    if (existing) return existing
+    const write = recordToMemory(articleId, platform, 'approved', undefined, hookLine).then(ok => {
+      if (!ok) approvedWrites.current.delete(key)
+      return ok
+    })
+    approvedWrites.current.set(key, write)
+    return write
+  }
+
   // Save LinkedIn posted URL to growth_agent_memory for activity_id matching.
   // Accepts an optional url param so onPaste can pass the pasted value directly,
   // avoiding stale-closure issues with the postedUrl state variable.
@@ -1646,7 +1674,7 @@ export function CampaignCalendar() {
                   {allPlatformPosts[activePlatformTab].post_content}
                 </pre>
 
-                {/* Action row: Copy (+ mark posted for LinkedIn) */}
+                {/* Action row: Copy (+ mark posted for LinkedIn and Facebook IL) */}
                 <div className="flex items-center gap-2 mt-3 flex-wrap">
                   <button
                     type="button"
@@ -1654,7 +1682,7 @@ export function CampaignCalendar() {
                     className="flex items-center gap-1.5 text-sm text-zinc-400 hover:text-white cursor-pointer bg-zinc-700 hover:bg-zinc-600 px-3 py-1.5 rounded-md transition"
                   >
                     <Copy size={14} />
-                    {activePlatformTab === 'linkedin' ? 'Copy & mark posted' : 'Copy'}
+                    {activePlatformTab === 'linkedin' || activePlatformTab === 'facebook_il' ? 'Copy & mark posted' : 'Copy'}
                   </button>
                   {/* Image generation hidden — requires separate Google AI API billing */}
                 </div>
