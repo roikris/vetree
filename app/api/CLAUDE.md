@@ -272,10 +272,13 @@ Facebook IL Page posts every day. So `facebook_il` posts have **no URL, web addr
 link, no 💾 save link; they end with `👆 הקישור למאמר המלא — בכפתור בראש העמוד` ("the link is in the button at the top of
 the page"). The prompt asks for it and the route strips any link the model writes anyway (a stray one spends the Page's
 allowance). The Page's action button points at **`vetree.app/il`** (`app/il/route.ts`): a no-store 307 to the article last
-marked as posted for facebook_il (growth_agent_memory, outcome `approved`), tagged
+marked as posted on **any platform** (growth_agent_memory, newest `approved` row with an article — every day one article
+goes to every platform, see CLAUDE.md "Campaign Calendar"; the row's platform label is not trusted), tagged
 `utm_source=facebook&utm_medium=social&utm_campaign=il&utm_content=page-button`; a hidden article, no post or an error → the
 home page. Readers arriving that way see a 15-second handwritten "save it" hint at the Save button
-(`components/articles/SaveHint.tsx`). Mark the post as posted before publishing it, or the button opens yesterday's article.
+(`components/articles/SaveHint.tsx`). Mark today's post as posted (any platform's "Copy & mark posted") before publishing it, or the button opens yesterday's
+article. An Approve in the (unused) standalone Content Agent tab would also move the button — no "daily campaign" marker
+on the rows yet (growth-002).
 
 ## Recommendations panel (`/api/admin/growth/recommendations`)
 - 9 top picks + 1 **wildcard** (owner, 2026-10-01): drawn first from the bottom half of the scored

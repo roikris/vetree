@@ -8,9 +8,12 @@ export const dynamic = 'force-dynamic'
 
 // vetree.app/il — the Facebook IL Page's action button (social-001). Facebook limits some business / creator Pages to
 // two external links a month, so the daily Facebook IL post carries no link at all; its last line points readers to the
-// Page button, which sends them here. This forwards to the article most recently marked as posted for facebook_il
-// (Growth OS "Copy & mark posted" → growth_agent_memory, outcome 'approved'), tagged so analytics still attribute the
-// visit to Facebook IL. A hidden article, no post yet, or any error → the home page (same tags), never an error page.
+// Page button, which sends them here. Every day ONE article is posted to EVERY platform ("Generate All"; the daily
+// platform rotation is deprecated), so today's article = the one most recently marked as posted on ANY platform
+// (Growth OS "Copy & mark posted" → growth_agent_memory, outcome 'approved'). The record's platform label is not used:
+// the main button still labels it with the rotation's platform. Caveat: the standalone Content Agent tab's Approve
+// (unused, Roi 2026-10-13) also writes such a row, for its own article — there is no "daily campaign" marker yet (growth-002). Tagged so analytics still attribute the visit to
+// Facebook IL. A hidden article, no post yet, or any error → the home page (same tags), never an error page.
 const SITE = process.env.NEXT_PUBLIC_SITE_URL || 'https://vetree.app'
 const UTM = 'utm_source=facebook&utm_medium=social&utm_campaign=il&utm_content=page-button'
 
@@ -31,7 +34,6 @@ export async function GET(request: NextRequest) {
     const { data: post, error } = await supabase
       .from('growth_agent_memory')
       .select('article_id')
-      .eq('platform', 'facebook_il')
       .eq('outcome', 'approved')
       .not('article_id', 'is', null)
       .order('created_at', { ascending: false })
