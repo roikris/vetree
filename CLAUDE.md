@@ -403,11 +403,15 @@ const articleUrl = `https://vetree.app/article/${article.id}?${utmParams[platfor
   the Content Agent, not pre-written; the article_id is forced after the first generation.
 - **The 90-day platform rotation is deprecated** (since Generate All arrived, months before 2026-10): facebook_il →
   whatsapp → reddit → linkedin → facebook_intl → twitter → instagram → telegram → tiktok → threads. Its code is still in
-  `CampaignCalendar.tsx` (`todaysPlatform` / `todaysTask`, pure JS, no DB) and still labels records: the main "Copy &
+  `CampaignCalendar.tsx` (`todaysPlatform`, pure JS from the day number; `todaysTask` is a growth_tasks row created /
+  completed by the main button) and still labels records: the main "Copy &
   mark posted" button saves the growth_agent_memory row under **the rotation's platform**, not where Roi posted. So never
   read a row's `platform` as "posted on that platform", and never treat the rotation as the platform of the day.
   "Today's article" = the newest `approved` row with an article, whatever its platform (`app/il/route.ts`). Removing the
   rotation and relabelling the records is the Growth OS redesign (growth-002).
+- **The standalone Content Agent tab is unused (Roi, 2026-10-13)** — it picks its own article and its Approve also saves
+  an `approved` row, which would move the Facebook IL Page button (`vetree.app/il`) to that article. Records carry no
+  "daily campaign" marker yet; growth-002 removes or reworks the tab and adds one.
 - Persisted in localStorage:
   - `vetree_campaign_post_YYYY-MM-DD` (the main post, labelled with the rotation's platform)
   - `vetree_campaign_post_YYYY-MM-DD_[platform]` (all platforms)

@@ -277,7 +277,8 @@ goes to every platform, see CLAUDE.md "Campaign Calendar"; the row's platform la
 `utm_source=facebook&utm_medium=social&utm_campaign=il&utm_content=page-button`; a hidden article, no post or an error → the
 home page. Readers arriving that way see a 15-second handwritten "save it" hint at the Save button
 (`components/articles/SaveHint.tsx`). Mark today's post as posted (any platform's "Copy & mark posted") before publishing it, or the button opens yesterday's
-article.
+article. An Approve in the (unused) standalone Content Agent tab would also move the button — no "daily campaign" marker
+on the rows yet (growth-002).
 
 ## Recommendations panel (`/api/admin/growth/recommendations`)
 - 9 top picks + 1 **wildcard** (owner, 2026-10-01): drawn first from the bottom half of the scored
