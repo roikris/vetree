@@ -8,16 +8,19 @@ Routine: `docs/harness/README.md` on `main`. Pre-harness primer (frozen): root `
 ---
 
 ## 1. Current Verified State
-*Updated 2026-10-14 — Session 20261014-0538-claude-a04e (admin-002 closed; admin-001 closed as removed)*
+*Updated 2026-10-14 — Session 20261014-1443-claude-dbb9 (perf-001 merged; CPU monitoring open)*
 
 - **Repo root:** `~/dev/vetree` · state worktree: `.harness-state/` (branch `harness-state`)
-- **main:** `edf2009` (#135 admin Pipeline rebuilt as the Slack messages expanded, Article Health removed, 2026-10-14; #134 daily reminder counts run 2 + excludes the test account, weekly AI report hidden, Overview removed, 2026-10-14; #133 Growth OS daily posts panel, one article → every platform, 2026-10-13; #132 unit tests in init.sh check + PR smoke, 2026-10-13; #131 Facebook IL closing lines: typeable address + WhatsApp Community, 2026-10-13; #129 + #130 Facebook IL link-free posts, vetree.app/il, "save it" hint, 2026-10-13; #127 schema audit + #128 replay safety, migrations 080–082 + 000 recorded, 2026-10-12; #126 unlock log guard, 2026-10-12; PRs #120–#125 least privilege + policy audit, migrations 075–079 applied, 2026-10-11; #119 lint cleanup, 2026-10-10; #118 build warnings / middleware → proxy, 2026-10-10; #117 init.sh lock / unlock, 2026-10-10; #116 "new this week" count, 2026-10-10; #115 shorter digest footer, 2026-10-09; #114 Search Console fixes, 2026-10-07; before it #113 access-control audit,
-  migration 074 applied) — last verified: production /api/version = edf2009, home 200; PR #135 smoke + replay new / old PASS
+- **main:** `181c207` (#136 proxy runs only with the Supabase session cookie, perf-001, 2026-10-14; #135 admin Pipeline rebuilt as the Slack messages expanded, Article Health removed, 2026-10-14; #134 daily reminder counts run 2 + excludes the test account, weekly AI report hidden, Overview removed, 2026-10-14; #133 Growth OS daily posts panel, one article → every platform, 2026-10-13; #132 unit tests in init.sh check + PR smoke, 2026-10-13; #131 Facebook IL closing lines: typeable address + WhatsApp Community, 2026-10-13; #129 + #130 Facebook IL link-free posts, vetree.app/il, "save it" hint, 2026-10-13; #127 schema audit + #128 replay safety, migrations 080–082 + 000 recorded, 2026-10-12; #126 unlock log guard, 2026-10-12; PRs #120–#125 least privilege + policy audit, migrations 075–079 applied, 2026-10-11; #119 lint cleanup, 2026-10-10; #118 build warnings / middleware → proxy, 2026-10-10; #117 init.sh lock / unlock, 2026-10-10; #116 "new this week" count, 2026-10-10; #115 shorter digest footer, 2026-10-09; #114 Search Console fixes, 2026-10-07; before it #113 access-control audit,
+  migration 074 applied) — last verified: production /api/version = 181c207, home 200, /login 200; PR #136 smoke + replay new / old PASS
 - **Standard startup:** `docs/harness/init.sh` (state, then check) — see README for exit codes. Take / release
   the lock only with `init.sh lock <item> --agent …` / `init.sh unlock "<message>"` (D12), never by hand
 - **Standard verification:** `docs/harness/init.sh check [--item <id>]` (now incl. `npm run test:unit`, hard RED); build
   reads production Supabase (read-only); never Playwright as a baseline
-- **Highest-priority unfinished item:** none ready — feed-002 / scripts-001 need Roi's decisions; ai-001 parked
+- **Vercel CPU (perf-001, 2026-10-14):** Hobby Fluid Active CPU was 4h 50m / 4h (30 days). #136: the proxy runs only
+  with `sb-<ref>-auth-token` or its `.0` chunk. Watch the usage chart 2026-10-15..17 (proxy row down, < ~8 min/day);
+  if not enough → option B (article ISR). PR rule: drafts until done, ready once, never re-run a passing suite.
+- **Highest-priority unfinished item:** perf-001 monitoring (read the usage chart 2026-10-15..17); otherwise none ready — feed-002 / scripts-001 need Roi's decisions; ai-001 parked
   (~2026-11-01); making the weekly AI report usable is a later item. Ask Roi.
 - **Admin panel (admin-002, Roi 2026-10-14):** /admin lands on Analytics; the weekly AI report is hidden (its Friday job
   still runs); /admin/pipeline = the Slack messages expanded (GET /api/admin/pipeline/status) — no Article Health, no
@@ -28,9 +31,8 @@ Routine: `docs/harness/README.md` on `main`. Pre-harness primer (frozen): root `
   article + platform + Israel day. Rows before 2026-10-13 carry the deprecated rotation's platform label.
 - **Current blocker:** none
 - **Open PRs awaiting Roi:** none · Roi: the 2026-10-15 Slack reminder should read Day 16/90 with no "not excluded"
-  note · 3 ai_refused articles wait for `npm run enrich:refused` · first daily posting with the new panel, then (his
-  yes) a read-only check of today's approved rows + vetree.app/il · check Vercel usage ~2026-10-14 (proxy now a Node
-  function, build-001) · Thursday's security scan is the first after 079 · the 4 dropped indexes stay dropped (Roi
+  note · first daily posting with the new panel, then (his
+  yes) a read-only check of today's approved rows + vetree.app/il · Thursday's security scan is the first after 079 · the 4 dropped indexes stay dropped (Roi
   2026-10-13)
 
 ## 2. Open Issues & Known Risks
@@ -219,6 +221,35 @@ works today was spot-checked in the code on 2026-10-05.
 (Newest first — only the latest 5 are kept here (D11); every entry, older ones included, is in
 `session-log.md`, which is never trimmed.)
 
+### Session 20261014-1443-claude-dbb9 · 2026-10-14 · Claude Code · perf-001 (merged; monitoring open)
+- Goal / Completed: Roi saw Vercel meters trending up. Read-only usage scan (his browser): Fluid Active CPU 4h 50m / 4h
+  (Hobby, 30 days) — proxy ("middleware") 2h 6m (43.6%), functions 2h 43m; daily ~5 → 9–13 min. Causes: the proxy ran
+  on every page request (a billed Node invocation even with no session cookie); /article/[id] and / are 0% cached
+  (cookies() / force-dynamic); preview smoke traffic ~2x production's. Roi chose C now (memory rule: PRs stay drafts
+  until done, ready once, no repeat suites) and A next: #136 — proxy matcher runs only with the Supabase session cookie
+  `sb-<ref>-auth-token` or its `.0` chunk (Next matches cookie keys literally, static config); tests/unit/proxy.test.ts;
+  CLAUDE.md Auth & Roles note. Also: merged #135 (admin-002 handoff in the previous entry); Roi ran
+  `npm run enrich:refused` himself (from ~/dev/vetree; "saved 3").
+- Start state: main edf2009, clean; lock taken for perf-001 (init.sh generated the session id dbb9).
+- Verification: built functions-config-manifest carries both `has` entries; proxy tests 4/4, failing on the old matcher
+  and with `.0` removed; init.sh check GREEN on faf0a9b and a749e08; PR smoke (signed-in tests incl.) + replay new / old
+  + Vercel pass on a749e08 (one suite run after ready); squash-merged at a749e08 as 181c207; production /api/version =
+  181c207, home 200, /login 200. Not verified yet: the CPU drop (Vercel usage chart, 2026-10-15..17).
+- Review: Codex · tier 2 (auth path) · plan 1 round 72.9k · code 1 round 59.5k ≈ 132k · BLOCKING: none (folded into the
+  plan: match the chunked cookie, an early return saves nothing, ISR needs a failure + invalidation policy; NB applied:
+  tests build their cookie keys independently of the config).
+- Commits / PR: faf0a9b, a749e08 → #136 merged 181c207 on Roi's word ("merge").
+- Pending Roi approvals: none. Roi: check the Vercel usage chart (or ask me) 2026-10-15..17 — proxy row down, daily
+  < ~8 min; tomorrow's Slack reminder (Day 16/90, no "not excluded" note); daily posting; Thursday's security scan; 37
+  unseen Vercel notifications (look for a usage notice).
+- Known risks / unresolved: the project ref is hard-coded in proxy.ts (the unit test guards it); a cookie name change in
+  @supabase/ssr would silently skip the proxy (signed-in smoke would catch session loss); Hobby observability keeps only
+  12 h, so per-route monthly totals aren't available.
+- Lesson: an early return inside middleware is not free — the invocation is the cost; filter in the matcher. Separate
+  preview from production traffic before blaming a route.
+- Next best step: read the usage chart 2026-10-15..17; if still over, option B (article ISR with an anonymous loader,
+  client-side guest wall, throw on transient errors, revalidate on delete), then OG image cost; home page last.
+
 ### Session 20261014-0538-claude-a04e · 2026-10-14 · Claude Code · admin-002 (closed; admin-001 closed as removed)
 - Goal / Completed: Roi asked to rethink the admin panel ("article health is part of an older version … reconsider if
   it's even needed"). A read-only usage pass (Roi's yes) showed 21,056 articles, 3 hidden (all ai_refused), and the
@@ -328,34 +359,3 @@ works today was spot-checked in the code on 2026-10-05.
 - Verification: n/a (state only) · Review: n/a (exception 1) · Commits / PR: state only.
 - Pending Roi: which address form shows no counter ('vetree . app/il', 'vetree(.)app/il', 'vetree נקודה app/il').
 - Next best step: social-002 (lock it, build, Codex tier 2).
-
-### Session 20261012-1839-claude-df86 · 2026-10-12 → 2026-10-13 · Claude Code · social-001 (closed)
-- Goal / Completed: Facebook lets some business / creator Pages attach only 2 external links a month; the Facebook IL
-  Page posts daily. Roi chose design A: facebook_il posts carry no link (prompt + `lib/growth/linkFree.ts` strips any URL /
-  bare domain, keeps organism names like E.coli) and end with a line pointing at the Page button; the button (set by Roi)
-  → `vetree.app/il` (`app/il/route.ts`, no-store 307 to today's article, UTM utm_content=page-button, home on any
-  problem); readers arriving that way get a 15-s handwritten "save it" hint with sun rays at the Save button
-  (`components/articles/SaveHint.tsx`, preview artifact for Roi); the Facebook IL tab in Generate All now "Copy & mark
-  posted" (one approval row per post, shared guard). Roi then made the daily flow explicit: **every day ONE article to
-  EVERY platform via Generate All; the 90-day rotation is deprecated** → #130: /il takes the newest approved row with an
-  article on any platform; CLAUDE.md "Campaign Calendar" rewritten.
-- Start state: main 342cacb, branch fix/social-001-facebook-links, clean; baseline init.sh check GREEN.
-- Verification: linkFree 23/23 offline; guard simulation (3 clicks → 1 write; failure → retry); Playwright screenshots
-  (hint only from the Page button, no overflow, gone ~15 s); init.sh check GREEN on both heads; PR smoke + replay pass on
-  both; production e05aae3 then 4cf3963 (/api/version), home 200. Roi tapped /il after #129: a months-old article (rows
-  labelled facebook_il only on the rotation's day) → #130. /il after #130 not re-checked by me: the read-only prod query
-  for the last posted rows was blocked by auto mode despite Roi's yes; I left it.
-- Review: Codex · tier 2 · #129 code 3 rounds 65.9k / 36.8k / 24.9k (+28.1k attempt lost to the ChatGPT usage limit,
-  re-run after the reset) · #130 code 2 rounds 46.7k / 30.0k ≈ 232k · BLOCKING: none (fixed on the way: bare domains,
-  Facebook IL tab not recorded, limiter outside the fallback, organism names stripped, double approval rows; accepted by
-  Roi: Content Agent approvals would move /il — tab unused, documented, growth-002).
-- Commits / PR: 66853bc, 5398bf5, 512e549 → #129 merged e05aae3; 77c6333 + e7476a8 → #130 merged 4cf3963 — each on Roi's word.
-- Pending Roi approvals: none. Roi: press "Copy & mark posted" once on today's post and tap vetree.app/il (yesterday's
-  pubmed-42806282 may never have been saved as posted); is facebook_intl under the same link limit? Thursday's security
-  scan; Vercel usage ~2026-10-14. The 4 dropped indexes stay dropped (Roi, 2026-10-13).
-- Known risks / unresolved: CampaignCalendar.tsx had 3 fixes in 7 days (rule 14 applies to the next one); records'
-  platform label is the rotation's, not where Roi posted; `next dev` rewrites AGENTS.md (restore it, never commit it).
-- Lesson: docs can describe a flow the owner abandoned months ago — before building on "how it works", ask how Roi
-  actually does it today. A fix that widens a pattern (any bare domain) needs its false-positive cases tested too.
-- Next best step: growth-002 (Growth OS redesign for the daily all-platforms flow + Codex's open test suggestions) —
-  plan first, rule 14 assessment, Roi approves.

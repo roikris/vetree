@@ -564,3 +564,32 @@ Newest at the bottom. The same entries (latest few) appear in primer.md → Rece
   reminder script, not the weekly report I first named; find the writer before fixing the reader. Before keeping a
   repair tool, count what it would touch: Article Health's buttons would have re-enriched ~20.7k live articles.
 - Next best step: feed-002 / scripts-001 need Roi's decisions; ai-001 ~2026-11-01; the weekly AI report later.
+
+### Session 20261014-1443-claude-dbb9 · 2026-10-14 · Claude Code · perf-001 (merged; monitoring open)
+- Goal / Completed: Roi saw Vercel meters trending up. Read-only usage scan (his browser): Fluid Active CPU 4h 50m / 4h
+  (Hobby, 30 days) — proxy ("middleware") 2h 6m (43.6%), functions 2h 43m; daily ~5 → 9–13 min. Causes: the proxy ran
+  on every page request (a billed Node invocation even with no session cookie); /article/[id] and / are 0% cached
+  (cookies() / force-dynamic); preview smoke traffic ~2x production's. Roi chose C now (memory rule: PRs stay drafts
+  until done, ready once, no repeat suites) and A next: #136 — proxy matcher runs only with the Supabase session cookie
+  `sb-<ref>-auth-token` or its `.0` chunk (Next matches cookie keys literally, static config); tests/unit/proxy.test.ts;
+  CLAUDE.md Auth & Roles note. Also: merged #135 (admin-002 handoff in the previous entry); Roi ran
+  `npm run enrich:refused` himself (from ~/dev/vetree; "saved 3").
+- Start state: main edf2009, clean; lock taken for perf-001 (init.sh generated the session id dbb9).
+- Verification: built functions-config-manifest carries both `has` entries; proxy tests 4/4, failing on the old matcher
+  and with `.0` removed; init.sh check GREEN on faf0a9b and a749e08; PR smoke (signed-in tests incl.) + replay new / old
+  + Vercel pass on a749e08 (one suite run after ready); squash-merged at a749e08 as 181c207; production /api/version =
+  181c207, home 200, /login 200. Not verified yet: the CPU drop (Vercel usage chart, 2026-10-15..17).
+- Review: Codex · tier 2 (auth path) · plan 1 round 72.9k · code 1 round 59.5k ≈ 132k · BLOCKING: none (folded into the
+  plan: match the chunked cookie, an early return saves nothing, ISR needs a failure + invalidation policy; NB applied:
+  tests build their cookie keys independently of the config).
+- Commits / PR: faf0a9b, a749e08 → #136 merged 181c207 on Roi's word ("merge").
+- Pending Roi approvals: none. Roi: check the Vercel usage chart (or ask me) 2026-10-15..17 — proxy row down, daily
+  < ~8 min; tomorrow's Slack reminder (Day 16/90, no "not excluded" note); daily posting; Thursday's security scan; 37
+  unseen Vercel notifications (look for a usage notice).
+- Known risks / unresolved: the project ref is hard-coded in proxy.ts (the unit test guards it); a cookie name change in
+  @supabase/ssr would silently skip the proxy (signed-in smoke would catch session loss); Hobby observability keeps only
+  12 h, so per-route monthly totals aren't available.
+- Lesson: an early return inside middleware is not free — the invocation is the cost; filter in the matcher. Separate
+  preview from production traffic before blaming a route.
+- Next best step: read the usage chart 2026-10-15..17; if still over, option B (article ISR with an anonymous loader,
+  client-side guest wall, throw on transient errors, revalidate on delete), then OG image cost; home page last.
