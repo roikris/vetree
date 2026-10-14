@@ -76,11 +76,12 @@ nothing outside production.
 
 ---
 
-### `growth-daily-reminder.yml` — Content Post Reminder
-**Schedule:** 03:00 UTC daily (06:00 Israel time)
+### `growth-daily-reminder.yml` — Synthesis Experiment Daily Status
+**Schedule:** 03:00 UTC daily (06:00 Israel time in summer, 05:00 in winter)
 
-Posts a Slack reminder to generate and approve the day's content post.
-todaysTask is determined by pure JS 90-day rotation, NOT from DB.
+Posts the synthesis auto-run experiment's day (run 2, 2026-09-29 → 2026-12-27) and key numbers vs the
+pre-experiment baseline to Slack — the same window, baseline and day counter as `/admin/campaign`
+(`lib/synthesis/experiment.ts`; `tests/unit/experiment.test.ts` keeps the script's copy in step).
 
 ---
 

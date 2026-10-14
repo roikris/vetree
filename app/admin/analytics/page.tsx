@@ -2,7 +2,6 @@ import { getAnalyticsOverview, getTopPages, getVisitorsOverTime, getTopArticles,
 import { AnalyticsClient } from './AnalyticsClient'
 import { UserRetention } from './UserRetention'
 import { ActivationMetrics } from './ActivationMetrics'
-import { AnalysisAgent } from './AnalysisAgent'
 import { LinkedInSection } from './LinkedInSection'
 import { PaidCampaigns } from './PaidCampaigns'
 
@@ -85,9 +84,8 @@ export default async function AdminAnalyticsPage() {
         <ActivationMetrics />
       </div>
 
-      <div style={{ marginTop: 32 }}>
-        <AnalysisAgent />
-      </div>
+      {/* The weekly AI report (AnalysisAgent.tsx) is hidden until it's made usable (Roi, 2026-10-14);
+          the Friday job still runs and posts its summary to Slack. */}
 
       <div style={{ marginTop: 32 }}>
         <LinkedInSection />
