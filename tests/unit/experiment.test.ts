@@ -75,7 +75,26 @@ test('ended: decided by the send time, not the snapshot; snapshots after the win
   assert.match(msg, /Latest snapshot: 2026-12-20/)
 })
 
-test('a missing TEST_USER_ID is said, not hidden', () => {
+test('an unknown test account id is said, not hidden', () => {
   const { msg } = reminder.buildMessage({ rows: [snap('2026-10-13', 20)], engagedTotal: 5, now: new Date('2026-10-14T03:00:00Z'), testUserExcluded: false })
-  assert.match(msg, /test account not excluded — TEST_USER_ID not set/)
+  assert.match(msg, /test account not excluded — its id could not be found/)
+})
+
+test('test account id: TEST_USER_ID first, else found by email (paged, case-insensitive), else null', async () => {
+  const pages = [
+    Array.from({ length: 1000 }, (_, i) => ({ id: `u${i}`, email: `user${i}@example.com` })),
+    [{ id: 'qa-id', email: 'QA@Example.com' }],
+  ]
+  const calls: number[] = []
+  const fake = { auth: { admin: { listUsers: async ({ page }: { page: number }) => {
+    calls.push(page); return { data: { users: pages[page - 1] ?? [] }, error: null }
+  } } } }
+  assert.equal(await reminder.resolveTestUserId(fake, { TEST_USER_ID: ' set-id ' }), 'set-id')
+  assert.deepEqual(calls, [])
+  assert.equal(await reminder.resolveTestUserId(fake, { TEST_USER_EMAIL: 'qa@example.com' }), 'qa-id')
+  assert.deepEqual(calls, [1, 2])
+  assert.equal(await reminder.resolveTestUserId(fake, { TEST_USER_EMAIL: 'nobody@example.com' }), null)
+  assert.equal(await reminder.resolveTestUserId(fake, {}), null)
+  const failing = { auth: { admin: { listUsers: async () => ({ data: null, error: { message: 'boom' } }) } } }
+  assert.equal(await reminder.resolveTestUserId(failing, { TEST_USER_EMAIL: 'qa@example.com' }), null)
 })

@@ -14,7 +14,7 @@ const BASELINE_END = '2026-06-19'
 // still contain days from before run 2
 const WARMUP_DAYS = 30
 // Excluded accounts, as lib/analytics-excluded-ids.ts: the admin, plus the smoke-test account
-// (TEST_USER_ID) — its ordinary production visits are recorded like anyone's
+// (TEST_USER_ID, or found from TEST_USER_EMAIL) — its ordinary production visits are recorded like anyone's
 const ADMIN_USER_ID = '90cb8294-b593-4144-a9f5-23ca52dd5e35'
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -124,7 +124,7 @@ function buildMessage({ rows, engagedTotal, now, testUserExcluded = true }) {
     msg += `${fmtSec(todayMedian)}  _(baseline ${fmtSec(baselineMedian)},_ ${fmtDelta(medianDelta)}_)_\n`
 
     msg += `${verdictEmoji(null)} *Synthesis engaged:*  `
-    msg += `${engagedTotal ?? '— (count failed)'} run-2 total  _(new metric${testUserExcluded ? '' : '; test account not excluded — TEST_USER_ID not set'})_\n`
+    msg += `${engagedTotal ?? '— (count failed)'} run-2 total  _(new metric${testUserExcluded ? '' : '; test account not excluded — its id could not be found'})_\n`
 
     msg += `${verdictEmoji(mauDelta)} *Registered MAU:*  `
     msg += `${todayRegisteredMau ?? '—'}  _(baseline ${Math.round(baselineRegisteredMau)},_ ${fmtDelta(mauDelta)}_)_\n`
@@ -141,6 +141,25 @@ function buildMessage({ rows, engagedTotal, now, testUserExcluded = true }) {
   msg += `━━━━━━━━━━━━━━━\n`
   msg += `<https://vetree.app/admin/campaign|View campaign dashboard →>`
   return { msg, day, state }
+}
+
+/**
+ * The smoke-test account's id: TEST_USER_ID when set, else looked up (read-only) from
+ * TEST_USER_EMAIL — GitHub has the email secret, and Vercel won't reveal the id. null if neither works.
+ */
+async function resolveTestUserId(supabase, env) {
+  if ((env.TEST_USER_ID || '').trim()) return env.TEST_USER_ID.trim()
+  const email = (env.TEST_USER_EMAIL || '').trim().toLowerCase()
+  if (!email) return null
+  for (let page = 1; page <= 20; page++) {
+    const { data, error } = await supabase.auth.admin.listUsers({ page, perPage: 1000 })
+    if (error) { console.error('test account lookup failed:', error.message); return null }
+    const hit = data.users.find(u => (u.email || '').toLowerCase() === email)
+    if (hit) return hit.id
+    if (data.users.length < 1000) break
+  }
+  console.error('test account lookup: no user with TEST_USER_EMAIL')
+  return null
 }
 
 async function sendDailyReminder() {
@@ -169,13 +188,15 @@ async function sendDailyReminder() {
 
     if (error) throw new Error(`Supabase error: ${error.message}`)
 
+    const testUserId = await resolveTestUserId(supabase, process.env)
+
     // Run-2 human engagement from raw events, as lib/analytics/synthesisEvents.ts counts it
     const { count, error: countError } = await supabase.from('analytics_events')
       .select('id', { count: 'exact', head: true })
       .eq('event_name', 'synthesis_engaged')
       .is('bot_name', null)
       .is('traffic_class', null)
-      .or(excludedUsersOrFilter(process.env.TEST_USER_ID))
+      .or(excludedUsersOrFilter(testUserId))
       .gte('created_at', `${KICKOFF_DATE}T00:00:00Z`)
       .lt('created_at', new Date(utcMidnight(END_DATE) + DAY_MS).toISOString())
     if (countError) console.error('synthesis_engaged count failed:', countError.message)
@@ -184,7 +205,7 @@ async function sendDailyReminder() {
       rows: rows || [],
       engagedTotal: countError ? null : (count ?? 0),
       now: new Date(),
-      testUserExcluded: Boolean((process.env.TEST_USER_ID || '').trim()),
+      testUserExcluded: Boolean(testUserId),
     })
 
     const response = await fetch(slackWebhookUrl, {
@@ -203,6 +224,6 @@ async function sendDailyReminder() {
   }
 }
 
-module.exports = { KICKOFF_DATE, END_DATE, TOTAL_DAYS, BASELINE_START, BASELINE_END, dayNumber, phase, buildMessage, excludedUsersOrFilter }
+module.exports = { KICKOFF_DATE, END_DATE, TOTAL_DAYS, BASELINE_START, BASELINE_END, dayNumber, phase, buildMessage, excludedUsersOrFilter, resolveTestUserId }
 
 if (require.main === module) sendDailyReminder()

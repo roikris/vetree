@@ -32,5 +32,7 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          TEST_USER_ID: ${{ secrets.TEST_USER_ID }}  # the smoke-test account, excluded from the counts
+          # The smoke-test account, excluded from the counts: its id, or found from its email
+          TEST_USER_ID: ${{ secrets.TEST_USER_ID }}
+          TEST_USER_EMAIL: ${{ secrets.TEST_USER_EMAIL }}
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
