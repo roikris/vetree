@@ -53,6 +53,12 @@ async function handle(request: NextRequest) {
   return response
 }
 
+// Only requests that carry a Supabase session cookie run the proxy (perf-001): everyone else — most readers and every
+// crawler — has nothing to refresh or verify (updateSession() returned straight away for them), yet each run was a
+// billed Node invocation: 43.6% of the 30-day Fluid Active CPU to 2026-10-14.
+// The cookie is `sb-<project ref>-auth-token`, or `.0`, `.1`, … when @supabase/ssr splits a long one — a split session
+// always has `.0`. Next matches cookie keys literally and needs a static config, so the project ref is written out
+// (tests/unit/proxy.test.ts checks it against NEXT_PUBLIC_SUPABASE_URL, or CLAUDE.md's project ID).
 export const config = {
   matcher: [
     /*
@@ -70,6 +76,13 @@ export const config = {
      * - api (API routes — each does its own auth, see app/api/CLAUDE.md)
      * - raster image files
      */
-    '/((?!_next/static|_next/image|favicon\\.ico|robots\\.txt|sitemap\\.xml|sitemaps/|manifest\\.json|sw\\.js|.*opengraph-image|api|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    {
+      source: '/((?!_next/static|_next/image|favicon\\.ico|robots\\.txt|sitemap\\.xml|sitemaps/|manifest\\.json|sw\\.js|.*opengraph-image|api|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+      has: [{ type: 'cookie', key: 'sb-gnykidzijppxvrvvchxq-auth-token' }],
+    },
+    {
+      source: '/((?!_next/static|_next/image|favicon\\.ico|robots\\.txt|sitemap\\.xml|sitemaps/|manifest\\.json|sw\\.js|.*opengraph-image|api|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+      has: [{ type: 'cookie', key: 'sb-gnykidzijppxvrvvchxq-auth-token.0' }],
+    },
   ],
 }
