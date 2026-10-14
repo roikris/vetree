@@ -1453,7 +1453,7 @@
       "type": "investigation",
       "title": "Vercel Fluid Active CPU over the Hobby limit (4h 50m / 4h, 30 days to 2026-10-14): find what drives it, then cut it",
       "user_visible_behavior": "none directly — the site stays inside Vercel Hobby's 4h CPU allowance (no throttling / pause risk)",
-      "status": "in_progress",
+      "status": "passing",
       "verification": [
         {
           "step": "Read-only investigation: Vercel usage + observability (Roi's browser, read only), proxy matcher, which pages render dynamically, smoke / replay run counts per day; findings + options to Roi",
@@ -1470,13 +1470,24 @@
           "paid_calls": false
         }
       ],
-      "evidence": [],
-      "branch": "",
-      "pr": null,
-      "head_sha": null,
+      "evidence": [
+        {
+          "date": "2026-10-14",
+          "session": "20261014-1443-claude-dbb9",
+          "sha": "a749e08",
+          "command": "Option A (PR #136): proxy matcher with cookie conditions (session cookie or its .0 chunk), path exclusions unchanged; built functions-config-manifest carries both `has` entries; tests/unit/proxy.test.ts 4 tests (fail on the old matcher at the no-cookie assertion and with .0 removed); init.sh check GREEN on faf0a9b and a749e08; Codex plan r1 72.9k (3 blocking folded into A) → code r1 59.5k BLOCKING: none (NB1 applied in a749e08); PR smoke (signed-in tests incl.) + replay new / old pass on a749e08",
+          "target": "preview",
+          "outcome": "pass",
+          "approval": "Roi: \"yes\" (C now, A next)",
+          "link": "PR #136"
+        }
+      ],
+      "branch": "fix/perf-001-proxy-cookie-matcher",
+      "pr": 136,
+      "head_sha": "a749e08",
       "wip_sha": null,
       "expected_failures": [],
-      "notes": "Roi 2026-10-14: \"scan the vercel's webpage for usage, there are some measurements there that are trending up\" → usage read (read only): Fluid Active CPU 4h 50m / 4h (proxy 'middleware' 2h 6m 43.6%, functions 2h 43m 56.4%); daily ~5 min (Sep 14–23), 7–24 (Sep 24–Oct 3), ~7 (Oct 4–9), 9→13 (Oct 10–13). Everything else well under: invocations 389K/1M, CDN requests 434K/1M, ISR writes 21K/200K. Roi: \"Yes\" (open the item, start read-only). · claimed by 20261014-1443-claude-dbb9 · Read-only findings (2026-10-14): (1) /article/[id] and / are 0% cached (Vercel CDN, 12 h) — the article page reads cookies() via the server Supabase client (getUser for the registration wall), which makes it dynamic despite revalidate 86400; the home page is force-dynamic; these two are the top CPU routes. (2) proxy.ts runs on every page request (matcher excludes only static / api / OG); for visitors without an auth cookie it skips the Supabase call but is still a Node invocation — 43.6% of the month's CPU. (3) Preview traffic 5.5K CDN requests vs production 2.9K in the same 12 h (smoke runs on #135); full PR suites per day 2–10, drafts fail in seconds. AI bots small (285 requests / 12 h). Hobby observability keeps 12 h only, so per-route monthly totals are not available. Options to Roi: A proxy matcher skips requests without the auth cookie (missing-cookie condition); B article page static/ISR with the per-user parts client-side; C fewer / lighter PR smoke runs. · Codex plan r1 72.9k (Roi: \"What does codex say?\"): 3 blocking — A must match the chunked cookie (.0/.1) literally, an early return saves nothing (invocation still happens), B needs a cache-failure + invalidation policy (DB error cached as 404; delete doesn't revalidate). Ranking: redundant smoke runs first, corrected A, article ISR, home page last; separate production vs preview CPU before attributing."
+      "notes": "Roi 2026-10-14: \"scan the vercel's webpage for usage, there are some measurements there that are trending up\" → usage read (read only): Fluid Active CPU 4h 50m / 4h (proxy 'middleware' 2h 6m 43.6%, functions 2h 43m 56.4%); daily ~5 min (Sep 14–23), 7–24 (Sep 24–Oct 3), ~7 (Oct 4–9), 9→13 (Oct 10–13). Everything else well under: invocations 389K/1M, CDN requests 434K/1M, ISR writes 21K/200K. Roi: \"Yes\" (open the item, start read-only). · claimed by 20261014-1443-claude-dbb9 · Read-only findings (2026-10-14): (1) /article/[id] and / are 0% cached (Vercel CDN, 12 h) — the article page reads cookies() via the server Supabase client (getUser for the registration wall), which makes it dynamic despite revalidate 86400; the home page is force-dynamic; these two are the top CPU routes. (2) proxy.ts runs on every page request (matcher excludes only static / api / OG); for visitors without an auth cookie it skips the Supabase call but is still a Node invocation — 43.6% of the month's CPU. (3) Preview traffic 5.5K CDN requests vs production 2.9K in the same 12 h (smoke runs on #135); full PR suites per day 2–10, drafts fail in seconds. AI bots small (285 requests / 12 h). Hobby observability keeps 12 h only, so per-route monthly totals are not available. Options to Roi: A proxy matcher skips requests without the auth cookie (missing-cookie condition); B article page static/ISR with the per-user parts client-side; C fewer / lighter PR smoke runs. · Codex plan r1 72.9k (Roi: \"What does codex say?\"): 3 blocking — A must match the chunked cookie (.0/.1) literally, an early return saves nothing (invocation still happens), B needs a cache-failure + invalidation policy (DB error cached as 404; delete doesn't revalidate). Ranking: redundant smoke runs first, corrected A, article ISR, home page last; separate production vs preview CPU before attributing. · Option C in effect (memory rule: drafts until done, ready once). PR #136 ready on a749e08, all checks pass; awaits Roi's preview check (sign in / browse / sign out) + his merge. After merge: daily CPU for 2–3 days (target < ~8 min/day; proxy row)."
     }
   ]
 }
