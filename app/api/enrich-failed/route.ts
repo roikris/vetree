@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Only failed, unpublished articles (lib/enrichment/requeueFailed.ts — shared with Article Health)
+    // Only failed, unpublished articles (lib/enrichment/requeueFailed.ts — the Pipeline page's failed list uses the same set)
     let requeued = 0
     let released = 0
     try {

@@ -1,5 +1,5 @@
-// Shared by both admin "retry failed" controls (/api/enrich-failed and the Article Health
-// "Force Retry Failed" action) and by the failed-article counts. Server-only: pass a service-role client.
+// Used by "Retry failed" (/api/enrich-failed, the Pipeline page's button) and by the Pipeline page's
+// failed list (/api/admin/pipeline/status). Server-only: pass a service-role client.
 //
 // "Retry failed" is the database function requeue_failed_articles() (migration 072): ONE update,
 // re-checked on each row's current version, that re-queues failed, unpublished articles with a

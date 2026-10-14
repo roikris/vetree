@@ -443,7 +443,7 @@ if (!success) return NextResponse.json({ error: 'Too many requests' }, { status:
   `quarantined = true, quarantine_reason = 'enrichment_failed'` — unless the article is already quarantined, whose
   quarantine and reason stay as they are. (It used to set `needs_enrichment = false`, which the visibility rule reads
   as done.) `articles.quarantine_reason`: `enrichment_failed` | `no_abstract` | `admin` | NULL (unknown/older).
-- Both "retry failed" controls (`/api/enrich-failed`, Article Health "Force Retry Failed") share
+- "Retry failed" (`/api/enrich-failed`, the Pipeline page's button) uses
   `lib/enrichment/requeueFailed.ts`: only unpublished 3+-attempt articles with a source abstract (never live ones that
   succeeded later); only `quarantine_reason = 'enrichment_failed'` is lifted, by an UPDATE that re-checks it. Any
   other quarantine reason is never lifted automatically, and a successful enrichment never lifts one by itself.

@@ -67,10 +67,8 @@ Routes verified from `app/api/` directory tree.
 | `/api/growth/synthesis-opportunities` | GET | Synthesis content gap list | Admin |
 | `/api/admin/trigger-digest` | POST | Manual digest trigger | Admin session |
 | `/api/admin/feature-flags` | GET/POST | Feature flag management | Admin |
-| `/api/admin/fix-incomplete` | POST | Fix incomplete enrichments | Admin |
-| `/api/admin/incomplete-count` | GET | Count incomplete articles | Admin |
-| `/api/admin/articles/[id]` | GET/PATCH/DELETE | Admin article management | Admin |
-| `/api/admin/articles/[id]/labels` | PATCH | Override article labels | Admin |
+| `/api/admin/articles/[id]` | DELETE | Delete an article + blacklist its PubMed id (Pipeline page) | Admin |
+| `/api/admin/pipeline/status` | GET | Pipeline page: needs-you lists, today's sync, latest skips, visibility check, each job's latest activity (read-only) | Admin |
 | `/api/admin/growth/memory/posted-url` | PATCH | Set posted_url on memory row | Admin |
 | `/api/admin/growth/recommendations` | GET | AI content recommendations | Admin |
 | `/api/admin/growth/today` | GET | Daily posts' state: today's approved rows (Israel day), the day's article, streak (read-only) | Admin |

@@ -1,11 +1,11 @@
 {
   "note": "Known lint errors (D9 ratchet). Only errors above these counts fail. Shrink, never grow.",
-  "total_errors": 117,
+  "total_errors": 102,
   "entries": [
     {
       "file": "app/actions/admin.ts",
       "rule": "@typescript-eslint/no-explicit-any",
-      "count": 3
+      "count": 1
     },
     {
       "file": "app/actions/profile.ts",
@@ -28,29 +28,9 @@
       "count": 10
     },
     {
-      "file": "app/admin/growth/CampaignCalendar.tsx",
-      "rule": "@typescript-eslint/no-explicit-any",
-      "count": 10
-    },
-    {
       "file": "app/admin/growth/GrowthClient.tsx",
       "rule": "@typescript-eslint/no-explicit-any",
       "count": 2
-    },
-    {
-      "file": "app/admin/pipeline/ArticleHealth.tsx",
-      "rule": "@typescript-eslint/no-explicit-any",
-      "count": 1
-    },
-    {
-      "file": "app/admin/pipeline/SyncSkippedArticles.tsx",
-      "rule": "react-hooks/set-state-in-effect",
-      "count": 1
-    },
-    {
-      "file": "app/admin/pipeline/diagnostics/page.tsx",
-      "rule": "@typescript-eslint/no-explicit-any",
-      "count": 1
     },
     {
       "file": "app/api/admin/analytics/insights/route.ts",
