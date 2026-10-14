@@ -1073,10 +1073,21 @@
     },
     {
       "status": "in_progress",
-      "evidence": [],
+      "evidence": [
+        {
+          "date": "2026-10-14",
+          "session": "20261014-0538-claude-a04e",
+          "sha": "0ba3e00",
+          "command": "PR 1 (#134): init.sh check GREEN on b73a9d2 and 0ba3e00; unit 61/61 (8 new in tests/unit/experiment.test.ts, offline); Codex plan r1 102.9k + r2 30.6k; code r1 50.3k (1 blocking: TEST_USER_ID not excluded) → r2 delta 21.9k BLOCKING: none; PR smoke + replay new/old pass on 0ba3e00",
+          "target": "preview",
+          "outcome": "pass",
+          "approval": "Roi: \"A, approve\"",
+          "link": "PR #134"
+        }
+      ],
       "branch": "fix/admin-002-reminder-cleanup",
-      "pr": null,
-      "head_sha": null,
+      "pr": 134,
+      "head_sha": "0ba3e00",
       "wip_sha": null,
       "expected_failures": [],
       "id": "admin-002",
@@ -1108,7 +1119,7 @@
           "paid_calls": false
         }
       ],
-      "notes": "Roi 2026-10-14: \"the admin panel needs rethinking … article health is part of an older version … reconsider if it's even needed\". Decisions D1–D5 in the plan (Analytics landing; keep all Analytics numbers, hide the weekly AI report; Reports + Users unchanged; Pipeline = extension of the Slack messages; Campaign reset = the weekly report's day). Read-only usage pass approved: admin-usage-result.txt. Supersedes admin-001. · Plan rev 3: Codex plan r1 102.9k (2 blocking: activity ≠ job health; run totals not recoverable) → Roi chose A (no new table) → r2 delta 30.6k (2 blocking folded in: run-2 engaged total not /day; retry list = FAILED_UNPUBLISHED_OR). Real 'Day 117/90' source: growth-daily-reminder.js (run-1 dates hard-coded). · claimed by 20261014-0538-claude-a04e (PR 1 branch fix/admin-002-reminder-cleanup)"
+      "notes": "Roi 2026-10-14: \"the admin panel needs rethinking … article health is part of an older version … reconsider if it's even needed\". Decisions D1–D5 in the plan (Analytics landing; keep all Analytics numbers, hide the weekly AI report; Reports + Users unchanged; Pipeline = extension of the Slack messages; Campaign reset = the weekly report's day). Read-only usage pass approved: admin-usage-result.txt. Supersedes admin-001. · Plan rev 3: Codex plan r1 102.9k (2 blocking: activity ≠ job health; run totals not recoverable) → Roi chose A (no new table) → r2 delta 30.6k (2 blocking folded in: run-2 engaged total not /day; retry list = FAILED_UNPUBLISHED_OR). Real 'Day 117/90' source: growth-daily-reminder.js (run-1 dates hard-coded). · claimed by 20261014-0538-claude-a04e (PR 1 branch fix/admin-002-reminder-cleanup) · PR 1 #134 ready, all checks pass on 0ba3e00; awaits Roi's merge. Open: Roi adds GitHub secret TEST_USER_ID (same value as Vercel) — until then the reminder says the test account is not excluded."
     },
     {
       "status": "not_started",
