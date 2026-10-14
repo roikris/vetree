@@ -55,3 +55,27 @@ test('message: a failed engaged count never reads as zero; after the end it says
   assert.match(msg, /— \(count failed\) run-2 total/)
   assert.doesNotMatch(msg, /rolling windows/)
 })
+
+test('engaged count excludes the same accounts as excludedUsersOrFilter (admin + TEST_USER_ID)', async () => {
+  const { excludedUsersOrFilter, EXCLUDED_USER_IDS } = await import('../../lib/analytics-excluded-ids')
+  const admin = '90cb8294-b593-4144-a9f5-23ca52dd5e35'
+  assert.ok(EXCLUDED_USER_IDS.includes(admin))
+  if (!process.env.TEST_USER_ID) assert.equal(reminder.excludedUsersOrFilter(undefined), excludedUsersOrFilter())
+  const t = '11111111-2222-4333-8444-555555555555'
+  assert.equal(reminder.excludedUsersOrFilter(` ${t} `), `user_id.is.null,and(user_id.neq.${admin},user_id.neq.${t})`)
+  assert.equal(reminder.excludedUsersOrFilter(''), `user_id.is.null,user_id.neq.${admin}`)
+  assert.throws(() => reminder.excludedUsersOrFilter('not-a-uuid'), /not a valid UUID/)
+})
+
+test('ended: decided by the send time, not the snapshot; snapshots after the window are ignored', () => {
+  const rows = [snap('2026-12-20', 20), snap('2027-01-05', 99)]
+  const { msg, day, state } = reminder.buildMessage({ rows, engagedTotal: 3, now: new Date('2027-01-06T03:00:00Z') })
+  assert.equal(state, 'ended')
+  assert.equal(day, 83) // the latest in-window snapshot (2026-12-20), not 2027-01-05
+  assert.match(msg, /Latest snapshot: 2026-12-20/)
+})
+
+test('a missing TEST_USER_ID is said, not hidden', () => {
+  const { msg } = reminder.buildMessage({ rows: [snap('2026-10-13', 20)], engagedTotal: 5, now: new Date('2026-10-14T03:00:00Z'), testUserExcluded: false })
+  assert.match(msg, /test account not excluded — TEST_USER_ID not set/)
+})

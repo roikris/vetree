@@ -13,8 +13,22 @@ const BASELINE_END = '2026-06-19'
 // Snapshot metrics are rolling windows (7-day counts; 30-day MAU): until kickoff + 30 days they
 // still contain days from before run 2
 const WARMUP_DAYS = 30
-// Admin account (lib/analytics-excluded-ids.ts); QA traffic is never recorded in production
+// Excluded accounts, as lib/analytics-excluded-ids.ts: the admin, plus the smoke-test account
+// (TEST_USER_ID) — its ordinary production visits are recorded like anyone's
 const ADMIN_USER_ID = '90cb8294-b593-4144-a9f5-23ca52dd5e35'
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/** The user_id .or() filter of excludedUsersOrFilter(); throws on a malformed TEST_USER_ID */
+function excludedUsersOrFilter(testUserId) {
+  const ids = [ADMIN_USER_ID]
+  const t = (testUserId || '').trim()
+  if (t) {
+    if (!UUID_RE.test(t)) throw new Error(`TEST_USER_ID="${t}" is not a valid UUID`)
+    ids.push(t)
+  }
+  const neq = ids.map(id => `user_id.neq.${id}`)
+  return `user_id.is.null,${neq.length === 1 ? neq[0] : `and(${neq.join(',')})`}`
+}
 
 const DAY_MS = 24 * 60 * 60 * 1000
 const utcMidnight = date => Date.parse(`${date}T00:00:00Z`)
@@ -66,7 +80,7 @@ function verdictEmoji(pct) {
  * The Slack text. rows: snapshots from BASELINE_START on, ascending; engagedTotal: run-2 human
  * synthesis_engaged events (null when the count failed — never shown as zero); now: the send time.
  */
-function buildMessage({ rows, engagedTotal, now }) {
+function buildMessage({ rows, engagedTotal, now, testUserExcluded = true }) {
   const baselineRows = rows.filter(r => r.date >= BASELINE_START && r.date <= BASELINE_END)
   const experimentRows = rows.filter(r => r.date >= KICKOFF_DATE && r.date <= END_DATE)
   const latestRow = experimentRows[experimentRows.length - 1] || null
@@ -110,7 +124,7 @@ function buildMessage({ rows, engagedTotal, now }) {
     msg += `${fmtSec(todayMedian)}  _(baseline ${fmtSec(baselineMedian)},_ ${fmtDelta(medianDelta)}_)_\n`
 
     msg += `${verdictEmoji(null)} *Synthesis engaged:*  `
-    msg += `${engagedTotal ?? '— (count failed)'} run-2 total  _(new metric)_\n`
+    msg += `${engagedTotal ?? '— (count failed)'} run-2 total  _(new metric${testUserExcluded ? '' : '; test account not excluded — TEST_USER_ID not set'})_\n`
 
     msg += `${verdictEmoji(mauDelta)} *Registered MAU:*  `
     msg += `${todayRegisteredMau ?? '—'}  _(baseline ${Math.round(baselineRegisteredMau)},_ ${fmtDelta(mauDelta)}_)_\n`
@@ -161,7 +175,7 @@ async function sendDailyReminder() {
       .eq('event_name', 'synthesis_engaged')
       .is('bot_name', null)
       .is('traffic_class', null)
-      .or(`user_id.is.null,user_id.neq.${ADMIN_USER_ID}`)
+      .or(excludedUsersOrFilter(process.env.TEST_USER_ID))
       .gte('created_at', `${KICKOFF_DATE}T00:00:00Z`)
       .lt('created_at', new Date(utcMidnight(END_DATE) + DAY_MS).toISOString())
     if (countError) console.error('synthesis_engaged count failed:', countError.message)
@@ -170,6 +184,7 @@ async function sendDailyReminder() {
       rows: rows || [],
       engagedTotal: countError ? null : (count ?? 0),
       now: new Date(),
+      testUserExcluded: Boolean((process.env.TEST_USER_ID || '').trim()),
     })
 
     const response = await fetch(slackWebhookUrl, {
@@ -188,6 +203,6 @@ async function sendDailyReminder() {
   }
 }
 
-module.exports = { KICKOFF_DATE, END_DATE, TOTAL_DAYS, BASELINE_START, BASELINE_END, dayNumber, phase, buildMessage }
+module.exports = { KICKOFF_DATE, END_DATE, TOTAL_DAYS, BASELINE_START, BASELINE_END, dayNumber, phase, buildMessage, excludedUsersOrFilter }
 
 if (require.main === module) sendDailyReminder()
