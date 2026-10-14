@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import { CampaignClient } from './CampaignClient'
 import { excludedUsersOrFilter } from '@/lib/analytics-excluded-ids'
 import { countSynthesisEvents } from '@/lib/analytics/synthesisEvents'
-import { EXPERIMENT_KICKOFF_DATE, EXPERIMENT_END_DATE } from '@/lib/synthesis/experiment'
+import { EXPERIMENT_KICKOFF_DATE, EXPERIMENT_END_DATE, EXPERIMENT_BASELINE_START, EXPERIMENT_BASELINE_END, experimentDayNumber } from '@/lib/synthesis/experiment'
 
 // Run 2 of the auto-run experiment. Run 1 (2026-06-20 → 2026-09-18) is not comparable: its
 // /synthesis/run and engaged counts included CI smoke traffic, and the synthesis cache never
@@ -16,8 +16,8 @@ const WARMUP_DAYS = 30
 // Baseline stays the pre-experiment month (no auto-run; synthesis was a manual button), not the
 // 30 days before run 2, which were run 1 itself. The cache was already failing then (since
 // 2026-05-18): synthesis latency was higher, which may slightly affect session duration.
-const BASELINE_START = '2026-05-21'
-const BASELINE_END = '2026-06-19'
+const BASELINE_START = EXPERIMENT_BASELINE_START
+const BASELINE_END = EXPERIMENT_BASELINE_END
 
 type SnapshotRow = {
   date: string
@@ -95,7 +95,7 @@ export default async function CampaignPage() {
   const DAY = 24 * 60 * 60 * 1000
   const kickoff = new Date(`${KICKOFF_DATE}T00:00:00Z`)
   const nowDate = today ? new Date(`${today.date}T00:00:00Z`) : new Date()
-  const dayNumber = Math.min(90, Math.max(1, Math.floor((nowDate.getTime() - kickoff.getTime()) / DAY) + 1))
+  const dayNumber = experimentDayNumber(nowDate.toISOString().slice(0, 10))
   const warmupUntil = new Date(kickoff.getTime() + WARMUP_DAYS * DAY).toISOString().slice(0, 10)
   const warmingUp = !today || today.date < warmupUntil
 

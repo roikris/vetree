@@ -90,19 +90,10 @@ The Growth OS includes an automated daily reminder via Slack.
 
 ### Slack Message Format
 
-```
-🌿 Vetree Growth — Day X/90
-━━━━━━━━━━━━━━━
-Today's tasks:
-
-📘 Facebook IL — משרות ומודעות בתחום הוטרינריה
-🇮🇱 [First 100 chars of content]...
-[Link to admin dashboard]
-
-━━━━━━━━━━━━━━━
-📊 Week progress: X/7 done
-🎯 Total: X/90 completed
-```
+The daily Slack message is no longer a posting reminder: since 2026-09 it reports the synthesis
+auto-run experiment (`.github/workflows/scripts/growth-daily-reminder.js`, see `.github/workflows/README.md`).
+The 90-day posting rotation was retired in growth-002 (2026-10-13): one article goes to every
+platform each day from Growth OS → Daily Posts.
 
 ## Platform Colors & Icons
 
