@@ -1072,7 +1072,7 @@
       "notes": "Found by 20261010-1903-claude-8c5f in infra-002's grant sweep (2026-10-11). Visible product change — Roi decides. anon keeps SELECT on saved_articles only for this (migration 079)."
     },
     {
-      "status": "in_progress",
+      "status": "merged",
       "evidence": [
         {
           "date": "2026-10-14",
@@ -1103,11 +1103,21 @@
           "outcome": "pass",
           "approval": "Roi: \"start\", \"removals approved\"",
           "link": "PR #135"
+        },
+        {
+          "date": "2026-10-14",
+          "session": "20261014-0538-claude-a04e",
+          "sha": "edf2009",
+          "command": "Roi checked /admin/pipeline on the preview with real data, signed in himself (\"looks good\"); squash-merged #135 as edf2009; production /api/version = edf2009, home 200, /api/admin/pipeline/status anonymous 401",
+          "target": "production",
+          "outcome": "pass",
+          "approval": "Roi: \"merge\"",
+          "link": "PR #135"
         }
       ],
       "branch": "feat/admin-002-pipeline",
       "pr": 135,
-      "head_sha": "a6f207a",
+      "head_sha": "edf2009",
       "wip_sha": null,
       "expected_failures": [],
       "id": "admin-002",
@@ -1139,14 +1149,25 @@
           "paid_calls": false
         }
       ],
-      "notes": "Roi 2026-10-14: \"the admin panel needs rethinking … article health is part of an older version … reconsider if it's even needed\". Decisions D1–D5 in the plan (Analytics landing; keep all Analytics numbers, hide the weekly AI report; Reports + Users unchanged; Pipeline = extension of the Slack messages; Campaign reset = the weekly report's day). Read-only usage pass approved: admin-usage-result.txt. Supersedes admin-001. · Plan rev 3: Codex plan r1 102.9k (2 blocking: activity ≠ job health; run totals not recoverable) → Roi chose A (no new table) → r2 delta 30.6k (2 blocking folded in: run-2 engaged total not /day; retry list = FAILED_UNPUBLISHED_OR). Real 'Day 117/90' source: growth-daily-reminder.js (run-1 dates hard-coded). · claimed by 20261014-0538-claude-a04e (PR 1 branch fix/admin-002-reminder-cleanup) · PR 1 #134 merged 86fdcd6 (2026-10-14); no secret step needed (lookup by TEST_USER_EMAIL). First live check: the 03:00 UTC Slack message on 2026-10-15 should read Day 16/90 without the 'not excluded' note. NEXT: PR 2 (Pipeline rebuild, option A) on a new branch from main. · PR 2 #135 ready on a6f207a (all checks pass); awaits Roi's look at the preview with real data + his merge. NON-BLOCKING left: no signed-in non-admin e2e for the status route (no such smoke account)."
+      "notes": "Roi 2026-10-14: \"the admin panel needs rethinking … article health is part of an older version … reconsider if it's even needed\". Decisions D1–D5 in the plan (Analytics landing; keep all Analytics numbers, hide the weekly AI report; Reports + Users unchanged; Pipeline = extension of the Slack messages; Campaign reset = the weekly report's day). Read-only usage pass approved: admin-usage-result.txt. Supersedes admin-001. · Plan rev 3: Codex plan r1 102.9k (2 blocking: activity ≠ job health; run totals not recoverable) → Roi chose A (no new table) → r2 delta 30.6k (2 blocking folded in: run-2 engaged total not /day; retry list = FAILED_UNPUBLISHED_OR). Real 'Day 117/90' source: growth-daily-reminder.js (run-1 dates hard-coded). · claimed by 20261014-0538-claude-a04e (PR 1 branch fix/admin-002-reminder-cleanup) · PR 1 #134 merged 86fdcd6 (2026-10-14); no secret step needed (lookup by TEST_USER_EMAIL). First live check: the 03:00 UTC Slack message on 2026-10-15 should read Day 16/90 without the 'not excluded' note. NEXT: PR 2 (Pipeline rebuild, option A) on a new branch from main. · PR 2 #135 ready on a6f207a (all checks pass); awaits Roi's look at the preview with real data + his merge. NON-BLOCKING left: no signed-in non-admin e2e for the status route (no such smoke account). · PR 2 #135 merged edf2009 (2026-10-14) on Roi's word after his look at the preview. CLOSED 2026-10-14. Open: the 2026-10-15 Slack reminder should read Day 16/90 with no 'not excluded' note; making the weekly AI report usable is a separate later item. NON-BLOCKING left: no signed-in non-admin e2e for the status route; unpinned supabase-js in the reminder workflow; an SDK exception in the test-account lookup would skip that morning's message; CLAUDE.md 'Key Features Built' still lists an admin 'overview'."
     },
     {
-      "status": "not_started",
-      "evidence": [],
+      "status": "merged",
+      "evidence": [
+        {
+          "date": "2026-10-14",
+          "session": "20261014-0538-claude-a04e",
+          "sha": "edf2009",
+          "command": "Closed as REMOVED, not fixed: admin-002 PR 2 (#135) deleted Article Health and its re-queue actions (requeueNeverAttempted / requeuePartial); merged edf2009, production verified. No production writes, no paid calls.",
+          "target": "production",
+          "outcome": "pass",
+          "approval": "Roi: \"removals approved\", \"merge\"",
+          "link": "PR #135"
+        }
+      ],
       "branch": "",
-      "pr": null,
-      "head_sha": null,
+      "pr": 135,
+      "head_sha": "edf2009",
       "wip_sha": null,
       "expected_failures": [],
       "id": "admin-001",
@@ -1171,7 +1192,7 @@
           "paid_calls": false
         }
       ],
-      "notes": "Found by Codex in infra-002's review of 079 (2026-10-11). · 2026-10-14 (20261014-0538-claude-a04e): to be REMOVED, not fixed, by admin-002 PR 2 — the 4,579 \"never attempted\" + 16,131 \"partial\" are ~all published articles (read-only count, Roi approved); re-queueing them would re-enrich ~20.7k live articles. Closes when admin-002 PR 2 merges."
+      "notes": "Found by Codex in infra-002's review of 079 (2026-10-11). · 2026-10-14 (20261014-0538-claude-a04e): to be REMOVED, not fixed, by admin-002 PR 2 — the 4,579 \"never attempted\" + 16,131 \"partial\" are ~all published articles (read-only count, Roi approved); re-queueing them would re-enrich ~20.7k live articles. Closes when admin-002 PR 2 merges. · CLOSED 2026-10-14: removed (not fixed) by #135 → edf2009."
     },
     {
       "status": "not_started",

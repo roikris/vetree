@@ -8,24 +8,30 @@ Routine: `docs/harness/README.md` on `main`. Pre-harness primer (frozen): root `
 ---
 
 ## 1. Current Verified State
-*Updated 2026-10-13 — Session 20261013-1029-claude-35c5 (growth-002 closed)*
+*Updated 2026-10-14 — Session 20261014-0538-claude-a04e (admin-002 closed; admin-001 closed as removed)*
 
 - **Repo root:** `~/dev/vetree` · state worktree: `.harness-state/` (branch `harness-state`)
-- **main:** `a2cd626` (#133 Growth OS daily posts panel, one article → every platform, 2026-10-13; #132 unit tests in init.sh check + PR smoke, 2026-10-13; #131 Facebook IL closing lines: typeable address + WhatsApp Community, 2026-10-13; #129 + #130 Facebook IL link-free posts, vetree.app/il, "save it" hint, 2026-10-13; #127 schema audit + #128 replay safety, migrations 080–082 + 000 recorded, 2026-10-12; #126 unlock log guard, 2026-10-12; PRs #120–#125 least privilege + policy audit, migrations 075–079 applied, 2026-10-11; #119 lint cleanup, 2026-10-10; #118 build warnings / middleware → proxy, 2026-10-10; #117 init.sh lock / unlock, 2026-10-10; #116 "new this week" count, 2026-10-10; #115 shorter digest footer, 2026-10-09; #114 Search Console fixes, 2026-10-07; before it #113 access-control audit,
-  migration 074 applied) — last verified: production /api/version = a2cd626, home 200; PR #133 smoke + replay new / old PASS
+- **main:** `edf2009` (#135 admin Pipeline rebuilt as the Slack messages expanded, Article Health removed, 2026-10-14; #134 daily reminder counts run 2 + excludes the test account, weekly AI report hidden, Overview removed, 2026-10-14; #133 Growth OS daily posts panel, one article → every platform, 2026-10-13; #132 unit tests in init.sh check + PR smoke, 2026-10-13; #131 Facebook IL closing lines: typeable address + WhatsApp Community, 2026-10-13; #129 + #130 Facebook IL link-free posts, vetree.app/il, "save it" hint, 2026-10-13; #127 schema audit + #128 replay safety, migrations 080–082 + 000 recorded, 2026-10-12; #126 unlock log guard, 2026-10-12; PRs #120–#125 least privilege + policy audit, migrations 075–079 applied, 2026-10-11; #119 lint cleanup, 2026-10-10; #118 build warnings / middleware → proxy, 2026-10-10; #117 init.sh lock / unlock, 2026-10-10; #116 "new this week" count, 2026-10-10; #115 shorter digest footer, 2026-10-09; #114 Search Console fixes, 2026-10-07; before it #113 access-control audit,
+  migration 074 applied) — last verified: production /api/version = edf2009, home 200; PR #135 smoke + replay new / old PASS
 - **Standard startup:** `docs/harness/init.sh` (state, then check) — see README for exit codes. Take / release
   the lock only with `init.sh lock <item> --agent …` / `init.sh unlock "<message>"` (D12), never by hand
 - **Standard verification:** `docs/harness/init.sh check [--item <id>]` (now incl. `npm run test:unit`, hard RED); build
   reads production Supabase (read-only); never Playwright as a baseline
-- **Highest-priority unfinished item:** none ready — feed-002 / admin-001 / scripts-001 need Roi's decisions; ai-001
-  parked (~2026-11-01). Ask Roi.
+- **Highest-priority unfinished item:** none ready — feed-002 / scripts-001 need Roi's decisions; ai-001 parked
+  (~2026-11-01); making the weekly AI report usable is a later item. Ask Roi.
+- **Admin panel (admin-002, Roi 2026-10-14):** /admin lands on Analytics; the weekly AI report is hidden (its Friday job
+  still runs); /admin/pipeline = the Slack messages expanded (GET /api/admin/pipeline/status) — no Article Health, no
+  job-health verdicts (run totals aren't stored). The experiment day comes from `lib/synthesis/experiment.ts` (run 2:
+  2026-09-29 → 12-27); growth-daily-reminder.js copies its constants (tests/unit/experiment.test.ts keeps them equal).
 - **The daily posting flow (Roi, 2026-10-13):** every day ONE article is posted to EVERY platform from Growth OS → Daily
   Posts (CLAUDE.md "Growth OS daily posts"). Each tab's Copy & mark posted records its real platform; one approved row per
   article + platform + Israel day. Rows before 2026-10-13 carry the deprecated rotation's platform label.
 - **Current blocker:** none
-- **Open PRs awaiting Roi:** none · Roi: first daily posting with the new panel, then (his yes) a read-only check of
-  today's approved rows + vetree.app/il · check Vercel usage ~2026-10-14 (proxy now a Node function, build-001) ·
-  Thursday's security scan is the first after 079 · the 4 dropped indexes stay dropped (Roi 2026-10-13)
+- **Open PRs awaiting Roi:** none · Roi: the 2026-10-15 Slack reminder should read Day 16/90 with no "not excluded"
+  note · 3 ai_refused articles wait for `npm run enrich:refused` · first daily posting with the new panel, then (his
+  yes) a read-only check of today's approved rows + vetree.app/il · check Vercel usage ~2026-10-14 (proxy now a Node
+  function, build-001) · Thursday's security scan is the first after 079 · the 4 dropped indexes stay dropped (Roi
+  2026-10-13)
 
 ## 2. Open Issues & Known Risks
 - **Lint is red on main:** 117 errors (103 no-explicit-any, 13 set-state-in-effect, 1 immutability) / 68 warnings,
@@ -213,6 +219,47 @@ works today was spot-checked in the code on 2026-10-05.
 (Newest first — only the latest 5 are kept here (D11); every entry, older ones included, is in
 `session-log.md`, which is never trimmed.)
 
+### Session 20261014-0538-claude-a04e · 2026-10-14 · Claude Code · admin-002 (closed; admin-001 closed as removed)
+- Goal / Completed: Roi asked to rethink the admin panel ("article health is part of an older version … reconsider if
+  it's even needed"). A read-only usage pass (Roi's yes) showed 21,056 articles, 3 hidden (all ai_refused), and the
+  Article Health "never attempted" 4,579 / "partial" 16,131 almost all published — re-queueing them would re-enrich
+  ~20.7k live articles. Roi's decisions: /admin lands on Analytics (Overview removed); all Analytics numbers kept, the
+  weekly AI report hidden (the Friday job still runs); Reports, Users, Security, Growth OS, Campaign unchanged; Pipeline
+  = "an extension of the slack messages"; option A (no new table). PR 1 (#134): the daily Slack reminder's "Day 117/90"
+  came from run-1 dates hard-coded in growth-daily-reminder.js — it now uses run 2 (2026-09-29 → 12-27, baseline
+  05-21..06-19) via shared helpers in lib/synthesis/experiment.ts and excludes the test account (found from
+  TEST_USER_EMAIL, since Vercel won't reveal TEST_USER_ID — Roi chose B); the weekly report's campaign line uses the same
+  helpers, no rotation line; Overview, FeatureFlags and getAdminStats removed. PR 2 (#135): /admin/pipeline rebuilt —
+  GET /api/admin/pipeline/status (admin only, any failed query → 500) + PipelineStatus.tsx in the Almanac tokens: Needs
+  you (waiting for Codex, failed + Retry failed, no abstract + Delete & block, queue + Run enrichment, Show more paging),
+  Today's sync, Visibility check (total / public / queued / hidden by reason / unexplained), Scheduled jobs (latest
+  activity + GitHub links, no health verdicts — run totals aren't stored). Removed (Roi: "removals approved"): Article
+  Health, Incomplete Enrichment, diagnostics, stats, label editing, send-digest-now, the CSV download, three admin
+  routes and nine server actions.
+- Start state: main a2cd626, clean; lock taken as backlog, admin-002 added and claimed.
+- Verification: init.sh check GREEN on every head; unit 62 → 68 (experiment + pipeline tests, offline); 7 mocked-network
+  Playwright scenarios on a temporary local page (not committed), each fix's test failing before it; screenshots shown
+  to Roi (made-up data); PR smoke + replay new / old pass on both heads; Roi checked the preview with real data himself
+  ("looks good"). Production 86fdcd6 then edf2009 (/api/version), home 200, status route anonymous 401. Not verified
+  live: the first reminder under the new count (2026-10-15 03:00 UTC, should read Day 16/90).
+- Review: Codex · tier 2 · plan 2 rounds 102.9k / 30.6k · PR 1 3 rounds 50.3k / 21.9k / 24.5k · PR 2 3 rounds 76.1k /
+  29.7k / 17.1k ≈ 353k · BLOCKING: none (fixed on the way: activity is not job health; run totals not recoverable;
+  run-2 engaged as a total, not /day; the retry list = FAILED_UNPUBLISHED_OR; test account not excluded; NULL
+  needs_enrichment uncounted; lists capped at 50; a stale refresh overwriting newer state; a silent delete failure;
+  Show-more during a refresh / two Show-mores at once).
+- Commits / PR: b73a9d2, 0ba3e00, ddaa87f → #134 merged 86fdcd6; 660cf1c, fab966d, a6f207a → #135 merged edf2009 —
+  each on Roi's word.
+- Pending Roi approvals: none. Roi: tomorrow's Slack reminder (Day 16/90, no "not excluded" note); publish the 3
+  ai_refused articles with `npm run enrich:refused` (dry run first); the first daily posting with the Daily Posts panel,
+  then (his yes) a read-only check; Thursday's security scan; Vercel usage ~2026-10-14.
+- Known risks / unresolved: no signed-in non-admin e2e for the status route (no such smoke account); unpinned
+  supabase-js in the reminder workflow; an SDK exception in the test-account lookup would skip that morning's message;
+  CLAUDE.md "Key Features Built" still lists an admin "overview"; making the weekly AI report usable is a later item.
+- Lesson: a number on a screen can come from somewhere other than the page that shows it — "Day 117/90" was the daily
+  reminder script, not the weekly report I first named; find the writer before fixing the reader. Before keeping a
+  repair tool, count what it would touch: Article Health's buttons would have re-enriched ~20.7k live articles.
+- Next best step: feed-002 / scripts-001 need Roi's decisions; ai-001 ~2026-11-01; the weekly AI report later.
+
 ### Session 20261013-1029-claude-35c5 · 2026-10-13 · Claude Code · growth-002 (closed)
 - Goal / Completed: Growth OS rebuilt for the real daily flow — one article to every platform each day. PR 1 (#132):
   the test net Codex asked for — 38 unit tests (linkFree, /il target selection + failures, generate-post
@@ -312,37 +359,3 @@ works today was spot-checked in the code on 2026-10-05.
   actually does it today. A fix that widens a pattern (any bare domain) needs its false-positive cases tested too.
 - Next best step: growth-002 (Growth OS redesign for the daily all-platforms flow + Codex's open test suggestions) —
   plan first, rule 14 assessment, Roi approves.
-
-### Session 20261012-0624-claude-d170 · 2026-10-12 · Claude Code · infra-003 (closed)
-- Goal / Completed: a database rebuilt from supabase/migrations/ now matches production (Roi chose option B over
-  "grants only"). Found locally: 9 public tables in no migration, 004 referencing them first, and under the
-  2026-10-30 defaults 29 of 33 objects short (analytics_events: no service_role access at all). PR 1 (#127): migration
-  080 harness_schema_report() + schema-audit vs supabase/schema.json (4,293 facts) in init.sh check, PR smoke, daily.
-  PR 2 (#128): docs/harness/replay.sh rebuilds on the pinned supabase/postgres:17.6.1.063 (--network none) under new
-  AND old default privileges and runs all three audits; gates the required smoke check; daily with Slack. 000 (pg_trgm,
-  15 dashboard-era tables, one dashboard function — never run on production), 081 (24 additive service_role grants),
-  082 (guarded reconciliation: RLS + 7 policies on 8 tables, 3 constraints, 4 dropped indexes, a dropped CHECK and
-  NOT NULL — nothing runs on production).
-- Start state: main a652c31, branch chore/infra-003-replay-grants, clean; baseline init.sh check GREEN.
-- Verification: replay PASS both modes (acl 33/33, rls 32 / 40, schema 3,954 facts; default privileges by an exact
-  rule); self-check 11 planted changes caught + atomic 081; a deliberately wrong migration failed both replays and the
-  smoke gate; schema selftest 86 fixtures, planted bugs caught (12 + 4); 080 tested on the PG17 image; lock selftest
-  251/251 (bash 3.2 + 5.2). Production (Roi's yes each): 080 pushed (auto mode blocked the first try; Roi: "try again"),
-  snapshot 0 secret-shaped values; migration repair 000; dry run only 081 + 082; push; all three audits identical
-  before / after; nothing pending. Post-merge on main: replay new + old PASS, audits PASS; production 342cacb.
-- Review: Codex · tier 2 · plan 3 rounds 48.2k / 33.1k / 23.2k · PR 1 code 3 rounds 66.5k / 62.1k / 50.1k (+3.1k empty
-  run, my runner bug) · PR 2 code 2 rounds 92.1k / 35.3k (one attempt hit the ChatGPT usage limit, re-run after reset)
-  ≈ 414k · BLOCKING: none (fixed on the way: secret-shaped names, ambiguous keys, membership options, publications,
-  inventory, extension-owned dependents, dotted names, inexact default-privilege rule).
-- Commits / PR: #127 → d13bbac, #128 → 342cacb, each merged on Roi's word. Migrations 080, 081, 082 pushed; 000
-  recorded as applied.
-- Pending Roi approvals: none. Roi decides: restore the 4 indexes production lost (idx_articles_needs_enrichment;
-  idx_growth_tasks_date / _status / _day)? Thursday's security scan; Vercel usage ~2026-10-14.
-- Known risks / unresolved: storage and auth's shape are listed replay gaps (stand-in / existence check only). The
-  Supabase image segfaults on `GRANT <role> TO CURRENT_USER` as postgres (test setup moved to supabase_admin).
-- Lesson: only a rebuild shows what the dashboard changed — 9 tables, a function, RLS + policies, constraints and
-  dropped indexes that no audit of production alone could reveal. The image's init runs a socket-only temporary
-  server: wait for loopback before setup. A mutation test only proves what it touches: check grants by content, not
-  by presence.
-- Next best step: social-001 (Facebook link limit vs the daily Facebook IL post — design is Roi's call); feed-002 /
-  admin-001 / scripts-001 need Roi's decisions.

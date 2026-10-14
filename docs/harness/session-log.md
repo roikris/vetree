@@ -523,3 +523,44 @@ Newest at the bottom. The same entries (latest few) appear in primer.md → Rece
   assert request counts with ==.
 - Next best step: Roi's daily posting (first live run); feed-002 / admin-001 / scripts-001 need Roi's decisions;
   ai-001 ~2026-11-01.
+
+### Session 20261014-0538-claude-a04e · 2026-10-14 · Claude Code · admin-002 (closed; admin-001 closed as removed)
+- Goal / Completed: Roi asked to rethink the admin panel ("article health is part of an older version … reconsider if
+  it's even needed"). A read-only usage pass (Roi's yes) showed 21,056 articles, 3 hidden (all ai_refused), and the
+  Article Health "never attempted" 4,579 / "partial" 16,131 almost all published — re-queueing them would re-enrich
+  ~20.7k live articles. Roi's decisions: /admin lands on Analytics (Overview removed); all Analytics numbers kept, the
+  weekly AI report hidden (the Friday job still runs); Reports, Users, Security, Growth OS, Campaign unchanged; Pipeline
+  = "an extension of the slack messages"; option A (no new table). PR 1 (#134): the daily Slack reminder's "Day 117/90"
+  came from run-1 dates hard-coded in growth-daily-reminder.js — it now uses run 2 (2026-09-29 → 12-27, baseline
+  05-21..06-19) via shared helpers in lib/synthesis/experiment.ts and excludes the test account (found from
+  TEST_USER_EMAIL, since Vercel won't reveal TEST_USER_ID — Roi chose B); the weekly report's campaign line uses the same
+  helpers, no rotation line; Overview, FeatureFlags and getAdminStats removed. PR 2 (#135): /admin/pipeline rebuilt —
+  GET /api/admin/pipeline/status (admin only, any failed query → 500) + PipelineStatus.tsx in the Almanac tokens: Needs
+  you (waiting for Codex, failed + Retry failed, no abstract + Delete & block, queue + Run enrichment, Show more paging),
+  Today's sync, Visibility check (total / public / queued / hidden by reason / unexplained), Scheduled jobs (latest
+  activity + GitHub links, no health verdicts — run totals aren't stored). Removed (Roi: "removals approved"): Article
+  Health, Incomplete Enrichment, diagnostics, stats, label editing, send-digest-now, the CSV download, three admin
+  routes and nine server actions.
+- Start state: main a2cd626, clean; lock taken as backlog, admin-002 added and claimed.
+- Verification: init.sh check GREEN on every head; unit 62 → 68 (experiment + pipeline tests, offline); 7 mocked-network
+  Playwright scenarios on a temporary local page (not committed), each fix's test failing before it; screenshots shown
+  to Roi (made-up data); PR smoke + replay new / old pass on both heads; Roi checked the preview with real data himself
+  ("looks good"). Production 86fdcd6 then edf2009 (/api/version), home 200, status route anonymous 401. Not verified
+  live: the first reminder under the new count (2026-10-15 03:00 UTC, should read Day 16/90).
+- Review: Codex · tier 2 · plan 2 rounds 102.9k / 30.6k · PR 1 3 rounds 50.3k / 21.9k / 24.5k · PR 2 3 rounds 76.1k /
+  29.7k / 17.1k ≈ 353k · BLOCKING: none (fixed on the way: activity is not job health; run totals not recoverable;
+  run-2 engaged as a total, not /day; the retry list = FAILED_UNPUBLISHED_OR; test account not excluded; NULL
+  needs_enrichment uncounted; lists capped at 50; a stale refresh overwriting newer state; a silent delete failure;
+  Show-more during a refresh / two Show-mores at once).
+- Commits / PR: b73a9d2, 0ba3e00, ddaa87f → #134 merged 86fdcd6; 660cf1c, fab966d, a6f207a → #135 merged edf2009 —
+  each on Roi's word.
+- Pending Roi approvals: none. Roi: tomorrow's Slack reminder (Day 16/90, no "not excluded" note); publish the 3
+  ai_refused articles with `npm run enrich:refused` (dry run first); the first daily posting with the Daily Posts panel,
+  then (his yes) a read-only check; Thursday's security scan; Vercel usage ~2026-10-14.
+- Known risks / unresolved: no signed-in non-admin e2e for the status route (no such smoke account); unpinned
+  supabase-js in the reminder workflow; an SDK exception in the test-account lookup would skip that morning's message;
+  CLAUDE.md "Key Features Built" still lists an admin "overview"; making the weekly AI report usable is a later item.
+- Lesson: a number on a screen can come from somewhere other than the page that shows it — "Day 117/90" was the daily
+  reminder script, not the weekly report I first named; find the writer before fixing the reader. Before keeping a
+  repair tool, count what it would touch: Article Health's buttons would have re-enriched ~20.7k live articles.
+- Next best step: feed-002 / scripts-001 need Roi's decisions; ai-001 ~2026-11-01; the weekly AI report later.
