@@ -13,7 +13,7 @@ import { test, expect } from '@playwright/test'
 const UNAUTHORIZED_BODY = { error: 'Unauthorized' }
 
 const ADMIN_ROUTES_GET = [
-  '/api/admin/incomplete-count',
+  '/api/admin/pipeline/status',
   '/api/articles/search-quick?q=canine',
 ]
 
@@ -25,21 +25,17 @@ for (const path of ADMIN_ROUTES_GET) {
   })
 }
 
-// The POST case is the one that mutates. If the auth check ever regresses, this test
-// performs the action it guards — re-queuing every incomplete article and resetting
-// enrichment_attempts (no cap in the handler; ~344 rows at time of writing). That is
-// accepted as the price of having regression coverage on a write endpoint that was
-// publicly reachable, but the exposure is minimised: one project only, no retries.
-// Without these, retries:1 across the desktop and mobile projects would allow four
-// mutating attempts per suite run.
+// The write case. The guard must answer before anything is touched — and if it ever regresses, the
+// request deletes nothing: the id is a fixed UUID no article has. (It used to be POST
+// /api/admin/fix-incomplete, removed with Article Health in admin-002.) One project only, no retries.
+const NO_SUCH_ARTICLE = '00000000-0000-4000-8000-000000000000'
+
 test.describe('admin auth: write endpoint', () => {
   test.describe.configure({ retries: 0 })
 
-  // Desktop project only (@desktop-only): checked once per run to limit mutation exposure if the
-  // guard has regressed
-  test('POST /api/admin/fix-incomplete rejects anonymous access', { tag: '@desktop-only' }, async ({ request }) => {
-    const response = await request.post('/api/admin/fix-incomplete')
+  test('DELETE /api/admin/articles/[id] rejects anonymous access', { tag: '@desktop-only' }, async ({ request }) => {
+    const response = await request.delete(`/api/admin/articles/${NO_SUCH_ARTICLE}`)
     expect(response.status()).toBe(401)
-    expect(await response.json()).toEqual(UNAUTHORIZED_BODY)
+    expect(await response.json()).toEqual({ error: 'Not authenticated' })
   })
 })
