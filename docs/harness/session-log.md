@@ -593,3 +593,8 @@ Newest at the bottom. The same entries (latest few) appear in primer.md → Rece
   preview from production traffic before blaming a route.
 - Next best step: read the usage chart 2026-10-15..17; if still over, option B (article ISR with an anonymous loader,
   client-side guest wall, throw on transient errors, revalidate on delete), then OG image cost; home page last.
+
+### Session 20261014-1443-claude-dbb9 · 2026-10-14 · Claude Code · unlock note
+- The entry above was committed and pushed by hand (340da35) before `init.sh unlock`, so unlock's append-only check
+  saw no new entry; this note is the appended text it publishes. Next time: write the entry, leave it uncommitted, run
+  `init.sh unlock` (it commits and pushes the handoff).
