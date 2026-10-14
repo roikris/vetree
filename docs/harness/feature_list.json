@@ -1072,9 +1072,9 @@
       "notes": "Found by 20261010-1903-claude-8c5f in infra-002's grant sweep (2026-10-11). Visible product change — Roi decides. anon keeps SELECT on saved_articles only for this (migration 079)."
     },
     {
-      "status": "not_started",
+      "status": "in_progress",
       "evidence": [],
-      "branch": "",
+      "branch": "fix/admin-002-reminder-cleanup",
       "pr": null,
       "head_sha": null,
       "wip_sha": null,
@@ -1108,7 +1108,7 @@
           "paid_calls": false
         }
       ],
-      "notes": "Roi 2026-10-14: \"the admin panel needs rethinking … article health is part of an older version … reconsider if it's even needed\". Decisions D1–D5 in the plan (Analytics landing; keep all Analytics numbers, hide the weekly AI report; Reports + Users unchanged; Pipeline = extension of the Slack messages; Campaign reset = the weekly report's day). Read-only usage pass approved: admin-usage-result.txt. Supersedes admin-001."
+      "notes": "Roi 2026-10-14: \"the admin panel needs rethinking … article health is part of an older version … reconsider if it's even needed\". Decisions D1–D5 in the plan (Analytics landing; keep all Analytics numbers, hide the weekly AI report; Reports + Users unchanged; Pipeline = extension of the Slack messages; Campaign reset = the weekly report's day). Read-only usage pass approved: admin-usage-result.txt. Supersedes admin-001. · Plan rev 3: Codex plan r1 102.9k (2 blocking: activity ≠ job health; run totals not recoverable) → Roi chose A (no new table) → r2 delta 30.6k (2 blocking folded in: run-2 engaged total not /day; retry list = FAILED_UNPUBLISHED_OR). Real 'Day 117/90' source: growth-daily-reminder.js (run-1 dates hard-coded). · claimed by 20261014-0538-claude-a04e (PR 1 branch fix/admin-002-reminder-cleanup)"
     },
     {
       "status": "not_started",
