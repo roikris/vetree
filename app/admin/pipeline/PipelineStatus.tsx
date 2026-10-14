@@ -110,9 +110,9 @@ function ArticleRow({ a, now, onDelete }: { a: Item; now: Date; onDelete?: (id: 
   )
 }
 
-function Group({ title, n, hint, items, now, onDelete, onMore, loadingMore, children, testId, first }: {
+function Group({ title, n, hint, items, now, onDelete, onMore, loadingMore, moreDisabled, children, testId, first }: {
   title: string; n: number; hint: string; items: Item[]; now: Date; onDelete?: (id: string) => Promise<void>
-  onMore: () => void; loadingMore: boolean; children?: React.ReactNode; testId: string; first?: boolean
+  onMore: () => void; loadingMore: boolean; moreDisabled: boolean; children?: React.ReactNode; testId: string; first?: boolean
 }) {
   return (
     <div style={{ marginTop: first ? 0 : 22, paddingTop: first ? 0 : 18, borderTop: first ? 'none' : `1px solid ${line(0.09)}` }} data-testid={testId}>
@@ -125,7 +125,7 @@ function Group({ title, n, hint, items, now, onDelete, onMore, loadingMore, chil
       {n > items.length && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 10, flexWrap: 'wrap' }}>
           <span style={S.muted}>Showing {items.length} of {n}.</span>
-          <button type="button" style={button('quiet', loadingMore)} disabled={loadingMore} onClick={onMore} data-testid={`${testId}-more`}>
+          <button type="button" style={button('quiet', moreDisabled)} disabled={moreDisabled} onClick={onMore} data-testid={`${testId}-more`}>
             {loadingMore ? 'Loading…' : 'Show more'}
           </button>
         </div>
@@ -164,8 +164,10 @@ export function PipelineStatus() {
     }
   }, [])
 
+  // One page load at a time, never during a refresh (the buttons are disabled meanwhile), so the offset
+  // always belongs to the list on screen; rows are merged by id as a last guard against duplicates.
   const loadMore = async (key: ListKey) => {
-    if (!status) return
+    if (!status || loading || more !== null) return
     const mine = seq.current
     const offset = status.needs_you[key].items.length
     setMore(key)
@@ -176,7 +178,10 @@ export function PipelineStatus() {
       if (mine !== seq.current) return
       setStatus(prev => prev && {
         ...prev,
-        needs_you: { ...prev.needs_you, [key]: { count: body.count, items: [...prev.needs_you[key].items, ...body.items] } },
+        needs_you: { ...prev.needs_you, [key]: {
+          count: body.count,
+          items: [...prev.needs_you[key].items, ...(body.items as Item[]).filter(x => !prev.needs_you[key].items.some(y => y.id === x.id))],
+        } },
       })
     } catch (e) {
       if (mine === seq.current) setMessage({ ok: false, text: `Couldn't load more: ${e instanceof Error ? e.message : 'request failed'}` })
@@ -245,15 +250,15 @@ export function PipelineStatus() {
           {/* 1. Needs you — the part Slack can't show */}
           <section style={S.card} data-testid="needs-you">
             <h2 style={{ ...S.h2, marginBottom: 16 }}>Needs you</h2>
-            <Group first testId="waiting-codex" onMore={() => loadMore('waiting_for_codex')} loadingMore={more === 'waiting_for_codex'} title="Waiting for the Codex fallback" n={n.waiting_for_codex.count} items={n.waiting_for_codex.items} now={now}
+            <Group first testId="waiting-codex" onMore={() => loadMore('waiting_for_codex')} loadingMore={more === 'waiting_for_codex'} moreDisabled={loading || more !== null} title="Waiting for the Codex fallback" n={n.waiting_for_codex.count} items={n.waiting_for_codex.items} now={now}
               hint="Claude refused these; they stay hidden until the fallback runs on your Mac: npm run enrich:refused -- --dry-run, then npm run enrich:refused." />
-            <Group testId="failed" onMore={() => loadMore('failed')} loadingMore={more === 'failed'} title="Failed — can be retried" n={n.failed.count} items={n.failed.items} now={now} onDelete={remove}
+            <Group testId="failed" onMore={() => loadMore('failed')} loadingMore={more === 'failed'} moreDisabled={loading || more !== null} title="Failed — can be retried" n={n.failed.count} items={n.failed.items} now={now} onDelete={remove}
               hint="Enrichment failed 3 times (or the job hid it). Retry failed re-queues all of them and starts the enrichment job; it un-hides only articles the job hid (an admin, no-abstract or unknown quarantine stays).">
               <button type="button" style={button('primary', action !== null || n.failed.count === 0)} disabled={action !== null || n.failed.count === 0} onClick={() => post('retry')} data-testid="retry-failed">
                 {action === 'retry' ? 'Re-queuing…' : `Retry failed (${n.failed.count})`}
               </button>
             </Group>
-            <Group testId="missing-abstract" onMore={() => loadMore('missing_abstract')} loadingMore={more === 'missing_abstract'} title="No source abstract — can't be enriched" n={n.missing_abstract.count} items={n.missing_abstract.items} now={now} onDelete={remove}
+            <Group testId="missing-abstract" onMore={() => loadMore('missing_abstract')} loadingMore={more === 'missing_abstract'} moreDisabled={loading || more !== null} title="No source abstract — can't be enriched" n={n.missing_abstract.count} items={n.missing_abstract.items} now={now} onDelete={remove}
               hint="The job only ever enriches from the source abstract. Check the source; delete the article if it has none." />
             <div style={{ marginTop: 22, paddingTop: 18, borderTop: `1px solid ${line(0.09)}` }} data-testid="queue">
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
