@@ -1,6 +1,6 @@
 {
   "project": "vetree",
-  "last_updated": "2026-10-13",
+  "last_updated": "2026-10-14",
   "rules": {
     "single_active_feature": true,
     "passing_requires_evidence": true,
@@ -1079,6 +1079,45 @@
       "head_sha": null,
       "wip_sha": null,
       "expected_failures": [],
+      "id": "admin-002",
+      "priority": 1,
+      "area": "admin",
+      "type": "feature",
+      "title": "Admin panel rethink: weekly report uses the real campaign day (no rotation line), weekly AI report hidden, Overview item + dead code removed (PR 1); Pipeline rebuilt as \"the Slack messages, expanded\", Article Health removed (PR 2)",
+      "user_visible_behavior": "The Friday Slack report shows run 2's real day (\"Day 16/90\" on 2026-10-14, not \"Day 117/90\") and no rotation line; Analytics hides the weekly AI report section; the sidebar has no empty Overview; /admin/pipeline shows each job's last run, today's sync and enrichment, what needs Roi (waiting for Codex, failed + Retry failed, queue + Run enrichment) and hidden articles by reason — no Article Health",
+      "verification": [
+        {
+          "step": "Plan: ~/dev/vetree-harness-work/admin-002-plan.md (Roi approved 2026-10-14) → Codex plan review for improvements before implementation",
+          "target": "none",
+          "db_reads": "none",
+          "db_writes": "none",
+          "paid_calls": false
+        },
+        {
+          "step": "PR 1: init.sh check GREEN, Codex review, PR smoke; Roi merges",
+          "target": "preview",
+          "db_reads": "none",
+          "db_writes": "none",
+          "paid_calls": false
+        },
+        {
+          "step": "PR 2: init.sh check GREEN, Codex review, shown to Roi on local dev before ready, PR smoke; Roi merges",
+          "target": "local",
+          "db_reads": "prod",
+          "db_writes": "none",
+          "paid_calls": false
+        }
+      ],
+      "notes": "Roi 2026-10-14: \"the admin panel needs rethinking … article health is part of an older version … reconsider if it's even needed\". Decisions D1–D5 in the plan (Analytics landing; keep all Analytics numbers, hide the weekly AI report; Reports + Users unchanged; Pipeline = extension of the Slack messages; Campaign reset = the weekly report's day). Read-only usage pass approved: admin-usage-result.txt. Supersedes admin-001."
+    },
+    {
+      "status": "not_started",
+      "evidence": [],
+      "branch": "",
+      "pr": null,
+      "head_sha": null,
+      "wip_sha": null,
+      "expected_failures": [],
       "id": "admin-001",
       "priority": 10,
       "area": "admin",
@@ -1101,7 +1140,7 @@
           "paid_calls": false
         }
       ],
-      "notes": "Found by Codex in infra-002's review of 079 (2026-10-11)."
+      "notes": "Found by Codex in infra-002's review of 079 (2026-10-11). · 2026-10-14 (20261014-0538-claude-a04e): to be REMOVED, not fixed, by admin-002 PR 2 — the 4,579 \"never attempted\" + 16,131 \"partial\" are ~all published articles (read-only count, Roi approved); re-queueing them would re-enrich ~20.7k live articles. Closes when admin-002 PR 2 merges."
     },
     {
       "status": "not_started",
