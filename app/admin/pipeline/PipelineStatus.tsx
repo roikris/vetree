@@ -4,7 +4,7 @@
 // (GET /api/admin/pipeline/status). No run totals and no OK / late verdicts: the jobs don't store their run
 // summaries, so each job shows its latest activity next to its schedule and a link to its GitHub runs.
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { SCHEDULED_JOBS, israelSchedule, workflowUrl, ageDays } from '@/lib/pipeline/status'
 
 type Item = {
@@ -12,6 +12,7 @@ type Item = {
   created_at: string; enrichment_attempts: number | null; last_enrichment_at: string | null
   last_enrichment_error: string | null; quarantine_reason: string | null
 }
+type ListKey = 'waiting_for_codex' | 'failed' | 'missing_abstract'
 type Status = {
   generated_at: string
   today: string
@@ -109,9 +110,9 @@ function ArticleRow({ a, now, onDelete }: { a: Item; now: Date; onDelete?: (id: 
   )
 }
 
-function Group({ title, n, hint, items, now, onDelete, children, testId, first }: {
+function Group({ title, n, hint, items, now, onDelete, onMore, loadingMore, children, testId, first }: {
   title: string; n: number; hint: string; items: Item[]; now: Date; onDelete?: (id: string) => Promise<void>
-  children?: React.ReactNode; testId: string; first?: boolean
+  onMore: () => void; loadingMore: boolean; children?: React.ReactNode; testId: string; first?: boolean
 }) {
   return (
     <div style={{ marginTop: first ? 0 : 22, paddingTop: first ? 0 : 18, borderTop: first ? 'none' : `1px solid ${line(0.09)}` }} data-testid={testId}>
@@ -121,7 +122,14 @@ function Group({ title, n, hint, items, now, onDelete, children, testId, first }
       </div>
       <p style={{ ...S.muted, margin: '4px 0 0' }}>{hint}</p>
       {items.length > 0 && <ul style={{ margin: '8px 0 0', padding: 0 }}>{items.map(a => <ArticleRow key={a.id} a={a} now={now} onDelete={onDelete} />)}</ul>}
-      {n > items.length && <p style={{ ...S.muted, margin: '8px 0 0' }}>Showing the first {items.length} of {n}.</p>}
+      {n > items.length && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 10, flexWrap: 'wrap' }}>
+          <span style={S.muted}>Showing {items.length} of {n}.</span>
+          <button type="button" style={button('quiet', loadingMore)} disabled={loadingMore} onClick={onMore} data-testid={`${testId}-more`}>
+            {loadingMore ? 'Loading…' : 'Show more'}
+          </button>
+        </div>
+      )}
     </div>
   )
 }
@@ -133,20 +141,49 @@ export function PipelineStatus() {
   const [action, setAction] = useState<null | 'retry' | 'run'>(null)
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null)
 
+  const [more, setMore] = useState<ListKey | null>(null)
+  // Every read gets a number; only the newest one may update the page (a slow older refresh must never
+  // overwrite the state read after a Retry or a Delete). "Show more" pages belong to the read they extend.
+  const seq = useRef(0)
+
   const load = useCallback(async () => {
+    const mine = ++seq.current
     setLoading(true)
+    setMore(null)
     try {
       const res = await fetch('/api/admin/pipeline/status', { cache: 'no-store' })
       const body = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`)
+      if (mine !== seq.current) return
       setStatus(body as Status)
       setError(null)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Request failed')
+      if (mine === seq.current) setError(e instanceof Error ? e.message : 'Request failed')
     } finally {
-      setLoading(false)
+      if (mine === seq.current) setLoading(false)
     }
   }, [])
+
+  const loadMore = async (key: ListKey) => {
+    if (!status) return
+    const mine = seq.current
+    const offset = status.needs_you[key].items.length
+    setMore(key)
+    try {
+      const res = await fetch(`/api/admin/pipeline/status?list=${key}&offset=${offset}`, { cache: 'no-store' })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`)
+      if (mine !== seq.current) return
+      setStatus(prev => prev && {
+        ...prev,
+        needs_you: { ...prev.needs_you, [key]: { count: body.count, items: [...prev.needs_you[key].items, ...body.items] } },
+      })
+    } catch (e) {
+      if (mine === seq.current) setMessage({ ok: false, text: `Couldn't load more: ${e instanceof Error ? e.message : 'request failed'}` })
+    } finally {
+      if (mine === seq.current) setMore(null)
+    }
+  }
 
   useEffect(() => { load() }, [load])
 
@@ -169,10 +206,14 @@ export function PipelineStatus() {
 
   const remove = async (id: string) => {
     setMessage(null)
-    const res = await fetch(`/api/admin/articles/${id}`, { method: 'DELETE' })
-    const body = await res.json().catch(() => ({}))
-    if (!res.ok) { setMessage({ ok: false, text: body.error || `Delete failed (HTTP ${res.status})` }); return }
-    setMessage({ ok: true, text: 'Article deleted and blocked from future syncs.' })
+    try {
+      const res = await fetch(`/api/admin/articles/${id}`, { method: 'DELETE' })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) { setMessage({ ok: false, text: body.error || `Delete failed (HTTP ${res.status})` }); return }
+      setMessage({ ok: true, text: 'Article deleted and blocked from future syncs.' })
+    } catch {
+      setMessage({ ok: false, text: 'The delete request got no answer — it may or may not have gone through. Refreshing to show the current state.' })
+    }
     await load()
   }
 
@@ -204,15 +245,15 @@ export function PipelineStatus() {
           {/* 1. Needs you — the part Slack can't show */}
           <section style={S.card} data-testid="needs-you">
             <h2 style={{ ...S.h2, marginBottom: 16 }}>Needs you</h2>
-            <Group first testId="waiting-codex" title="Waiting for the Codex fallback" n={n.waiting_for_codex.count} items={n.waiting_for_codex.items} now={now}
+            <Group first testId="waiting-codex" onMore={() => loadMore('waiting_for_codex')} loadingMore={more === 'waiting_for_codex'} title="Waiting for the Codex fallback" n={n.waiting_for_codex.count} items={n.waiting_for_codex.items} now={now}
               hint="Claude refused these; they stay hidden until the fallback runs on your Mac: npm run enrich:refused -- --dry-run, then npm run enrich:refused." />
-            <Group testId="failed" title="Failed — can be retried" n={n.failed.count} items={n.failed.items} now={now} onDelete={remove}
-              hint="Enrichment failed 3 times (or the job hid it). Retry failed re-queues all of them, un-hides them and starts the enrichment job.">
+            <Group testId="failed" onMore={() => loadMore('failed')} loadingMore={more === 'failed'} title="Failed — can be retried" n={n.failed.count} items={n.failed.items} now={now} onDelete={remove}
+              hint="Enrichment failed 3 times (or the job hid it). Retry failed re-queues all of them and starts the enrichment job; it un-hides only articles the job hid (an admin, no-abstract or unknown quarantine stays).">
               <button type="button" style={button('primary', action !== null || n.failed.count === 0)} disabled={action !== null || n.failed.count === 0} onClick={() => post('retry')} data-testid="retry-failed">
                 {action === 'retry' ? 'Re-queuing…' : `Retry failed (${n.failed.count})`}
               </button>
             </Group>
-            <Group testId="missing-abstract" title="No source abstract — can't be enriched" n={n.missing_abstract.count} items={n.missing_abstract.items} now={now} onDelete={remove}
+            <Group testId="missing-abstract" onMore={() => loadMore('missing_abstract')} loadingMore={more === 'missing_abstract'} title="No source abstract — can't be enriched" n={n.missing_abstract.count} items={n.missing_abstract.items} now={now} onDelete={remove}
               hint="The job only ever enriches from the source abstract. Check the source; delete the article if it has none." />
             <div style={{ marginTop: 22, paddingTop: 18, borderTop: `1px solid ${line(0.09)}` }} data-testid="queue">
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
@@ -222,7 +263,7 @@ export function PipelineStatus() {
                 </button>
               </div>
               <p style={{ ...S.muted, margin: '4px 0 0' }}>
-                {plural(n.queue.queued, 'article')} queued; the next run picks up {n.queue.runnable}
+                {plural(n.queue.queued, 'article')} queued; {n.queue.runnable} eligible for the job (it caps each run)
                 {n.queue.queued > n.queue.runnable && ' (the rest: no abstract, out of attempts, or waiting for Codex)'}.
                 {' '}The job runs daily at {israelSchedule(SCHEDULED_JOBS.find(j => j.key === 'enrichment')!, now).replace('daily ', '')}.
               </p>

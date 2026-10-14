@@ -12,9 +12,12 @@ export const dynamic = 'force-dynamic'
 // whole response, so a read error never shows as a zero.
 
 // Not public — the negation of the public filter (supabase/CLAUDE.md)
-const NOT_VISIBLE_OR = 'needs_enrichment.eq.true,summary.is.null,clinical_bottom_line.is.null,quarantined.eq.true'
+// (needs_enrichment is nullable: a NULL flag is not public either — CLAUDE.md rule 5)
+const NOT_VISIBLE_OR = 'needs_enrichment.is.null,needs_enrichment.eq.true,summary.is.null,clinical_bottom_line.is.null,quarantined.eq.true'
 // The enrichment job's queue (enrich-articles.js): what its next run will actually pick up
 const RUNNABLE_OR = `and(or(enrichment_attempts.lt.3,force_retry.eq.true),or(quarantine_reason.is.null,quarantine_reason.neq.${AI_REFUSED}))`
+// Not public, not queued, not hidden: nothing explains it
+const UNEXPLAINED_OR = 'and(or(needs_enrichment.is.null,summary.is.null,clinical_bottom_line.is.null),or(needs_enrichment.is.null,needs_enrichment.eq.false),or(quarantined.is.null,quarantined.eq.false))'
 const ITEM_FIELDS = 'id, title, article_url, pubmed_id, source_journal, created_at, enrichment_attempts, last_enrichment_at, last_enrichment_error, quarantine_reason'
 const LIST_LIMIT = 50
 const PAGE = 1000
@@ -26,7 +29,24 @@ const must = <T extends { error: { message: string } | null }>(label: string) =>
 }
 const n = (r: Count) => r.count ?? 0
 
-export async function GET() {
+type ListKey = 'waiting_for_codex' | 'failed' | 'missing_abstract'
+const LIST_KEYS: ListKey[] = ['waiting_for_codex', 'failed', 'missing_abstract']
+
+// One page of a needs-you list, with its exact count; `id` breaks ties so pages never overlap or skip
+function listPage(db: ReturnType<typeof createAdminClient>, key: ListKey, offset: number) {
+  const base = db.from('articles').select(ITEM_FIELDS, { count: 'exact' })
+  const q = key === 'waiting_for_codex'
+    ? base.eq('quarantine_reason', AI_REFUSED).order('last_enrichment_at', { ascending: true, nullsFirst: true })
+    // the set "Retry failed" re-queues (requeue_failed_articles, lib/enrichment/requeueFailed.ts)
+    : key === 'failed'
+      ? base.not('abstract', 'is', null).or(FAILED_UNPUBLISHED_OR).not('force_retry', 'is', true)
+          .order('last_enrichment_at', { ascending: false, nullsFirst: false })
+      // can't be enriched at all: the job only ever enriches from the source abstract
+      : base.is('abstract', null).or(NOT_VISIBLE_OR).order('created_at', { ascending: false })
+  return q.order('id', { ascending: true }).range(offset, offset + LIST_LIMIT - 1).then(must(key))
+}
+
+export async function GET(request: Request) {
   try {
     const cookieClient = await createClient()
     const { data: { user } } = await cookieClient.auth.getUser()
@@ -36,6 +56,18 @@ export async function GET() {
     if (role?.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
     const db = createAdminClient()
+
+    // ?list=<key>&offset=<n>: the next page of one needs-you list ("Show more")
+    const params = new URL(request.url).searchParams
+    const listParam = params.get('list')
+    if (listParam !== null) {
+      const offset = Number(params.get('offset') ?? '0')
+      if (!LIST_KEYS.includes(listParam as ListKey) || !Number.isInteger(offset) || offset < 0) {
+        return NextResponse.json({ error: 'Bad list or offset' }, { status: 400 })
+      }
+      const page = await listPage(db, listParam as ListKey, offset)
+      return NextResponse.json({ list: listParam, offset, count: page.count ?? 0, items: page.data ?? [] })
+    }
     const now = new Date()
     const today = israelDate(now)
     const { start, end } = israelDayBounds(today)
@@ -65,17 +97,10 @@ export async function GET() {
       head().eq('needs_enrichment', true).then(must('queued')),
       head().eq('needs_enrichment', true).not('abstract', 'is', null).or(RUNNABLE_OR).then(must('runnable')),
       // not queued, not hidden, yet missing text: nothing explains why it isn't public
-      head().eq('needs_enrichment', false)
-        .or('and(or(summary.is.null,clinical_bottom_line.is.null),or(quarantined.is.null,quarantined.eq.false))').then(must('unexplained')),
+      // (a NULL enrichment flag counts here: it is neither queued nor public)
+      head().or(UNEXPLAINED_OR).then(must('unexplained')),
 
-      db.from('articles').select(ITEM_FIELDS, { count: 'exact' }).eq('quarantine_reason', AI_REFUSED)
-        .order('last_enrichment_at', { ascending: true, nullsFirst: true }).limit(LIST_LIMIT).then(must('waiting for Codex')),
-      // the set "Retry failed" re-queues (requeue_failed_articles, lib/enrichment/requeueFailed.ts)
-      db.from('articles').select(ITEM_FIELDS, { count: 'exact' }).not('abstract', 'is', null).or(FAILED_UNPUBLISHED_OR)
-        .not('force_retry', 'is', true).order('last_enrichment_at', { ascending: false, nullsFirst: false }).limit(LIST_LIMIT).then(must('failed')),
-      // can't be enriched at all: the job only ever enriches from the source abstract
-      db.from('articles').select(ITEM_FIELDS, { count: 'exact' }).is('abstract', null).or(NOT_VISIBLE_OR)
-        .order('created_at', { ascending: false }).limit(LIST_LIMIT).then(must('missing abstract')),
+      listPage(db, 'waiting_for_codex', 0), listPage(db, 'failed', 0), listPage(db, 'missing_abstract', 0),
 
       all<{ quarantine_reason: string | null }>('hidden', (f, t) => db.from('articles').select('quarantine_reason')
         .eq('quarantined', true).order('id').range(f, t)),
