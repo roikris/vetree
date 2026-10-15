@@ -104,14 +104,3 @@ export async function getUserSavedArticleIds() {
 
   return { articleIds }
 }
-
-export async function getArticleSaveCount(articleId: string) {
-  const supabase = await createClient()
-
-  const { count } = await supabase
-    .from('saved_articles')
-    .select('*', { count: 'exact', head: true })
-    .eq('article_id', articleId)
-
-  return { count: count || 0 }
-}

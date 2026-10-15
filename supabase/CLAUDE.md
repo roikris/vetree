@@ -494,6 +494,7 @@ Service role only. Records data migrations and each `purge_expired_logs()` run.
 | `harness_rls_report()` | 075 | Read-only: every public table's row-level security (on / forced) plus every policy on it (command, roles, USING / WITH CHECK) — catalog only, never row data; `node docs/harness/harness.mjs rls-report` prints it (infra-002) |
 | `harness_schema_report()` | 080 | Read-only: the public schema's whole structure as ONE jsonb value (relations, columns, constraints, indexes, triggers, views, sequences, routines, types, schema ACL, extensions, default privileges, Supabase roles, event triggers, publications) plus independent counts and every object of an uncovered kind — catalog only, never row data or sequence values; the schema audit's source (infra-003) |
 | `requeue_failed_articles()` | 072, 073 | Admin "Retry failed": re-queues failed, unpublished articles; lifts only `enrichment_failed` quarantines; never selects `ai_refused` (073) |
+| `saved_this_week(since, until, excluded, limit)` | 083 | Homepage "Articles saved this week": save counts per publicly visible article in [since, until), excluded user ids left out, ordered by count, newer article, id — article ids + counts only (feed-002) |
 | `purge_expired_logs()` | 069/070 | 12-month retention purge (pg_cron daily) |
 | `delete_user_account(uuid)` | 070 | GDPR deletion of a user's rows across all PII tables |
 | `search_articles_batch` / `search_articles_fuzzy` / `search_articles_synthesis` | 060 / 054+056 / 026+030 | Search — granted to `anon` (public search) |
@@ -572,7 +573,7 @@ writes the full report locally for reading — never commit it.
 **Limits:** direct relation privileges only — not role membership / inherited privileges, column grants, RLS,
 schema USAGE or grant options. A match proves neither that the app can do what it needs nor that a role is
 effectively denied. **Least privilege since migration 079 (infra-002):** anon / authenticated hold only the commands
-their policies allow (anon: SELECT on articles, and on saved_articles until Trending is fixed); nobody but
+their policies allow (anon: SELECT on articles only — saved_articles revoked in 083, feed-002); nobody but
 service_role / postgres holds TRUNCATE, TRIGGER, REFERENCES or MAINTAIN. A new policy for a role needs the matching
 grant, and a new grant needs a policy — keep the two in step.
 **Replay safety (infra-003, 2026-10-12)** — `docs/harness/replay.sh <new|old>` rebuilds the database from
