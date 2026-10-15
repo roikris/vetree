@@ -10,11 +10,19 @@ SELECT ('00000000-0000-4000-8000-' || lpad(g::text, 12, '0'))::uuid FROM generat
 INSERT INTO public.articles (id, title, needs_enrichment, summary, clinical_bottom_line, quarantined, created_at)
 SELECT 'fx-v' || g, 't', false, 's', 'b', NULL, timestamptz '2026-01-01 00:00+00' + g * interval '1 hour'
 FROM generate_series(1, 25) g;
--- hidden: quarantined, waiting for enrichment, no summary
+-- fx-w26 … fx-w60: 35 more visible articles (all older than fx-v1), one save each below — 60 candidates for the cap of 50
+INSERT INTO public.articles (id, title, needs_enrichment, summary, clinical_bottom_line, quarantined, created_at)
+SELECT 'fx-w' || g, 't', false, 's', 'b', false, timestamptz '2025-06-01 00:00+00' FROM generate_series(26, 60) g;
+-- fx-ta / fx-tb: same count, same created_at → the id decides (fx-ta first)
+INSERT INTO public.articles (id, title, needs_enrichment, summary, clinical_bottom_line, quarantined, created_at) VALUES
+  ('fx-tb', 't', false, 's', 'b', false, '2025-12-01 00:00+00'),
+  ('fx-ta', 't', false, 's', 'b', false, '2025-12-01 00:00+00');
+-- hidden: quarantined, waiting for enrichment, no summary, no bottom line
 INSERT INTO public.articles (id, title, needs_enrichment, summary, clinical_bottom_line, quarantined, created_at) VALUES
   ('fx-q', 't', false, 's', 'b', true,  '2026-02-01 00:00+00'),
   ('fx-e', 't', true,  's', 'b', false, '2026-02-01 00:00+00'),
-  ('fx-n', 't', false, NULL, 'b', false, '2026-02-01 00:00+00');
+  ('fx-n', 't', false, NULL, 'b', false, '2026-02-01 00:00+00'),
+  ('fx-b', 't', false, 's', NULL, false, '2026-02-01 00:00+00');
 
 CREATE TEMP TABLE fx_saves(article_id text, u int, at timestamptz) ON COMMIT DROP;
 INSERT INTO fx_saves VALUES
@@ -28,8 +36,11 @@ INSERT INTO fx_saves VALUES
   ('fx-v4', 1, '2026-03-01 00:00+00'), ('fx-v4', 2, '2026-03-05'), ('fx-v4', 3, '2026-03-08 00:00+00'), ('fx-v4', 4, '2026-02-28');
 -- fx-v5 … fx-v25: one save each — 21 ties at 1, more than the limit leaves room for
 INSERT INTO fx_saves SELECT 'fx-v' || g, 1, timestamptz '2026-03-06' FROM generate_series(5, 25) g;
+INSERT INTO fx_saves SELECT 'fx-w' || g, 1, timestamptz '2026-03-06' FROM generate_series(26, 60) g;
+-- fx-ta / fx-tb: 2 each
+INSERT INTO fx_saves VALUES ('fx-tb', 1, '2026-03-06'), ('fx-tb', 2, '2026-03-06'), ('fx-ta', 1, '2026-03-06'), ('fx-ta', 2, '2026-03-06');
 -- hidden articles: 10 saves each, never counted
-INSERT INTO fx_saves SELECT a, g, timestamptz '2026-03-06' FROM unnest(ARRAY['fx-q', 'fx-e', 'fx-n']) a, generate_series(1, 10) g;
+INSERT INTO fx_saves SELECT a, g, timestamptz '2026-03-06' FROM unnest(ARRAY['fx-q', 'fx-e', 'fx-n', 'fx-b']) a, generate_series(1, 10) g;
 
 INSERT INTO public.saved_articles (user_id, article_id, saved_at)
 SELECT CASE WHEN u IS NULL THEN NULL ELSE ('00000000-0000-4000-8000-' || lpad(u::text, 12, '0'))::uuid END, article_id, at
@@ -50,10 +61,11 @@ DECLARE
                         FROM public.saved_this_week('2026-03-01 00:00+00', '2026-03-08 00:00+00', $1, $2)
                              WITH ORDINALITY AS x(article_id, save_count, ord)$q$;
 BEGIN
-  -- limit 20: ties at 3 newest first, then the 16 newest of the 21 one-save articles; hidden never appear
-  SELECT string_agg(s, ',') INTO want FROM (
-    SELECT unnest(ARRAY['fx-v1:5', 'fx-v3:3', 'fx-v2:3', 'fx-v4:2']) s
-    UNION ALL SELECT * FROM (SELECT 'fx-v' || g || ':1' FROM generate_series(25, 10, -1) g) t) w;
+  -- limit 20: ties at 3 newest first; at 2, fx-v4 (newest) then fx-ta / fx-tb by id; then the 14 newest of the
+  -- one-save articles (fx-v25 … fx-v12); hidden never appear. Built with explicit positions, aggregated in order.
+  SELECT string_agg(s, ',' ORDER BY pos) INTO want FROM (
+    SELECT s, pos FROM unnest(ARRAY['fx-v1:5', 'fx-v3:3', 'fx-v2:3', 'fx-v4:2', 'fx-ta:2', 'fx-tb:2']) WITH ORDINALITY AS a(s, pos)
+    UNION ALL SELECT 'fx-v' || g || ':1', 100 + (25 - g) FROM generate_series(25, 12, -1) g) w;
   EXECUTE q INTO got USING ex, 20;
   IF got IS DISTINCT FROM want THEN RAISE EXCEPTION 'saved_this_week fixture (limit 20): got %, want %', got, want; END IF;
 
@@ -63,9 +75,12 @@ BEGIN
   EXECUTE q INTO got USING ex, 0;           -- clamped to 1
   IF got IS DISTINCT FROM 'fx-v1:5' THEN RAISE EXCEPTION 'saved_this_week fixture (limit 0): got %', got; END IF;
 
+  EXECUTE q INTO got USING ex, -5;          -- clamped to 1
+  IF got IS DISTINCT FROM 'fx-v1:5' THEN RAISE EXCEPTION 'saved_this_week fixture (limit -5): got %', got; END IF;
+
   EXECUTE 'SELECT count(*)::text FROM public.saved_this_week(''2026-03-01 00:00+00'', ''2026-03-08 00:00+00'', $1, 999)'
-    INTO got USING ex;                      -- clamped to 50: all 25 visible
-  IF got IS DISTINCT FROM '25' THEN RAISE EXCEPTION 'saved_this_week fixture (limit 999): got % rows', got; END IF;
+    INTO got USING ex;                      -- 62 visible candidates, clamped to 50
+  IF got IS DISTINCT FROM '50' THEN RAISE EXCEPTION 'saved_this_week fixture (limit 999): got % rows', got; END IF;
 
   EXECUTE q INTO got USING NULL::uuid[], 2; -- nobody excluded: fx-v2 has 5, ties fx-v1 and is newer
   IF got IS DISTINCT FROM 'fx-v2:5,fx-v1:5' THEN RAISE EXCEPTION 'saved_this_week fixture (no exclusions): got %', got; END IF;

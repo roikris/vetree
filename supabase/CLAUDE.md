@@ -10,6 +10,10 @@ import { createClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
 ```
+One narrow exception: `lib/queries/savedThisWeek.ts` (homepage "Articles saved this week", feed-002) uses the
+service role from the home page's server render — only to call `saved_this_week()` (083), which returns article ids
+and counts, never user data. It is a plain server module, never a `'use server'` action (an action is callable from
+any browser). Anything else that needs the service role stays in an API route.
 
 **Never import `@/lib/supabase/client` in server-side code.** It uses the anon key, so RLS applies
 and reads return empty 200 instead of errors — silent data corruption. ESLint enforces this.
