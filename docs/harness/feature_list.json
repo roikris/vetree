@@ -1040,15 +1040,15 @@
       "notes": "Added by 20261010-1903-claude-8c5f on Roi's word (2026-10-10, \"add the guard\"). Origin: session-log.md truncated to one entry in f81d84f by a close-out script (restored in d94ff26); unlock only checked that the session's entry exists. · claimed by 20261011-1725-claude-656c · CLOSED 2026-10-12 (#126)."
     },
     {
-      "status": "not_started",
+      "status": "in_progress",
       "evidence": [],
-      "branch": "",
+      "branch": "fix/feed-002-saved-this-week",
       "pr": null,
       "head_sha": null,
       "wip_sha": null,
       "expected_failures": [],
       "id": "feed-002",
-      "priority": 9,
+      "priority": 1,
       "area": "feed",
       "type": "fix",
       "title": "Homepage \"Trending\" counts only the reader's own saves (app/actions/trending.ts reads saved_articles with the cookie client)",
@@ -1069,7 +1069,7 @@
           "paid_calls": false
         }
       ],
-      "notes": "Found by 20261010-1903-claude-8c5f in infra-002's grant sweep (2026-10-11). Visible product change — Roi decides. anon keeps SELECT on saved_articles only for this (migration 079)."
+      "notes": "Found by 20261010-1903-claude-8c5f in infra-002's grant sweep (2026-10-11). Visible product change — Roi decides. anon keeps SELECT on saved_articles only for this (migration 079). · claimed by 20261015-0745-claude-f044 · Roi 2026-10-15: \"1A but let's change it to 'articles saved this week'\" (count every reader's saves on the server, same list for everyone; heading renamed, which also answers thin counts — no production count needed) and \"2 yes\" (exclude admin + test account, rule 10). Plan: ~/dev/vetree-harness-work/feed-002-plan.md."
     },
     {
       "status": "merged",
