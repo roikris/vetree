@@ -1069,7 +1069,7 @@
           "paid_calls": false
         }
       ],
-      "notes": "Found by 20261010-1903-claude-8c5f in infra-002's grant sweep (2026-10-11). Visible product change — Roi decides. anon keeps SELECT on saved_articles only for this (migration 079). · claimed by 20261015-0745-claude-f044 · Roi 2026-10-15: \"1A but let's change it to 'articles saved this week'\" (count every reader's saves on the server, same list for everyone; heading renamed, which also answers thin counts — no production count needed) and \"2 yes\" (exclude admin + test account, rule 10). Plan: ~/dev/vetree-harness-work/feed-002-plan.md."
+      "notes": "Found by 20261010-1903-claude-8c5f in infra-002's grant sweep (2026-10-11). Visible product change — Roi decides. anon keeps SELECT on saved_articles only for this (migration 079). · claimed by 20261015-0745-claude-f044 · Roi 2026-10-15: \"1A but let's change it to 'articles saved this week'\" (count every reader's saves on the server, same list for everyone; heading renamed, which also answers thin counts — no production count needed) and \"2 yes\" (exclude admin + test account, rule 10). Plan: ~/dev/vetree-harness-work/feed-002-plan.md. · Codex plan r1 66.3k (3 blocking: offset paging inconsistent; tie-break after the cut; TEST_USER_ID throws at module load) → Roi: \"yes\" to a SQL function public.saved_this_week (service role only) → r2 delta 41.4k (1 blocking: replay compares schema.json exactly → candidate keys from the replay report before the push) → r3 delta 32.6k BLOCKING: none (NB: schema-snapshot --report to a temp file, merge only relevant keys, delete the revoked ACL key; SQL fixture before replay's self-check). Plan rev 3 awaits Roi's go to build."
     },
     {
       "status": "merged",
