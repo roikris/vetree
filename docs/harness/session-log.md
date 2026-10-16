@@ -598,3 +598,38 @@ Newest at the bottom. The same entries (latest few) appear in primer.md → Rece
 - The entry above was committed and pushed by hand (340da35) before `init.sh unlock`, so unlock's append-only check
   saw no new entry; this note is the appended text it publishes. Next time: write the entry, leave it uncommitted, run
   `init.sh unlock` (it commits and pushes the handoff).
+
+### Session 20261015-0745-claude-f044 · 2026-10-15 → 2026-10-16 · Claude Code · feed-002 (closed)
+- Goal / Completed: the homepage "Trending This Week 🔥" read saved_articles with the visitor's own client, so RLS gave
+  guests nothing and signed-in readers only their own saves. Roi chose 1A + renamed it "Articles saved this week"
+  (every reader's saves, the same list for everyone) and 2 yes (admin + test account excluded). #137: migration 083
+  `public.saved_this_week(since, until, excluded, limit)` — SQL counting in one snapshot, ties broken before the LIMIT
+  (count, newer created_at, id), public-article filter, limit clamped 1–50, EXECUTE for service_role only; and REVOKE
+  SELECT on saved_articles FROM anon (079 kept it only for Trending). `lib/queries/savedThisWeek(Core).ts`: plain server
+  module (not 'use server' — an action would be browser-callable with the service role), 20 candidates → large-animal-
+  only dropped → 5 shown, hidden below 3, unstable_cache keyed by the UTC hour, a failed fill throws (nothing cached),
+  3 s deadline. SavedThisWeek.tsx ("N saves"); app/actions/trending.ts and the unused getArticleSaveCount removed;
+  access.json / schema.json (9 keys from the replay report, the anon ACL key gone) / supabase/CLAUDE.md updated.
+  Also (perf-001): Roi set Vercel deployment retention (pre-production 1 week) after Functions Storage hit 8.93 / 10 GB.
+- Start state: main 181c207, clean; lock taken for feed-002.
+- Verification: unit 80/80 (8 new, fake clients); replay fixture docs/harness/test/replay/saved-this-week.sql (exclusions,
+  NULL user kept, window edges, ties, NULL / 0 / -5 / 999 limits, privileges) + anon / authenticated calls refused —
+  replay new + old PASS; init.sh check GREEN on fda5366 after the push (acl 33, rls 32 / 40, schema 4,301 facts — no
+  snapshot change needed); 083 dry run listed only 083, pushed on Roi's yes; PR suite once after ready (smoke, replay,
+  scope, Vercel pass); squash-merged at fda5366 as 0d3d6ed; production /api/version = 0d3d6ed, home 200 shows the
+  section signed out (4 articles, 1 save each). Not checked by me: the signed-in view on production.
+- Review: Codex · tier 2 (Supabase migration + service role) · plan 3 rounds 66.3k / 41.4k / 32.6k · code 1 round 54.7k
+  ≈ 195k · BLOCKING: none (fixed in the plan: offset paging inconsistent across reads, tie-break after the cut,
+  TEST_USER_ID throwing at module load → SQL function; replay compares schema.json exactly → keys from the replay report
+  before the push; NB applied in fda5366, not re-reviewed). One Codex run lost to the ChatGPT usage limit, then
+  "workspace routing discovery failed"; re-run on Roi's "try now".
+- Commits / PR: 853cec3, 3365c99, fda5366 → #137 merged 0d3d6ed on Roi's word ("merge"). Migration 083 pushed.
+- Pending Roi approvals: none. Roi: Vercel usage chart (CPU + Functions Storage) 2026-10-16..17; daily posting;
+  Thursday's security scan (first after 079 + 083).
+- Known risks / unresolved: the section reads the service role from a server module — anything importing
+  savedThisWeek.ts must stay server-only (next/headers import breaks a client build); counts are low today (1 save each),
+  so the list can be hidden on a quiet week; `supabase migration list --linked` hung once (use `< /dev/null`, background).
+- Lesson: a 'use server' file's every export is a public endpoint — service-role reads belong in a plain server module.
+  An exact schema snapshot means a migration's expected keys come from a rebuild, before production has them.
+- Next best step: perf-001 — read the usage chart 2026-10-16..17 (proxy row down, < ~8 min/day; Functions Storage after
+  the retention change); if still over, option B. scripts-001 needs Roi; ai-001 ~2026-11-01.

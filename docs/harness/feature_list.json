@@ -1,6 +1,6 @@
 {
   "project": "vetree",
-  "last_updated": "2026-10-14",
+  "last_updated": "2026-10-16",
   "rules": {
     "single_active_feature": true,
     "passing_requires_evidence": true,
@@ -1040,7 +1040,7 @@
       "notes": "Added by 20261010-1903-claude-8c5f on Roi's word (2026-10-10, \"add the guard\"). Origin: session-log.md truncated to one entry in f81d84f by a close-out script (restored in d94ff26); unlock only checked that the session's entry exists. · claimed by 20261011-1725-claude-656c · CLOSED 2026-10-12 (#126)."
     },
     {
-      "status": "in_progress",
+      "status": "merged",
       "evidence": [
         {
           "date": "2026-10-15",
@@ -1051,11 +1051,41 @@
           "outcome": "pass",
           "approval": "Roi: \"buikd\"",
           "link": "PR #137"
+        },
+        {
+          "date": "2026-10-15",
+          "session": "20261015-0745-claude-f044",
+          "sha": "fda5366",
+          "command": "Migration 083 pushed to production: dry run listed only 083_saved_this_week.sql; `npx supabase db push --linked` applied it (exit 0); init.sh check --item feed-002 GREEN on fda5366 — acl audit 33 relations, rls audit 32 tables / 40 policies, schema audit 4301 facts match (production prints the function exactly as replay did; no snapshot change); tsc / lint ratchet / unit / build PASS",
+          "target": "production",
+          "outcome": "pass",
+          "approval": "Roi: \"yes\" (apply 083)",
+          "link": "PR #137"
+        },
+        {
+          "date": "2026-10-16",
+          "session": "20261015-0745-claude-f044",
+          "sha": "fda5366",
+          "command": "gh pr ready 137 (one suite run): scope, replay (new) 1m28s, replay (old) 1m18s, smoke 2m04s, Vercel — all pass on fda5366; preview https://vetree-l8xxaanmf-roikris-projects.vercel.app",
+          "target": "preview",
+          "outcome": "pass",
+          "approval": "Roi: \"yes\" (mark ready)",
+          "link": "PR #137"
+        },
+        {
+          "date": "2026-10-16",
+          "session": "20261015-0745-claude-f044",
+          "sha": "0d3d6ed",
+          "command": "Squash-merged #137 at fda5366 (--match-head-commit) as 0d3d6ed; production deployment success; /api/version = 0d3d6ed; home /?browse=1 200 signed out shows 'Articles saved this week' (4 articles, '1 save' each), no 'Trending This Week'",
+          "target": "production",
+          "outcome": "pass",
+          "approval": "Roi: \"merge\"",
+          "link": "PR #137"
         }
       ],
       "branch": "fix/feed-002-saved-this-week",
       "pr": 137,
-      "head_sha": "fda5366",
+      "head_sha": "0d3d6ed",
       "wip_sha": null,
       "expected_failures": [],
       "id": "feed-002",
@@ -1080,7 +1110,7 @@
           "paid_calls": false
         }
       ],
-      "notes": "Found by 20261010-1903-claude-8c5f in infra-002's grant sweep (2026-10-11). Visible product change — Roi decides. anon keeps SELECT on saved_articles only for this (migration 079). · claimed by 20261015-0745-claude-f044 · Roi 2026-10-15: \"1A but let's change it to 'articles saved this week'\" (count every reader's saves on the server, same list for everyone; heading renamed, which also answers thin counts — no production count needed) and \"2 yes\" (exclude admin + test account, rule 10). Plan: ~/dev/vetree-harness-work/feed-002-plan.md. · Codex plan r1 66.3k (3 blocking: offset paging inconsistent; tie-break after the cut; TEST_USER_ID throws at module load) → Roi: \"yes\" to a SQL function public.saved_this_week (service role only) → r2 delta 41.4k (1 blocking: replay compares schema.json exactly → candidate keys from the replay report before the push) → r3 delta 32.6k BLOCKING: none (NB: schema-snapshot --report to a temp file, merge only relevant keys, delete the revoked ACL key; SQL fixture before replay's self-check). Plan rev 3 awaits Roi's go to build. · Codex code r1 54.7k BLOCKING: none (first 17:31 attempt failed: Codex usage limit, then 'workspace routing discovery failed'). Next: db push 083 needs Roi's explicit yes."
+      "notes": "Found by 20261010-1903-claude-8c5f in infra-002's grant sweep (2026-10-11). Visible product change — Roi decides. anon keeps SELECT on saved_articles only for this (migration 079). · claimed by 20261015-0745-claude-f044 · Roi 2026-10-15: \"1A but let's change it to 'articles saved this week'\" (count every reader's saves on the server, same list for everyone; heading renamed, which also answers thin counts — no production count needed) and \"2 yes\" (exclude admin + test account, rule 10). Plan: ~/dev/vetree-harness-work/feed-002-plan.md. · Codex plan r1 66.3k (3 blocking: offset paging inconsistent; tie-break after the cut; TEST_USER_ID throws at module load) → Roi: \"yes\" to a SQL function public.saved_this_week (service role only) → r2 delta 41.4k (1 blocking: replay compares schema.json exactly → candidate keys from the replay report before the push) → r3 delta 32.6k BLOCKING: none (NB: schema-snapshot --report to a temp file, merge only relevant keys, delete the revoked ACL key; SQL fixture before replay's self-check). Plan rev 3 awaits Roi's go to build. · Codex code r1 54.7k BLOCKING: none (first 17:31 attempt failed: Codex usage limit, then 'workspace routing discovery failed'). Next: db push 083 needs Roi's explicit yes. · 083 pushed on Roi's yes (2026-10-15); production audits GREEN. #137 ready → suite pass once; merged 0d3d6ed on Roi's word (2026-10-16); production home shows the section signed out. Closed."
     },
     {
       "status": "merged",
@@ -1508,7 +1538,7 @@
       "head_sha": "181c207",
       "wip_sha": null,
       "expected_failures": [],
-      "notes": "Roi 2026-10-14: \"scan the vercel's webpage for usage, there are some measurements there that are trending up\" → usage read (read only): Fluid Active CPU 4h 50m / 4h (proxy 'middleware' 2h 6m 43.6%, functions 2h 43m 56.4%); daily ~5 min (Sep 14–23), 7–24 (Sep 24–Oct 3), ~7 (Oct 4–9), 9→13 (Oct 10–13). Everything else well under: invocations 389K/1M, CDN requests 434K/1M, ISR writes 21K/200K. Roi: \"Yes\" (open the item, start read-only). · claimed by 20261014-1443-claude-dbb9 · Read-only findings (2026-10-14): (1) /article/[id] and / are 0% cached (Vercel CDN, 12 h) — the article page reads cookies() via the server Supabase client (getUser for the registration wall), which makes it dynamic despite revalidate 86400; the home page is force-dynamic; these two are the top CPU routes. (2) proxy.ts runs on every page request (matcher excludes only static / api / OG); for visitors without an auth cookie it skips the Supabase call but is still a Node invocation — 43.6% of the month's CPU. (3) Preview traffic 5.5K CDN requests vs production 2.9K in the same 12 h (smoke runs on #135); full PR suites per day 2–10, drafts fail in seconds. AI bots small (285 requests / 12 h). Hobby observability keeps 12 h only, so per-route monthly totals are not available. Options to Roi: A proxy matcher skips requests without the auth cookie (missing-cookie condition); B article page static/ISR with the per-user parts client-side; C fewer / lighter PR smoke runs. · Codex plan r1 72.9k (Roi: \"What does codex say?\"): 3 blocking — A must match the chunked cookie (.0/.1) literally, an early return saves nothing (invocation still happens), B needs a cache-failure + invalidation policy (DB error cached as 404; delete doesn't revalidate). Ranking: redundant smoke runs first, corrected A, article ISR, home page last; separate production vs preview CPU before attributing. · Option C in effect (memory rule: drafts until done, ready once). PR #136 ready on a749e08, all checks pass; awaits Roi's preview check (sign in / browse / sign out) + his merge. After merge: daily CPU for 2–3 days (target < ~8 min/day; proxy row). · PR #136 merged 181c207 (2026-10-14) on Roi's word. OPEN (monitoring): daily Fluid Active CPU on the Vercel usage chart 2026-10-15..17 — the proxy ('middleware') row should fall sharply, daily total < ~8 min. If not enough: option B (article ISR with anonymous loader, client-side guest wall, throw on transient errors, revalidate on delete), then OG image cost; home page last."
+      "notes": "Roi 2026-10-14: \"scan the vercel's webpage for usage, there are some measurements there that are trending up\" → usage read (read only): Fluid Active CPU 4h 50m / 4h (proxy 'middleware' 2h 6m 43.6%, functions 2h 43m 56.4%); daily ~5 min (Sep 14–23), 7–24 (Sep 24–Oct 3), ~7 (Oct 4–9), 9→13 (Oct 10–13). Everything else well under: invocations 389K/1M, CDN requests 434K/1M, ISR writes 21K/200K. Roi: \"Yes\" (open the item, start read-only). · claimed by 20261014-1443-claude-dbb9 · Read-only findings (2026-10-14): (1) /article/[id] and / are 0% cached (Vercel CDN, 12 h) — the article page reads cookies() via the server Supabase client (getUser for the registration wall), which makes it dynamic despite revalidate 86400; the home page is force-dynamic; these two are the top CPU routes. (2) proxy.ts runs on every page request (matcher excludes only static / api / OG); for visitors without an auth cookie it skips the Supabase call but is still a Node invocation — 43.6% of the month's CPU. (3) Preview traffic 5.5K CDN requests vs production 2.9K in the same 12 h (smoke runs on #135); full PR suites per day 2–10, drafts fail in seconds. AI bots small (285 requests / 12 h). Hobby observability keeps 12 h only, so per-route monthly totals are not available. Options to Roi: A proxy matcher skips requests without the auth cookie (missing-cookie condition); B article page static/ISR with the per-user parts client-side; C fewer / lighter PR smoke runs. · Codex plan r1 72.9k (Roi: \"What does codex say?\"): 3 blocking — A must match the chunked cookie (.0/.1) literally, an early return saves nothing (invocation still happens), B needs a cache-failure + invalidation policy (DB error cached as 404; delete doesn't revalidate). Ranking: redundant smoke runs first, corrected A, article ISR, home page last; separate production vs preview CPU before attributing. · Option C in effect (memory rule: drafts until done, ready once). PR #136 ready on a749e08, all checks pass; awaits Roi's preview check (sign in / browse / sign out) + his merge. After merge: daily CPU for 2–3 days (target < ~8 min/day; proxy row). · PR #136 merged 181c207 (2026-10-14) on Roi's word. OPEN (monitoring): daily Fluid Active CPU on the Vercel usage chart 2026-10-15..17 — the proxy ('middleware') row should fall sharply, daily total < ~8 min. If not enough: option B (article ISR with anonymous loader, client-side guest wall, throw on transient errors, revalidate on delete), then OG image cost; home page last. · Roi 2026-10-14/15: Vercel Functions Storage 8.93 / 10 GB (grows with retained deployments) → Roi changed deployment retention himself (option 1): pre-production 1 week; production / canceled / errored 30 days. Re-read Functions Storage with the CPU chart."
     }
   ]
 }

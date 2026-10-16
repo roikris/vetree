@@ -8,11 +8,12 @@ Routine: `docs/harness/README.md` on `main`. Pre-harness primer (frozen): root `
 ---
 
 ## 1. Current Verified State
-*Updated 2026-10-14 — Session 20261014-1443-claude-dbb9 (perf-001 merged; CPU monitoring open)*
+*Updated 2026-10-16 — Session 20261015-0745-claude-f044 (feed-002 merged; perf-001 CPU monitoring still open)*
 
 - **Repo root:** `~/dev/vetree` · state worktree: `.harness-state/` (branch `harness-state`)
-- **main:** `181c207` (#136 proxy runs only with the Supabase session cookie, perf-001, 2026-10-14; #135 admin Pipeline rebuilt as the Slack messages expanded, Article Health removed, 2026-10-14; #134 daily reminder counts run 2 + excludes the test account, weekly AI report hidden, Overview removed, 2026-10-14; #133 Growth OS daily posts panel, one article → every platform, 2026-10-13; #132 unit tests in init.sh check + PR smoke, 2026-10-13; #131 Facebook IL closing lines: typeable address + WhatsApp Community, 2026-10-13; #129 + #130 Facebook IL link-free posts, vetree.app/il, "save it" hint, 2026-10-13; #127 schema audit + #128 replay safety, migrations 080–082 + 000 recorded, 2026-10-12; #126 unlock log guard, 2026-10-12; PRs #120–#125 least privilege + policy audit, migrations 075–079 applied, 2026-10-11; #119 lint cleanup, 2026-10-10; #118 build warnings / middleware → proxy, 2026-10-10; #117 init.sh lock / unlock, 2026-10-10; #116 "new this week" count, 2026-10-10; #115 shorter digest footer, 2026-10-09; #114 Search Console fixes, 2026-10-07; before it #113 access-control audit,
-  migration 074 applied) — last verified: production /api/version = 181c207, home 200, /login 200; PR #136 smoke + replay new / old PASS
+- **main:** `0d3d6ed` (#137 homepage "Articles saved this week" — every reader's saves, migration 083, anon SELECT on
+  saved_articles revoked, feed-002, 2026-10-16; #136 proxy runs only with the Supabase session cookie, perf-001, 2026-10-14; #135 admin Pipeline rebuilt as the Slack messages expanded, Article Health removed, 2026-10-14; #134 daily reminder counts run 2 + excludes the test account, weekly AI report hidden, Overview removed, 2026-10-14; #133 Growth OS daily posts panel, one article → every platform, 2026-10-13; #132 unit tests in init.sh check + PR smoke, 2026-10-13; #131 Facebook IL closing lines: typeable address + WhatsApp Community, 2026-10-13; #129 + #130 Facebook IL link-free posts, vetree.app/il, "save it" hint, 2026-10-13; #127 schema audit + #128 replay safety, migrations 080–082 + 000 recorded, 2026-10-12; #126 unlock log guard, 2026-10-12; PRs #120–#125 least privilege + policy audit, migrations 075–079 applied, 2026-10-11; #119 lint cleanup, 2026-10-10; #118 build warnings / middleware → proxy, 2026-10-10; #117 init.sh lock / unlock, 2026-10-10; #116 "new this week" count, 2026-10-10; #115 shorter digest footer, 2026-10-09; #114 Search Console fixes, 2026-10-07; before it #113 access-control audit,
+  migration 074 applied) — last verified: production /api/version = 0d3d6ed, home 200 with the new section; PR #137 smoke + replay new / old PASS
 - **Standard startup:** `docs/harness/init.sh` (state, then check) — see README for exit codes. Take / release
   the lock only with `init.sh lock <item> --agent …` / `init.sh unlock "<message>"` (D12), never by hand
 - **Standard verification:** `docs/harness/init.sh check [--item <id>]` (now incl. `npm run test:unit`, hard RED); build
@@ -20,7 +21,9 @@ Routine: `docs/harness/README.md` on `main`. Pre-harness primer (frozen): root `
 - **Vercel CPU (perf-001, 2026-10-14):** Hobby Fluid Active CPU was 4h 50m / 4h (30 days). #136: the proxy runs only
   with `sb-<ref>-auth-token` or its `.0` chunk. Watch the usage chart 2026-10-15..17 (proxy row down, < ~8 min/day);
   if not enough → option B (article ISR). PR rule: drafts until done, ready once, never re-run a passing suite.
-- **Highest-priority unfinished item:** perf-001 monitoring (read the usage chart 2026-10-15..17); otherwise none ready — feed-002 / scripts-001 need Roi's decisions; ai-001 parked
+  Functions Storage was 8.93 / 10 GB → Roi set deployment retention: pre-production 1 week, production / canceled /
+  errored 30 days (2026-10-15); re-read it with the CPU chart.
+- **Highest-priority unfinished item:** perf-001 monitoring (read the usage chart 2026-10-16..17); otherwise none ready — scripts-001 needs Roi's decision; ai-001 parked
   (~2026-11-01); making the weekly AI report usable is a later item. Ask Roi.
 - **Admin panel (admin-002, Roi 2026-10-14):** /admin lands on Analytics; the weekly AI report is hidden (its Friday job
   still runs); /admin/pipeline = the Slack messages expanded (GET /api/admin/pipeline/status) — no Article Health, no
@@ -30,6 +33,9 @@ Routine: `docs/harness/README.md` on `main`. Pre-harness primer (frozen): root `
   Posts (CLAUDE.md "Growth OS daily posts"). Each tab's Copy & mark posted records its real platform; one approved row per
   article + platform + Israel day. Rows before 2026-10-13 carry the deprecated rotation's platform label.
 - **Current blocker:** none
+- **Homepage "Articles saved this week" (feed-002, 2026-10-16):** `lib/queries/savedThisWeek.ts` counts every reader's
+  saves of the 7 days before the UTC hour via `public.saved_this_week()` (083, service role only, article ids + counts
+  only), admin + test account excluded, cached per hour; hidden below 3 articles. anon has no SELECT on saved_articles.
 - **Open PRs awaiting Roi:** none · Roi: the 2026-10-15 Slack reminder should read Day 16/90 with no "not excluded"
   note · first daily posting with the new panel, then (his
   yes) a read-only check of today's approved rows + vetree.app/il · Thursday's security scan is the first after 079 · the 4 dropped indexes stay dropped (Roi
@@ -221,6 +227,41 @@ works today was spot-checked in the code on 2026-10-05.
 (Newest first — only the latest 5 are kept here (D11); every entry, older ones included, is in
 `session-log.md`, which is never trimmed.)
 
+### Session 20261015-0745-claude-f044 · 2026-10-15 → 2026-10-16 · Claude Code · feed-002 (closed)
+- Goal / Completed: the homepage "Trending This Week 🔥" read saved_articles with the visitor's own client, so RLS gave
+  guests nothing and signed-in readers only their own saves. Roi chose 1A + renamed it "Articles saved this week"
+  (every reader's saves, the same list for everyone) and 2 yes (admin + test account excluded). #137: migration 083
+  `public.saved_this_week(since, until, excluded, limit)` — SQL counting in one snapshot, ties broken before the LIMIT
+  (count, newer created_at, id), public-article filter, limit clamped 1–50, EXECUTE for service_role only; and REVOKE
+  SELECT on saved_articles FROM anon (079 kept it only for Trending). `lib/queries/savedThisWeek(Core).ts`: plain server
+  module (not 'use server' — an action would be browser-callable with the service role), 20 candidates → large-animal-
+  only dropped → 5 shown, hidden below 3, unstable_cache keyed by the UTC hour, a failed fill throws (nothing cached),
+  3 s deadline. SavedThisWeek.tsx ("N saves"); app/actions/trending.ts and the unused getArticleSaveCount removed;
+  access.json / schema.json (9 keys from the replay report, the anon ACL key gone) / supabase/CLAUDE.md updated.
+  Also (perf-001): Roi set Vercel deployment retention (pre-production 1 week) after Functions Storage hit 8.93 / 10 GB.
+- Start state: main 181c207, clean; lock taken for feed-002.
+- Verification: unit 80/80 (8 new, fake clients); replay fixture docs/harness/test/replay/saved-this-week.sql (exclusions,
+  NULL user kept, window edges, ties, NULL / 0 / -5 / 999 limits, privileges) + anon / authenticated calls refused —
+  replay new + old PASS; init.sh check GREEN on fda5366 after the push (acl 33, rls 32 / 40, schema 4,301 facts — no
+  snapshot change needed); 083 dry run listed only 083, pushed on Roi's yes; PR suite once after ready (smoke, replay,
+  scope, Vercel pass); squash-merged at fda5366 as 0d3d6ed; production /api/version = 0d3d6ed, home 200 shows the
+  section signed out (4 articles, 1 save each). Not checked by me: the signed-in view on production.
+- Review: Codex · tier 2 (Supabase migration + service role) · plan 3 rounds 66.3k / 41.4k / 32.6k · code 1 round 54.7k
+  ≈ 195k · BLOCKING: none (fixed in the plan: offset paging inconsistent across reads, tie-break after the cut,
+  TEST_USER_ID throwing at module load → SQL function; replay compares schema.json exactly → keys from the replay report
+  before the push; NB applied in fda5366, not re-reviewed). One Codex run lost to the ChatGPT usage limit, then
+  "workspace routing discovery failed"; re-run on Roi's "try now".
+- Commits / PR: 853cec3, 3365c99, fda5366 → #137 merged 0d3d6ed on Roi's word ("merge"). Migration 083 pushed.
+- Pending Roi approvals: none. Roi: Vercel usage chart (CPU + Functions Storage) 2026-10-16..17; daily posting;
+  Thursday's security scan (first after 079 + 083).
+- Known risks / unresolved: the section reads the service role from a server module — anything importing
+  savedThisWeek.ts must stay server-only (next/headers import breaks a client build); counts are low today (1 save each),
+  so the list can be hidden on a quiet week; `supabase migration list --linked` hung once (use `< /dev/null`, background).
+- Lesson: a 'use server' file's every export is a public endpoint — service-role reads belong in a plain server module.
+  An exact schema snapshot means a migration's expected keys come from a rebuild, before production has them.
+- Next best step: perf-001 — read the usage chart 2026-10-16..17 (proxy row down, < ~8 min/day; Functions Storage after
+  the retention change); if still over, option B. scripts-001 needs Roi; ai-001 ~2026-11-01.
+
 ### Session 20261014-1443-claude-dbb9 · 2026-10-14 · Claude Code · perf-001 (merged; monitoring open)
 - Goal / Completed: Roi saw Vercel meters trending up. Read-only usage scan (his browser): Fluid Active CPU 4h 50m / 4h
   (Hobby, 30 days) — proxy ("middleware") 2h 6m (43.6%), functions 2h 43m; daily ~5 → 9–13 min. Causes: the proxy ran
@@ -348,14 +389,3 @@ works today was spot-checked in the code on 2026-10-05.
 - Lesson: a heuristic that deletes whole lines must read its evidence from the text, not from what it is about to
   remove (the invite URL itself says "whatsapp"); test the short cases, where word-count rules bite.
 - Next best step: growth-002 (Growth OS redesign for the daily all-platforms flow) — plan first, rule 14, Roi approves.
-
-### Session 20261013-0828-claude-62c4 · 2026-10-13 · Claude Code · backlog (social-002 added)
-- Goal / Completed: Roi found that in a reader's feed the Facebook IL post's "the link is in the button at the top of
-  the page" means nothing. Read secondary reports (not Meta's own pages): comment links now count; links to Meta apps
-  (WhatsApp) don't; extra links may show as plain text. Roi's composer test: a WhatsApp link shows no link counter,
-  vetree.app/il does. Roi chose A (a typeable address Facebook doesn't detect) + C (keep the Page button) + a link to
-  the Vetree WhatsApp Community. Added social-002 (priority 1).
-- Start state: main 4cf3963, clean; lock free.
-- Verification: n/a (state only) · Review: n/a (exception 1) · Commits / PR: state only.
-- Pending Roi: which address form shows no counter ('vetree . app/il', 'vetree(.)app/il', 'vetree נקודה app/il').
-- Next best step: social-002 (lock it, build, Codex tier 2).
