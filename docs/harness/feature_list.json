@@ -1571,10 +1571,21 @@
           "paid_calls": true
         }
       ],
-      "evidence": [],
+      "evidence": [
+        {
+          "date": "2026-10-16",
+          "session": "20261016-1053-claude-c3de",
+          "sha": "b8109e4",
+          "command": "PR #138 (673008a + b8109e4): source-map-js 1.2.2 (lockfile, one package), braces acknowledged (high), scan previous-runs ordered by generated_at with the error reported in summary + Slack, Slack labels 'N of the last N runs' / 'Resolved or acknowledged'; local replay of CHECK 14 vs npm audit: 0 new, 1 acknowledged; init.sh check GREEN on 673008a's tree and on b8109e4's tree; Codex code r1 34.0k BLOCKING: none (NB1–2 applied in b8109e4, not re-reviewed); marked ready once on b8109e4",
+          "target": "local",
+          "outcome": "pass",
+          "approval": "Roi: \"yes\" (1–3)",
+          "link": "PR #138"
+        }
+      ],
       "branch": "fix/sec-001-scan-advisories",
-      "pr": null,
-      "head_sha": null,
+      "pr": 138,
+      "head_sha": "b8109e4",
       "wip_sha": null,
       "expected_failures": [],
       "notes": "Scan run 38812980120 (2026-10-15 21:51 UTC, on 181c207): severity high, findings_count 1, acknowledged_count 0 — Roi pasted the Slack message: '2 unacknowledged dependency advisories': braces GHSA-vfj7-8cjw-p6xm (no patched version; via @sentry/webpack-plugin → unplugin → chokidar, and eslint-config-next → fast-glob → micromatch) and source-map-js GHSA-68fv-2mgg-jv7q (patched 1.2.2; via postcss / @tailwindcss). Both published 2026-09-18; build / lint tooling only. First scan after 079 + 083: no database check fired. My read of the latest security_reports row (Roi's yes) failed: 'column security_reports.created_at does not exist' — the scan's own previous-runs query (route.ts:71-75) orders by created_at and ignores the error; then auto mode blocked a schema lookup as a production read, so I stopped and Roi pasted the Slack text. · claimed by 20261016-1053-claude-c3de · Roi 2026-10-16: \"yes\" to 1 targeted source-map-js update, 2 acknowledge braces (high; no patched version; build / lint tooling only; revisit when a patched braces ships), 3 fix the previous-runs query; then a manual scan run with his yes."
