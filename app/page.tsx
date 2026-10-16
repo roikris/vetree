@@ -6,11 +6,11 @@ import { SearchControls } from '@/components/search/SearchControls'
 import { ResultsCount } from '@/components/ui/ResultsCount'
 import { ArticleFeedWrapper } from '@/components/articles/ArticleFeedWrapper'
 import { DisclaimerBanner } from '@/components/ui/DisclaimerBanner'
-import { TrendingArticles } from '@/components/articles/TrendingArticles'
+import { SavedThisWeek } from '@/components/articles/SavedThisWeek'
 import { PersonalizedFeed } from '@/components/articles/PersonalizedFeed'
 import { LandingPage } from '@/components/home/LandingPage'
 import { PersonalizeCard } from '@/components/home/PersonalizeCard'
-import { getTrendingArticles } from '@/app/actions/trending'
+import { getSavedThisWeek } from '@/lib/queries/savedThisWeek'
 import { getPersonalizedArticles } from '@/app/actions/personalized-feed'
 import { createClient } from '@/lib/supabase/server'
 import { SynthesisWrapper } from '@/components/synthesis/SynthesisWrapper'
@@ -105,17 +105,15 @@ export default async function Home({ searchParams }: HomeProps) {
   const journals = await getUniqueJournals()
   const evidenceLevels = await getDistinctEvidenceLevels()
 
-  // Fetch trending articles (only show on first page with no filters)
-  const showTrending = filters.page === 1 && !filters.search &&
+  // "Articles saved this week" + the personalized row: first page, no filters only
+  const showTopRows = filters.page === 1 && !filters.search &&
     filters.labels.length === 0 && filters.evidence.length === 0 &&
     filters.journals.length === 0 && filters.quickFilter === DEFAULT_QUICK_FILTER
 
-  const { articles: trendingArticles } = showTrending
-    ? await getTrendingArticles()
-    : { articles: [] }
+  const savedThisWeek = showTopRows ? await getSavedThisWeek() : []
 
   // Fetch personalized articles (only show on first page with no filters)
-  const { articles: personalizedArticles, hasFollowedTags } = showTrending
+  const { articles: personalizedArticles, hasFollowedTags } = showTopRows
     ? await getPersonalizedArticles()
     : { articles: [], hasFollowedTags: null }
   // Signed-in readers who follow nothing are invited to pick specialties (signup no longer asks).
@@ -189,7 +187,7 @@ export default async function Home({ searchParams }: HomeProps) {
 
             <DisclaimerBanner />
 
-            <TrendingArticles articles={trendingArticles} />
+            <SavedThisWeek articles={savedThisWeek} />
 
             <PersonalizedFeed articles={personalizedArticles} />
 

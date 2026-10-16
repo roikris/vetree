@@ -1,17 +1,14 @@
 'use client'
 
 import Link from 'next/link'
-import { Article } from '@/lib/supabase'
+import type { SavedThisWeekArticle } from '@/lib/queries/savedThisWeekCore'
 
-type TrendingArticle = Article & {
-  save_count: number
+type SavedThisWeekProps = {
+  articles: SavedThisWeekArticle[]
 }
 
-type TrendingArticlesProps = {
-  articles: TrendingArticle[]
-}
-
-export function TrendingArticles({ articles }: TrendingArticlesProps) {
+// Every reader's saves this week, the same for everyone (feed-002; lib/queries/savedThisWeek.ts)
+export function SavedThisWeek({ articles }: SavedThisWeekProps) {
   // Don't show section if fewer than 3 articles
   if (articles.length < 3) {
     return null
@@ -22,12 +19,11 @@ export function TrendingArticles({ articles }: TrendingArticlesProps) {
       {/* Section Header */}
       <div className="flex items-center gap-2 mb-4">
         <h2 className="text-2xl font-semibold text-[#1A1A1A] dark:text-[#E8E8E8]">
-          Trending This Week
+          Articles saved this week
         </h2>
-        <span className="text-2xl">🔥</span>
       </div>
 
-      {/* Trending Cards Container */}
+      {/* Cards */}
       <div className="flex gap-4 overflow-x-auto md:flex-wrap pb-4 -mx-8 px-8 md:mx-0 md:px-0 scrollbar-hide">
         {articles.map((article, index) => (
           <Link
@@ -60,7 +56,7 @@ export function TrendingArticles({ articles }: TrendingArticlesProps) {
               {/* Save Count */}
               <div className="flex items-center gap-1.5 text-sm font-medium text-[#3D7A5F] dark:text-[#4E9A78]">
                 <span>🔖</span>
-                <span>{article.save_count} {article.save_count === 1 ? 'save' : 'saves'} this week</span>
+                <span>{article.save_count} {article.save_count === 1 ? 'save' : 'saves'}</span>
               </div>
             </div>
 

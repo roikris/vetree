@@ -144,6 +144,21 @@ for role in anon authenticated; do
   done
 done
 
+# ---- feed-002: saved_this_week() results on fixture rows (one transaction, rolled back) and EXECUTE denied to the
+# API roles — before the self-check, which leaves a service_role grant revoked
+if ! q < "$H/test/replay/saved-this-week.sql" > /dev/null 2>"$OUT/err"; then
+  echo "replay ($MODE): saved_this_week fixture FAILED — $(grep -m1 -E 'ERROR|FATAL' "$OUT/err" | cut -c1-300)"; [ $rc -lt 1 ] && rc=1
+else
+  echo "saved_this_week: fixture results as expected"
+fi
+for role in anon authenticated; do
+  if q -c "set role $role; select 1 from public.saved_this_week(now(), now(), '{}', 1) limit 1" >/dev/null 2>"$OUT/err"; then
+    echo "replay ($MODE): $role can call saved_this_week() — must be service role only"; [ $rc -lt 1 ] && rc=1
+  elif ! grep -q 'permission denied for function saved_this_week' "$OUT/err"; then
+    echo "replay ($MODE): $role call of saved_this_week() failed for another reason — $(grep -m1 ERROR "$OUT/err" | cut -c1-200)"; [ $rc -lt 1 ] && rc=1
+  fi
+done
+
 # ---- self-check (REPLAY_SELFCHECK=1): the compare must SEE real catalog changes. Each change runs in a transaction
 # on the rebuilt database, the report is read inside it, then it is rolled back; the audit must fail every time.
 if [ "${REPLAY_SELFCHECK:-}" = 1 ] && [ "$rc" = 0 ]; then

@@ -469,9 +469,7 @@
     },
     "public.saved_articles": {
       "kind": "table",
-      "anon": [
-        "SELECT"
-      ],
+      "anon": [],
       "authenticated": [
         "DELETE",
         "INSERT",
