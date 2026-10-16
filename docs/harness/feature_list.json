@@ -1539,6 +1539,45 @@
       "wip_sha": null,
       "expected_failures": [],
       "notes": "Roi 2026-10-14: \"scan the vercel's webpage for usage, there are some measurements there that are trending up\" → usage read (read only): Fluid Active CPU 4h 50m / 4h (proxy 'middleware' 2h 6m 43.6%, functions 2h 43m 56.4%); daily ~5 min (Sep 14–23), 7–24 (Sep 24–Oct 3), ~7 (Oct 4–9), 9→13 (Oct 10–13). Everything else well under: invocations 389K/1M, CDN requests 434K/1M, ISR writes 21K/200K. Roi: \"Yes\" (open the item, start read-only). · claimed by 20261014-1443-claude-dbb9 · Read-only findings (2026-10-14): (1) /article/[id] and / are 0% cached (Vercel CDN, 12 h) — the article page reads cookies() via the server Supabase client (getUser for the registration wall), which makes it dynamic despite revalidate 86400; the home page is force-dynamic; these two are the top CPU routes. (2) proxy.ts runs on every page request (matcher excludes only static / api / OG); for visitors without an auth cookie it skips the Supabase call but is still a Node invocation — 43.6% of the month's CPU. (3) Preview traffic 5.5K CDN requests vs production 2.9K in the same 12 h (smoke runs on #135); full PR suites per day 2–10, drafts fail in seconds. AI bots small (285 requests / 12 h). Hobby observability keeps 12 h only, so per-route monthly totals are not available. Options to Roi: A proxy matcher skips requests without the auth cookie (missing-cookie condition); B article page static/ISR with the per-user parts client-side; C fewer / lighter PR smoke runs. · Codex plan r1 72.9k (Roi: \"What does codex say?\"): 3 blocking — A must match the chunked cookie (.0/.1) literally, an early return saves nothing (invocation still happens), B needs a cache-failure + invalidation policy (DB error cached as 404; delete doesn't revalidate). Ranking: redundant smoke runs first, corrected A, article ISR, home page last; separate production vs preview CPU before attributing. · Option C in effect (memory rule: drafts until done, ready once). PR #136 ready on a749e08, all checks pass; awaits Roi's preview check (sign in / browse / sign out) + his merge. After merge: daily CPU for 2–3 days (target < ~8 min/day; proxy row). · PR #136 merged 181c207 (2026-10-14) on Roi's word. OPEN (monitoring): daily Fluid Active CPU on the Vercel usage chart 2026-10-15..17 — the proxy ('middleware') row should fall sharply, daily total < ~8 min. If not enough: option B (article ISR with anonymous loader, client-side guest wall, throw on transient errors, revalidate on delete), then OG image cost; home page last. · Roi 2026-10-14/15: Vercel Functions Storage 8.93 / 10 GB (grows with retained deployments) → Roi changed deployment retention himself (option 1): pre-production 1 week; production / canceled / errored 30 days. Re-read Functions Storage with the CPU chart."
+    },
+    {
+      "id": "sec-001",
+      "priority": 1,
+      "area": "security",
+      "type": "fix",
+      "title": "Thursday's security scan (2026-10-15): 2 unacknowledged dependency advisories (braces, source-map-js); the scan's previous-runs query sorts by a column that doesn't exist",
+      "user_visible_behavior": "none — the weekly security report comes back clean and can track recurring / resolved findings again",
+      "status": "in_progress",
+      "verification": [
+        {
+          "step": "source-map-js 1.2.1 → 1.2.2 (lockfile only, targeted update); braces GHSA-vfj7-8cjw-p6xm acknowledged in security-acknowledged.json (Roi's sign-off); scan route's previous-runs query sorted by the real timestamp column, error checked; init.sh check GREEN; local npm audit shows neither advisory as new",
+          "target": "local",
+          "db_reads": "none",
+          "db_writes": "none",
+          "paid_calls": false
+        },
+        {
+          "step": "Review: Codex, tier 2 (security) → BLOCKING: none; draft PR, ready once",
+          "target": "preview",
+          "db_reads": "none",
+          "db_writes": "none",
+          "paid_calls": false
+        },
+        {
+          "step": "After merge, with Roi's yes: run the scan once by hand (POST /api/admin/security/scan) — writes one security_reports row and a Slack message; expect 0 new findings",
+          "target": "production",
+          "db_reads": "prod",
+          "db_writes": "prod",
+          "paid_calls": true
+        }
+      ],
+      "evidence": [],
+      "branch": "fix/sec-001-scan-advisories",
+      "pr": null,
+      "head_sha": null,
+      "wip_sha": null,
+      "expected_failures": [],
+      "notes": "Scan run 38812980120 (2026-10-15 21:51 UTC, on 181c207): severity high, findings_count 1, acknowledged_count 0 — Roi pasted the Slack message: '2 unacknowledged dependency advisories': braces GHSA-vfj7-8cjw-p6xm (no patched version; via @sentry/webpack-plugin → unplugin → chokidar, and eslint-config-next → fast-glob → micromatch) and source-map-js GHSA-68fv-2mgg-jv7q (patched 1.2.2; via postcss / @tailwindcss). Both published 2026-09-18; build / lint tooling only. First scan after 079 + 083: no database check fired. My read of the latest security_reports row (Roi's yes) failed: 'column security_reports.created_at does not exist' — the scan's own previous-runs query (route.ts:71-75) orders by created_at and ignores the error; then auto mode blocked a schema lookup as a production read, so I stopped and Roi pasted the Slack text. · claimed by 20261016-1053-claude-c3de · Roi 2026-10-16: \"yes\" to 1 targeted source-map-js update, 2 acknowledge braces (high; no patched version; build / lint tooling only; revisit when a patched braces ships), 3 fix the previous-runs query; then a manual scan run with his yes."
     }
   ]
 }
