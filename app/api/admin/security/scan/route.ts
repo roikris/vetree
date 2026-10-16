@@ -807,7 +807,7 @@ export async function POST(request: NextRequest) {
 
   // Resolved findings: present in the most recent previous run but absent now
   const prevMostRecentIds = prevRunFindings[0] || new Set<string>()
-  const resolvedIds = [...prevMostRecentIds].filter(id => !findings.some(f => f.id === id))
+  const resolvedIds = [...prevMostRecentIds].filter(id => !ACKNOWLEDGED[id] && !findings.some(f => f.id === id))
 
   // PART 3: Generate Claude Sonnet fix prompts for each finding
   // Scrub PII from finding fields before sending to external services (Claude API, Slack).
@@ -915,13 +915,15 @@ Generate a ready-to-paste Claude Code prompt that:
 
   if (process.env.SLACK_WEBHOOK_URL) {
     const issueLines = findings.map(f => {
-      const weeks = recurrenceCount(f.id)
-      const tag = historyNote ? '' : weeks > 0 ? ` *(${weeks} week${weeks > 1 ? 's' : ''})*` : ' *(new)*'
+      // Counts reports, not weeks: a manual scan is a run too
+      const runs = recurrenceCount(f.id)
+      const tag = historyNote ? '' : runs > 0 ? ` *(also in ${runs} of the last ${prevRunFindings.length} runs)*` : ' *(new)*'
       return `${severityEmoji[f.severity]} [${f.severity.toUpperCase()}] ${f.title}${tag}`
     }).join('\n')
 
     const resolvedSection = resolvedIds.length > 0
-      ? `\n\n*🟢 Resolved since last run:*\n${resolvedIds.map(id => `✓ ${id}`).join('\n')}`
+      // A finding can leave by being fixed or by being acknowledged (ACKNOWLEDGED, security-acknowledged.json)
+      ? `\n\n*🟢 Resolved or acknowledged since last run:*\n${resolvedIds.map(id => `✓ ${id}`).join('\n')}`
       : ''
 
     const acknowledgedSection = acknowledgedAdvisoryCount > 0
