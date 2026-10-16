@@ -30,5 +30,13 @@
     "decision": "upgrade later",
     "decided_on": "2026-07-26",
     "severity": "high"
+  },
+  {
+    "advisory_id": "GHSA-vfj7-8cjw-p6xm",
+    "package": "braces",
+    "reason": "no patched version exists (3.0.3 is the latest); reached only through build and lint tooling (@sentry/webpack-plugin → unplugin → chokidar; eslint-config-next → fast-glob → micromatch), whose patterns come from our own config, never from a visitor",
+    "decision": "upgrade later — when a patched braces ships",
+    "decided_on": "2026-10-16",
+    "severity": "high"
   }
 ]
