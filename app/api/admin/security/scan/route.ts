@@ -67,12 +67,18 @@ export async function POST(request: NextRequest) {
     missing_csp: 'Intentionally deferred — CSP requires whitelisting Supabase/Vercel/Sentry/Google OAuth. See comment in next.config.ts.',
   }
 
-  // Load previous 4 runs for recurrence and resolved tracking
-  const { data: prevRuns } = await adminSupabase
+  // Load previous 4 runs for recurrence and resolved tracking. The table's timestamp is generated_at — ordering by
+  // created_at (no such column) failed on every run until sec-001, silently: every finding read "(new)", none "resolved".
+  // A failed read still lets the scan run, but the report and Slack say the history is missing.
+  const { data: prevRuns, error: prevRunsError } = await adminSupabase
     .from('security_reports')
     .select('run_id, findings_json')
-    .order('created_at', { ascending: false })
+    .order('generated_at', { ascending: false })
     .limit(4)
+  const historyNote = prevRunsError
+    ? `Previous runs could not be read (${prevRunsError.code ?? 'error'}): "new" / "resolved" are unknown this run.`
+    : ''
+  if (prevRunsError) console.error('[security] previous runs:', prevRunsError.message)
   const prevRunFindings: Array<Set<string>> = (prevRuns || []).map(r =>
     new Set((r.findings_json as Finding[] || []).map((f: Finding) => f.id))
   )
@@ -801,7 +807,7 @@ export async function POST(request: NextRequest) {
 
   // Resolved findings: present in the most recent previous run but absent now
   const prevMostRecentIds = prevRunFindings[0] || new Set<string>()
-  const resolvedIds = [...prevMostRecentIds].filter(id => !findings.some(f => f.id === id))
+  const resolvedIds = [...prevMostRecentIds].filter(id => !ACKNOWLEDGED[id] && !findings.some(f => f.id === id))
 
   // PART 3: Generate Claude Sonnet fix prompts for each finding
   // Scrub PII from finding fields before sending to external services (Claude API, Slack).
@@ -898,7 +904,8 @@ Generate a ready-to-paste Claude Code prompt that:
     findings_json: findings,
     fixes_json: fixes,
     summary: `${findings.length} issue${findings.length !== 1 ? 's' : ''} found. Severity: ${overallSeverity}`
-      + (acknowledgedAdvisoryCount > 0 ? ` (${acknowledgedAdvisoryCount} known/parked advisor${acknowledgedAdvisoryCount === 1 ? 'y' : 'ies'} excluded)` : ''),
+      + (acknowledgedAdvisoryCount > 0 ? ` (${acknowledgedAdvisoryCount} known/parked advisor${acknowledgedAdvisoryCount === 1 ? 'y' : 'ies'} excluded)` : '')
+      + (historyNote ? ` ${historyNote}` : ''),
   })
 
   // Slack notification
@@ -908,13 +915,15 @@ Generate a ready-to-paste Claude Code prompt that:
 
   if (process.env.SLACK_WEBHOOK_URL) {
     const issueLines = findings.map(f => {
-      const weeks = recurrenceCount(f.id)
-      const tag = weeks > 0 ? ` *(${weeks} week${weeks > 1 ? 's' : ''})*` : ' *(new)*'
+      // Counts reports, not weeks: a manual scan is a run too
+      const runs = recurrenceCount(f.id)
+      const tag = historyNote ? '' : runs > 0 ? ` *(also in ${runs} of the last ${prevRunFindings.length} runs)*` : ' *(new)*'
       return `${severityEmoji[f.severity]} [${f.severity.toUpperCase()}] ${f.title}${tag}`
     }).join('\n')
 
     const resolvedSection = resolvedIds.length > 0
-      ? `\n\n*🟢 Resolved since last run:*\n${resolvedIds.map(id => `✓ ${id}`).join('\n')}`
+      // A finding can leave by being fixed or by being acknowledged (ACKNOWLEDGED, security-acknowledged.json)
+      ? `\n\n*🟢 Resolved or acknowledged since last run:*\n${resolvedIds.map(id => `✓ ${id}`).join('\n')}`
       : ''
 
     const acknowledgedSection = acknowledgedAdvisoryCount > 0
@@ -933,6 +942,7 @@ Generate a ready-to-paste Claude Code prompt that:
             : '🎉 No issues detected — all checks passed!') +
           resolvedSection +
           acknowledgedSection +
+          (historyNote ? `\n\n⚠️ ${historyNote}` : '') +
           `\n\n<https://vetree.app/admin/security|View Full Report & Fix Prompts →>`,
       }),
     }).catch(err => console.error('[security] Slack error:', err))
