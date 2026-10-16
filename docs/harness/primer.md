@@ -8,12 +8,13 @@ Routine: `docs/harness/README.md` on `main`. Pre-harness primer (frozen): root `
 ---
 
 ## 1. Current Verified State
-*Updated 2026-10-16 — Session 20261015-0745-claude-f044 (feed-002 merged; perf-001 CPU monitoring still open)*
+*Updated 2026-10-16 — Session 20261016-1053-claude-c3de (sec-001 merged; perf-001 CPU monitoring still open)*
 
 - **Repo root:** `~/dev/vetree` · state worktree: `.harness-state/` (branch `harness-state`)
-- **main:** `0d3d6ed` (#137 homepage "Articles saved this week" — every reader's saves, migration 083, anon SELECT on
+- **main:** `819cd4e` (#138 scan advisories cleared — source-map-js 1.2.2, braces acknowledged — and the scan reads its
+  history again, sec-001, 2026-10-16; #137 homepage "Articles saved this week" — every reader's saves, migration 083, anon SELECT on
   saved_articles revoked, feed-002, 2026-10-16; #136 proxy runs only with the Supabase session cookie, perf-001, 2026-10-14; #135 admin Pipeline rebuilt as the Slack messages expanded, Article Health removed, 2026-10-14; #134 daily reminder counts run 2 + excludes the test account, weekly AI report hidden, Overview removed, 2026-10-14; #133 Growth OS daily posts panel, one article → every platform, 2026-10-13; #132 unit tests in init.sh check + PR smoke, 2026-10-13; #131 Facebook IL closing lines: typeable address + WhatsApp Community, 2026-10-13; #129 + #130 Facebook IL link-free posts, vetree.app/il, "save it" hint, 2026-10-13; #127 schema audit + #128 replay safety, migrations 080–082 + 000 recorded, 2026-10-12; #126 unlock log guard, 2026-10-12; PRs #120–#125 least privilege + policy audit, migrations 075–079 applied, 2026-10-11; #119 lint cleanup, 2026-10-10; #118 build warnings / middleware → proxy, 2026-10-10; #117 init.sh lock / unlock, 2026-10-10; #116 "new this week" count, 2026-10-10; #115 shorter digest footer, 2026-10-09; #114 Search Console fixes, 2026-10-07; before it #113 access-control audit,
-  migration 074 applied) — last verified: production /api/version = 0d3d6ed, home 200 with the new section; PR #137 smoke + replay new / old PASS
+  migration 074 applied) — last verified: production /api/version = 819cd4e, home 200; manual security scan clean (0 findings, 1 acknowledged); PR #138 smoke + replay new / old PASS
 - **Standard startup:** `docs/harness/init.sh` (state, then check) — see README for exit codes. Take / release
   the lock only with `init.sh lock <item> --agent …` / `init.sh unlock "<message>"` (D12), never by hand
 - **Standard verification:** `docs/harness/init.sh check [--item <id>]` (now incl. `npm run test:unit`, hard RED); build
@@ -38,13 +39,16 @@ Routine: `docs/harness/README.md` on `main`. Pre-harness primer (frozen): root `
   only), admin + test account excluded, cached per hour; hidden below 3 articles. anon has no SELECT on saved_articles.
 - **Open PRs awaiting Roi:** none · Roi: the 2026-10-15 Slack reminder should read Day 16/90 with no "not excluded"
   note · first daily posting with the new panel, then (his
-  yes) a read-only check of today's approved rows + vetree.app/il · Thursday's security scan is the first after 079 · the 4 dropped indexes stay dropped (Roi
+  yes) a read-only check of today's approved rows + vetree.app/il · Thursday's scan (2026-10-15, first after 079 + 083): only the 2 dependency advisories, fixed in sec-001; manual re-run clean · the 4 dropped indexes stay dropped (Roi
   2026-10-13)
 
 ## 2. Open Issues & Known Risks
 - **Lint is red on main:** 117 errors (103 no-explicit-any, 13 set-state-in-effect, 1 immutability) / 68 warnings,
   never run in CI. Handled by the lint ratchet (`docs/harness/lint-baseline.json`, per file + rule); only new errors
   fail. Scope narrowed in lint-001 (design prototype ignored; require() allowed in CommonJS scripts).
+- **Security scan (sec-001, 2026-10-16):** security_reports' timestamp is `generated_at` (no created_at). Until #138 the
+  scan's history read failed silently — every finding "(new)", nothing "resolved"; the next scheduled run (Thu
+  2026-10-22) is the first with real history. braces GHSA-vfj7-8cjw-p6xm is parked at high until a patched release.
 - **Build warnings:** none since build-001 (2026-10-10). The security scan reads source files at runtime: a new
   check that reads another file must be added to `outputFileTracingIncludes` in next.config.ts (else it passes
   silently on Vercel). Its npm audit step may get no result on Vercel (unproven; acknowledged_count 0 in prod).
@@ -227,6 +231,34 @@ works today was spot-checked in the code on 2026-10-05.
 (Newest first — only the latest 5 are kept here (D11); every entry, older ones included, is in
 `session-log.md`, which is never trimmed.)
 
+### Session 20261016-1053-claude-c3de · 2026-10-16 · Claude Code · sec-001 (closed)
+- Goal / Completed: Roi: "the security scan ran and found issues". Run 38812980120 (2026-10-15 21:51 UTC): high, 1
+  finding — Roi pasted the Slack text: 2 unacknowledged dependency advisories, braces GHSA-vfj7-8cjw-p6xm (no patched
+  version; via Sentry's webpack plugin → chokidar and eslint-config-next → fast-glob) and source-map-js GHSA-68fv-2mgg-jv7q
+  (patched 1.2.2; postcss / tailwind) — both build / lint tooling. No database check fired (first scan after 079 + 083).
+  My one-row read of security_reports (Roi's yes) failed: no created_at column — which showed the scan's own
+  previous-runs query had failed silently on every run. Roi's yes to 1–3 → #138: targeted `npm update source-map-js`
+  (lockfile, one package; `npm audit fix` would have bumped eslint-config-next, zod, react-hooks), braces acknowledged at
+  high (rule 16, his sign-off), previous runs ordered by generated_at with a failed read stated in summary + Slack, Slack
+  labels "also in N of the last N runs" / "Resolved or acknowledged" (ACKNOWLEDGED ids kept out).
+- Start state: main 0d3d6ed, clean; lock taken as backlog, sec-001 added and claimed.
+- Verification: local replay of CHECK 14's grouping vs `npm audit --json`: before 2 new, after 0 new + 1 acknowledged;
+  init.sh check GREEN on both heads; PR suite once after ready (smoke, replay new / old, scope, Vercel pass);
+  squash-merged at b8109e4 as 819cd4e; production /api/version = 819cd4e, home 200; manual scan (Roi's yes, run
+  38899535854): clean, 0 findings, acknowledged 1. Not checked by me: the Slack text of that run.
+- Review: Codex · tier 2 (security) · code 1 round 34.0k · BLOCKING: none (NB applied in b8109e4, not re-reviewed:
+  "Resolved" would list an acknowledged finding; recurrence counted runs, labelled weeks).
+- Commits / PR: 673008a, b8109e4 → #138 merged 819cd4e on Roi's word ("mergeand yes").
+- Pending Roi approvals: none. Roi: glance at the manual scan's Slack message (expect "Resolved or acknowledged:
+  dependency_vulnerabilities"); Vercel usage chart (CPU + Functions Storage) 2026-10-16..17; daily posting.
+- Known risks / unresolved: auto mode blocked a grep of supabase/schema.json as a "production read" — I stopped and
+  asked Roi (he pasted the Slack text); a manual scan is a paid Claude call per finding; the scan's history read and
+  Slack wording are unverified until the next run with findings.
+- Lesson: a query that ignores its error turns a typo'd column into "no history" for months — every `{ data }` read
+  needs its `error`. Prefer a targeted package update to `npm audit fix`, which drags in unrelated bumps.
+- Next best step: perf-001 — read the usage chart 2026-10-16..17; if still over, option B. scripts-001 needs Roi;
+  ai-001 ~2026-11-01.
+
 ### Session 20261015-0745-claude-f044 · 2026-10-15 → 2026-10-16 · Claude Code · feed-002 (closed)
 - Goal / Completed: the homepage "Trending This Week 🔥" read saved_articles with the visitor's own client, so RLS gave
   guests nothing and signed-in readers only their own saves. Roi chose 1A + renamed it "Articles saved this week"
@@ -367,25 +399,3 @@ works today was spot-checked in the code on 2026-10-05.
   assert request counts with ==.
 - Next best step: Roi's daily posting (first live run); feed-002 / admin-001 / scripts-001 need Roi's decisions;
   ai-001 ~2026-11-01.
-
-### Session 20261013-0829-claude-fb5e · 2026-10-13 · Claude Code · social-002 (closed)
-- Goal / Completed: Facebook IL posts now work from a reader's feed. Every facebook_il post ends with two lines the app
-  appends (the model stops at the 📄 title): `📲 … vetree . app/il …` — a typeable address Facebook doesn't detect, plus
-  the Page button as fallback — and `💬 …` with the Vetree WhatsApp Community invite link, the only link left in the post.
-  `makeLinkFree` drops copied / old / reworded closing lines (judged on text without links), keeps clinical text and the
-  title line, strips every other link. Roi's composer tests: the WhatsApp link and the spaced address show no counter;
-  `vetree.app/il` does.
-- Start state: main 4cf3963, branch fix/social-002-feed-reachable, clean; baseline init.sh check GREEN.
-- Verification: offline 44/44; init.sh check GREEN on each head; PR smoke + replay new / old pass; production cba7324,
-  home 200.
-- Review: Codex · tier 2 · 3 rounds · 35.3k / 21.4k / 32.2k ≈ 89k · BLOCKING: none (fixed on the way: exact-match-only
-  ending removal, clinical text deleted with a link — twice, the URL's own "whatsapp" counted as a mention; found myself:
-  short title line and "E.coli in cats" dropped).
-- Commits / PR: cd73b97, 2796a66, 4161229 → #131, merged as cba7324 on Roi's word.
-- Pending Roi approvals: none. Roi: generate a fresh Facebook IL post (earlier ones have the old 👆 ending); "Copy & mark
-  posted" before publishing; is facebook_intl link-limited too? Thursday's security scan; Vercel usage ~2026-10-14.
-- Known risks / unresolved: the Facebook rules come from secondary reports and Roi's composer tests, not Meta's docs —
-  Meta may change detection. generate-post/route.ts now has 3 changes in 7 days (rule 14 for the next).
-- Lesson: a heuristic that deletes whole lines must read its evidence from the text, not from what it is about to
-  remove (the invite URL itself says "whatsapp"); test the short cases, where word-count rules bite.
-- Next best step: growth-002 (Growth OS redesign for the daily all-platforms flow) — plan first, rule 14, Roi approves.

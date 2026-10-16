@@ -633,3 +633,31 @@ Newest at the bottom. The same entries (latest few) appear in primer.md → Rece
   An exact schema snapshot means a migration's expected keys come from a rebuild, before production has them.
 - Next best step: perf-001 — read the usage chart 2026-10-16..17 (proxy row down, < ~8 min/day; Functions Storage after
   the retention change); if still over, option B. scripts-001 needs Roi; ai-001 ~2026-11-01.
+
+### Session 20261016-1053-claude-c3de · 2026-10-16 · Claude Code · sec-001 (closed)
+- Goal / Completed: Roi: "the security scan ran and found issues". Run 38812980120 (2026-10-15 21:51 UTC): high, 1
+  finding — Roi pasted the Slack text: 2 unacknowledged dependency advisories, braces GHSA-vfj7-8cjw-p6xm (no patched
+  version; via Sentry's webpack plugin → chokidar and eslint-config-next → fast-glob) and source-map-js GHSA-68fv-2mgg-jv7q
+  (patched 1.2.2; postcss / tailwind) — both build / lint tooling. No database check fired (first scan after 079 + 083).
+  My one-row read of security_reports (Roi's yes) failed: no created_at column — which showed the scan's own
+  previous-runs query had failed silently on every run. Roi's yes to 1–3 → #138: targeted `npm update source-map-js`
+  (lockfile, one package; `npm audit fix` would have bumped eslint-config-next, zod, react-hooks), braces acknowledged at
+  high (rule 16, his sign-off), previous runs ordered by generated_at with a failed read stated in summary + Slack, Slack
+  labels "also in N of the last N runs" / "Resolved or acknowledged" (ACKNOWLEDGED ids kept out).
+- Start state: main 0d3d6ed, clean; lock taken as backlog, sec-001 added and claimed.
+- Verification: local replay of CHECK 14's grouping vs `npm audit --json`: before 2 new, after 0 new + 1 acknowledged;
+  init.sh check GREEN on both heads; PR suite once after ready (smoke, replay new / old, scope, Vercel pass);
+  squash-merged at b8109e4 as 819cd4e; production /api/version = 819cd4e, home 200; manual scan (Roi's yes, run
+  38899535854): clean, 0 findings, acknowledged 1. Not checked by me: the Slack text of that run.
+- Review: Codex · tier 2 (security) · code 1 round 34.0k · BLOCKING: none (NB applied in b8109e4, not re-reviewed:
+  "Resolved" would list an acknowledged finding; recurrence counted runs, labelled weeks).
+- Commits / PR: 673008a, b8109e4 → #138 merged 819cd4e on Roi's word ("mergeand yes").
+- Pending Roi approvals: none. Roi: glance at the manual scan's Slack message (expect "Resolved or acknowledged:
+  dependency_vulnerabilities"); Vercel usage chart (CPU + Functions Storage) 2026-10-16..17; daily posting.
+- Known risks / unresolved: auto mode blocked a grep of supabase/schema.json as a "production read" — I stopped and
+  asked Roi (he pasted the Slack text); a manual scan is a paid Claude call per finding; the scan's history read and
+  Slack wording are unverified until the next run with findings.
+- Lesson: a query that ignores its error turns a typo'd column into "no history" for months — every `{ data }` read
+  needs its `error`. Prefer a targeted package update to `npm audit fix`, which drags in unrelated bumps.
+- Next best step: perf-001 — read the usage chart 2026-10-16..17; if still over, option B. scripts-001 needs Roi;
+  ai-001 ~2026-11-01.

@@ -1547,7 +1547,7 @@
       "type": "fix",
       "title": "Thursday's security scan (2026-10-15): 2 unacknowledged dependency advisories (braces, source-map-js); the scan's previous-runs query sorts by a column that doesn't exist",
       "user_visible_behavior": "none — the weekly security report comes back clean and can track recurring / resolved findings again",
-      "status": "in_progress",
+      "status": "merged",
       "verification": [
         {
           "step": "source-map-js 1.2.1 → 1.2.2 (lockfile only, targeted update); braces GHSA-vfj7-8cjw-p6xm acknowledged in security-acknowledged.json (Roi's sign-off); scan route's previous-runs query sorted by the real timestamp column, error checked; init.sh check GREEN; local npm audit shows neither advisory as new",
@@ -1581,14 +1581,34 @@
           "outcome": "pass",
           "approval": "Roi: \"yes\" (1–3)",
           "link": "PR #138"
+        },
+        {
+          "date": "2026-10-16",
+          "session": "20261016-1053-claude-c3de",
+          "sha": "b8109e4",
+          "command": "gh pr ready 138 (one suite run): scope, replay (new) 1m38s, replay (old) 1m46s, smoke 2m08s, Vercel — all pass",
+          "target": "preview",
+          "outcome": "pass",
+          "approval": "Roi: \"yes\" (1–3, draft → ready once)",
+          "link": "PR #138"
+        },
+        {
+          "date": "2026-10-16",
+          "session": "20261016-1053-claude-c3de",
+          "sha": "819cd4e",
+          "command": "Squash-merged #138 at b8109e4 (--match-head-commit) as 819cd4e; production /api/version = 819cd4e, home 200; manual scan (workflow_dispatch run 38899535854): severity clean, findings_count 0, acknowledged_count 1",
+          "target": "production",
+          "outcome": "pass",
+          "approval": "Roi: \"mergeand yes\"",
+          "link": "PR #138"
         }
       ],
       "branch": "fix/sec-001-scan-advisories",
       "pr": 138,
-      "head_sha": "b8109e4",
+      "head_sha": "819cd4e",
       "wip_sha": null,
       "expected_failures": [],
-      "notes": "Scan run 38812980120 (2026-10-15 21:51 UTC, on 181c207): severity high, findings_count 1, acknowledged_count 0 — Roi pasted the Slack message: '2 unacknowledged dependency advisories': braces GHSA-vfj7-8cjw-p6xm (no patched version; via @sentry/webpack-plugin → unplugin → chokidar, and eslint-config-next → fast-glob → micromatch) and source-map-js GHSA-68fv-2mgg-jv7q (patched 1.2.2; via postcss / @tailwindcss). Both published 2026-09-18; build / lint tooling only. First scan after 079 + 083: no database check fired. My read of the latest security_reports row (Roi's yes) failed: 'column security_reports.created_at does not exist' — the scan's own previous-runs query (route.ts:71-75) orders by created_at and ignores the error; then auto mode blocked a schema lookup as a production read, so I stopped and Roi pasted the Slack text. · claimed by 20261016-1053-claude-c3de · Roi 2026-10-16: \"yes\" to 1 targeted source-map-js update, 2 acknowledge braces (high; no patched version; build / lint tooling only; revisit when a patched braces ships), 3 fix the previous-runs query; then a manual scan run with his yes."
+      "notes": "Scan run 38812980120 (2026-10-15 21:51 UTC, on 181c207): severity high, findings_count 1, acknowledged_count 0 — Roi pasted the Slack message: '2 unacknowledged dependency advisories': braces GHSA-vfj7-8cjw-p6xm (no patched version; via @sentry/webpack-plugin → unplugin → chokidar, and eslint-config-next → fast-glob → micromatch) and source-map-js GHSA-68fv-2mgg-jv7q (patched 1.2.2; via postcss / @tailwindcss). Both published 2026-09-18; build / lint tooling only. First scan after 079 + 083: no database check fired. My read of the latest security_reports row (Roi's yes) failed: 'column security_reports.created_at does not exist' — the scan's own previous-runs query (route.ts:71-75) orders by created_at and ignores the error; then auto mode blocked a schema lookup as a production read, so I stopped and Roi pasted the Slack text. · claimed by 20261016-1053-claude-c3de · Roi 2026-10-16: \"yes\" to 1 targeted source-map-js update, 2 acknowledge braces (high; no patched version; build / lint tooling only; revisit when a patched braces ships), 3 fix the previous-runs query; then a manual scan run with his yes. · #138 merged 819cd4e on Roi's word (2026-10-16); manual scan clean (0 findings, 1 acknowledged). Not checked by me: the Slack text (history line 'Resolved or acknowledged: dependency_vulnerabilities') — Roi's channel. Closed."
     }
   ]
 }
