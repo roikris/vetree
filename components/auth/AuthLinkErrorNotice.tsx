@@ -16,15 +16,18 @@ export function AuthLinkErrorNotice() {
     const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''))
     const code = query.get('error_code') || hash.get('error_code')
     const error = query.get('error') || hash.get('error')
-    if (!code && error !== 'access_denied') return
+    const description = (query.get('error_description') || hash.get('error_description') || '').toLowerCase()
+    // Only failed email links — not every provider error (e.g. a cancelled Google sign-in)
+    const linkFailed = code === 'otp_expired' || (error === 'access_denied' && description.includes('link'))
+    if (!linkFailed) return
     // The URL (incl. the hash) only exists in the browser: read once after mount
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setShow(true)
 
-    // Drop the error params so a reload or a shared URL doesn't repeat the notice
-    for (const k of ['error', 'error_code', 'error_description']) query.delete(k)
-    const rest = query.toString()
-    window.history.replaceState(window.history.state, '', window.location.pathname + (rest ? `?${rest}` : ''))
+    // Drop only the error params so a reload or a shared URL doesn't repeat the notice; keep anything else
+    for (const k of ['error', 'error_code', 'error_description']) { query.delete(k); hash.delete(k) }
+    const q = query.toString(), h = hash.toString()
+    window.history.replaceState(window.history.state, '', window.location.pathname + (q ? `?${q}` : '') + (h ? `#${h}` : ''))
   }, [])
 
   if (!show) return null

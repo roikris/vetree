@@ -11,6 +11,17 @@ const LINK_FAILED =
   'This reset link can’t be used — it has expired, was already used, or was opened in a different browser or app ' +
   'than the one you requested it from. Request a new link below and open it on this device, in this browser.'
 
+// A recovery session's access token lists 'recovery' among its authentication methods (amr). An older sign-in in
+// this browser doesn't, so it can never be mistaken for the reset link's session.
+function isRecoverySession(accessToken: string): boolean {
+  try {
+    const payload = JSON.parse(atob(accessToken.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')))
+    return Array.isArray(payload.amr) && payload.amr.some((m: { method?: string }) => m?.method === 'recovery')
+  } catch {
+    return false
+  }
+}
+
 function ResetPasswordForm() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -36,7 +47,8 @@ function ResetPasswordForm() {
     // Before analytics-001 they were ignored: the reader just saw the request form again and asked again.
     const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''))
     const linkError = searchParams.get('error_code') || searchParams.get('error') || hashParams.get('error_code') || hashParams.get('error')
-    // The hash only exists in the browser: read once after mount
+    // Mount-time initialisation from the URL (the hash only exists in the browser) — this effect also sets recovery
+    // mode from the URL below; the rule reports one synchronous setState per effect, so this covers both.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (linkError) setError(LINK_FAILED)
 
@@ -58,28 +70,17 @@ function ResetPasswordForm() {
     }
 
     if (code) {
-      // If a session already exists, sign it out first. Supabase requires a
-      // clean slate before exchangeCodeForSession — otherwise the exchange
-      // either errors or fires SIGNED_IN instead of PASSWORD_RECOVERY,
-      // leaving the user stranded on the request-reset form.
-      // exchangeCodeForSession RETURNS its error (it doesn't throw): an expired / used link, or one opened in another
-      // browser than the one that asked for it (PKCE keeps its verifier there), must say so.
-      const doExchange = async () => {
-        try {
-          const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
-          if (exchangeError) setError(LINK_FAILED)
-        } catch {
-          setError(LINK_FAILED)
-        }
-      }
-
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        if (session) {
-          supabase.auth.signOut({ scope: 'local' }).then(doExchange)
-        } else {
-          doExchange()
-        }
-      })
+      // The browser client owns the PKCE exchange: it swaps ?code= for a session by itself on start-up (when this
+      // browser holds the code verifier). A second exchange here used to sign that fresh recovery session out and
+      // fail. So: wait for start-up, then read the outcome. A start-up error = the link failed; no recovery session =
+      // expired / used, or opened in another browser or app than the one that asked for it (no verifier there).
+      // (exchangeCodeForSession RETURNS its error — the old .catch never fired, so failures showed the request form.)
+      supabase.auth.initialize().then(async ({ error: initError }) => {
+        if (initError) { setError(LINK_FAILED); return }
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session && isRecoverySession(session.access_token)) setIsRecoveryMode(true)
+        else setError(LINK_FAILED)
+      }).catch(() => setError(LINK_FAILED))
     }
 
     return () => subscription.unsubscribe()
@@ -169,7 +170,7 @@ function ResetPasswordForm() {
         <form onSubmit={handleUpdatePassword} className="space-y-6">
           {error && (
             <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-              <p className="text-red-800 dark:text-red-200 text-sm">{error}</p>
+              <p role="alert" className="text-red-800 dark:text-red-200 text-sm">{error}</p>
             </div>
           )}
 
@@ -235,7 +236,7 @@ function ResetPasswordForm() {
       <form onSubmit={handleRequestReset} className="space-y-6">
         {error && (
           <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-            <p className="text-red-800 dark:text-red-200 text-sm">{error}</p>
+            <p role="alert" className="text-red-800 dark:text-red-200 text-sm">{error}</p>
           </div>
         )}
 

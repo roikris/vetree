@@ -39,9 +39,12 @@ export default function VerifyEmailPage() {
       })
 
       if (error) {
-        setMessage({ type: 'error', text: error.message })
+        // Mapped, never the provider's text
+        const tooMany = error.status === 429 || /rate|too many|seconds/i.test(error.message)
+        setMessage({ type: 'error', text: tooMany ? 'Too many requests — please wait a minute and try again.' : 'Could not send the email. Please try again.' })
       } else {
-        setMessage({ type: 'success', text: 'Confirmation email sent! Please check your inbox.' })
+        // Neutral: Supabase answers the same for unknown or already-confirmed addresses
+        setMessage({ type: 'success', text: 'If that address has an account waiting for confirmation, a new link is on its way. Check your inbox and spam folder.' })
       }
     } catch (error) {
       setMessage({ type: 'error', text: 'Failed to resend email. Please try again.' })
@@ -78,7 +81,7 @@ export default function VerifyEmailPage() {
 
         {/* Message */}
         {message && (
-          <div className={`mb-6 p-4 rounded-lg ${
+          <div role={message.type === 'error' ? 'alert' : 'status'} aria-live="polite" className={`mb-6 p-4 rounded-lg ${
             message.type === 'success'
               ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-800 dark:text-green-200'
               : 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200'
