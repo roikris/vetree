@@ -26,6 +26,7 @@ type AnalyticsClientProps = {
     branches: { branch: string; count: number; uniqueUsers: number }[]
     likelyAutomated?: { arrived: number; auth_shown: number; completed: number }
   } | null
+  initialSaveIntentFunnelError?: boolean
   initialBotTraffic: {
     totalHits: number
     daily: { date: string; hits: number }[]
@@ -46,6 +47,7 @@ export function AnalyticsClient({
   initialTrafficSources,
   initialSynthesisStats,
   initialSaveIntentFunnel,
+  initialSaveIntentFunnelError,
   initialBotTraffic,
 }: AnalyticsClientProps) {
   const [dateRange, setDateRange] = useState<7 | 30 | 90>(7)
@@ -61,6 +63,7 @@ export function AnalyticsClient({
   const [trafficSources, setTrafficSources] = useState(initialTrafficSources || [])
   const [synthesisStats, setSynthesisStats] = useState(initialSynthesisStats)
   const [saveIntentFunnel, setSaveIntentFunnel] = useState(initialSaveIntentFunnel)
+  const [saveIntentFunnelError, setSaveIntentFunnelError] = useState(!!initialSaveIntentFunnelError)
   const [botTraffic, setBotTraffic] = useState(initialBotTraffic)
   const [isLoading, setIsLoading] = useState(false)
   const [sortColumn, setSortColumn] = useState<'query' | 'count' | 'avg_results' | 'last_searched'>('count')
@@ -134,6 +137,7 @@ export function AnalyticsClient({
       setTrafficSources(trafficRes.data || [])
       setSynthesisStats(synthesisRes.data || null)
       setSaveIntentFunnel(funnelRes.data || null)
+      setSaveIntentFunnelError(!!funnelRes.error)
       setBotTraffic(botTrafficRes.data || null)
     } catch (error) {
       console.error('Error loading analytics:', error)
@@ -333,7 +337,8 @@ export function AnalyticsClient({
       {sessionDuration && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
           <div style={cardStyle}>
-            <h2 style={h2Style}>Session duration</h2>
+            <h2 style={h2Style}>Visible time per page view</h2>
+            <p style={{ ...subStyle, marginTop: -6, marginBottom: 14 }}>Seconds the page was visible (paused while hidden), per view — views over 30 minutes are left out, not capped.</p>
             <div style={{ display: 'flex', gap: 32, marginBottom: 20 }}>
               <div>
                 <div style={labelStyle}>Average</div>
@@ -572,7 +577,9 @@ export function AnalyticsClient({
           </div>
         ) : (
           <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--al-mut4)', fontFamily: 'var(--font-instrument,sans-serif)', fontSize: 14 }}>
-            No save-intent events yet — will populate once social posts with the 💾 line go live.
+            {saveIntentFunnelError
+              ? 'Could not load the save-intent funnel — the read failed (not an empty result).'
+              : 'No save-intent events yet — will populate once social posts with the 💾 line go live.'}
           </div>
         )}
 

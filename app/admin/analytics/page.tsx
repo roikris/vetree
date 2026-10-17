@@ -73,6 +73,7 @@ export default async function AdminAnalyticsPage() {
         initialTrafficSources={trafficSources.data || []}
         initialSynthesisStats={synthesisStats.data || null}
         initialSaveIntentFunnel={saveIntentFunnel.data || null}
+        initialSaveIntentFunnelError={!!saveIntentFunnel.error}
         initialBotTraffic={botTraffic.data || null}
       />
 

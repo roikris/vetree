@@ -497,7 +497,8 @@ write is only logged).
 | duration_seconds | integer (1..86400) |
 | created_at | timestamptz |
 Service role only (RLS on, no policies). A duration that reached `/api/analytics/track` before its view's load;
-applied and deleted by `record_page_view_load()`, removed after a day otherwise.
+applied and deleted by `record_page_view_load()`; orphans older than a day are deleted whenever the next duration is
+queued (opportunistic — no scheduled job).
 
 ### `analytics_maintenance_log` (migration 065)
 | Column | Type |

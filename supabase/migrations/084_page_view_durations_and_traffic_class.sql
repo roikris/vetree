@@ -41,7 +41,8 @@ ALTER TABLE public.analytics_events
   );
 
 -- A duration that reached the server before its view's load. Applied (and deleted) by record_page_view_load();
--- rows whose load never arrives are removed after a day by record_page_view_duration().
+-- rows whose load never arrives are removed opportunistically: each queued duration first deletes the ones older than
+-- a day (so orphans live until the next unmatched duration — a handful of tiny rows, no PII beyond a session id).
 CREATE TABLE public.page_view_pending_durations (
   view_id uuid PRIMARY KEY,
   session_id text,
