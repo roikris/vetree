@@ -661,3 +661,21 @@ Newest at the bottom. The same entries (latest few) appear in primer.md → Rece
   needs its `error`. Prefer a targeted package update to `npm audit fix`, which drags in unrelated bumps.
 - Next best step: perf-001 — read the usage chart 2026-10-16..17; if still over, option B. scripts-001 needs Roi;
   ai-001 ~2026-11-01.
+
+### Session 20261017-1603-claude-ea2b · 2026-10-17 · Claude Code · analytics-001 (report delivered)
+- Goal / Completed: Roi: research 3 analytics patterns (IL ~5:1 views per unique, SG surge, many non-promoted articles
+  read) — real users or not, what they mean, how to use them. Roi's yes to read-only production reads, last 7 days.
+  Verdicts: SG + CN = bot fleet (pattern 3 is that fleet crawling ~193 articles); IL is real people, inflated by the
+  tracker's leave beacon inserting a 2nd row per page and by 2–3 heavy IPs; most US / IE / SE "visitors" are Meta /
+  AWS / Azure link scanners. Real signal: Google organic long-tail from 20+ countries, 3 ChatGPT referrals, a working
+  WhatsApp channel with auth friction.
+- Start state: main 819cd4e, clean; lock taken as backlog, analytics-001 added and claimed.
+- Verification: analysis only — no code changed. Numbers in analytics-001's notes; scripts in the session scratchpad.
+- Review: none (no code, no PR).
+- Commits / PR: state commits only.
+- Pending Roi approvals: which follow-ups to open (beacon fix, bot tagging, firewall rule, signup errors, SEO).
+- Known risks / unresolved: datacenter attribution is by city (Vercel geo), an inference; 7-day window, small counts;
+  the Petah Tikva desktop skimmer may be Roi signed out (admin is skipped only when signed in).
+- Lesson: the page tracker writes two rows per page left — any views / uniques figure built on raw page_views rows
+  counts human multi-page visits twice; filter duration_seconds IS NULL for view counts until fixed.
+- Next best step: Roi picks the follow-ups; the beacon fix and the bot tagging change every analytics number, so first.

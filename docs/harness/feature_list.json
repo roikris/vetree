@@ -1617,7 +1617,7 @@
       "type": "investigation",
       "title": "Three analytics patterns (last 7 days): IL ~5:1 views per unique, a traffic surge from SG, many non-promoted articles read — real users or bots, what they mean, how to use them",
       "user_visible_behavior": "none — a research report for Roi; any bot-tagging change is a separate item",
-      "status": "in_progress",
+      "status": "blocked",
       "verification": [
         {
           "step": "Read-only SELECTs on production page_views / analytics_events / search_logs (service role), last 7 days; results stay local; report with evidence per pattern",
@@ -1627,13 +1627,24 @@
           "paid_calls": false
         }
       ],
-      "evidence": [],
+      "evidence": [
+        {
+          "date": "2026-10-17",
+          "session": "20261017-1603-claude-ea2b",
+          "sha": "819cd4e",
+          "command": "Read-only pull of page_views (597), analytics_events (161), search_logs (5), growth_agent_memory approved rows (134), plus titles of ~45 articles (articles, public content) — last 7 days; analysed locally (scratchpad)",
+          "target": "production",
+          "outcome": "pass",
+          "approval": "Roi: \"yes, and last 7 days\"",
+          "link": null
+        }
+      ],
       "branch": null,
       "pr": null,
       "head_sha": null,
       "wip_sha": null,
       "expected_failures": [],
-      "notes": "Roi 2026-10-17: research the 3 patterns; \"yes\" to read-only production reads, window = last 7 days. · claimed by 20261017-1603-claude-ea2b"
+      "notes": "Roi 2026-10-17: research the 3 patterns; \"yes\" to read-only production reads, window = last 7 days. · claimed by 20261017-1603-claude-ea2b · Findings 2026-10-17: (1) SG + CN = headless-Chrome fleet (Chrome 148–150, desktop, no referrer, flat 24h, 1 view per IP, never a duration beacon): 221 rows, 193 distinct articles, 4% promoted = pattern 3; a 2nd SG bot since 10-16 (randomised Chrome 103–133, Windows): 34 rows. (2) usePageTracking's leave beacon INSERTs a 2nd page_views row (duration_seconds set) per page left: 32 rows, all human — inflates multi-page human sessions. IL 124 rows / 29 IPs → 94 real views (3.2:1); 57% from 3 IPs: Rehovot mobile (WhatsApp, Sun 10-11, 8 min of article↔signup / login / reset-password before signing in) and a Petah Tikva desktop skimming home→article→home at 3–11 s (maybe Roi signed out — ask). (3) ~66 of 83 US rows + IE/SE = Meta / AWS / Azure datacenter towns (Prineville, Clonee, Luleå, Forest City, Gallatin, Boardman, Boydton): link scanners opening shared ?intent=save URLs — save_intent 31 arrived / 1 completed is mostly them. Real signal: ~40 Google organic article visits from 20+ countries (specialist long-tail: emergency / toxicology hemodialysis, equine, ophthalmology, oncology) + 3 chatgpt.com referrals. Follow-up candidates (Roi to pick): fix the beacon (update the view row, not insert); tag datacenter/fleet traffic; Vercel Firewall bot rule (also cuts perf-001 CPU); signup_error ×5 (Ramat Gan, 10-12) + the Rehovot login struggle; SEO on the topics Google already sends. Status blocked = report delivered, awaiting Roi's pick."
     }
   ]
 }

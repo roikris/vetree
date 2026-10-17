@@ -24,7 +24,7 @@ Routine: `docs/harness/README.md` on `main`. Pre-harness primer (frozen): root `
   if not enough → option B (article ISR). PR rule: drafts until done, ready once, never re-run a passing suite.
   Functions Storage was 8.93 / 10 GB → Roi set deployment retention: pre-production 1 week, production / canceled /
   errored 30 days (2026-10-15); re-read it with the CPU chart.
-- **Highest-priority unfinished item:** perf-001 monitoring (read the usage chart 2026-10-16..17); otherwise none ready — scripts-001 needs Roi's decision; ai-001 parked
+- **Highest-priority unfinished item:** analytics-001 follow-ups (Roi to pick: beacon double-row fix, bot tagging, firewall rule, signup errors, SEO); perf-001 monitoring (read the usage chart 2026-10-16..17); otherwise none ready — scripts-001 needs Roi's decision; ai-001 parked
   (~2026-11-01); making the weekly AI report usable is a later item. Ask Roi.
 - **Admin panel (admin-002, Roi 2026-10-14):** /admin lands on Analytics; the weekly AI report is hidden (its Friday job
   still runs); /admin/pipeline = the Slack messages expanded (GET /api/admin/pipeline/status) — no Article Health, no
