@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
@@ -10,6 +10,14 @@ export default function VerifyEmailPage() {
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
   const router = useRouter()
   const supabase = createClient()
+  // Signed out (an unconfirmed account usually has no session, e.g. after a failed email link): ask for the address
+  // instead of failing with "No email address found" (analytics-001)
+  const [sessionEmail, setSessionEmail] = useState<string | null | undefined>(undefined)
+  const [typedEmail, setTypedEmail] = useState('')
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => setSessionEmail(user?.email ?? null))
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleResendEmail = async () => {
     setLoading(true)
@@ -17,22 +25,26 @@ export default function VerifyEmailPage() {
 
     try {
       const { data: { user } } = await supabase.auth.getUser()
+      const email = user?.email || typedEmail.trim()
 
-      if (!user?.email) {
-        setMessage({ type: 'error', text: 'No email address found' })
+      if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+        setMessage({ type: 'error', text: 'Enter the email address you signed up with' })
         setLoading(false)
         return
       }
 
       const { error } = await supabase.auth.resend({
         type: 'signup',
-        email: user.email,
+        email,
       })
 
       if (error) {
-        setMessage({ type: 'error', text: error.message })
+        // Mapped, never the provider's text
+        const tooMany = error.status === 429 || /rate|too many|seconds/i.test(error.message)
+        setMessage({ type: 'error', text: tooMany ? 'Too many requests — please wait a minute and try again.' : 'Could not send the email. Please try again.' })
       } else {
-        setMessage({ type: 'success', text: 'Confirmation email sent! Please check your inbox.' })
+        // Neutral: Supabase answers the same for unknown or already-confirmed addresses
+        setMessage({ type: 'success', text: 'If that address has an account waiting for confirmation, a new link is on its way. Check your inbox and spam folder.' })
       }
     } catch (error) {
       setMessage({ type: 'error', text: 'Failed to resend email. Please try again.' })
@@ -69,7 +81,7 @@ export default function VerifyEmailPage() {
 
         {/* Message */}
         {message && (
-          <div className={`mb-6 p-4 rounded-lg ${
+          <div role={message.type === 'error' ? 'alert' : 'status'} aria-live="polite" className={`mb-6 p-4 rounded-lg ${
             message.type === 'success'
               ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-800 dark:text-green-200'
               : 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200'
@@ -80,6 +92,17 @@ export default function VerifyEmailPage() {
 
         {/* Actions */}
         <div className="space-y-3">
+          {sessionEmail === null && (
+            <input
+              type="email"
+              autoComplete="email"
+              value={typedEmail}
+              onChange={e => setTypedEmail(e.target.value)}
+              placeholder="The email you signed up with"
+              aria-label="Email address"
+              className="w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-[#1A1A1A] px-4 py-3 text-[#1A1A1A] dark:text-[#E8E8E8]"
+            />
+          )}
           <button
             onClick={handleResendEmail}
             disabled={loading}
@@ -88,13 +111,13 @@ export default function VerifyEmailPage() {
             {loading ? 'Sending...' : 'Resend Confirmation Email'}
           </button>
 
-          <button
+          {sessionEmail !== null && <button
             onClick={handleSignOut}
             disabled={loading}
             className="w-full bg-white dark:bg-[#1A1A1A] border border-zinc-200 dark:border-zinc-800 text-[#1A1A1A] dark:text-[#E8E8E8] hover:bg-zinc-50 dark:hover:bg-zinc-900 rounded-lg px-4 py-3 font-medium transition-colors disabled:opacity-50"
           >
             Sign Out
-          </button>
+          </button>}
         </div>
 
         {/* Help Text */}

@@ -74,7 +74,9 @@ export function RegistrationWall() {
 
           <div className="space-y-3">
             <Link
-              href="/signup"
+              // Back to this page after sign-up (it used to be a bare /signup). Rendered only on the client (after the
+              // effect above), so window is always there.
+              href={`/signup?return=${encodeURIComponent(window.location.pathname + window.location.search)}`}
               className="block w-full bg-[#3D7A5F] dark:bg-[#4E9A78] text-white hover:bg-[#2F5F4A] dark:hover:bg-[#5FAA88] rounded-lg px-6 py-3 font-semibold transition-colors text-center"
             >
               Sign Up Free
