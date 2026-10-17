@@ -25,9 +25,13 @@ export function AuthLinkErrorNotice() {
     setShow(true)
 
     // Drop only the error params so a reload or a shared URL doesn't repeat the notice; keep anything else
-    for (const k of ['error', 'error_code', 'error_description']) { query.delete(k); hash.delete(k) }
-    const q = query.toString(), h = hash.toString()
-    window.history.replaceState(window.history.state, '', window.location.pathname + (q ? `?${q}` : '') + (h ? `#${h}` : ''))
+    const keys = ['error', 'error_code', 'error_description']
+    const hashHadError = keys.some(k => hash.has(k))
+    for (const k of keys) { query.delete(k); hash.delete(k) }
+    const q = query.toString()
+    // An unrelated fragment (#clinical-summary) is kept verbatim; only an error fragment is rewritten
+    const h = hashHadError ? (hash.toString() ? `#${hash.toString()}` : '') : window.location.hash
+    window.history.replaceState(window.history.state, '', window.location.pathname + (q ? `?${q}` : '') + h)
   }, [])
 
   if (!show) return null
