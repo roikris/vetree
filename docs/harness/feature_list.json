@@ -1617,13 +1617,20 @@
       "type": "investigation",
       "title": "Three analytics patterns (last 7 days): IL ~5:1 views per unique, a traffic surge from SG, many non-promoted articles read — real users or bots, what they mean, how to use them",
       "user_visible_behavior": "none — a research report for Roi; any bot-tagging change is a separate item",
-      "status": "blocked",
+      "status": "passing",
       "verification": [
         {
           "step": "Read-only SELECTs on production page_views / analytics_events / search_logs (service role), last 7 days; results stay local; report with evidence per pattern",
           "target": "production",
           "db_reads": "prod",
           "db_writes": "none",
+          "paid_calls": false
+        },
+        {
+          "step": "PR A: one row per view, traffic_class estimate, hashed limiter keys, admin reads paged + fail on error; migration 084 (expand) pushed with Roi's yes; 085 (legacy merge, ≥24 h after deploy) and 086 (retro classification) later, each with Roi's yes",
+          "target": "preview",
+          "db_reads": "prod",
+          "db_writes": "prod",
           "paid_calls": false
         }
       ],
@@ -1637,14 +1644,44 @@
           "outcome": "pass",
           "approval": "Roi: \"yes, and last 7 days\"",
           "link": null
+        },
+        {
+          "date": "2026-10-17",
+          "session": "20261017-1616-claude-e12a",
+          "sha": "a220d23",
+          "command": "Codex tier 2: analysis r1 (83k) + plan r2–r4 (71k, 43k, 63k; r4 = extra round on Roi's word, last BLOCKING was a missing enum value, fixed) + code r1 (168k) BLOCKING: none, NB 1–3 applied in a220d23 (not re-reviewed); PGlite fixtures for 084 pass",
+          "target": "local",
+          "outcome": "pass",
+          "approval": "Roi: \"do another round\", \"go\"",
+          "link": "PR #139"
+        },
+        {
+          "date": "2026-10-17",
+          "session": "20261017-1616-claude-e12a",
+          "sha": "b1b8285",
+          "command": "npx supabase db push --linked (084 only, dry run first); schema-snapshot (+118 facts, only 084's objects); init.sh check GREEN (tsc, lint ratchet, 90 unit, acl, rls, schema, build)",
+          "target": "production",
+          "outcome": "pass",
+          "approval": "Roi: \"yes\" (084 db push)",
+          "link": "PR #139"
+        },
+        {
+          "date": "2026-10-17",
+          "session": "20261017-1616-claude-e12a",
+          "sha": "b1b8285",
+          "command": "gh pr ready 139 (one suite run 39053781357): scope, replay (new), replay (old), smoke — all success; Vercel pass",
+          "target": "preview",
+          "outcome": "pass",
+          "approval": "Roi: \"go\"",
+          "link": "PR #139"
         }
       ],
-      "branch": null,
-      "pr": null,
-      "head_sha": null,
+      "branch": "fix/analytics-001-truthful-counts",
+      "pr": 139,
+      "head_sha": "b1b8285",
       "wip_sha": null,
       "expected_failures": [],
-      "notes": "Roi 2026-10-17: research the 3 patterns; \"yes\" to read-only production reads, window = last 7 days. · claimed by 20261017-1603-claude-ea2b · Findings 2026-10-17: (1) SG + CN = headless-Chrome fleet (Chrome 148–150, desktop, no referrer, flat 24h, 1 view per IP, never a duration beacon): 221 rows, 193 distinct articles, 4% promoted = pattern 3; a 2nd SG bot since 10-16 (randomised Chrome 103–133, Windows): 34 rows. (2) usePageTracking's leave beacon INSERTs a 2nd page_views row (duration_seconds set) per page left: 32 rows, all human — inflates multi-page human sessions. IL 124 rows / 29 IPs → 94 real views (3.2:1); 57% from 3 IPs: Rehovot mobile (WhatsApp, Sun 10-11, 8 min of article↔signup / login / reset-password before signing in) and a Petah Tikva desktop skimming home→article→home at 3–11 s (maybe Roi signed out — ask). (3) ~66 of 83 US rows + IE/SE = Meta / AWS / Azure datacenter towns (Prineville, Clonee, Luleå, Forest City, Gallatin, Boardman, Boydton): link scanners opening shared ?intent=save URLs — save_intent 31 arrived / 1 completed is mostly them. Real signal: ~40 Google organic article visits from 20+ countries (specialist long-tail: emergency / toxicology hemodialysis, equine, ophthalmology, oncology) + 3 chatgpt.com referrals. Follow-up candidates (Roi to pick): fix the beacon (update the view row, not insert); tag datacenter/fleet traffic; Vercel Firewall bot rule (also cuts perf-001 CPU); signup_error ×5 (Ramat Gan, 10-12) + the Rehovot login struggle; SEO on the topics Google already sends. Status blocked = report delivered, awaiting Roi's pick."
+      "notes": "Roi 2026-10-17: research the 3 patterns; \"yes\" to read-only production reads, window = last 7 days. · claimed by 20261017-1603-claude-ea2b · Findings 2026-10-17: (1) SG + CN = headless-Chrome fleet (Chrome 148–150, desktop, no referrer, flat 24h, 1 view per IP, never a duration beacon): 221 rows, 193 distinct articles, 4% promoted = pattern 3; a 2nd SG bot since 10-16 (randomised Chrome 103–133, Windows): 34 rows. (2) usePageTracking's leave beacon INSERTs a 2nd page_views row (duration_seconds set) per page left: 32 rows, all human — inflates multi-page human sessions. IL 124 rows / 29 IPs → 94 real views (3.2:1); 57% from 3 IPs: Rehovot mobile (WhatsApp, Sun 10-11, 8 min of article↔signup / login / reset-password before signing in) and a Petah Tikva desktop skimming home→article→home at 3–11 s (maybe Roi signed out — ask). (3) ~66 of 83 US rows + IE/SE = Meta / AWS / Azure datacenter towns (Prineville, Clonee, Luleå, Forest City, Gallatin, Boardman, Boydton): link scanners opening shared ?intent=save URLs — save_intent 31 arrived / 1 completed is mostly them. Real signal: ~40 Google organic article visits from 20+ countries (specialist long-tail: emergency / toxicology hemodialysis, equine, ophthalmology, oncology) + 3 chatgpt.com referrals. Follow-up candidates (Roi to pick): fix the beacon (update the view row, not insert); tag datacenter/fleet traffic; Vercel Firewall bot rule (also cuts perf-001 CPU); signup_error ×5 (Ramat Gan, 10-12) + the Rehovot login struggle; SEO on the topics Google already sends. Status blocked = report delivered, awaiting Roi's pick. · PR A = #139 (passing on b1b8285, awaiting Roi's merge word). After merge: production check (one real navigation → one row with a duration; Roi's yes), then ≥24 h → 085, then 086. PR B (auth friction) next. Open questions to Roi: clear Upstash analytics history (raw IPs pre-#139)? save-consent stores the raw IP in user_consents (app/api/auth/save-consent/route.ts:75) — keep as consent evidence?"
     }
   ]
 }
