@@ -295,6 +295,11 @@
         }
       }
     },
+    "public.page_view_pending_durations": {
+      "rls": true,
+      "forced": false,
+      "policies": {}
+    },
     "public.page_views": {
       "rls": true,
       "forced": false,

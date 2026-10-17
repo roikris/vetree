@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import * as Sentry from '@sentry/nextjs'
 import { createAdminClient } from '@/lib/supabase/server'
-import { getClientIP, ratelimitLoose } from '@/lib/ratelimit'
+import { rateLimitIP, ratelimitLoose } from '@/lib/ratelimit'
 import { resolveIlPath, type IlClient } from '@/lib/growth/ilTarget'
 
 export const runtime = 'nodejs'
@@ -17,7 +17,7 @@ const UTM = 'utm_source=facebook&utm_medium=social&utm_campaign=il&utm_content=p
 
 export async function GET(request: NextRequest) {
   const path = await resolveIlPath({
-    limit: () => ratelimitLoose.limit(`il:${getClientIP(request)}`),
+    limit: () => ratelimitLoose.limit(`il:${rateLimitIP(request)}`),
     // cast: the full Supabase client type is too deep for TypeScript to check against the small IlClient surface
     db: () => createAdminClient() as unknown as IlClient,
     report: e => Sentry.captureException(e),

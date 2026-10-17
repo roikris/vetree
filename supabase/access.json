@@ -428,6 +428,18 @@
       ],
       "PUBLIC": []
     },
+    "public.page_view_pending_durations": {
+      "kind": "table",
+      "anon": [],
+      "authenticated": [],
+      "service_role": [
+        "DELETE",
+        "INSERT",
+        "SELECT",
+        "UPDATE"
+      ],
+      "PUBLIC": []
+    },
     "public.page_views": {
       "kind": "table",
       "anon": [],

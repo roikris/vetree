@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { parseSearchParams } from '@/lib/utils/searchParams'
 import { runSearchBatch, decodeCursor } from '@/lib/search/progressive'
-import { ratelimitLoose, getClientIP } from '@/lib/ratelimit'
+import { ratelimitLoose, rateLimitIP } from '@/lib/ratelimit'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -12,7 +12,7 @@ export const dynamic = 'force-dynamic'
 // key directly, and server-rendered first batches don't pass through this route.
 export async function GET(request: NextRequest) {
   try {
-    const { success } = await ratelimitLoose.limit(`search:${getClientIP(request)}`)
+    const { success } = await ratelimitLoose.limit(`search:${rateLimitIP(request)}`)
     if (!success) return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
 
     const sp = request.nextUrl.searchParams

@@ -24,7 +24,9 @@ type AnalyticsClientProps = {
     abandoned: number
     medianResolutionMs: number | null
     branches: { branch: string; count: number; uniqueUsers: number }[]
+    likelyAutomated?: { arrived: number; auth_shown: number; completed: number }
   } | null
+  initialSaveIntentFunnelError?: boolean
   initialBotTraffic: {
     totalHits: number
     daily: { date: string; hits: number }[]
@@ -45,6 +47,7 @@ export function AnalyticsClient({
   initialTrafficSources,
   initialSynthesisStats,
   initialSaveIntentFunnel,
+  initialSaveIntentFunnelError,
   initialBotTraffic,
 }: AnalyticsClientProps) {
   const [dateRange, setDateRange] = useState<7 | 30 | 90>(7)
@@ -60,6 +63,7 @@ export function AnalyticsClient({
   const [trafficSources, setTrafficSources] = useState(initialTrafficSources || [])
   const [synthesisStats, setSynthesisStats] = useState(initialSynthesisStats)
   const [saveIntentFunnel, setSaveIntentFunnel] = useState(initialSaveIntentFunnel)
+  const [saveIntentFunnelError, setSaveIntentFunnelError] = useState(!!initialSaveIntentFunnelError)
   const [botTraffic, setBotTraffic] = useState(initialBotTraffic)
   const [isLoading, setIsLoading] = useState(false)
   const [sortColumn, setSortColumn] = useState<'query' | 'count' | 'avg_results' | 'last_searched'>('count')
@@ -133,6 +137,7 @@ export function AnalyticsClient({
       setTrafficSources(trafficRes.data || [])
       setSynthesisStats(synthesisRes.data || null)
       setSaveIntentFunnel(funnelRes.data || null)
+      setSaveIntentFunnelError(!!funnelRes.error)
       setBotTraffic(botTrafficRes.data || null)
     } catch (error) {
       console.error('Error loading analytics:', error)
@@ -248,8 +253,8 @@ export function AnalyticsClient({
       {overview && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 14 }}>
           {[
-            { label: 'Total Pageviews', value: overview.totalViews.toLocaleString(), sub: null },
-            { label: 'Unique Visitors', value: overview.uniqueVisitors.toLocaleString(), sub: null },
+            { label: 'Total Pageviews', value: overview.totalViews.toLocaleString(), sub: overview.likelyAutomatedViews > 0 ? `incl. ~${overview.likelyAutomatedViews.toLocaleString()} from hosting networks` : null },
+            { label: 'Unique IPs', value: overview.uniqueVisitors.toLocaleString(), sub: 'not people: shared / changing IPs' },
             { label: 'Logged In', value: overview.loggedInViews.toLocaleString(), sub: overview.totalViews > 0 ? `${Math.round((overview.loggedInViews / overview.totalViews) * 100)}% of total` : '0%' },
             { label: 'Anonymous', value: overview.anonymousViews.toLocaleString(), sub: overview.totalViews > 0 ? `${Math.round((overview.anonymousViews / overview.totalViews) * 100)}% of total` : '0%' },
             { label: 'Saved Articles', value: savedArticlesStats ? savedArticlesStats.totalSaved.toLocaleString() : '—', sub: savedArticlesStats ? `${savedArticlesStats.uniqueUsers} users` : null },
@@ -332,7 +337,8 @@ export function AnalyticsClient({
       {sessionDuration && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
           <div style={cardStyle}>
-            <h2 style={h2Style}>Session duration</h2>
+            <h2 style={h2Style}>Visible time per page view</h2>
+            <p style={{ ...subStyle, marginTop: -6, marginBottom: 14 }}>Seconds the page was visible (paused while hidden), per view — views over 30 minutes are left out, not capped.</p>
             <div style={{ display: 'flex', gap: 32, marginBottom: 20 }}>
               <div>
                 <div style={labelStyle}>Average</div>
@@ -427,8 +433,13 @@ export function AnalyticsClient({
                       {country.views}
                     </span>
                     <span style={{ fontFamily: 'var(--font-instrument,sans-serif)', fontSize: 12, color: 'var(--al-mut4)' }}>
-                      {country.uniqueVisitors} uniq
+                      {country.uniqueVisitors} IPs
                     </span>
+                    {country.likelyAutomatedViews > 0 && (
+                      <span title="Views from hosting networks (cloud / datacenter IP ranges): link scanners, crawlers or VPN users. Included in the views figure." style={{ fontFamily: 'var(--font-instrument,sans-serif)', fontSize: 12, color: 'var(--al-mut4)' }}>
+                        {country.likelyAutomatedViews} likely automated
+                      </span>
+                    )}
                   </div>
                 </div>
               ))}
@@ -566,10 +577,17 @@ export function AnalyticsClient({
           </div>
         ) : (
           <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--al-mut4)', fontFamily: 'var(--font-instrument,sans-serif)', fontSize: 14 }}>
-            No save-intent events yet — will populate once social posts with the 💾 line go live.
+            {saveIntentFunnelError
+              ? 'Could not load the save-intent funnel — the read failed (not an empty result).'
+              : 'No save-intent events yet — will populate once social posts with the 💾 line go live.'}
           </div>
         )}
 
+        {saveIntentFunnel?.likelyAutomated && saveIntentFunnel.likelyAutomated.arrived > 0 && (
+          <p style={{ ...subStyle, marginTop: 10 }}>
+            Of these, {saveIntentFunnel.likelyAutomated.arrived} arrived · {saveIntentFunnel.likelyAutomated.auth_shown} auth shown · {saveIntentFunnel.likelyAutomated.completed} completed came from hosting networks (link scanners opening shared links, or VPN users) — an estimate, included above.
+          </p>
+        )}
         {saveIntentFunnel && saveIntentFunnel.arrived > 0 && (
           <>
             <div style={{ display: 'flex', gap: 24, marginTop: 20, flexWrap: 'wrap' }}>

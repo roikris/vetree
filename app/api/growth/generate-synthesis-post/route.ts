@@ -5,7 +5,7 @@ export const maxDuration = 60
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
-import { ratelimitModerate, getClientIP } from '@/lib/ratelimit'
+import { ratelimitModerate, rateLimitIP } from '@/lib/ratelimit'
 import {
   fetchOrGenerateSynthesis,
   SynthesisArticlePacket,
@@ -110,7 +110,7 @@ Write a LinkedIn post in "Myth vs Evidence" style:
 export async function POST(request: NextRequest) {
   try {
     // Rate limiting
-    const ip = getClientIP(request)
+    const ip = rateLimitIP(request)
     const { success } = await ratelimitModerate.limit(ip)
     if (!success) {
       return NextResponse.json({ error: 'Too many requests. Please try again later.' }, { status: 429 })

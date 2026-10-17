@@ -1,5 +1,6 @@
 import { Ratelimit } from '@upstash/ratelimit'
 import { Redis } from '@upstash/redis'
+import { hashIP } from '@/lib/ipHash'
 
 // Helper to get client IP
 export function getClientIP(request: Request): string {
@@ -15,6 +16,11 @@ export function getClientIP(request: Request): string {
   }
 
   return 'unknown'
+}
+
+/** Rate-limit identifier for a request's IP: its hash, never the raw IP (Upstash stores keys + analytics). */
+export function rateLimitIP(request: Request): string {
+  return hashIP(getClientIP(request))
 }
 
 // A no-op limiter that always allows requests.

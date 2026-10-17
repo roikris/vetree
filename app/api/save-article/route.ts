@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { ratelimitModerate, getClientIP } from '@/lib/ratelimit'
+import { ratelimitModerate, rateLimitIP } from '@/lib/ratelimit'
 import { revalidatePath } from 'next/cache'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
-  const ip = getClientIP(request)
+  const ip = rateLimitIP(request)
   const { success } = await ratelimitModerate.limit(`save-article:${ip}`)
   if (!success) {
     return NextResponse.json({ error: 'Too many requests' }, { status: 429 })

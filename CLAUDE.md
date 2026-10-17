@@ -431,8 +431,8 @@ digest-consent server action in `app/actions/profile.ts` (`ratelimitModerate`), 
 /api/search/batch (`ratelimitLoose`), /api/digest/send (`ratelimitStrict`), /api/synthesis/generate (`synthesisLimiter`
 + its own Redis daily cap). NOT rate limited: /api/admin/security/scan (secret or admin only).
 ```ts
-import { ratelimitStrict } from '@/lib/ratelimit'  // or ratelimitModerate / ratelimitLoose
-const ip = getClientIP(request)  // use getClientIP() helper from lib/ratelimit
+import { ratelimitStrict, rateLimitIP } from '@/lib/ratelimit'  // or ratelimitModerate / ratelimitLoose
+const ip = rateLimitIP(request)  // hashed IP (lib/ipHash.ts) — never pass the raw getClientIP() to a limiter
 const { success } = await ratelimit.limit(`prefix:${ip}`)
 if (!success) return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
 ```

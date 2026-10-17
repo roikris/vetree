@@ -18,7 +18,7 @@ export async function countSynthesisEvents(
     .select('id', { count: 'exact', head: true })
     .eq('event_name', event)
     .is('bot_name', null)
-    .is('traffic_class', null)
+    .filter('traffic_class', 'isdistinct', 'suspected_test')   // hosting-network estimates (analytics-001) still count
     .or(excludedUsersOrFilter())
     .gte('created_at', from)
   if (to) q = q.lt('created_at', to)

@@ -13,6 +13,7 @@ const BOT_PATTERNS: [RegExp, string][] = [
   [/GPTBot|ChatGPT-User|OAI-SearchBot/i, 'gptbot'],
   [/ClaudeBot|anthropic-ai/i, 'claudebot'],
   [/PerplexityBot|Perplexity-User/i, 'perplexitybot'],
+  [/HeadlessChrome/i, 'headless'],
   [/bot|crawler|spider/i, 'other-bot'],
 ]
 

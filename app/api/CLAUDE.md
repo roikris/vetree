@@ -118,8 +118,8 @@ await fetch(`https://api.github.com/repos/roikris/vetree/actions/workflows/WORKF
 
 ### Rate limiting
 ```ts
-import { ratelimitModerate, getClientIP } from '@/lib/ratelimit'
-const ip = getClientIP(request)
+import { ratelimitModerate, rateLimitIP } from '@/lib/ratelimit'
+const ip = rateLimitIP(request)   // the IP's hash — never the raw IP (Upstash stores keys + analytics)
 const { success } = await ratelimitModerate.limit(`prefix:${ip}`)
 if (!success) return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
 ```

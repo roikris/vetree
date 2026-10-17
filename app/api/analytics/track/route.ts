@@ -1,31 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { randomUUID } from 'crypto'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
-import { createHash } from 'crypto'
-import { ratelimitLoose, getClientIP } from '@/lib/ratelimit'
+import { ratelimitLoose, getClientIP, rateLimitIP } from '@/lib/ratelimit'
+import { hashIP } from '@/lib/ipHash'
 import { detectBotName } from '@/lib/bot-detection'
+import { trafficClassForIP } from '@/lib/analytics/datacenter'
 import { analyticsRecordingEnabled, isQATraffic, isSynthesisEvent } from '@/lib/analytics/recording'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+const str = (v: unknown, max = 2048): string | null =>
+  typeof v === 'string' && v.length > 0 ? v.slice(0, max) : null
+
+// Two payloads (analytics-001, migration 084):
+//   load      { view_id, path, referrer, session_id, utm_* }  → one page_views row (view_id = its id)
+//   duration  { view_id, session_id, duration_seconds }       → raises that row's duration, never a new row
+// Tabs still running the old tracker send loads without view_id (the server makes one) and durations as
+// { path, session_id, duration_seconds } (applied to that session + path's latest load).
 export async function POST(request: NextRequest) {
   try {
-    // Rate limiting - 60 requests per minute per IP
-    const rateLimitIP = getClientIP(request)
-    const { success } = await ratelimitLoose.limit(rateLimitIP)
+    // Rate limiting - 60 requests per minute per IP (hashed key)
+    const { success } = await ratelimitLoose.limit(rateLimitIP(request))
     if (!success) {
       return NextResponse.json({ error: 'Too many requests. Please try again later.' }, { status: 429 })
     }
 
-    const supabase = await createClient()
     const body = await request.json()
-    const { path: rawPath, event, referrer, session_id, duration_seconds, utm_source, utm_medium, utm_campaign, utm_id } = body
-
-    const path = rawPath || (event === 'synthesis_engaged' ? '/synthesis/engaged' : null)
-
-    if (!path) {
-      return NextResponse.json({ error: 'Path is required' }, { status: 400 })
-    }
+    const { path: rawPath, event, referrer, session_id: rawSession, duration_seconds, view_id: rawViewId, utm_source, utm_medium, utm_campaign, utm_id } = body ?? {}
+    const viewId = typeof rawViewId === 'string' && UUID_RE.test(rawViewId) ? rawViewId.toLowerCase() : null
+    const sessionId = str(rawSession, 100)
+    const isDuration = duration_seconds !== undefined && duration_seconds !== null
 
     // Only the production deployment records (previews and local dev share the production DB).
     // Skip QA bot traffic — VetreeQABot UA or x-qa-bot header (deliberate internal
@@ -35,12 +42,45 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, tracked: false })
     }
 
+    // Writes use the service role: the public key cannot insert into page_views / analytics_events
+    // (since migration 078, infra-002), so rows only arrive through this route's filters (QA, admin, bot tagging).
+    const db = createAdminClient()
+
+    if (isDuration) {
+      const seconds = Number(duration_seconds)
+      if (!Number.isInteger(seconds) || seconds < 1 || seconds > 86400) {
+        return NextResponse.json({ error: 'duration_seconds must be an integer 1..86400' }, { status: 400 })
+      }
+      // No auth lookup: an admin's views were never recorded, so their durations find no row (a pending row that
+      // expires after a day). Saves an auth round trip on every leave ping.
+      if (viewId) {
+        const { data, error } = await db.rpc('record_page_view_duration', { p_id: viewId, p_session_id: sessionId, p_seconds: seconds })
+        if (error) {
+          console.error('[analytics/track] duration update failed:', error.message)
+          return NextResponse.json({ success: false }, { status: 200 })
+        }
+        return NextResponse.json({ success: true, result: data })
+      }
+      const { data, error } = await db.rpc('record_legacy_page_view_duration', { p_session_id: sessionId, p_path: str(rawPath), p_seconds: seconds })
+      if (error) {
+        console.error('[analytics/track] legacy duration update failed:', error.message)
+        return NextResponse.json({ success: false }, { status: 200 })
+      }
+      return NextResponse.json({ success: true, result: data ? 'updated' : 'dropped' })
+    }
+
+    const path = str(rawPath) || (event === 'synthesis_engaged' ? '/synthesis/engaged' : null)
+    if (!path) {
+      return NextResponse.json({ error: 'Path is required' }, { status: 400 })
+    }
+
     // Known crawlers (link-preview bots, search/ads verifiers, AI scrapers) are still
     // recorded — tagged via bot_name so burst/resource monitoring stays possible —
     // but analytics reads filter bot_name IS NULL to keep human metrics clean.
     const botName = detectBotName(userAgent)
 
     // Get user if logged in
+    const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
     // Check if admin - don't track admin traffic
@@ -49,16 +89,12 @@ export async function POST(request: NextRequest) {
         .from('user_roles')
         .select('role')
         .eq('user_id', user.id)
-        .single()
+        .maybeSingle()
 
       if (role?.role === 'admin') {
         return NextResponse.json({ success: true, tracked: false })
       }
     }
-
-    // Writes use the service role: the public key cannot insert into page_views / analytics_events
-    // (since migration 078, infra-002), so rows only arrive through this route's filters (QA, admin, bot tagging).
-    const db = createAdminClient()
 
     // Synthesis experiment events are NOT page views (CLAUDE.md rule 12). Browser tabs still running
     // an older build send {event:'synthesis_engaged'} or a '/synthesis/*' path here: record them in
@@ -79,12 +115,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true })
     }
 
-    // Get IP from headers (privacy-conscious: we'll hash it)
-    const forwarded = request.headers.get('x-forwarded-for')
-    const ip = forwarded ? forwarded.split(',')[0].trim() : request.headers.get('x-real-ip') || 'unknown'
-
-    // Hash IP for privacy (never store raw IP)
-    const ipHash = createHash('sha256').update(ip + (process.env.IP_HASH_SALT || 'vetree-salt')).digest('hex')
+    // The raw IP is used only here, in memory: hashed for ip_hash, looked up for traffic_class. Never stored.
+    const ip = getClientIP(request)
+    const ipHash = hashIP(ip)
+    // Confirmed crawlers keep bot_name only; the hosting-network estimate applies to everything else.
+    const trafficClass = botName ? null : trafficClassForIP(ip)
 
     // Check Vercel's built-in headers first (most reliable)
     const secChUaMobile = request.headers.get('sec-ch-ua-mobile')
@@ -115,44 +150,37 @@ export async function POST(request: NextRequest) {
       request.headers.get('cf-ipcountry') ||
       request.headers.get('x-country-code') ||
       'Unknown'
-    const city = request.headers.get('x-vercel-ip-city') || undefined
+    const city = request.headers.get('x-vercel-ip-city') || null
 
-    // Temporary logging for debugging
-    console.log('[analytics/track] UA:', userAgent.slice(0, 100))
-    console.log('[analytics/track] device:', deviceType, 'country:', country)
-    console.log('[analytics/track] sec-ch-ua-mobile:', secChUaMobile)
-
-    // Insert page view
-    const { error } = await db
-      .from('page_views')
-      .insert({
-        path,
-        referrer: referrer || undefined,
-        user_agent: userAgent || undefined,
-        ip_hash: ipHash,
-        user_id: user?.id || null,
-        country,
-        city,
-        device_type: deviceType,
-        session_id: session_id || undefined,
-        duration_seconds: duration_seconds || undefined,
-        utm_source: utm_source || undefined,
-        utm_medium: utm_medium || undefined,
-        utm_campaign: utm_campaign || undefined,
-        utm_id: utm_id || undefined,
-        bot_name: botName
-      })
+    const { data: inserted, error } = await db.rpc('record_page_view_load', {
+      p_id: viewId ?? randomUUID(),
+      p_path: path,
+      p_referrer: str(referrer),
+      p_user_agent: userAgent || null,
+      p_ip_hash: ipHash,
+      p_user_id: user?.id || null,
+      p_country: country,
+      p_city: city,
+      p_device_type: deviceType,
+      p_session_id: sessionId,
+      p_utm_source: str(utm_source, 200),
+      p_utm_medium: str(utm_medium, 200),
+      p_utm_campaign: str(utm_campaign, 200),
+      p_utm_id: str(utm_id, 200),
+      p_bot_name: botName,
+      p_traffic_class: trafficClass,
+    })
 
     if (error) {
-      console.error('[analytics] Error inserting page view:', error)
+      console.error('[analytics] Error inserting page view:', error.message)
       // Don't fail the request if analytics fails
       return NextResponse.json({ success: false }, { status: 200 })
     }
 
-    return NextResponse.json({ success: true })
+    return NextResponse.json(inserted ? { success: true } : { success: true, duplicate: true })
 
   } catch (error) {
-    console.error('[analytics] Error tracking page view:', error)
+    console.error('[analytics] Error tracking page view:', error instanceof Error ? error.message : 'unknown')
     // Don't fail the request if analytics fails
     return NextResponse.json({ success: false }, { status: 200 })
   }
