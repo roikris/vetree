@@ -1,6 +1,6 @@
 {
   "project": "vetree",
-  "last_updated": "2026-10-16",
+  "last_updated": "2026-10-17",
   "rules": {
     "single_active_feature": true,
     "passing_requires_evidence": true,
@@ -1609,6 +1609,31 @@
       "wip_sha": null,
       "expected_failures": [],
       "notes": "Scan run 38812980120 (2026-10-15 21:51 UTC, on 181c207): severity high, findings_count 1, acknowledged_count 0 — Roi pasted the Slack message: '2 unacknowledged dependency advisories': braces GHSA-vfj7-8cjw-p6xm (no patched version; via @sentry/webpack-plugin → unplugin → chokidar, and eslint-config-next → fast-glob → micromatch) and source-map-js GHSA-68fv-2mgg-jv7q (patched 1.2.2; via postcss / @tailwindcss). Both published 2026-09-18; build / lint tooling only. First scan after 079 + 083: no database check fired. My read of the latest security_reports row (Roi's yes) failed: 'column security_reports.created_at does not exist' — the scan's own previous-runs query (route.ts:71-75) orders by created_at and ignores the error; then auto mode blocked a schema lookup as a production read, so I stopped and Roi pasted the Slack text. · claimed by 20261016-1053-claude-c3de · Roi 2026-10-16: \"yes\" to 1 targeted source-map-js update, 2 acknowledge braces (high; no patched version; build / lint tooling only; revisit when a patched braces ships), 3 fix the previous-runs query; then a manual scan run with his yes. · #138 merged 819cd4e on Roi's word (2026-10-16); manual scan clean (0 findings, 1 acknowledged). Not checked by me: the Slack text (history line 'Resolved or acknowledged: dependency_vulnerabilities') — Roi's channel. Closed."
+    },
+    {
+      "id": "analytics-001",
+      "priority": 1,
+      "area": "analytics",
+      "type": "investigation",
+      "title": "Three analytics patterns (last 7 days): IL ~5:1 views per unique, a traffic surge from SG, many non-promoted articles read — real users or bots, what they mean, how to use them",
+      "user_visible_behavior": "none — a research report for Roi; any bot-tagging change is a separate item",
+      "status": "in_progress",
+      "verification": [
+        {
+          "step": "Read-only SELECTs on production page_views / analytics_events / search_logs (service role), last 7 days; results stay local; report with evidence per pattern",
+          "target": "production",
+          "db_reads": "prod",
+          "db_writes": "none",
+          "paid_calls": false
+        }
+      ],
+      "evidence": [],
+      "branch": null,
+      "pr": null,
+      "head_sha": null,
+      "wip_sha": null,
+      "expected_failures": [],
+      "notes": "Roi 2026-10-17: research the 3 patterns; \"yes\" to read-only production reads, window = last 7 days. · claimed by 20261017-1603-claude-ea2b"
     }
   ]
 }
