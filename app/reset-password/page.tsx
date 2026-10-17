@@ -77,6 +77,10 @@ function ResetPasswordForm() {
       // (exchangeCodeForSession RETURNS its error — the old .catch never fired, so failures showed the request form.)
       supabase.auth.initialize().then(async ({ error: initError }) => {
         if (initError) { setError(LINK_FAILED); return }
+        // Proof that THIS link was exchanged on THIS load: the SDK deletes ?code= from the URL after a successful
+        // exchange and leaves it when it couldn't try (no verifier). Without that proof an older recovery session
+        // in this browser (maybe another account's) must not unlock the new-password form.
+        if (new URLSearchParams(window.location.search).has('code')) { setError(LINK_FAILED); return }
         const { data: { session } } = await supabase.auth.getSession()
         if (session && isRecoverySession(session.access_token)) setIsRecoveryMode(true)
         else setError(LINK_FAILED)
