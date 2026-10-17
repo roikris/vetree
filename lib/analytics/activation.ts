@@ -14,6 +14,9 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { EXCLUDED_USER_IDS, excludedUsersOrFilter } from '@/lib/analytics-excluded-ids'
+import { readAll as readAllRows } from './readAll'
+
+const readAll = <T,>(label: string, page: Parameters<typeof readAllRows<T>>[1]) => readAllRows<T>(`[activation] ${label}`, page)
 
 const DAY = 24 * 60 * 60 * 1000
 export const ACTIVATION_RELIABLE_FROM = '2026-09-29'
@@ -26,16 +29,6 @@ export type ActivationMetrics = {
   returned: number           // members back on a later day within 7 days
   anonVisitors: number
   anonReturning: number
-}
-
-async function readAll<T>(label: string, page: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>): Promise<T[]> {
-  const out: T[] = []
-  for (let from = 0; ; from += 1000) {
-    const { data, error } = await page(from, from + 999)
-    if (error) throw new Error(`[activation] ${label}: ${error.message}`)
-    out.push(...(data || []))
-    if (!data || data.length < 1000) return out
-  }
 }
 
 const utcDay = (iso: string) => iso.slice(0, 10)

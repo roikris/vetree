@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
-import { createHash } from 'crypto'
+import { getClientIP } from '@/lib/ratelimit'
+import { hashIP } from '@/lib/ipHash'
+import { trafficClassForIP } from '@/lib/analytics/datacenter'
 import { detectBotName } from '@/lib/bot-detection'
 import { analyticsRecordingEnabled, isQATraffic } from '@/lib/analytics/recording'
 
@@ -45,9 +47,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Hash IP for a stable anonymous actor key — same scheme as page_views.ip_hash, never raw IP
-    const forwarded = request.headers.get('x-forwarded-for')
-    const ip = forwarded ? forwarded.split(',')[0].trim() : request.headers.get('x-real-ip') || 'unknown'
-    const ipHash = createHash('sha256').update(ip + (process.env.IP_HASH_SALT || 'vetree-salt')).digest('hex')
+    const ip = getClientIP(request)
+    const ipHash = hashIP(ip)
+    const botName = detectBotName(userAgent)
 
     const mergedDetail = {
       ...(detail && typeof detail === 'object' ? detail : {}),
@@ -62,7 +64,9 @@ export async function POST(request: NextRequest) {
       article_id: article_id || null,
       user_id: user?.id || null,
       // Crawlers are recorded but tagged; every reader filters bot_name IS NULL
-      bot_name: detectBotName(userAgent),
+      bot_name: botName,
+      // Hosting-network estimate (analytics-001) — not a bot verdict; readers show it apart, never drop it
+      traffic_class: botName ? null : trafficClassForIP(ip),
       detail: mergedDetail,
     })
     if (error) {

@@ -7,7 +7,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { normalizeQuery } from '@/lib/utils/normalizeQuery'
 import * as Sentry from '@sentry/nextjs'
 import { Redis } from '@upstash/redis'
-import { synthesisLimiter, getClientIP } from '@/lib/ratelimit'
+import { synthesisLimiter, rateLimitIP } from '@/lib/ratelimit'
 import { detectBotName } from '@/lib/bot-detection'
 import { analyticsRecordingEnabled, isQATraffic } from '@/lib/analytics/recording'
 import { CLAUDE_MODEL, NO_UPFRONT_THINKING, responseText } from '@/lib/ai/model'
@@ -269,7 +269,7 @@ export async function POST(request: NextRequest) {
 
     // Cost controls, applied only now — immediately before the paid Claude call — so a lock
     // conflict or an insufficient-evidence answer never spends a reader's allowance or budget.
-    const { success: withinLimit } = await synthesisLimiter.limit(`synthesis:${userId ?? getClientIP(request)}`)
+    const { success: withinLimit } = await synthesisLimiter.limit(`synthesis:${userId ?? rateLimitIP(request)}`)
     if (!withinLimit) {
       await trackOutcome('synthesis_blocked')
       return NextResponse.json({ error: 'Too many syntheses — please wait a few minutes and try again.', retryable: false }, { status: 429 })

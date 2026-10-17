@@ -4,7 +4,7 @@ export const maxDuration = 60
 
 import { NextRequest, NextResponse } from 'next/server'
 import { processModelPost, hookLineOf, isLinkFreePlatform } from '@/lib/growth/postProcess'
-import { ratelimitModerate, getClientIP } from '@/lib/ratelimit'
+import { ratelimitModerate, rateLimitIP } from '@/lib/ratelimit'
 import { createClient } from '@/lib/supabase/server'
 import { CLAUDE_MODEL, NO_UPFRONT_THINKING, responseText } from '@/lib/ai/model'
 import { rankGrowthCandidates } from '@/lib/growth/candidates'
@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
   const startedAt = Date.now()
   try {
     // Rate limiting - 10 requests per minute per IP
-    const ip = getClientIP(request)
+    const ip = rateLimitIP(request)
     const { success } = await ratelimitModerate.limit(ip)
     if (!success) {
       return NextResponse.json({ error: 'Too many requests. Please try again later.' }, { status: 429 })

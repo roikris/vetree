@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { escapeHtml } from '@/lib/utils/escapeHtml'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { Resend } from 'resend'
-import { ratelimitStrict, getClientIP } from '@/lib/ratelimit'
+import { ratelimitStrict, rateLimitIP } from '@/lib/ratelimit'
 import { createHmac } from 'crypto'
 
 function generateUnsubscribeToken(userId: string): string {
@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
 
   try {
     // Rate limiting - 3 requests per minute per IP
-    const ip = getClientIP(request)
+    const ip = rateLimitIP(request)
     const { success } = await ratelimitStrict.limit(ip)
     if (!success) {
       return NextResponse.json({ error: 'Too many requests. Please try again later.' }, { status: 429 })

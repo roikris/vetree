@@ -24,6 +24,7 @@ type AnalyticsClientProps = {
     abandoned: number
     medianResolutionMs: number | null
     branches: { branch: string; count: number; uniqueUsers: number }[]
+    likelyAutomated?: { arrived: number; auth_shown: number; completed: number }
   } | null
   initialBotTraffic: {
     totalHits: number
@@ -248,8 +249,8 @@ export function AnalyticsClient({
       {overview && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 14 }}>
           {[
-            { label: 'Total Pageviews', value: overview.totalViews.toLocaleString(), sub: null },
-            { label: 'Unique Visitors', value: overview.uniqueVisitors.toLocaleString(), sub: null },
+            { label: 'Total Pageviews', value: overview.totalViews.toLocaleString(), sub: overview.likelyAutomatedViews > 0 ? `incl. ~${overview.likelyAutomatedViews.toLocaleString()} from hosting networks` : null },
+            { label: 'Unique IPs', value: overview.uniqueVisitors.toLocaleString(), sub: 'not people: shared / changing IPs' },
             { label: 'Logged In', value: overview.loggedInViews.toLocaleString(), sub: overview.totalViews > 0 ? `${Math.round((overview.loggedInViews / overview.totalViews) * 100)}% of total` : '0%' },
             { label: 'Anonymous', value: overview.anonymousViews.toLocaleString(), sub: overview.totalViews > 0 ? `${Math.round((overview.anonymousViews / overview.totalViews) * 100)}% of total` : '0%' },
             { label: 'Saved Articles', value: savedArticlesStats ? savedArticlesStats.totalSaved.toLocaleString() : '—', sub: savedArticlesStats ? `${savedArticlesStats.uniqueUsers} users` : null },
@@ -427,8 +428,13 @@ export function AnalyticsClient({
                       {country.views}
                     </span>
                     <span style={{ fontFamily: 'var(--font-instrument,sans-serif)', fontSize: 12, color: 'var(--al-mut4)' }}>
-                      {country.uniqueVisitors} uniq
+                      {country.uniqueVisitors} IPs
                     </span>
+                    {country.likelyAutomatedViews > 0 && (
+                      <span title="Views from hosting networks (cloud / datacenter IP ranges): link scanners, crawlers or VPN users. Included in the views figure." style={{ fontFamily: 'var(--font-instrument,sans-serif)', fontSize: 12, color: 'var(--al-mut4)' }}>
+                        {country.likelyAutomatedViews} likely automated
+                      </span>
+                    )}
                   </div>
                 </div>
               ))}
@@ -570,6 +576,11 @@ export function AnalyticsClient({
           </div>
         )}
 
+        {saveIntentFunnel?.likelyAutomated && saveIntentFunnel.likelyAutomated.arrived > 0 && (
+          <p style={{ ...subStyle, marginTop: 10 }}>
+            Of these, {saveIntentFunnel.likelyAutomated.arrived} arrived · {saveIntentFunnel.likelyAutomated.auth_shown} auth shown · {saveIntentFunnel.likelyAutomated.completed} completed came from hosting networks (link scanners opening shared links, or VPN users) — an estimate, included above.
+          </p>
+        )}
         {saveIntentFunnel && saveIntentFunnel.arrived > 0 && (
           <>
             <div style={{ display: 'flex', gap: 24, marginTop: 20, flexWrap: 'wrap' }}>

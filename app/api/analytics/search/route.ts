@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
-import { createHash } from 'crypto'
+import { getClientIP } from '@/lib/ratelimit'
+import { hashIP } from '@/lib/ipHash'
 import { EXCLUDED_USER_IDS } from '@/lib/analytics-excluded-ids'
 import { analyticsRecordingEnabled, isQATraffic } from '@/lib/analytics/recording'
 
@@ -38,11 +39,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Get IP from headers (privacy-conscious: we'll hash it)
-    const forwarded = request.headers.get('x-forwarded-for')
-    const ip = forwarded ? forwarded.split(',')[0].trim() : request.headers.get('x-real-ip') || 'unknown'
+    const ip = getClientIP(request)
 
     // Hash IP for privacy (never store raw IP)
-    const ipHash = createHash('sha256').update(ip + (process.env.IP_HASH_SALT || 'vetree-salt')).digest('hex')
+    const ipHash = hashIP(ip)
 
     // Insert search log — with the service role: the public key cannot insert into search_logs
     // (since migration 078, infra-002), so rows only arrive through this route's filters (QA, excluded users)

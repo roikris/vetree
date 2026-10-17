@@ -234,8 +234,16 @@ Every recommendation set shown in Growth OS. Service role only. No personal data
 | utm_medium | text | 'social' = organic, 'paid-social' = paid ads |
 | utm_campaign | text | |
 | utm_id | text | ad set / campaign id from paid platforms (LinkedIn `{{AD_SET_ID}}` etc.) — migration 050 |
-| bot_name | text nullable | set by `/api/analytics/track` via `lib/bot-detection.ts` (`meta-externalagent`, `adsbot-google`, `googlebot`, `gptbot`, `other-bot`, etc.) — migration 051 |
+| bot_name | text nullable | set by `/api/analytics/track` via `lib/bot-detection.ts` (`meta-externalagent`, `adsbot-google`, `googlebot`, `gptbot`, `headless`, `other-bot`, etc.) — migration 051 |
+| traffic_class | text nullable | migration 084 — an ESTIMATE, not a bot verdict: `datacenter:<provider>` (request IP in a hosting network's published ranges, `lib/analytics/datacenter.ts`), `suspected_fleet` / `suspected_datacenter` (retro-classified history). Human reads still count these rows; dashboards show them beside the totals |
+| duration_updated_at | timestamptz nullable | migration 084 — set ONLY by the duration functions; a row with a duration and no duration_updated_at was inserted by the pre-084 leave beacon |
 | created_at | timestamptz | |
+
+**One row per view (analytics-001, migration 084).** The browser makes the view's id (`page_views.id`) and sends it
+with the load and with every duration update; `/api/analytics/track` writes only through
+`record_page_view_load()` (a repeated id is a no-op) and `record_page_view_duration()` (raises the duration, never a
+new row; a duration that beats its load waits in `page_view_pending_durations`). Until 084 the leave beacon INSERTed a
+second row per page left by in-app navigation, so multi-page human visits counted twice.
 
 `page_views` holds real page views ONLY. Funnel events (save_intent_*) and synthesis experiment
 events (synthesis_*) go to `analytics_events`. Until migration 065 (2026-09-29) synthesis events
@@ -274,7 +282,7 @@ new page_views-reading query without deciding which side of that filter it belon
 | user_id | uuid nullable | |
 | detail | jsonb nullable | added migration 046; free-form event context |
 | bot_name | text nullable | migration 065 — crawler tag (lib/bot-detection.ts); readers filter IS NULL |
-| traffic_class | text nullable | migration 065 — 'suspected_test' (evidence in detail.classification); readers filter IS NULL |
+| traffic_class | text nullable | migration 065 — 'suspected_test' (evidence in detail.classification), never counted; 084 adds the page_views estimates (`datacenter:<provider>`, `suspected_*`), which ARE counted and shown apart — readers filter `isdistinct.suspected_test` |
 | source_page_view_id | uuid nullable UNIQUE | migration 065 — original page_views id for rows moved out of page_views |
 | created_at | timestamptz | |
 
@@ -481,6 +489,16 @@ Written by aggregate route; pre-filtered (admin + TEST_USER_ID excluded).
 UNIQUE(digest_date, article_id). Articles included in past digests; selection excludes them (best effort: a failed
 write is only logged).
 
+### `page_view_pending_durations` (migration 084)
+| Column | Type |
+|--------|------|
+| view_id | uuid PK |
+| session_id | text |
+| duration_seconds | integer (1..86400) |
+| created_at | timestamptz |
+Service role only (RLS on, no policies). A duration that reached `/api/analytics/track` before its view's load;
+applied and deleted by `record_page_view_load()`, removed after a day otherwise.
+
 ### `analytics_maintenance_log` (migration 065)
 | Column | Type |
 |--------|------|
@@ -498,6 +516,9 @@ Service role only. Records data migrations and each `purge_expired_logs()` run.
 | `harness_rls_report()` | 075 | Read-only: every public table's row-level security (on / forced) plus every policy on it (command, roles, USING / WITH CHECK) — catalog only, never row data; `node docs/harness/harness.mjs rls-report` prints it (infra-002) |
 | `harness_schema_report()` | 080 | Read-only: the public schema's whole structure as ONE jsonb value (relations, columns, constraints, indexes, triggers, views, sequences, routines, types, schema ACL, extensions, default privileges, Supabase roles, event triggers, publications) plus independent counts and every object of an uncovered kind — catalog only, never row data or sequence values; the schema audit's source (infra-003) |
 | `requeue_failed_articles()` | 072, 073 | Admin "Retry failed": re-queues failed, unpublished articles; lifts only `enrichment_failed` quarantines; never selects `ai_refused` (073) |
+| `record_page_view_load(id, path, …, bot_name, traffic_class)` | 084 | One page view by its client-made id; applies a pending duration; false when the id was already recorded |
+| `record_page_view_duration(id, session_id, seconds)` | 084 | Raises that view's visible seconds (monotonic); 'pending' when the load hasn't landed (held in `page_view_pending_durations`), 'ignored' for another session's view |
+| `record_legacy_page_view_duration(session_id, path, seconds)` | 084 | Old tracker tabs (no view id): updates the latest duration-less load of that session + path in the last 2 h; never inserts |
 | `saved_this_week(since, until, excluded, limit)` | 083 | Homepage "Articles saved this week": save counts per publicly visible article in [since, until), excluded user ids left out, ordered by count, newer article, id — article ids + counts only (feed-002) |
 | `purge_expired_logs()` | 069/070 | 12-month retention purge (pg_cron daily) |
 | `delete_user_account(uuid)` | 070 | GDPR deletion of a user's rows across all PII tables |
