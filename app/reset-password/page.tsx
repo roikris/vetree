@@ -7,6 +7,10 @@ import { AuthLayout } from '@/components/auth/AuthLayout'
 import { FormInput } from '@/components/auth/FormInput'
 import { createClient } from '@/lib/supabase/client'
 
+const LINK_FAILED =
+  'This reset link can’t be used — it has expired, was already used, or was opened in a different browser or app ' +
+  'than the one you requested it from. Request a new link below and open it on this device, in this browser.'
+
 function ResetPasswordForm() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -15,6 +19,9 @@ function ResetPasswordForm() {
   const [success, setSuccess] = useState(false)
   const [loading, setLoading] = useState(false)
   const [isRecoveryMode, setIsRecoveryMode] = useState(false)
+  // token_hash links (cross-browser, verified only when the new password is submitted — a mail scanner opening the
+  // link can't use it up); see the Supabase "Reset password" email template
+  const [tokenHash, setTokenHash] = useState<string | null>(null)
 
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -23,6 +30,15 @@ function ResetPasswordForm() {
   useEffect(() => {
     const code = searchParams.get('code')
     const isLegacyRecovery = searchParams.get('type') === 'recovery'
+    const hash = searchParams.get('token_hash')
+
+    // Supabase sends a failed or expired link back with error params (query for PKCE, hash for the implicit flow).
+    // Before analytics-001 they were ignored: the reader just saw the request form again and asked again.
+    const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''))
+    const linkError = searchParams.get('error_code') || searchParams.get('error') || hashParams.get('error_code') || hashParams.get('error')
+    // The hash only exists in the browser: read once after mount
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (linkError) setError(LINK_FAILED)
 
     // Subscribe BEFORE the async exchange so PASSWORD_RECOVERY is never missed.
     // Recovery evidence (code or legacy type=recovery) outranks any existing
@@ -33,8 +49,11 @@ function ResetPasswordForm() {
       }
     })
 
-    // Legacy implicit flow: tokens already resolved, no exchange needed.
-    if (isLegacyRecovery) {
+    if (hash && isLegacyRecovery) {
+      setTokenHash(hash)
+      setIsRecoveryMode(true)
+    } else if (isLegacyRecovery) {
+      // Legacy implicit flow: tokens already resolved, no exchange needed.
       setIsRecoveryMode(true)
     }
 
@@ -43,10 +62,16 @@ function ResetPasswordForm() {
       // clean slate before exchangeCodeForSession — otherwise the exchange
       // either errors or fires SIGNED_IN instead of PASSWORD_RECOVERY,
       // leaving the user stranded on the request-reset form.
-      const doExchange = () =>
-        supabase.auth.exchangeCodeForSession(code).catch(() => {
-          setError('Invalid or expired reset link. Please request a new one.')
-        })
+      // exchangeCodeForSession RETURNS its error (it doesn't throw): an expired / used link, or one opened in another
+      // browser than the one that asked for it (PKCE keeps its verifier there), must say so.
+      const doExchange = async () => {
+        try {
+          const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
+          if (exchangeError) setError(LINK_FAILED)
+        } catch {
+          setError(LINK_FAILED)
+        }
+      }
 
       supabase.auth.getSession().then(({ data: { session } }) => {
         if (session) {
@@ -104,6 +129,18 @@ function ResetPasswordForm() {
     }
 
     try {
+      if (tokenHash) {
+        const { error: verifyError } = await supabase.auth.verifyOtp({ type: 'recovery', token_hash: tokenHash })
+        if (verifyError) {
+          setError(LINK_FAILED)
+          setIsRecoveryMode(false)
+          setTokenHash(null)
+          setLoading(false)
+          return
+        }
+        setTokenHash(null)
+      }
+
       const { error: updateError } = await supabase.auth.updateUser({
         password,
       })
