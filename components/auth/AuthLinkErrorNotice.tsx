@@ -38,7 +38,8 @@ export function AuthLinkErrorNotice() {
 
   return (
     <div role="alert" style={{
-      position: 'fixed', left: 16, right: 16, bottom: 16, zIndex: 60, maxWidth: 520, margin: '0 auto',
+      // top: the consent banner owns the bottom edge
+      position: 'fixed', left: 16, right: 16, top: 16, zIndex: 60, maxWidth: 520, margin: '0 auto',
       background: 'var(--al-card)', border: '1px solid rgba(var(--al-line),.18)', borderRadius: 12,
       padding: '14px 16px', boxShadow: '0 8px 30px rgba(0,0,0,.12)',
       font: "400 14px/1.5 var(--font-instrument, sans-serif)", color: 'var(--al-ink3)',

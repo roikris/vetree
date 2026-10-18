@@ -16,7 +16,9 @@ export default function VerifyEmailPage() {
   const [typedEmail, setTypedEmail] = useState('')
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => setSessionEmail(user?.email ?? null))
+    supabase.auth.getUser()
+      .then(({ data: { user } }) => setSessionEmail(user?.email ?? null))
+      .catch(() => setSessionEmail(null))   // a failed check must not leave the page undecided
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleResendEmail = async () => {
