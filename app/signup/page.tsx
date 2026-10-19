@@ -35,6 +35,9 @@ export default function SignUpPage() {
   const [email, setEmail]               = useState('')
   const [password, setPassword]         = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  // 5 "Passwords do not match" in a row on one phone (2026-10-12, analytics-001): let people see what they typed
+  const [showPasswords, setShowPasswords] = useState(false)
+  const mismatch = confirmPassword.length > 0 && password.length > 0 && !password.startsWith(confirmPassword)   // a prefix = still typing
   const [termsAccepted, setTermsAccepted]     = useState(false)
   const [marketingChoice, setMarketingChoice] = useState<boolean | null>(null)
   const [error, setError]   = useState<string | null>(null)
@@ -170,7 +173,7 @@ export default function SignUpPage() {
             Check your email.
           </h1>
           <p style={{ margin: '0 0 28px', font: "400 15.5px/1.6 var(--font-instrument, sans-serif)", color: 'var(--al-mut2)' }}>
-            We sent a confirmation link to <strong style={{ color: 'var(--al-ink3)' }}>{email}</strong>. Click it to activate your account, then come back to start reading — you can follow the specialties you care about once you&apos;re in.
+            We sent a confirmation link to <strong style={{ color: 'var(--al-ink3)' }}>{email}</strong>. Click it to activate your account, then come back to start reading — you can follow the specialties you care about once you&apos;re in. If you sign up again or ask for another email, only the newest link works.
           </p>
           <Link href="/login" style={{
             display: 'inline-flex', alignItems: 'center', gap: 9,
@@ -297,7 +300,8 @@ export default function SignUpPage() {
                   onBlur={e => e.target.style.borderColor = 'rgba(var(--al-line),.13)'}
                 />
                 <input
-                  type="password"
+                  type={showPasswords ? 'text' : 'password'}
+                  autoComplete="new-password"
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   placeholder="Create a password"
@@ -310,7 +314,10 @@ export default function SignUpPage() {
                   onBlur={e => e.target.style.borderColor = 'rgba(var(--al-line),.13)'}
                 />
                 <input
-                  type="password"
+                  type={showPasswords ? 'text' : 'password'}
+                  autoComplete="new-password"
+                  aria-invalid={mismatch}
+                  aria-describedby="password-match-hint"
                   value={confirmPassword}
                   onChange={e => setConfirmPassword(e.target.value)}
                   placeholder="Confirm password"
@@ -322,6 +329,19 @@ export default function SignUpPage() {
                   onFocus={e => e.target.style.borderColor = 'var(--al-accent)'}
                   onBlur={e => e.target.style.borderColor = 'rgba(var(--al-line),.13)'}
                 />
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+                  <span id="password-match-hint" aria-live="polite" style={{ font: "400 12.5px/1.4 var(--font-instrument, sans-serif)", color: '#b45309', minHeight: 17 }}>
+                    {mismatch ? 'Passwords don’t match yet' : ''}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setShowPasswords(v => !v)}
+                    aria-pressed={showPasswords}
+                    style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--al-accent)', font: "500 12.5px/1.4 var(--font-instrument, sans-serif)" }}
+                  >
+                    {showPasswords ? 'Hide passwords' : 'Show passwords'}
+                  </button>
+                </div>
               </div>
 
               {/* Consent in the interface language (English), switchable to Hebrew */}

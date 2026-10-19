@@ -7,6 +7,21 @@ import { AuthLayout } from '@/components/auth/AuthLayout'
 import { FormInput } from '@/components/auth/FormInput'
 import { createClient } from '@/lib/supabase/client'
 
+const LINK_FAILED =
+  'This reset link can’t be used — it has expired, was already used, or was opened in a different browser or app ' +
+  'than the one you requested it from. Request a new link below and open it on this device, in this browser.'
+
+// A recovery session's access token lists 'recovery' among its authentication methods (amr). An older sign-in in
+// this browser doesn't, so it can never be mistaken for the reset link's session.
+function isRecoverySession(accessToken: string): boolean {
+  try {
+    const payload = JSON.parse(atob(accessToken.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')))
+    return Array.isArray(payload.amr) && payload.amr.some((m: { method?: string }) => m?.method === 'recovery')
+  } catch {
+    return false
+  }
+}
+
 function ResetPasswordForm() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -15,6 +30,9 @@ function ResetPasswordForm() {
   const [success, setSuccess] = useState(false)
   const [loading, setLoading] = useState(false)
   const [isRecoveryMode, setIsRecoveryMode] = useState(false)
+  // token_hash links (cross-browser, verified only when the new password is submitted — a mail scanner opening the
+  // link can't use it up); see the Supabase "Reset password" email template
+  const [tokenHash, setTokenHash] = useState<string | null>(null)
 
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -23,6 +41,16 @@ function ResetPasswordForm() {
   useEffect(() => {
     const code = searchParams.get('code')
     const isLegacyRecovery = searchParams.get('type') === 'recovery'
+    const hash = searchParams.get('token_hash')
+
+    // Supabase sends a failed or expired link back with error params (query for PKCE, hash for the implicit flow).
+    // Before analytics-001 they were ignored: the reader just saw the request form again and asked again.
+    const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''))
+    const linkError = searchParams.get('error_code') || searchParams.get('error') || hashParams.get('error_code') || hashParams.get('error')
+    // Mount-time initialisation from the URL (the hash only exists in the browser) — this effect also sets recovery
+    // mode from the URL below; the rule reports one synchronous setState per effect, so this covers both.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (linkError) setError(LINK_FAILED)
 
     // Subscribe BEFORE the async exchange so PASSWORD_RECOVERY is never missed.
     // Recovery evidence (code or legacy type=recovery) outranks any existing
@@ -33,28 +61,30 @@ function ResetPasswordForm() {
       }
     })
 
-    // Legacy implicit flow: tokens already resolved, no exchange needed.
-    if (isLegacyRecovery) {
+    if (hash && isLegacyRecovery) {
+      setTokenHash(hash)
+      setIsRecoveryMode(true)
+    } else if (isLegacyRecovery) {
+      // Legacy implicit flow: tokens already resolved, no exchange needed.
       setIsRecoveryMode(true)
     }
 
     if (code) {
-      // If a session already exists, sign it out first. Supabase requires a
-      // clean slate before exchangeCodeForSession — otherwise the exchange
-      // either errors or fires SIGNED_IN instead of PASSWORD_RECOVERY,
-      // leaving the user stranded on the request-reset form.
-      const doExchange = () =>
-        supabase.auth.exchangeCodeForSession(code).catch(() => {
-          setError('Invalid or expired reset link. Please request a new one.')
-        })
-
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        if (session) {
-          supabase.auth.signOut({ scope: 'local' }).then(doExchange)
-        } else {
-          doExchange()
-        }
-      })
+      // The browser client owns the PKCE exchange: it swaps ?code= for a session by itself on start-up (when this
+      // browser holds the code verifier). A second exchange here used to sign that fresh recovery session out and
+      // fail. So: wait for start-up, then read the outcome. A start-up error = the link failed; no recovery session =
+      // expired / used, or opened in another browser or app than the one that asked for it (no verifier there).
+      // (exchangeCodeForSession RETURNS its error — the old .catch never fired, so failures showed the request form.)
+      supabase.auth.initialize().then(async ({ error: initError }) => {
+        if (initError) { setError(LINK_FAILED); return }
+        // Proof that THIS link was exchanged on THIS load: the SDK deletes ?code= from the URL after a successful
+        // exchange and leaves it when it couldn't try (no verifier). Without that proof an older recovery session
+        // in this browser (maybe another account's) must not unlock the new-password form.
+        if (new URLSearchParams(window.location.search).has('code')) { setError(LINK_FAILED); return }
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session && isRecoverySession(session.access_token)) setIsRecoveryMode(true)
+        else setError(LINK_FAILED)
+      }).catch(() => setError(LINK_FAILED))
     }
 
     return () => subscription.unsubscribe()
@@ -104,6 +134,18 @@ function ResetPasswordForm() {
     }
 
     try {
+      if (tokenHash) {
+        const { error: verifyError } = await supabase.auth.verifyOtp({ type: 'recovery', token_hash: tokenHash })
+        if (verifyError) {
+          setError(LINK_FAILED)
+          setIsRecoveryMode(false)
+          setTokenHash(null)
+          setLoading(false)
+          return
+        }
+        setTokenHash(null)
+      }
+
       const { error: updateError } = await supabase.auth.updateUser({
         password,
       })
@@ -132,7 +174,7 @@ function ResetPasswordForm() {
         <form onSubmit={handleUpdatePassword} className="space-y-6">
           {error && (
             <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-              <p className="text-red-800 dark:text-red-200 text-sm">{error}</p>
+              <p role="alert" className="text-red-800 dark:text-red-200 text-sm">{error}</p>
             </div>
           )}
 
@@ -198,7 +240,7 @@ function ResetPasswordForm() {
       <form onSubmit={handleRequestReset} className="space-y-6">
         {error && (
           <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-            <p className="text-red-800 dark:text-red-200 text-sm">{error}</p>
+            <p role="alert" className="text-red-800 dark:text-red-200 text-sm">{error}</p>
           </div>
         )}
 

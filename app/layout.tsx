@@ -9,6 +9,7 @@ import { ConsentGate } from '@/components/ConsentGate';
 import { DigestConsentPrompt } from '@/components/DigestConsentPrompt';
 import { TrackingConsent } from '@/components/consent/TrackingConsent';
 import "./globals.css";
+import { AuthLinkErrorNotice } from '@/components/auth/AuthLinkErrorNotice'
 
 // Ad-platform pixels for paid campaign tracking (LinkedIn + Facebook). Since 2026-09-30 they load
 // ONLY after the visitor accepts optional cookies (components/consent/TrackingConsent) — Israeli
@@ -111,12 +112,13 @@ export default function RootLayout({
       >
         <a
           href="#main-content"
-          className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-emerald-700 focus:text-white focus:rounded-lg focus:text-sm focus:font-medium"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[70] focus:px-4 focus:py-2 focus:bg-emerald-700 focus:text-white focus:rounded-lg focus:text-sm focus:font-medium"
         >
           Skip to main content
         </a>
         <PWARegister />
         <PageTracker />
+        <AuthLinkErrorNotice />
         <ConsentGate />
         <DigestConsentPrompt />
         <main id="main-content">

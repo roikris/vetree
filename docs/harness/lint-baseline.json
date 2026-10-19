@@ -1,6 +1,6 @@
 {
   "note": "Known lint errors (D9 ratchet). Only errors above these counts fail. Shrink, never grow.",
-  "total_errors": 102,
+  "total_errors": 101,
   "entries": [
     {
       "file": "app/actions/admin.ts",
@@ -85,11 +85,6 @@
     {
       "file": "app/page.tsx",
       "rule": "@typescript-eslint/no-explicit-any",
-      "count": 1
-    },
-    {
-      "file": "app/reset-password/page.tsx",
-      "rule": "react-hooks/set-state-in-effect",
       "count": 1
     },
     {
