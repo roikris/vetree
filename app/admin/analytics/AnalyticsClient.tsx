@@ -120,7 +120,8 @@ export function AnalyticsClient({
       const url = new URL(window.location.href)
       if (include) url.searchParams.set('automated', 'include')
       else url.searchParams.delete('automated')
-      window.history.replaceState(window.history.state, '', url)
+      // null, not history.state: Next skips its router sync for its own state (__NA), and useSearchParams would go stale
+      window.history.replaceState(null, '', url)
     }
     setIsLoading(true)
 
