@@ -31,7 +31,9 @@ export function AuthLinkErrorNotice() {
     const q = query.toString()
     // An unrelated fragment (#clinical-summary) is kept verbatim; only an error fragment is rewritten
     const h = hashHadError ? (hash.toString() ? `#${hash.toString()}` : '') : window.location.hash
-    window.history.replaceState(window.history.state, '', window.location.pathname + (q ? `?${q}` : '') + h)
+    // null, not history.state: Next skips its router sync for its own state (__NA), so useSearchParams would keep
+    // the error params (the rest of the app passes null too)
+    window.history.replaceState(null, '', window.location.pathname + (q ? `?${q}` : '') + h)
   }, [])
 
   if (!show) return null
