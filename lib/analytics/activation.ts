@@ -9,12 +9,14 @@
 //                 their signup day, within 7 days (can be minutes later, across midnight)
 //   Returning anonymous visitors  of the visitor hashes (ip_hash, signed-out, human) seen in the
 //                 last `days`, the share seen on ≥ 2 distinct UTC days. Approximate: mobile IPs change.
+//                 The likely-automated estimate (traffic_class) is left out — a bot fleet's one view per IP
+//                 would read as visitors who never came back.
 // Test traffic: analytics writers record only in production and skip QA traffic since 2026-09-29;
 // earlier rows may include it (search_logs before 2026-09-27 certainly do).
 
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { EXCLUDED_USER_IDS, excludedUsersOrFilter } from '@/lib/analytics-excluded-ids'
-import { readAll as readAllRows } from './readAll'
+import { readAll as readAllRows, LIKELY_HUMAN_OR } from './readAll'
 
 const readAll = <T,>(label: string, page: Parameters<typeof readAllRows<T>>[1]) => readAllRows<T>(`[activation] ${label}`, page)
 
@@ -83,7 +85,7 @@ export async function computeActivation(db: SupabaseClient, days: number, now = 
   const since = new Date(now - days * DAY).toISOString()
   const anon = await readAll<{ ip_hash: string | null; created_at: string }>('anonymous views', (f, t) =>
     db.from('page_views').select('ip_hash, created_at').is('user_id', null).is('bot_name', null)
-      .not('ip_hash', 'is', null).gte('created_at', since).or(excludedUsersOrFilter())
+      .not('ip_hash', 'is', null).gte('created_at', since).or(excludedUsersOrFilter()).or(LIKELY_HUMAN_OR)
       .order('created_at').order('id').range(f, t))
   const daysByVisitor = new Map<string, Set<string>>()
   for (const v of anon) {

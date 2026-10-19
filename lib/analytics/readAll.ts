@@ -17,3 +17,10 @@ export async function readAll<T>(
 export function isLikelyAutomated(trafficClass: string | null | undefined): boolean {
   return !!trafficClass && trafficClass !== 'suspected_test'
 }
+
+/**
+ * PostgREST or-filter that hides the likely-automated estimate from signed-out visitors — the admin dashboard's
+ * default (analytics-001, Roi 2026-10-19). A signed-in reader is never hidden, even from a hosting network (VPN,
+ * office proxy). Several .or() filters on one query are ANDed, so this combines with excludedUsersOrFilter().
+ */
+export const LIKELY_HUMAN_OR = 'traffic_class.is.null,traffic_class.eq.suspected_test,user_id.not.is.null'

@@ -478,7 +478,11 @@ excluded, crawlers (`bot_name`) excluded.
 - **Return visit:** a human page view on a later UTC calendar day than signup, within 7 days (can be minutes later,
   across midnight — not necessarily a separate session). Confirmation is required now, not 7 days before.
 - **Returning signed-out visitors:** of the `ip_hash`es seen in the last N days, the share seen on ≥ 2 UTC days
-  (approximate both ways — mobile IPs change, shared IPs merge people)
+  (approximate both ways — mobile IPs change, shared IPs merge people); the likely-automated estimate is left out
+- **Likely automated (analytics-001, Roi 2026-10-19):** Admin → Analytics leaves out signed-out rows with a
+  `traffic_class` estimate (hosting network / bot fleet) by default — `LIKELY_HUMAN_OR` in `lib/analytics/readAll.ts`;
+  "Include likely automated" shows them, labelled. Signed-in readers are never hidden. Rows are kept, never deleted.
+  Tagging started at the #139 deploy (2026-10-17 ~18:18 UTC): older rows are untagged until migration 086
 - Cohorts were 5–25 accounts on 2026-10-04: read percentages as direction, not trend
 - User Retention's "7/30-day retention" = users active in the window ÷ ALL registered users (not cohort retention);
   its windows include today, so they span 8 / 31 UTC dates

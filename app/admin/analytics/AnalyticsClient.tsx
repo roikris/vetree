@@ -51,6 +51,8 @@ export function AnalyticsClient({
   initialBotTraffic,
 }: AnalyticsClientProps) {
   const [dateRange, setDateRange] = useState<7 | 30 | 90>(7)
+  // Off by default: signed-out views estimated as automated (hosting networks, bot fleets) are left out
+  const [includeAutomated, setIncludeAutomated] = useState(false)
   const [overview, setOverview] = useState(initialOverview)
   const [topPages, setTopPages] = useState(initialTopPages || [])
   const [visitorsOverTime, setVisitorsOverTime] = useState(initialVisitorsOverTime || [])
@@ -104,24 +106,25 @@ export function AnalyticsClient({
     </th>
   )
 
-  const handleDateRangeChange = async (newRange: 7 | 30 | 90) => {
+  const reload = async (newRange: 7 | 30 | 90, include: boolean) => {
     setDateRange(newRange)
+    setIncludeAutomated(include)
     setIsLoading(true)
 
     try {
       const [overviewRes, topPagesRes, visitorsRes, articlesRes, sessionRes, searchesRes, deviceRes, countriesRes, savedRes, trafficRes, synthesisRes, funnelRes, botTrafficRes] = await Promise.all([
-        getAnalyticsOverview(newRange),
-        getTopPages(newRange),
-        getVisitorsOverTime(newRange),
-        getTopArticles(newRange),
-        getSessionDuration(newRange),
+        getAnalyticsOverview(newRange, include),
+        getTopPages(newRange, 10, include),
+        getVisitorsOverTime(newRange, include),
+        getTopArticles(newRange, 10, include),
+        getSessionDuration(newRange, include),
         getRecentSearches(newRange),
-        getDeviceBreakdown(newRange),
-        getTopCountries(newRange),
+        getDeviceBreakdown(newRange, include),
+        getTopCountries(newRange, 10, include),
         getSavedArticlesStats(newRange),
-        getTrafficSources(newRange),
+        getTrafficSources(newRange, include),
         getSynthesisStats(newRange),
-        getSaveIntentFunnel(newRange),
+        getSaveIntentFunnel(newRange, include),
         getBotTraffic(newRange),
       ])
 
@@ -230,11 +233,11 @@ export function AnalyticsClient({
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       {/* Date Range Filter */}
-      <div style={{ display: 'flex', gap: 6 }}>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
         {([7, 30, 90] as const).map((days) => (
           <button
             key={days}
-            onClick={() => handleDateRangeChange(days)}
+            onClick={() => reload(days, includeAutomated)}
             disabled={isLoading}
             style={{
               padding: '7px 16px', borderRadius: 8, border: 'none', cursor: 'pointer',
@@ -247,13 +250,29 @@ export function AnalyticsClient({
             {days === 7 ? 'Last 7 days' : days === 30 ? 'Last 30 days' : 'Last 90 days'}
           </button>
         ))}
+        <label
+          title="Signed-out views from hosting networks (cloud / datacenter IP ranges) or bot fleets: link scanners, crawlers, or people on a VPN. An estimate. Signed-in readers are always counted."
+          style={{
+            marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer',
+            fontFamily: 'var(--font-instrument, sans-serif)', fontSize: 13, color: 'var(--al-sub)',
+            opacity: isLoading ? 0.5 : 1,
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={includeAutomated}
+            disabled={isLoading}
+            onChange={e => reload(dateRange, e.target.checked)}
+          />
+          Include likely automated
+        </label>
       </div>
 
       {/* Overview Cards */}
       {overview && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 14 }}>
           {[
-            { label: 'Total Pageviews', value: overview.totalViews.toLocaleString(), sub: overview.likelyAutomatedViews > 0 ? `incl. ~${overview.likelyAutomatedViews.toLocaleString()} from hosting networks` : null },
+            { label: 'Total Pageviews', value: overview.totalViews.toLocaleString(), sub: overview.likelyAutomatedViews > 0 ? `${overview.includeAutomated ? 'incl.' : 'excl.'} ~${overview.likelyAutomatedViews.toLocaleString()} likely automated` : null },
             { label: 'Unique IPs', value: overview.uniqueVisitors.toLocaleString(), sub: 'not people: shared / changing IPs' },
             { label: 'Logged In', value: overview.loggedInViews.toLocaleString(), sub: overview.totalViews > 0 ? `${Math.round((overview.loggedInViews / overview.totalViews) * 100)}% of total` : '0%' },
             { label: 'Anonymous', value: overview.anonymousViews.toLocaleString(), sub: overview.totalViews > 0 ? `${Math.round((overview.anonymousViews / overview.totalViews) * 100)}% of total` : '0%' },

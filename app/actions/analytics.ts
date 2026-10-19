@@ -5,7 +5,14 @@ import { createClient as createServiceClient } from '@supabase/supabase-js'
 import { excludedUsersOrFilter } from '@/lib/analytics-excluded-ids'
 import { countSynthesisEvents, getAnalyticsCleanupBoundary } from '@/lib/analytics/synthesisEvents'
 import { computeActivation } from '@/lib/analytics/activation'
-import { readAll, isLikelyAutomated } from '@/lib/analytics/readAll'
+import { readAll, isLikelyAutomated, LIKELY_HUMAN_OR } from '@/lib/analytics/readAll'
+
+// includeAutomated (every page_views / analytics_events reader below): false = the dashboard's default, the
+// likely-automated estimate from signed-out visitors is left out (LIKELY_HUMAN_OR); true = everything, as before.
+function humans<Q extends { or(filters: string): unknown }>(q: Q, includeAutomated: boolean): Q {
+  // or() returns the same builder; the non-recursive constraint keeps TypeScript out of the builder's deep generics
+  return includeAutomated ? q : (q.or(LIKELY_HUMAN_OR) as Q)
+}
 
 /** Service-role client for admin data reads — bypasses RLS on page_views etc. */
 function adminDb() {
@@ -15,7 +22,7 @@ function adminDb() {
   )
 }
 
-export async function getAnalyticsOverview(days: number = 7) {
+export async function getAnalyticsOverview(days: number = 7, includeAutomated = false) {
   const supabase = await createClient()
 
   // Check if user is admin
@@ -38,12 +45,12 @@ export async function getAnalyticsOverview(days: number = 7) {
 
   // Every query checks its error and the IP read pages past PostgREST's 1,000-row cap: a failed or truncated read
   // must never show as a smaller number (analytics-001).
-  const human = () => db
+  const human = () => humans(db
     .from('page_views')
     .select('*', { count: 'exact', head: true })
     .gte('created_at', startDate.toISOString())
     .is('bot_name', null)
-    .or(excludedUsersOrFilter())
+    .or(excludedUsersOrFilter()), includeAutomated)
 
   try {
     // Total pageviews (exclude admin + known bots, include anonymous)
@@ -51,12 +58,12 @@ export async function getAnalyticsOverview(days: number = 7) {
     if (totalError) throw new Error(`total views: ${totalError.message}`)
 
     // Unique IPs (exclude admin + known bots, include anonymous) — distinct ip_hash, not people
-    const ipRows = await readAll<{ ip_hash: string | null }>('[getAnalyticsOverview] page_views ip_hash', (from, to) => db
+    const ipRows = await readAll<{ ip_hash: string | null }>('[getAnalyticsOverview] page_views ip_hash', (from, to) => humans(db
       .from('page_views')
       .select('ip_hash')
       .gte('created_at', startDate.toISOString())
       .is('bot_name', null)
-      .or(excludedUsersOrFilter())
+      .or(excludedUsersOrFilter()), includeAutomated)
       .order('created_at').order('id')
       .range(from, to))
     // A row without ip_hash is not a distinct visitor (a Set would count null as one)
@@ -66,8 +73,17 @@ export async function getAnalyticsOverview(days: number = 7) {
     const { count: loggedInViews, error: loggedInError } = await human().not('user_id', 'is', null)
     if (loggedInError) throw new Error(`logged-in views: ${loggedInError.message}`)
 
-    // Hosting-network / suspected-automation estimate (traffic_class) — included in totalViews, shown beside it
-    const { count: automatedViews, error: automatedError } = await human().not('traffic_class', 'is', null)
+    // The likely-automated estimate from signed-out visitors (exactly what LIKELY_HUMAN_OR leaves out) — shown beside
+    // totalViews: "excl. ~N" by default, "incl. ~N" with includeAutomated
+    const { count: automatedViews, error: automatedError } = await db
+      .from('page_views')
+      .select('*', { count: 'exact', head: true })
+      .gte('created_at', startDate.toISOString())
+      .is('bot_name', null)
+      .or(excludedUsersOrFilter())
+      .is('user_id', null)
+      .not('traffic_class', 'is', null)
+      .neq('traffic_class', 'suspected_test')
     if (automatedError) throw new Error(`likely automated views: ${automatedError.message}`)
 
     return {
@@ -77,6 +93,7 @@ export async function getAnalyticsOverview(days: number = 7) {
         loggedInViews: loggedInViews || 0,
         anonymousViews: (totalViews || 0) - (loggedInViews || 0),
         likelyAutomatedViews: automatedViews || 0,
+        includeAutomated,
       },
     error: null
     }
@@ -86,7 +103,7 @@ export async function getAnalyticsOverview(days: number = 7) {
   }
 }
 
-export async function getTopPages(days: number = 7, limit: number = 10) {
+export async function getTopPages(days: number = 7, limit: number = 10, includeAutomated = false) {
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
@@ -106,14 +123,21 @@ export async function getTopPages(days: number = 7, limit: number = 10) {
   const startDate = new Date()
   startDate.setDate(startDate.getDate() - days)
 
-  const { data: pageViews } = await db
-    .from('page_views')
-    .select('path')
-    .gte('created_at', startDate.toISOString())
-    .is('bot_name', null)
-    .or(excludedUsersOrFilter())
-
-  if (!pageViews) return { data: [], error: null }
+  // Every row of the window (the 1,000-row cap used to cut 30 / 90 days short), failing on error
+  let pageViews: { path: string }[]
+  try {
+    pageViews = await readAll('[getTopPages] page_views', (from, to) => humans(db
+      .from('page_views')
+      .select('path')
+      .gte('created_at', startDate.toISOString())
+      .is('bot_name', null)
+      .or(excludedUsersOrFilter()), includeAutomated)
+      .order('created_at').order('id')
+      .range(from, to))
+  } catch (e) {
+    console.error(e instanceof Error ? e.message : e)
+    return { error: 'Could not read page views' }
+  }
 
   // Group by path and count
   const pathCounts: Record<string, number> = {}
@@ -129,7 +153,7 @@ export async function getTopPages(days: number = 7, limit: number = 10) {
   return { data: topPages, error: null }
 }
 
-export async function getVisitorsOverTime(days: number = 7) {
+export async function getVisitorsOverTime(days: number = 7, includeAutomated = false) {
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
@@ -149,15 +173,20 @@ export async function getVisitorsOverTime(days: number = 7) {
   const startDate = new Date()
   startDate.setDate(startDate.getDate() - days)
 
-  const { data: pageViews } = await db
-    .from('page_views')
-    .select('created_at, ip_hash')
-    .gte('created_at', startDate.toISOString())
-    .is('bot_name', null)
-    .or(excludedUsersOrFilter())
-    .order('created_at', { ascending: true })
-
-  if (!pageViews) return { data: [], error: null }
+  let pageViews: { created_at: string; ip_hash: string | null }[]
+  try {
+    pageViews = await readAll('[getVisitorsOverTime] page_views', (from, to) => humans(db
+      .from('page_views')
+      .select('created_at, ip_hash')
+      .gte('created_at', startDate.toISOString())
+      .is('bot_name', null)
+      .or(excludedUsersOrFilter()), includeAutomated)
+      .order('created_at').order('id')
+      .range(from, to))
+  } catch (e) {
+    console.error(e instanceof Error ? e.message : e)
+    return { error: 'Could not read page views' }
+  }
 
   // Group by date
   const dailyStats: Record<string, { total: number, unique: Set<string> }> = {}
@@ -182,7 +211,7 @@ export async function getVisitorsOverTime(days: number = 7) {
   return { data, error: null }
 }
 
-export async function getTopArticles(days: number = 7, limit: number = 10) {
+export async function getTopArticles(days: number = 7, limit: number = 10, includeAutomated = false) {
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
@@ -203,15 +232,21 @@ export async function getTopArticles(days: number = 7, limit: number = 10) {
   startDate.setDate(startDate.getDate() - days)
 
   // Get article page views (exclude admin + known bots, include anonymous)
-  const { data: pageViews } = await db
-    .from('page_views')
-    .select('path, ip_hash')
-    .gte('created_at', startDate.toISOString())
-    .like('path', '/article/%')
-    .is('bot_name', null)
-    .or(excludedUsersOrFilter())
-
-  if (!pageViews) return { data: [], error: null }
+  let pageViews: { path: string; ip_hash: string | null }[]
+  try {
+    pageViews = await readAll('[getTopArticles] page_views', (from, to) => humans(db
+      .from('page_views')
+      .select('path, ip_hash')
+      .gte('created_at', startDate.toISOString())
+      .like('path', '/article/%')
+      .is('bot_name', null)
+      .or(excludedUsersOrFilter()), includeAutomated)
+      .order('created_at').order('id')
+      .range(from, to))
+  } catch (e) {
+    console.error(e instanceof Error ? e.message : e)
+    return { error: 'Could not read page views' }
+  }
 
   // Extract article IDs and count views
   const articleStats: Record<string, { views: number, uniqueVisitors: Set<string> }> = {}
@@ -251,7 +286,7 @@ export async function getTopArticles(days: number = 7, limit: number = 10) {
   return { data: topArticles, error: null }
 }
 
-export async function getSessionDuration(days: number = 7) {
+export async function getSessionDuration(days: number = 7, includeAutomated = false) {
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
@@ -272,15 +307,23 @@ export async function getSessionDuration(days: number = 7) {
   startDate.setDate(startDate.getDate() - days)
 
   // Get all sessions with duration (exclude admin + known bots, include anonymous)
-  const { data: sessions } = await db
-    .from('page_views')
-    .select('duration_seconds')
-    .gte('created_at', startDate.toISOString())
-    .not('duration_seconds', 'is', null)
-    .is('bot_name', null)
-    .or(excludedUsersOrFilter())
+  let sessions: { duration_seconds: number }[]
+  try {
+    sessions = await readAll<{ duration_seconds: number }>('[getSessionDuration] page_views', (from, to) => humans(db
+      .from('page_views')
+      .select('duration_seconds')
+      .gte('created_at', startDate.toISOString())
+      .not('duration_seconds', 'is', null)
+      .is('bot_name', null)
+      .or(excludedUsersOrFilter()), includeAutomated)
+      .order('created_at').order('id')
+      .range(from, to))
+  } catch (e) {
+    console.error(e instanceof Error ? e.message : e)
+    return { error: 'Could not read page views' }
+  }
 
-  if (!sessions || sessions.length === 0) {
+  if (sessions.length === 0) {
     return {
       data: {
         average: 0,
@@ -418,7 +461,7 @@ export async function getRecentSearches(days: number = 7, limit: number = 20) {
   return { data: recentSearches, error: null }
 }
 
-export async function getDeviceBreakdown(days: number = 7) {
+export async function getDeviceBreakdown(days: number = 7, includeAutomated = false) {
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
@@ -438,14 +481,20 @@ export async function getDeviceBreakdown(days: number = 7) {
   const startDate = new Date()
   startDate.setDate(startDate.getDate() - days)
 
-  const { data: pageViews } = await db
-    .from('page_views')
-    .select('device_type')
-    .gte('created_at', startDate.toISOString())
-    .is('bot_name', null)
-    .or(excludedUsersOrFilter())
-
-  if (!pageViews) return { data: { mobile: 0, desktop: 0, unknown: 0 }, error: null }
+  let pageViews: { device_type: string | null }[]
+  try {
+    pageViews = await readAll('[getDeviceBreakdown] page_views', (from, to) => humans(db
+      .from('page_views')
+      .select('device_type')
+      .gte('created_at', startDate.toISOString())
+      .is('bot_name', null)
+      .or(excludedUsersOrFilter()), includeAutomated)
+      .order('created_at').order('id')
+      .range(from, to))
+  } catch (e) {
+    console.error(e instanceof Error ? e.message : e)
+    return { error: 'Could not read page views' }
+  }
 
   // Count by device type
   const breakdown = {
@@ -468,7 +517,7 @@ export async function getDeviceBreakdown(days: number = 7) {
   return { data: breakdown, error: null }
 }
 
-export async function getTopCountries(days: number = 7, limit: number = 10) {
+export async function getTopCountries(days: number = 7, limit: number = 10, includeAutomated = false) {
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
@@ -490,15 +539,16 @@ export async function getTopCountries(days: number = 7, limit: number = 10) {
 
   // Every row of the window (no 1,000-row cap), failing on error — never a partial total. "Unique" = distinct IP
   // hashes (not people). likelyAutomated* = rows with a traffic_class estimate (hosting network / suspected
-  // automation, analytics-001): still inside views — shown beside them, not subtracted silently.
+  // automation, analytics-001). Signed-out estimates are left out unless includeAutomated; when shown, they are
+  // inside views and labelled beside them.
   let pageViews: { country: string | null; ip_hash: string | null; traffic_class: string | null }[]
   try {
-    pageViews = await readAll('[getTopCountries] page_views', (from, to) => db
+    pageViews = await readAll('[getTopCountries] page_views', (from, to) => humans(db
       .from('page_views')
       .select('country, ip_hash, traffic_class')
       .gte('created_at', startDate.toISOString())
       .is('bot_name', null)
-      .or(excludedUsersOrFilter())
+      .or(excludedUsersOrFilter()), includeAutomated)
       .order('created_at').order('id')
       .range(from, to))
   } catch (e) {
@@ -583,7 +633,7 @@ export async function getSavedArticlesStats(days: number = 7) {
   }
 }
 
-export async function getTrafficSources(days: number = 7) {
+export async function getTrafficSources(days: number = 7, includeAutomated = false) {
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
@@ -604,13 +654,19 @@ export async function getTrafficSources(days: number = 7) {
   startDate.setDate(startDate.getDate() - days)
 
   // Get all page views with UTM data, referrers and bot tag (exclude admin)
-  const { data: pageViews } = await db
-    .from('page_views')
-    .select('utm_source, referrer, ip_hash, user_id, bot_name')
-    .gte('created_at', startDate.toISOString())
-    .or(excludedUsersOrFilter())
-
-  if (!pageViews) return { data: [], error: null }
+  let pageViews: { utm_source: string | null; referrer: string | null; ip_hash: string | null; user_id: string | null; bot_name: string | null }[]
+  try {
+    pageViews = await readAll('[getTrafficSources] page_views', (from, to) => humans(db
+      .from('page_views')
+      .select('utm_source, referrer, ip_hash, user_id, bot_name')
+      .gte('created_at', startDate.toISOString())
+      .or(excludedUsersOrFilter()), includeAutomated)
+      .order('created_at').order('id')
+      .range(from, to))
+  } catch (e) {
+    console.error(e instanceof Error ? e.message : e)
+    return { error: 'Could not read page views' }
+  }
 
   const BOT_SOURCE = '🤖 Bot / Crawler'
 
@@ -740,7 +796,7 @@ function median(values: number[]): number | null {
   return sorted[Math.floor(sorted.length / 2)]
 }
 
-export async function getSaveIntentFunnel(days: number = 7) {
+export async function getSaveIntentFunnel(days: number = 7, includeAutomated = false) {
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
@@ -756,15 +812,16 @@ export async function getSaveIntentFunnel(days: number = 7) {
 
   let data: { event_name: string; user_id: string | null; detail: unknown; traffic_class: string | null }[]
   try {
-    data = await readAll('[getSaveIntentFunnel] analytics_events', (from, to) => db
+    data = await readAll('[getSaveIntentFunnel] analytics_events', (from, to) => humans(db
       .from('analytics_events')
       .select('event_name, user_id, detail, traffic_class')
       .in('event_name', ['save_intent_arrived', 'save_intent_auth_shown', 'save_intent_completed', 'save_intent_resolved'])
       .gte('created_at', startDate.toISOString())
       .is('bot_name', null)        // crawlers are recorded tagged (/api/analytics/event), never counted
-      // suspected test traffic (migration 065) is never counted; hosting-network estimates are (shown apart below)
+      // suspected test traffic (migration 065) is never counted; signed-out hosting-network estimates only with
+      // includeAutomated (then shown apart below)
       .filter('traffic_class', 'isdistinct', 'suspected_test')
-      .or(excludedUsersOrFilter())
+      .or(excludedUsersOrFilter()), includeAutomated)
       .order('created_at').order('id')
       .range(from, to))
   } catch (e) {
