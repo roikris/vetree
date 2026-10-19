@@ -5,22 +5,24 @@ import { ActivationMetrics } from './ActivationMetrics'
 import { LinkedInSection } from './LinkedInSection'
 import { PaidCampaigns } from './PaidCampaigns'
 
-export default async function AdminAnalyticsPage() {
+export default async function AdminAnalyticsPage({ searchParams }: { searchParams: Promise<{ automated?: string }> }) {
   const days = 7 // Default to 7 days
+  // "Include likely automated" (AnalyticsClient's switch) — off unless ?automated=include
+  const include = (await searchParams).automated === 'include'
 
   const [overview, topPages, visitorsOverTime, topArticles, sessionDuration, recentSearches, deviceBreakdown, topCountries, savedArticlesStats, trafficSources, synthesisStats, saveIntentFunnel, botTraffic, cleanup] = await Promise.all([
-    getAnalyticsOverview(days),
-    getTopPages(days),
-    getVisitorsOverTime(days),
-    getTopArticles(days),
-    getSessionDuration(days),
+    getAnalyticsOverview(days, include),
+    getTopPages(days, 10, include),
+    getVisitorsOverTime(days, include),
+    getTopArticles(days, 10, include),
+    getSessionDuration(days, include),
     getRecentSearches(days),
-    getDeviceBreakdown(days),
-    getTopCountries(days),
+    getDeviceBreakdown(days, include),
+    getTopCountries(days, 10, include),
     getSavedArticlesStats(days),
-    getTrafficSources(days),
+    getTrafficSources(days, include),
     getSynthesisStats(days),
-    getSaveIntentFunnel(days),
+    getSaveIntentFunnel(days, include),
     getBotTraffic(days),
     getAnalyticsCleanupDate(),
   ])
@@ -75,6 +77,8 @@ export default async function AdminAnalyticsPage() {
         initialSaveIntentFunnel={saveIntentFunnel.data || null}
         initialSaveIntentFunnelError={!!saveIntentFunnel.error}
         initialBotTraffic={botTraffic.data || null}
+        initialIncludeAutomated={include}
+        initialLoadError={[overview, topPages, visitorsOverTime, topArticles, sessionDuration, recentSearches, deviceBreakdown, topCountries, savedArticlesStats, trafficSources, synthesisStats, saveIntentFunnel, botTraffic].some(r => r.error)}
       />
 
       <div style={{ marginTop: 32 }}>

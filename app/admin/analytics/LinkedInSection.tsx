@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -189,10 +190,13 @@ export function LinkedInSection() {
     else alert('Delete failed')
   }
 
+  // The Analytics page's "Include likely automated" switch lives in the URL (?automated=include)
+  const includeAutomated = useSearchParams().get('automated') === 'include'
+
   // Fetch on mount — navigating away and back shows the same data
   useEffect(() => {
     loadFunnel()
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [includeAutomated]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadFunnel = async () => {
     setFunnelLoading(true)
@@ -202,6 +206,7 @@ export function LinkedInSection() {
       const params = new URLSearchParams()
       if (dateFrom) params.set('from', dateFrom)
       if (dateTo) params.set('to', dateTo)
+      if (includeAutomated) params.set('include_automated', '1')
       const res = await fetch(`/api/admin/linkedin-metrics/funnel?${params}`, {
         headers: { Authorization: `Bearer ${token}` }
       })

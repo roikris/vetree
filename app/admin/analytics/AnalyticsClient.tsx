@@ -32,6 +32,8 @@ type AnalyticsClientProps = {
     daily: { date: string; hits: number }[]
     byName: { name: string; hits: number }[]
   } | null
+  initialIncludeAutomated: boolean
+  initialLoadError?: boolean
 }
 
 export function AnalyticsClient({
@@ -49,8 +51,13 @@ export function AnalyticsClient({
   initialSaveIntentFunnel,
   initialSaveIntentFunnelError,
   initialBotTraffic,
+  initialIncludeAutomated,
+  initialLoadError,
 }: AnalyticsClientProps) {
   const [dateRange, setDateRange] = useState<7 | 30 | 90>(7)
+  // Off by default: signed-out views estimated as automated (hosting networks, bot fleets) are left out. Kept in the
+  // URL (?automated=include) so LinkedInSection / PaidCampaigns, which load their own data, follow it.
+  const [includeAutomated, setIncludeAutomated] = useState(initialIncludeAutomated)
   const [overview, setOverview] = useState(initialOverview)
   const [topPages, setTopPages] = useState(initialTopPages || [])
   const [visitorsOverTime, setVisitorsOverTime] = useState(initialVisitorsOverTime || [])
@@ -66,6 +73,8 @@ export function AnalyticsClient({
   const [saveIntentFunnelError, setSaveIntentFunnelError] = useState(!!initialSaveIntentFunnelError)
   const [botTraffic, setBotTraffic] = useState(initialBotTraffic)
   const [isLoading, setIsLoading] = useState(false)
+  // A panel whose read failed shows empty — say so instead of letting it pass for "no data"
+  const [loadError, setLoadError] = useState(!!initialLoadError)
   const [sortColumn, setSortColumn] = useState<'query' | 'count' | 'avg_results' | 'last_searched'>('count')
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
 
@@ -104,24 +113,32 @@ export function AnalyticsClient({
     </th>
   )
 
-  const handleDateRangeChange = async (newRange: 7 | 30 | 90) => {
+  const reload = async (newRange: 7 | 30 | 90, include: boolean) => {
     setDateRange(newRange)
+    if (include !== includeAutomated) {
+      setIncludeAutomated(include)
+      const url = new URL(window.location.href)
+      if (include) url.searchParams.set('automated', 'include')
+      else url.searchParams.delete('automated')
+      // null, not history.state: Next skips its router sync for its own state (__NA), and useSearchParams would go stale
+      window.history.replaceState(null, '', url)
+    }
     setIsLoading(true)
 
     try {
       const [overviewRes, topPagesRes, visitorsRes, articlesRes, sessionRes, searchesRes, deviceRes, countriesRes, savedRes, trafficRes, synthesisRes, funnelRes, botTrafficRes] = await Promise.all([
-        getAnalyticsOverview(newRange),
-        getTopPages(newRange),
-        getVisitorsOverTime(newRange),
-        getTopArticles(newRange),
-        getSessionDuration(newRange),
+        getAnalyticsOverview(newRange, include),
+        getTopPages(newRange, 10, include),
+        getVisitorsOverTime(newRange, include),
+        getTopArticles(newRange, 10, include),
+        getSessionDuration(newRange, include),
         getRecentSearches(newRange),
-        getDeviceBreakdown(newRange),
-        getTopCountries(newRange),
+        getDeviceBreakdown(newRange, include),
+        getTopCountries(newRange, 10, include),
         getSavedArticlesStats(newRange),
-        getTrafficSources(newRange),
+        getTrafficSources(newRange, include),
         getSynthesisStats(newRange),
-        getSaveIntentFunnel(newRange),
+        getSaveIntentFunnel(newRange, include),
         getBotTraffic(newRange),
       ])
 
@@ -139,8 +156,10 @@ export function AnalyticsClient({
       setSaveIntentFunnel(funnelRes.data || null)
       setSaveIntentFunnelError(!!funnelRes.error)
       setBotTraffic(botTrafficRes.data || null)
+      setLoadError([overviewRes, topPagesRes, visitorsRes, articlesRes, sessionRes, searchesRes, deviceRes, countriesRes, savedRes, trafficRes, synthesisRes, funnelRes, botTrafficRes].some(r => r.error))
     } catch (error) {
       console.error('Error loading analytics:', error)
+      setLoadError(true)
     } finally {
       setIsLoading(false)
     }
@@ -230,11 +249,11 @@ export function AnalyticsClient({
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       {/* Date Range Filter */}
-      <div style={{ display: 'flex', gap: 6 }}>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
         {([7, 30, 90] as const).map((days) => (
           <button
             key={days}
-            onClick={() => handleDateRangeChange(days)}
+            onClick={() => reload(days, includeAutomated)}
             disabled={isLoading}
             style={{
               padding: '7px 16px', borderRadius: 8, border: 'none', cursor: 'pointer',
@@ -247,13 +266,38 @@ export function AnalyticsClient({
             {days === 7 ? 'Last 7 days' : days === 30 ? 'Last 30 days' : 'Last 90 days'}
           </button>
         ))}
+        <label
+          title="Signed-out views from hosting networks (cloud / datacenter IP ranges) or bot fleets: link scanners, crawlers, or people on a VPN. An estimate. Signed-in readers are always counted."
+          style={{
+            marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer',
+            fontFamily: 'var(--font-instrument, sans-serif)', fontSize: 13, color: 'var(--al-sub)',
+            opacity: isLoading ? 0.5 : 1,
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={includeAutomated}
+            disabled={isLoading}
+            onChange={e => reload(dateRange, e.target.checked)}
+          />
+          Include likely automated
+        </label>
       </div>
+
+      {loadError && (
+        <p role="alert" style={{
+          margin: 0, padding: '10px 14px', borderRadius: 10, background: 'rgba(var(--al-warnc, 176,120,40), .08)',
+          color: 'var(--al-sub)', fontFamily: 'var(--font-instrument, sans-serif)', fontSize: 12.5, lineHeight: 1.5,
+        }}>
+          Some analytics could not be read — an empty or missing panel below is a failed read, not zero. Reload to retry.
+        </p>
+      )}
 
       {/* Overview Cards */}
       {overview && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 14 }}>
           {[
-            { label: 'Total Pageviews', value: overview.totalViews.toLocaleString(), sub: overview.likelyAutomatedViews > 0 ? `incl. ~${overview.likelyAutomatedViews.toLocaleString()} from hosting networks` : null },
+            { label: 'Total Pageviews', value: overview.totalViews.toLocaleString(), sub: overview.likelyAutomatedViews > 0 ? `${overview.includeAutomated ? 'incl.' : 'excl.'} ~${overview.likelyAutomatedViews.toLocaleString()} likely automated` : null },
             { label: 'Unique IPs', value: overview.uniqueVisitors.toLocaleString(), sub: 'not people: shared / changing IPs' },
             { label: 'Logged In', value: overview.loggedInViews.toLocaleString(), sub: overview.totalViews > 0 ? `${Math.round((overview.loggedInViews / overview.totalViews) * 100)}% of total` : '0%' },
             { label: 'Anonymous', value: overview.anonymousViews.toLocaleString(), sub: overview.totalViews > 0 ? `${Math.round((overview.anonymousViews / overview.totalViews) * 100)}% of total` : '0%' },

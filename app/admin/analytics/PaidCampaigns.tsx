@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -44,6 +45,9 @@ export function PaidCampaigns() {
   const [dateFrom, setDateFrom] = useState(daysAgoISO(7))
   const [dateTo, setDateTo] = useState(todayISO())
 
+  // The Analytics page's "Include likely automated" switch lives in the URL (?automated=include)
+  const includeAutomated = useSearchParams().get('automated') === 'include'
+
   const load = async () => {
     setLoading(true)
     setError(null)
@@ -52,6 +56,7 @@ export function PaidCampaigns() {
       const params = new URLSearchParams()
       if (dateFrom) params.set('from', dateFrom)
       if (dateTo) params.set('to', dateTo)
+      if (includeAutomated) params.set('include_automated', '1')
       const res = await fetch(`/api/admin/analytics/paid-campaigns?${params}`, {
         headers: { Authorization: `Bearer ${token}` },
       })
@@ -70,7 +75,7 @@ export function PaidCampaigns() {
   // Fetch on mount — navigating away and back shows the same data
   useEffect(() => {
     load()
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [includeAutomated]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const th: React.CSSProperties = {
     padding: '8px 12px', textAlign: 'left', fontWeight: 600, fontSize: 12,

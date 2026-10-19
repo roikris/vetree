@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { excludedUsersOrFilter } from '@/lib/analytics-excluded-ids'
+import { LIKELY_HUMAN_OR } from '@/lib/analytics/readAll'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -59,6 +60,8 @@ export async function GET(request: NextRequest) {
 
   if (from) pvQuery = pvQuery.gte('created_at', from)
   if (to) pvQuery = pvQuery.lte('created_at', to + 'T23:59:59Z')
+  // Signed-out likely-automated estimates are left out unless ?include_automated=1 (the Analytics page's switch)
+  if (searchParams.get('include_automated') !== '1') pvQuery = pvQuery.or(LIKELY_HUMAN_OR)
 
   const { data: pageViews } = await pvQuery
 
