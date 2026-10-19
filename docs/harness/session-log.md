@@ -703,3 +703,29 @@ Newest at the bottom. The same entries (latest few) appear in primer.md → Rece
 - Lesson: localhost testing here needs `next dev --webpack` (Turbopack panics) or build + start, and the PWA service
   worker must be unregistered first (it serves stale chunks); `next dev` rewrites AGENTS.md — restore, never commit.
 - Next best step: #140 email test with Roi; then 086 and the Firewall proposal (Tencent data since 2026-10-17).
+
+### Session 20261019-1624-claude-ba0d · 2026-10-19 · Claude Code · analytics-001 (in progress — follow-ups only)
+- Goal / Completed: Roi: remove the suspected automated traffic from the analytics, then #140. #142: Admin → Analytics
+  hides signed-out likely-automated views by default (LIKELY_HUMAN_OR; switch in the URL so LinkedIn / Paid Campaigns
+  follow), six readers paged past 1,000 rows, failed reads shown. 086 (#143): production read-only calibration (Roi's
+  yes) → 356 suspected_fleet + 1,372 suspected_datacenter older rows, ids logged, reversible. Vercel Firewall: deny
+  Tencent Cloud AS132203 + AS45090 (Roi: "do the firewall rule yourself"). #140: rebased, replaceState(null) in the
+  notice, real-email test with Roi (Gmail connector + Roi typing passwords) — every case passed; merged; Roi switched
+  the reset template to a branded token_hash link → cross-browser reset verified in production (incognito).
+- Start state: main 0e3171d; lock taken for analytics-001.
+- Verification: #142 Codex r1 BLOCKING (sibling panels unfiltered) → fixed, r2 BLOCKING (replaceState with
+  history.state skips Next's router sync, verified in next/dist app-router.js) → fixed, r3 none; suites green; merged
+  083d1db. 086: PGlite fixtures, JS dry run = production log {356, 1372}, 0 signed-in tagged, schema audit PASS, Codex
+  none, merged 1806b1a. Firewall: rules list live, home 200. #140: Codex r4 none (Roi approved a 4th round), suite green,
+  merged 3dd971f, health check success.
+- Review: Codex · tier 2 · #142 3 rounds; 086 1 round; #140 round 4 (one NB applied unreviewed: skip link z-[70]).
+- Commits / PR: #142 → 083d1db, #143 → 1806b1a, #140 → 3dd971f (each on Roi's word).
+- Pending Roi approvals: delete test account roi.kris+vt1; which follow-ups to open.
+- Known risks / unresolved: the town / fleet rules are estimates (a real SG/CN reader without referrer, or a person in
+  a datacenter town, is hidden by default — the switch shows them); Gmail warning check inconclusive (Roi had dismissed
+  one); the Gmail connector could not see the reset emails Gmail did deliver (search lag) — Roi pasted links.
+- Lesson: in Next 16, history.replaceState(window.history.state, …) carries __NA and Next skips its router sync —
+  pass null. PKCE recovery links only work in the browser that requested them (and a later request, even a
+  rate-limited one, replaces the stored verifier); token_hash links work anywhere. Resend click tracking on auth
+  emails makes Gmail flag them.
+- Next best step: Roi picks the analytics-001 follow-ups (primer); ~2026-10-22 check the firewall rule's effect.
