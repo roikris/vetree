@@ -679,3 +679,27 @@ Newest at the bottom. The same entries (latest few) appear in primer.md → Rece
 - Lesson: the page tracker writes two rows per page left — any views / uniques figure built on raw page_views rows
   counts human multi-page visits twice; filter duration_seconds IS NULL for view counts until fixed.
 - Next best step: Roi picks the follow-ups; the beacon fix and the bot tagging change every analytics number, so first.
+
+### Session 20261017-1616-claude-e12a · 2026-10-17..19 · Claude Code · analytics-001 (in progress)
+- Goal / Completed: Roi: Codex-check the analytics research, then patch every hole ASAP. Plan (4 Codex rounds) →
+  PR A #139: one page_views row per view (client view_id, cumulative visible time, pending-duration table, legacy RPC),
+  traffic_class estimate from datacenter ranges (official lists + RIPEstat ASNs), Upstash limiter keys hashed, admin
+  analytics reads paged with errors surfaced, HeadlessChrome = bot; migration 084. Upstash: 2,731 raw-IP analytics keys
+  deleted. Migration 085 (#141): 482 legacy beacon rows merged / deleted. PR B #140 (reset-password via the browser
+  client's PKCE outcome + token_hash, failed-link notice, verify-email when signed out, signup friction) — open.
+- Start state: main 819cd4e; lock taken for analytics-001.
+- Verification: #139 suite green, merged be191db; production: Tencent = 110 of 138 human-tagged rows after deploy, 0
+  legacy-style rows, durations on their views. 085: PGlite fixtures + JS dry run = production log {482, 480, 479, 2};
+  #141 suite green, merged 0e3171d, health check success. #140: localhost (next build + start) checks of the notice,
+  verify-email, signup, wall return URL; NOT tested with real email.
+- Review: Codex · tier 2 · plan 4 rounds; #139 to BLOCKING: none; #140 3 rounds → BLOCKING: none; 085 1 round → none.
+- Commits / PR: #139 → be191db, #141 → 0e3171d (both on Roi's word); #140 draft at e4093d8.
+- Pending Roi approvals: #140 real-email incognito test (reset link; same link twice; other browser; double signup →
+  first link), then merge word; Supabase reset template → `{{ .SiteURL }}/reset-password?token_hash={{ .TokenHash }}&type=recovery`
+  only after #140 merges (dashboard, Roi); 086 SQL; Firewall rule.
+- Known risks / unresolved: traffic_class is an estimate (ranges incomplete, VPN users match); IP_HASH_SALT fallback is
+  loud in production only; raw IP kept in user_consents (Roi's decision). Auto mode blocked reading the Upstash and
+  Supabase CLI credentials — Roi lifted it for Upstash; the template switch stays with Roi.
+- Lesson: localhost testing here needs `next dev --webpack` (Turbopack panics) or build + start, and the PWA service
+  worker must be unregistered first (it serves stale chunks); `next dev` rewrites AGENTS.md — restore, never commit.
+- Next best step: #140 email test with Roi; then 086 and the Firewall proposal (Tencent data since 2026-10-17).

@@ -8,13 +8,13 @@ Routine: `docs/harness/README.md` on `main`. Pre-harness primer (frozen): root `
 ---
 
 ## 1. Current Verified State
-*Updated 2026-10-16 — Session 20261016-1053-claude-c3de (sec-001 merged; perf-001 CPU monitoring still open)*
+*Updated 2026-10-19 — Session 20261017-1616-claude-e12a (analytics-001: #139 + #141 merged, migrations 084 + 085 applied; #140 open)*
 
 - **Repo root:** `~/dev/vetree` · state worktree: `.harness-state/` (branch `harness-state`)
-- **main:** `819cd4e` (#138 scan advisories cleared — source-map-js 1.2.2, braces acknowledged — and the scan reads its
+- **main:** `0e3171d` (#141 migration 085 — pre-#139 leave-beacon rows merged into their views, analytics-001, 2026-10-18; #139 one page_views row per view (client view_id, visible-time duration), traffic_class estimate (datacenter ranges), hashed Upstash keys, admin analytics reads paged + fail on error, migration 084, analytics-001, 2026-10-17; #138 scan advisories cleared — source-map-js 1.2.2, braces acknowledged — and the scan reads its
   history again, sec-001, 2026-10-16; #137 homepage "Articles saved this week" — every reader's saves, migration 083, anon SELECT on
   saved_articles revoked, feed-002, 2026-10-16; #136 proxy runs only with the Supabase session cookie, perf-001, 2026-10-14; #135 admin Pipeline rebuilt as the Slack messages expanded, Article Health removed, 2026-10-14; #134 daily reminder counts run 2 + excludes the test account, weekly AI report hidden, Overview removed, 2026-10-14; #133 Growth OS daily posts panel, one article → every platform, 2026-10-13; #132 unit tests in init.sh check + PR smoke, 2026-10-13; #131 Facebook IL closing lines: typeable address + WhatsApp Community, 2026-10-13; #129 + #130 Facebook IL link-free posts, vetree.app/il, "save it" hint, 2026-10-13; #127 schema audit + #128 replay safety, migrations 080–082 + 000 recorded, 2026-10-12; #126 unlock log guard, 2026-10-12; PRs #120–#125 least privilege + policy audit, migrations 075–079 applied, 2026-10-11; #119 lint cleanup, 2026-10-10; #118 build warnings / middleware → proxy, 2026-10-10; #117 init.sh lock / unlock, 2026-10-10; #116 "new this week" count, 2026-10-10; #115 shorter digest footer, 2026-10-09; #114 Search Console fixes, 2026-10-07; before it #113 access-control audit,
-  migration 074 applied) — last verified: production /api/version = 819cd4e, home 200; manual security scan clean (0 findings, 1 acknowledged); PR #138 smoke + replay new / old PASS
+  migration 074 applied) — last verified: post-merge health check for 0e3171d success; 085 log {legacy 482, matched 480, loads 479, deleted 482}, 0 legacy rows left, schema audit PASS
 - **Standard startup:** `docs/harness/init.sh` (state, then check) — see README for exit codes. Take / release
   the lock only with `init.sh lock <item> --agent …` / `init.sh unlock "<message>"` (D12), never by hand
 - **Standard verification:** `docs/harness/init.sh check [--item <id>]` (now incl. `npm run test:unit`, hard RED); build
@@ -24,7 +24,7 @@ Routine: `docs/harness/README.md` on `main`. Pre-harness primer (frozen): root `
   if not enough → option B (article ISR). PR rule: drafts until done, ready once, never re-run a passing suite.
   Functions Storage was 8.93 / 10 GB → Roi set deployment retention: pre-production 1 week, production / canceled /
   errored 30 days (2026-10-15); re-read it with the CPU chart.
-- **Highest-priority unfinished item:** analytics-001 follow-ups (Roi to pick: beacon double-row fix, bot tagging, firewall rule, signup errors, SEO); perf-001 monitoring (read the usage chart 2026-10-16..17); otherwise none ready — scripts-001 needs Roi's decision; ai-001 parked
+- **Highest-priority unfinished item:** analytics-001 (in_progress): #140 auth-friction PR (draft, Codex BLOCKING: none, head e4093d8) needs the real-email incognito test (Roi, another day) → ready → merge on Roi's word → Roi switches the Supabase reset template to `token_hash`; then 086 retro classification (SQL to Roi first); Vercel Firewall proposal for Tencent Cloud with ~3 days of traffic_class data; perf-001 monitoring (read the usage chart 2026-10-16..17); otherwise none ready — scripts-001 needs Roi's decision; ai-001 parked
   (~2026-11-01); making the weekly AI report usable is a later item. Ask Roi.
 - **Admin panel (admin-002, Roi 2026-10-14):** /admin lands on Analytics; the weekly AI report is hidden (its Friday job
   still runs); /admin/pipeline = the Slack messages expanded (GET /api/admin/pipeline/status) — no Article Health, no
