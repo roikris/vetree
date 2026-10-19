@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { excludedUsersOrFilter } from '@/lib/analytics-excluded-ids'
+import { LIKELY_HUMAN_OR } from '@/lib/analytics/readAll'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -55,6 +56,8 @@ export async function GET(request: NextRequest) {
 
   if (from) query = query.gte('created_at', from)
   if (to) query = query.lte('created_at', to + 'T23:59:59Z')
+  // Signed-out likely-automated estimates are left out unless ?include_automated=1 (the Analytics page's switch)
+  if (searchParams.get('include_automated') !== '1') query = query.or(LIKELY_HUMAN_OR)
 
   const { data: rows, error } = await query
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

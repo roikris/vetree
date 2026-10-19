@@ -32,6 +32,8 @@ type AnalyticsClientProps = {
     daily: { date: string; hits: number }[]
     byName: { name: string; hits: number }[]
   } | null
+  initialIncludeAutomated: boolean
+  initialLoadError?: boolean
 }
 
 export function AnalyticsClient({
@@ -49,10 +51,13 @@ export function AnalyticsClient({
   initialSaveIntentFunnel,
   initialSaveIntentFunnelError,
   initialBotTraffic,
+  initialIncludeAutomated,
+  initialLoadError,
 }: AnalyticsClientProps) {
   const [dateRange, setDateRange] = useState<7 | 30 | 90>(7)
-  // Off by default: signed-out views estimated as automated (hosting networks, bot fleets) are left out
-  const [includeAutomated, setIncludeAutomated] = useState(false)
+  // Off by default: signed-out views estimated as automated (hosting networks, bot fleets) are left out. Kept in the
+  // URL (?automated=include) so LinkedInSection / PaidCampaigns, which load their own data, follow it.
+  const [includeAutomated, setIncludeAutomated] = useState(initialIncludeAutomated)
   const [overview, setOverview] = useState(initialOverview)
   const [topPages, setTopPages] = useState(initialTopPages || [])
   const [visitorsOverTime, setVisitorsOverTime] = useState(initialVisitorsOverTime || [])
@@ -68,6 +73,8 @@ export function AnalyticsClient({
   const [saveIntentFunnelError, setSaveIntentFunnelError] = useState(!!initialSaveIntentFunnelError)
   const [botTraffic, setBotTraffic] = useState(initialBotTraffic)
   const [isLoading, setIsLoading] = useState(false)
+  // A panel whose read failed shows empty — say so instead of letting it pass for "no data"
+  const [loadError, setLoadError] = useState(!!initialLoadError)
   const [sortColumn, setSortColumn] = useState<'query' | 'count' | 'avg_results' | 'last_searched'>('count')
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
 
@@ -108,7 +115,13 @@ export function AnalyticsClient({
 
   const reload = async (newRange: 7 | 30 | 90, include: boolean) => {
     setDateRange(newRange)
-    setIncludeAutomated(include)
+    if (include !== includeAutomated) {
+      setIncludeAutomated(include)
+      const url = new URL(window.location.href)
+      if (include) url.searchParams.set('automated', 'include')
+      else url.searchParams.delete('automated')
+      window.history.replaceState(window.history.state, '', url)
+    }
     setIsLoading(true)
 
     try {
@@ -142,8 +155,10 @@ export function AnalyticsClient({
       setSaveIntentFunnel(funnelRes.data || null)
       setSaveIntentFunnelError(!!funnelRes.error)
       setBotTraffic(botTrafficRes.data || null)
+      setLoadError([overviewRes, topPagesRes, visitorsRes, articlesRes, sessionRes, searchesRes, deviceRes, countriesRes, savedRes, trafficRes, synthesisRes, funnelRes, botTrafficRes].some(r => r.error))
     } catch (error) {
       console.error('Error loading analytics:', error)
+      setLoadError(true)
     } finally {
       setIsLoading(false)
     }
@@ -267,6 +282,15 @@ export function AnalyticsClient({
           Include likely automated
         </label>
       </div>
+
+      {loadError && (
+        <p role="alert" style={{
+          margin: 0, padding: '10px 14px', borderRadius: 10, background: 'rgba(var(--al-warnc, 176,120,40), .08)',
+          color: 'var(--al-sub)', fontFamily: 'var(--font-instrument, sans-serif)', fontSize: 12.5, lineHeight: 1.5,
+        }}>
+          Some analytics could not be read — an empty or missing panel below is a failed read, not zero. Reload to retry.
+        </p>
+      )}
 
       {/* Overview Cards */}
       {overview && (

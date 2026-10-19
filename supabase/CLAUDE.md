@@ -235,7 +235,7 @@ Every recommendation set shown in Growth OS. Service role only. No personal data
 | utm_campaign | text | |
 | utm_id | text | ad set / campaign id from paid platforms (LinkedIn `{{AD_SET_ID}}` etc.) — migration 050 |
 | bot_name | text nullable | set by `/api/analytics/track` via `lib/bot-detection.ts` (`meta-externalagent`, `adsbot-google`, `googlebot`, `gptbot`, `headless`, `other-bot`, etc.) — migration 051 |
-| traffic_class | text nullable | migration 084 — an ESTIMATE, not a bot verdict: `datacenter:<provider>` (request IP in a hosting network's published ranges, `lib/analytics/datacenter.ts`), `suspected_fleet` / `suspected_datacenter` (retro-classified history). Human reads still count these rows; dashboards show them beside the totals |
+| traffic_class | text nullable | migration 084 — an ESTIMATE, not a bot verdict: `datacenter:<provider>` (request IP in a hosting network's published ranges, `lib/analytics/datacenter.ts`), `suspected_fleet` / `suspected_datacenter` (retro-classified history). Admin → Analytics leaves out SIGNED-OUT rows with an estimate by default (`LIKELY_HUMAN_OR`, `lib/analytics/readAll.ts`) and shows them, labelled, with "Include likely automated"; signed-in rows always count. Other readers (snapshots, agents) still count them |
 | duration_updated_at | timestamptz nullable | migration 084 — set ONLY by the duration functions; a row with a duration and no duration_updated_at was inserted by the pre-084 leave beacon |
 | created_at | timestamptz | |
 
@@ -282,7 +282,7 @@ new page_views-reading query without deciding which side of that filter it belon
 | user_id | uuid nullable | |
 | detail | jsonb nullable | added migration 046; free-form event context |
 | bot_name | text nullable | migration 065 — crawler tag (lib/bot-detection.ts); readers filter IS NULL |
-| traffic_class | text nullable | migration 065 — 'suspected_test' (evidence in detail.classification), never counted; 084 adds the page_views estimates (`datacenter:<provider>`, `suspected_*`), which ARE counted and shown apart — readers filter `isdistinct.suspected_test` |
+| traffic_class | text nullable | migration 065 — 'suspected_test' (evidence in detail.classification), never counted; 084 adds the page_views estimates (`datacenter:<provider>`, `suspected_*`) — readers filter `isdistinct.suspected_test`; the save-intent funnel also leaves out signed-out estimates unless "Include likely automated" (`LIKELY_HUMAN_OR`) |
 | source_page_view_id | uuid nullable UNIQUE | migration 065 — original page_views id for rows moved out of page_views |
 | created_at | timestamptz | |
 
