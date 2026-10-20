@@ -729,3 +729,27 @@ Newest at the bottom. The same entries (latest few) appear in primer.md → Rece
   rate-limited one, replaces the stored verifier); token_hash links work anywhere. Resend click tracking on auth
   emails makes Gmail flag them.
 - Next best step: Roi picks the analytics-001 follow-ups (primer); ~2026-10-22 check the firewall rule's effect.
+
+### Session 20261020-1043-claude-d205 · 2026-10-20 · Claude Code · analytics-001 (in progress — follow-ups only)
+- Goal / Completed: Roi: "continue" → #144 one user lookup per signed-in page (getSharedUser, module-level auth
+  listener) + dashboard footnote; 087 (#145) the daily purge removes pending durations > 1 day (Roi: "Push");
+  test account roi.kris+vt1 deleted (delete_user_account(), held 1 consent row); firewall verified (last
+  datacenter:tencent view 2026-10-19 18:19:35 UTC, 0 since; 266 denied in 25 h; signed-out SG+CN ~140/day → 7);
+  #146 ConsentGate + DigestConsentPrompt re-check on each change of signed-in user (watchSignedInUser /
+  lib/auth/userWatcher.ts; PASSWORD_RECOVERY counts; stale results dropped); #147 dead FollowTagButton /
+  useFollowedTags removed; #148 component tests for both prompts (happy-dom).
+- Start state: main 3dd971f; lock taken for analytics-001.
+- Verification: #144 localhost 3 → 1 /auth/v1/user per page; 087 PGlite fixture, dry run = 087 only, schema-snapshot +
+  audit PASS (4412 facts); #146 userWatcher unit tests; #148 15 component tests, each of 11 guards fails a test when
+  removed; unit 111 pass on Node 20 + 24 (CI 111/111). Every PR suite green; post-merge health checks success.
+- Review: Codex · tier 2 · #144 1 round; 087 1 round; #146 2 rounds (r1 3 BLOCKING: recovery event ignored, stale
+  submit, late invalidation — all verified + fixed); #147 1 round; #148 2 rounds (r2 relaunched after Codex usage limit).
+- Commits / PR: #144 → ae229b7, #145 → bbdd2e1, #146 → 34d515b, #147 → 9f83192, #148 → b48d847 (each on Roi's word).
+- Pending Roi approvals: which remaining follow-up next; CI Node 20 → 24 upgrade (separate decision).
+- Known risks / unresolved: #146's sign-in switches not exercised in a real browser (component tests only); #147's
+  first smoke run had both search @weekly tests time out (rerun passed) — watch for recurrence; the 503 prefetches.
+- Lesson: verifyOtp({ type: 'recovery' }) emits PASSWORD_RECOVERY, not SIGNED_IN; delete_user_account() also deletes
+  auth.users (no separate admin delete). node:test mock.module needs Node ≥ 22.3 — CI's Node 20 lacks it; tsx tests
+  run as CommonJS, so fakes can go in require.cache. A review "done" marker from an earlier round with the same name
+  makes a wait loop return stale output — use a fresh prefix or compare mtimes.
+- Next best step: Roi picks: the 503 prefetch check (perf-001 overlap) or something else; Gmail re-check is Roi's.
