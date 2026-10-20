@@ -753,3 +753,8 @@ Newest at the bottom. The same entries (latest few) appear in primer.md → Rece
   run as CommonJS, so fakes can go in require.cache. A review "done" marker from an earlier round with the same name
   makes a wait loop return stale output — use a fresh prefix or compare mtimes.
 - Next best step: Roi picks: the 503 prefetch check (perf-001 overlap) or something else; Gmail re-check is Roi's.
+
+### Session 20261020-1043-claude-d205 · 2026-10-20 · Claude Code · lock release
+- Handoff for the entry above (same session): that entry went out as its own state commit before unlock, which the
+  unlock's append-only check then saw as no growth — this line rides with the lock release. Primer Recent Sessions
+  updated (latest 5).
