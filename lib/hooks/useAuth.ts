@@ -14,13 +14,29 @@ const supabase = createClient()
 // router action queue ahead of user-triggered saves.
 let _userPromise: Promise<User | null> | null = null
 
-function getSharedUser() {
+// Exported for components that only need "who is signed in" (ConsentGate, DigestConsentPrompt): one getUser() per page
+// instead of one per component — 3 → 1 on every signed-in page load (measured 2026-10-20, analytics-001).
+export function getSharedUser() {
+  watchAuthEvents()
   if (!_userPromise) {
     _userPromise = supabase.auth.getUser()
       .then(({ data: { user } }) => user)
       .catch(() => null)
   }
   return _userPromise
+}
+
+// The cache must follow sign-in / sign-out even on a page where no useAuth() instance is mounted (getSharedUser's
+// other callers), so one module-level listener replaces it — the same rule as the hook's own listener below.
+let _watching = false
+function watchAuthEvents() {
+  if (_watching) return
+  _watching = true
+  supabase.auth.onAuthStateChange((event, session) => {
+    if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'USER_UPDATED' || event === 'TOKEN_REFRESHED') {
+      _userPromise = Promise.resolve(session?.user ?? null)
+    }
+  })
 }
 
 function clearServiceWorkerCaches() {

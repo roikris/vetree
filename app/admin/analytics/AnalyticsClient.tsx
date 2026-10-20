@@ -394,12 +394,12 @@ export function AnalyticsClient({
               </div>
             </div>
             <div style={{ fontFamily: 'var(--font-instrument,sans-serif)', fontSize: 11, fontStyle: 'italic', color: 'var(--al-mut6)' }}>
-              Sessions capped at 30 min
+              Average and median leave out views over 30 min; the distribution counts every view
             </div>
           </div>
 
           <div style={cardStyle}>
-            <h2 style={h2Style}>Duration distribution</h2>
+            <h2 style={h2Style}>Visible time distribution</h2>
             {sessionTotal > 0 ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {sessionDistData.map(d => {
