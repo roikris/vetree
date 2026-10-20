@@ -498,7 +498,7 @@ write is only logged).
 | created_at | timestamptz |
 Service role only (RLS on, no policies). A duration that reached `/api/analytics/track` before its view's load;
 applied and deleted by `record_page_view_load()`; orphans older than a day are deleted whenever the next duration is
-queued (opportunistic — no scheduled job).
+queued, and by the daily `purge_expired_logs()` (087).
 
 ### `analytics_maintenance_log` (migration 065)
 | Column | Type |
@@ -521,7 +521,7 @@ Service role only. Records data migrations and each `purge_expired_logs()` run.
 | `record_page_view_duration(id, session_id, seconds)` | 084 | Raises that view's visible seconds (monotonic); 'pending' when the load hasn't landed (held in `page_view_pending_durations`), 'ignored' for another session's view |
 | `record_legacy_page_view_duration(session_id, path, seconds)` | 084 | Old tracker tabs (no view id): updates the latest duration-less load of that session + path in the last 2 h; never inserts |
 | `saved_this_week(since, until, excluded, limit)` | 083 | Homepage "Articles saved this week": save counts per publicly visible article in [since, until), excluded user ids left out, ordered by count, newer article, id — article ids + counts only (feed-002) |
-| `purge_expired_logs()` | 069/070 | 12-month retention purge (pg_cron daily) |
+| `purge_expired_logs()` | 069/070/087 | 12-month retention purge (pg_cron daily 03:15 UTC); since 087 also pending durations older than a day |
 | `delete_user_account(uuid)` | 070 | GDPR deletion of a user's rows across all PII tables |
 | `search_articles_batch` / `search_articles_fuzzy` / `search_articles_synthesis` | 060 / 054+056 / 026+030 | Search — granted to `anon` (public search) |
 
