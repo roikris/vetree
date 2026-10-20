@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { getSharedUser } from '@/lib/hooks/useAuth'
+import { watchSignedInUser } from '@/lib/hooks/useAuth'
 import { DigestConsentQuestion } from '@/components/DigestConsentQuestion'
 import { ConsentLanguageToggle } from '@/components/consent/ConsentLanguageToggle'
 import type { ConsentLang } from '@/lib/consent/copy'
@@ -48,11 +48,20 @@ export function DigestConsentPrompt() {
   const [choice, setChoice] = useState<boolean | null>(null)
   const [saving, setSaving] = useState(false)
   const [lang, setLang] = useState<ConsentLang>('en')
+  // The isCurrent of the user the prompt is open for: an answer that resolves after a different user signed in must
+  // not close THEIR prompt
+  const isCurrentRef = useRef<() => boolean>(() => false)
 
   useEffect(() => {
     const supabase = createClient()
 
-    getSharedUser().then(async user => {
+    // Re-checked whenever a different user signs in or out (watchSignedInUser), not just on mount
+    return watchSignedInUser(async (user, isCurrent) => {
+      isCurrentRef.current = isCurrent
+      setShow(false)
+      setUserId(null)
+      setChoice(null)
+      setSaving(false)
       if (!user) return
 
       const state = readState()
@@ -62,6 +71,7 @@ export function DigestConsentPrompt() {
         .from('user_consents')
         .select('marketing_opted_in, consent_source')
         .eq('user_id', user.id)
+      if (!isCurrent()) return
 
       if (!rows || rows.length === 0) return // zero rows = ConsentGate's moment, not this prompt's
       const hasTrue = rows.some(r => r.marketing_opted_in === true)
@@ -76,6 +86,7 @@ export function DigestConsentPrompt() {
 
   const submit = async (value: boolean) => {
     if (!userId || saving) return
+    const stillCurrent = isCurrentRef.current
     setSaving(true)
     try {
       await fetch('/api/auth/save-consent', {
@@ -93,6 +104,7 @@ export function DigestConsentPrompt() {
       // best-effort; if it failed, the row still won't exist, so eligibility
       // naturally re-evaluates (subject to the same show-count cap) next time
     }
+    if (!stillCurrent()) return
     setSaving(false)
     setShow(false)
   }
