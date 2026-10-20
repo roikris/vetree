@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { User } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
+import { createUserWatcher } from '@/lib/auth/userWatcher'
 
 // Singleton Supabase client — one GoTrue instance for the entire browser session.
 const supabase = createClient()
@@ -33,7 +34,7 @@ function watchAuthEvents() {
   if (_watching) return
   _watching = true
   supabase.auth.onAuthStateChange((event, session) => {
-    if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'USER_UPDATED' || event === 'TOKEN_REFRESHED') {
+    if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'USER_UPDATED' || event === 'TOKEN_REFRESHED' || event === 'PASSWORD_RECOVERY') {
       _userPromise = Promise.resolve(session?.user ?? null)
     }
   })
@@ -42,30 +43,17 @@ function watchAuthEvents() {
 // For components mounted once in the root layout (ConsentGate, DigestConsentPrompt): a check run only on mount misses
 // a different user signing in or out without a page load (the reset link's in-page verifyOtp, another tab). Calls
 // onUser with the user now, then again each time it becomes a DIFFERENT user (not on token refreshes or profile
-// updates). isCurrent() turns false once a newer call (or unmount) supersedes it, so async work started for the
-// previous user can't open a prompt for them. Returns the unsubscribe.
+// updates); isCurrent() turns false as soon as a newer identity's event arrives or on unmount. Logic and tests:
+// lib/auth/userWatcher.ts. Returns the unsubscribe.
 export function watchSignedInUser(onUser: (user: User | null, isCurrent: () => boolean) => void): () => void {
-  let seen: string | null | undefined   // undefined = nothing delivered yet
-  let generation = 0
-  let eventArrived = false
-  let stopped = false
-  const deliver = (user: User | null) => {
-    const id = user?.id ?? null
-    if (stopped || id === seen) return
-    seen = id
-    const mine = ++generation
-    onUser(user, () => !stopped && mine === generation)
-  }
-  // An event that arrived first is newer than this (possibly pre-sign-in) answer
-  getSharedUser().then(user => { if (!eventArrived) deliver(user) })
-  const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-    if (event !== 'SIGNED_IN' && event !== 'SIGNED_OUT' && event !== 'USER_UPDATED') return
-    eventArrived = true
-    const user = session?.user ?? null
-    // Off the auth callback: Supabase queries started inside it can deadlock on the auth lock
-    setTimeout(() => deliver(user), 0)
+  return createUserWatcher<User>({
+    initial: getSharedUser(),
+    subscribe: listener => {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => listener(event, session?.user ?? null))
+      return () => subscription.unsubscribe()
+    },
+    onUser,
   })
-  return () => { stopped = true; subscription.unsubscribe() }
 }
 
 function clearServiceWorkerCaches() {
@@ -102,7 +90,7 @@ export function useAuth() {
       // promise that was already in flight from BEFORE this event, i.e. the
       // pre-login "no user" answer. Setting an already-resolved promise here
       // closes that gap outright.
-      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'USER_UPDATED' || event === 'TOKEN_REFRESHED') {
+      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'USER_UPDATED' || event === 'TOKEN_REFRESHED' || event === 'PASSWORD_RECOVERY') {
         _userPromise = Promise.resolve(session?.user ?? null)
       }
       // Safety net: wherever the PKCE code is exchanged, always land on the

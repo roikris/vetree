@@ -339,8 +339,11 @@ NEXT_PUBLIC_FB_PIXEL_ID          # Meta Pixel ID; script is a no-op if unset
   **server-side** before redirecting, so a hard-redirect guard (`redirect('/login')` in
   `app/profile/page.tsx`, `app/library/page.tsx`, `app/admin/layout.tsx`) never renders before the
   session exists. `lib/hooks/useAuth.ts`'s shared `_userPromise` is replaced with an already-resolved
-  promise (not nulled) on `SIGNED_IN`/`SIGNED_OUT`/`USER_UPDATED`/`TOKEN_REFRESHED`, and it calls
-  `router.refresh()` on `SIGNED_IN` — closes the same class of race for any other sign-in path.
+  promise (not nulled) on `SIGNED_IN`/`SIGNED_OUT`/`USER_UPDATED`/`TOKEN_REFRESHED`/`PASSWORD_RECOVERY` (the reset
+  link's `verifyOtp` sign-in emits that instead of `SIGNED_IN`), and it calls
+  `router.refresh()` on `SIGNED_IN` — closes the same class of race for any other sign-in path. The root-layout consent
+  prompts (ConsentGate, DigestConsentPrompt) re-check on every change of signed-in user via `watchSignedInUser`
+  (`lib/auth/userWatcher.ts`), not only on mount.
 
 ## OPS NOTES
 

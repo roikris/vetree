@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { watchSignedInUser } from '@/lib/hooks/useAuth'
@@ -17,7 +17,7 @@ import { ConsentLanguageToggle } from '@/components/consent/ConsentLanguageToggl
 // signup that already answered the digest question on the signup page before the
 // OAuth redirect (which React state can't survive) — that choice is picked up
 // from localStorage here, on this same first-consent-row write, correctly sourced.
-function readPendingSignupConsent(userEmail: string | undefined): PendingSignupConsent | null {
+function readPendingSignupConsent(userEmail: string | undefined): { pending: PendingSignupConsent; raw: string } | null {
   try {
     const raw = localStorage.getItem(PENDING_SIGNUP_CONSENT_KEY)
     if (!raw || !userEmail) return null
@@ -29,7 +29,7 @@ function readPendingSignupConsent(userEmail: string | undefined): PendingSignupC
       && typeof p.email === 'string' && p.email === userEmail.trim().toLowerCase()
       && age >= 0 && age < PENDING_SIGNUP_CONSENT_MAX_AGE_MS
     if (!valid) { localStorage.removeItem(PENDING_SIGNUP_CONSENT_KEY); return null }
-    return p
+    return { pending: p!, raw }
   } catch {
     return null // storage unavailable
   }
@@ -54,12 +54,16 @@ export function ConsentGate() {
   // Consent wording follows the interface (English); the reader can switch to Hebrew
   const [lang, setLang] = useState<ConsentLang>('en')
   const [error, setError] = useState<string | null>(null)
+  // The isCurrent of the user the gate is open for: a submit that resolves after a different user signed in must not
+  // close THEIR gate or clear this browser's pending choices
+  const isCurrentRef = useRef<() => boolean>(() => false)
 
   useEffect(() => {
     const supabase = createClient()
 
     // Re-checked whenever a different user signs in or out (watchSignedInUser), not just on mount
     return watchSignedInUser(async (user, isCurrent) => {
+      isCurrentRef.current = isCurrent
       setShow(false)
       setUserId(null)
       setTermsAccepted(false)
@@ -88,8 +92,9 @@ export function ConsentGate() {
       }
       // Email signup made its choices in this browser before verification. Record them now, as
       // the verified owner, if they were made for THIS email and aren't stale — otherwise ask.
-      const pending = readPendingSignupConsent(user.email)
-      if (pending) {
+      const stored = readPendingSignupConsent(user.email)
+      if (stored) {
+        const { pending, raw } = stored
         try {
           const res = await fetch('/api/auth/save-consent', {
             method: 'POST',
@@ -105,8 +110,9 @@ export function ConsentGate() {
             }),
           })
           if (res.ok) {
-            localStorage.removeItem(PENDING_SIGNUP_CONSENT_KEY)
-            clearPendingDigest()   // any Google leftovers in this browser are not this user's
+            // Recorded for this user. Remove only the choice that was sent (another signup may have replaced it)
+            try { if (localStorage.getItem(PENDING_SIGNUP_CONSENT_KEY) === raw) localStorage.removeItem(PENDING_SIGNUP_CONSENT_KEY) } catch { /* unavailable */ }
+            if (isCurrent()) clearPendingDigest()   // any Google leftovers in this browser are not this user's
             return
           }
           if (res.status === 403) {
@@ -132,6 +138,7 @@ export function ConsentGate() {
       return
     }
     if (!userId) return
+    const stillCurrent = isCurrentRef.current
 
     setSaving(true)
     setError(null)
@@ -157,8 +164,10 @@ export function ConsentGate() {
         body: JSON.stringify({ userId, termsAccepted, marketingOptIn, consentSource, termsLanguage: lang, marketingLanguage, consentVersion: CURRENT_CONSENT_VERSION }),
       })
 
+      if (!stillCurrent()) return   // a different user signed in meanwhile: their own check owns the gate now
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
+        if (!stillCurrent()) return
         setError(data.code === 'stale_version' ? CONSENT_COPY[lang].gateStale : (data.error || CONSENT_COPY[lang].gateSaveError))
         setSaving(false)
         return
@@ -167,6 +176,7 @@ export function ConsentGate() {
       clearPendingDigest()
       setShow(false)
     } catch {
+      if (!stillCurrent()) return
       setError(CONSENT_COPY[lang].gateSaveError)
       setSaving(false)
     }
