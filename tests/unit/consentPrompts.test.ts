@@ -32,9 +32,12 @@ function deferred<T>() {
 // user_consents rows per user id; a test may hold a user's query open with `hold`
 let consentRows: Record<string, { marketing_opted_in: boolean; consent_source: string | null }[]> = {}
 let hold: Record<string, Promise<void>> = {}
+let queries = 0                          // user_consents reads, to catch a duplicate re-check
+let sessionUser: U | null = null         // what auth.getUser() reports (ConsentGate's 403 fallback)
 function fakeSupabase() {
   return {
     from: () => {
+      queries++
       let userId = ''
       const result = async () => {
         await hold[userId]
@@ -54,7 +57,7 @@ function fakeSupabase() {
       }
       return chain
     },
-    auth: { getUser: async () => ({ data: { user: null } }) },
+    auth: { getUser: async () => ({ data: { user: sessionUser } }) },
   }
 }
 
@@ -62,10 +65,13 @@ function fakeSupabase() {
 let emit: (event: string, user: U | null) => void = () => {}
 let initialUser: Promise<U | null> = Promise.resolve(null)
 
-// fetch('/api/auth/save-consent') calls, each answered when the test says
-let saves: { body: Record<string, unknown>; answer: (ok: boolean) => void }[] = []
-g.fetch = (_url: string, init: { body: string }) => new Promise(resolve => {
-  saves.push({ body: JSON.parse(init.body), answer: ok => resolve({ ok, status: ok ? 200 : 500, json: async () => ({}) }) })
+// fetch('/api/auth/save-consent') calls, each answered when the test says: answer(ok), respond(status, json) with
+// a body that may itself be pending, or fail() (network error)
+type Save = { body: Record<string, unknown>; answer: (ok: boolean) => void; respond: (status: number, json: Promise<unknown>) => void; fail: () => void }
+let saves: Save[] = []
+g.fetch = (_url: string, init: { body: string }) => new Promise((resolve, reject) => {
+  const respond = (status: number, json: Promise<unknown>) => resolve({ ok: status < 300, status, json: () => json })
+  saves.push({ body: JSON.parse(init.body), respond, answer: ok => respond(ok ? 200 : 500, Promise.resolve({})), fail: () => reject(new TypeError('Failed to fetch')) })
 })
 
 const abs = (p: string) => path.join(process.cwd(), p)
@@ -105,7 +111,7 @@ before(() => {
 let container: HTMLElement
 let unmount: () => void
 beforeEach(() => {
-  consentRows = {}; hold = {}; saves = []; initialUser = Promise.resolve(null)
+  consentRows = {}; hold = {}; saves = []; queries = 0; sessionUser = null; initialUser = Promise.resolve(null)
   win.localStorage.clear()
   container = win.document.createElement('div') as unknown as HTMLElement
   win.document.body.appendChild(container as never)
@@ -188,6 +194,64 @@ test("gate: A's submit resolving after B signed in leaves B's gate open (success
   unmount = () => {}
 })
 
+const errorShown = () => container.querySelector('p.text-red-600') !== null
+
+test("gate: A's failed submit whose error body arrives after B signed in shows B nothing", async () => {
+  initialUser = Promise.resolve(A)
+  await render(ConsentGate)
+  await submitGate()
+  const body = deferred<unknown>()
+  await act(async () => saves[0].respond(500, body.promise)); await settle()   // A still current: now reading the body
+  await signIn('SIGNED_IN', B)
+  await act(async () => body.resolve({ error: 'boom' })); await settle()
+  assert.equal(gateOpen(), true)
+  assert.equal(errorShown(), false)
+})
+
+test("gate: A's submit failing at the network after B signed in shows B nothing", async () => {
+  initialUser = Promise.resolve(A)
+  await render(ConsentGate)
+  await submitGate()
+  await signIn('SIGNED_IN', B)
+  await act(async () => saves[0].fail()); await settle()
+  assert.equal(gateOpen(), true)
+  assert.equal(errorShown(), false)
+})
+
+const pendingFor = (email: string) => JSON.stringify({ terms: true, marketing: true, version: CURRENT_CONSENT_VERSION, email, at: Date.now() })
+
+test("gate: A's stored signup choice saved after B signed in leaves B's gate and this browser's choices alone", async () => {
+  win.localStorage.setItem(PENDING_SIGNUP_CONSENT_KEY, pendingFor(A.email))
+  initialUser = Promise.resolve(A)
+  await render(ConsentGate)
+  assert.equal(saves.length, 1)
+  await signIn('SIGNED_IN', B)
+  assert.equal(gateOpen(), true, 'B is asked')
+  win.localStorage.setItem('vetree_pending_digest_consent', '{"left":"by B"}')
+  await act(async () => saves[0].answer(true)); await settle()
+  assert.equal(gateOpen(), true)
+  assert.equal(win.localStorage.getItem('vetree_pending_digest_consent'), '{"left":"by B"}', 'not cleared for A')
+})
+
+test("gate: a refused (403) stored-choice save after sign-out doesn't reopen the gate, even if getUser lags", async () => {
+  win.localStorage.setItem(PENDING_SIGNUP_CONSENT_KEY, pendingFor(A.email))
+  initialUser = Promise.resolve(A)
+  await render(ConsentGate)
+  await signIn('SIGNED_OUT', null)
+  sessionUser = A                       // the auth check still reports the old session
+  await act(async () => saves[0].respond(403, Promise.resolve({}))); await settle()
+  assert.equal(gateOpen(), false)
+})
+
+test("gate: a failed stored-choice save after sign-out doesn't open the gate for the signed-out user", async () => {
+  win.localStorage.setItem(PENDING_SIGNUP_CONSENT_KEY, pendingFor(A.email))
+  initialUser = Promise.resolve(A)
+  await render(ConsentGate)
+  await signIn('SIGNED_OUT', null)
+  await act(async () => saves[0].answer(false)); await settle()
+  assert.equal(gateOpen(), false)
+})
+
 test('gate: the stored signup choice is removed only if it is still the one that was sent', async () => {
   const stored = (email: string) => JSON.stringify({ terms: true, marketing: true, version: CURRENT_CONSENT_VERSION, email, at: Date.now() })
   win.localStorage.setItem(PENDING_SIGNUP_CONSENT_KEY, stored(A.email))
@@ -219,8 +283,12 @@ test('digest: asks an eligible user after switching to them; not on a token refr
   await signIn('SIGNED_IN', B)
   assert.equal(digestOpen(), true)
   const shows = JSON.parse(win.localStorage.getItem('vetree_digest_prompt_state')!).count
+  const reads = queries
   await signIn('SIGNED_IN', B)          // re-emitted on tab focus
+  await signIn('USER_UPDATED', B)
   await signIn('TOKEN_REFRESHED', B)
+  assert.equal(queries, reads, 'same user: no re-check')
+  assert.equal(digestOpen(), true, 'and the open prompt stays')
   assert.equal(JSON.parse(win.localStorage.getItem('vetree_digest_prompt_state')!).count, shows, 'no extra show counted')
 })
 
