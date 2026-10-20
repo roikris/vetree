@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { getSharedUser } from '@/lib/hooks/useAuth'
 import { DigestConsentQuestion } from '@/components/DigestConsentQuestion'
 import { ConsentLanguageToggle } from '@/components/consent/ConsentLanguageToggle'
 import type { ConsentLang } from '@/lib/consent/copy'
@@ -51,7 +52,7 @@ export function DigestConsentPrompt() {
   useEffect(() => {
     const supabase = createClient()
 
-    supabase.auth.getUser().then(async ({ data: { user } }) => {
+    getSharedUser().then(async user => {
       if (!user) return
 
       const state = readState()

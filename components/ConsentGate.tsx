@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { getSharedUser } from '@/lib/hooks/useAuth'
 import { PENDING_DIGEST_CONSENT_KEY, PENDING_SIGNUP_CONSENT_KEY, PENDING_SIGNUP_CONSENT_MAX_AGE_MS, parsePendingDigestConsent, pendingDigestMatchesFlow, parseSignupNonceCookie, SIGNUP_NONCE_COOKIE, CURRENT_CONSENT_VERSION, type PendingSignupConsent } from '@/lib/constants/consent'
 import { CONSENT_COPY, type ConsentLang } from '@/lib/consent/copy'
 import { ConsentLanguageToggle } from '@/components/consent/ConsentLanguageToggle'
@@ -57,7 +58,7 @@ export function ConsentGate() {
   useEffect(() => {
     const supabase = createClient()
 
-    supabase.auth.getUser().then(async ({ data: { user } }) => {
+    getSharedUser().then(async user => {
       if (!user) return
 
       // Has this user accepted the CURRENT Terms + Privacy Policy? Only rows that showed the
