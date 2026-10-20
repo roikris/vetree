@@ -39,6 +39,35 @@ function watchAuthEvents() {
   })
 }
 
+// For components mounted once in the root layout (ConsentGate, DigestConsentPrompt): a check run only on mount misses
+// a different user signing in or out without a page load (the reset link's in-page verifyOtp, another tab). Calls
+// onUser with the user now, then again each time it becomes a DIFFERENT user (not on token refreshes or profile
+// updates). isCurrent() turns false once a newer call (or unmount) supersedes it, so async work started for the
+// previous user can't open a prompt for them. Returns the unsubscribe.
+export function watchSignedInUser(onUser: (user: User | null, isCurrent: () => boolean) => void): () => void {
+  let seen: string | null | undefined   // undefined = nothing delivered yet
+  let generation = 0
+  let eventArrived = false
+  let stopped = false
+  const deliver = (user: User | null) => {
+    const id = user?.id ?? null
+    if (stopped || id === seen) return
+    seen = id
+    const mine = ++generation
+    onUser(user, () => !stopped && mine === generation)
+  }
+  // An event that arrived first is newer than this (possibly pre-sign-in) answer
+  getSharedUser().then(user => { if (!eventArrived) deliver(user) })
+  const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    if (event !== 'SIGNED_IN' && event !== 'SIGNED_OUT' && event !== 'USER_UPDATED') return
+    eventArrived = true
+    const user = session?.user ?? null
+    // Off the auth callback: Supabase queries started inside it can deadlock on the auth lock
+    setTimeout(() => deliver(user), 0)
+  })
+  return () => { stopped = true; subscription.unsubscribe() }
+}
+
 function clearServiceWorkerCaches() {
   try {
     if (typeof caches !== 'undefined') {

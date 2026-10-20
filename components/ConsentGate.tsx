@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { getSharedUser } from '@/lib/hooks/useAuth'
+import { watchSignedInUser } from '@/lib/hooks/useAuth'
 import { PENDING_DIGEST_CONSENT_KEY, PENDING_SIGNUP_CONSENT_KEY, PENDING_SIGNUP_CONSENT_MAX_AGE_MS, parsePendingDigestConsent, pendingDigestMatchesFlow, parseSignupNonceCookie, SIGNUP_NONCE_COOKIE, CURRENT_CONSENT_VERSION, type PendingSignupConsent } from '@/lib/constants/consent'
 import { CONSENT_COPY, type ConsentLang } from '@/lib/consent/copy'
 import { ConsentLanguageToggle } from '@/components/consent/ConsentLanguageToggle'
@@ -58,7 +58,13 @@ export function ConsentGate() {
   useEffect(() => {
     const supabase = createClient()
 
-    getSharedUser().then(async user => {
+    // Re-checked whenever a different user signs in or out (watchSignedInUser), not just on mount
+    return watchSignedInUser(async (user, isCurrent) => {
+      setShow(false)
+      setUserId(null)
+      setTermsAccepted(false)
+      setSaving(false)
+      setError(null)
       if (!user) return
 
       // Has this user accepted the CURRENT Terms + Privacy Policy? Only rows that showed the
@@ -73,6 +79,7 @@ export function ConsentGate() {
         .or('consent_source.is.null,consent_source.eq.signup')
         .limit(1)
         .maybeSingle()
+      if (!isCurrent()) return
 
       if (consent) {
         // Already recorded: a leftover Google-signup digest choice in this browser is not theirs
@@ -80,40 +87,42 @@ export function ConsentGate() {
         return
       }
       // Email signup made its choices in this browser before verification. Record them now, as
-        // the verified owner, if they were made for THIS email and aren't stale — otherwise ask.
-        const pending = readPendingSignupConsent(user.email)
-        if (pending) {
-          try {
-            const res = await fetch('/api/auth/save-consent', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              // userId pins the write to the user the pending choice was validated against: if the
-              // session changed meanwhile (another tab signed in as someone else), the route's
-              // session/userId check rejects it and the gate asks instead
-              body: JSON.stringify({
-                userId: user.id, termsAccepted: true, marketingOptIn: pending.marketing, consentSource: 'signup',
-                consentVersion: pending.version,
-                // Both questions were shown on the signup page, in this language
-                termsLanguage: pending.lang ?? null, marketingLanguage: pending.lang ?? null,
-              }),
-            })
-            if (res.ok) {
-              localStorage.removeItem(PENDING_SIGNUP_CONSENT_KEY)
-              clearPendingDigest()   // any Google leftovers in this browser are not this user's
-              return
-            }
-            if (res.status === 403) {
-              // The session changed under us: open the gate for whoever is signed in NOW
-              const { data: { user: current } } = await supabase.auth.getUser()
-              if (!current) return
-              setUserId(current.id)
-              setShow(true)
-              return
-            }
-          } catch { /* fall through to the gate */ }
-        }
-        setUserId(user.id)
-        setShow(true)
+      // the verified owner, if they were made for THIS email and aren't stale — otherwise ask.
+      const pending = readPendingSignupConsent(user.email)
+      if (pending) {
+        try {
+          const res = await fetch('/api/auth/save-consent', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            // userId pins the write to the user the pending choice was validated against: if the
+            // session changed meanwhile (another tab signed in as someone else), the route's
+            // session/userId check rejects it and the gate asks instead
+            body: JSON.stringify({
+              userId: user.id, termsAccepted: true, marketingOptIn: pending.marketing, consentSource: 'signup',
+              consentVersion: pending.version,
+              // Both questions were shown on the signup page, in this language
+              termsLanguage: pending.lang ?? null, marketingLanguage: pending.lang ?? null,
+            }),
+          })
+          if (res.ok) {
+            localStorage.removeItem(PENDING_SIGNUP_CONSENT_KEY)
+            clearPendingDigest()   // any Google leftovers in this browser are not this user's
+            return
+          }
+          if (res.status === 403) {
+            // The session changed under us: the newer user's own check (a SIGNED_IN for them) asks them; this
+            // fallback covers a change no event reached yet
+            const { data: { user: current } } = await supabase.auth.getUser()
+            if (!current || !isCurrent()) return
+            setUserId(current.id)
+            setShow(true)
+            return
+          }
+        } catch { /* fall through to the gate */ }
+        if (!isCurrent()) return
+      }
+      setUserId(user.id)
+      setShow(true)
     })
   }, [])
 
