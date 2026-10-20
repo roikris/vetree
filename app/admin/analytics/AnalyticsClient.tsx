@@ -394,7 +394,7 @@ export function AnalyticsClient({
               </div>
             </div>
             <div style={{ fontFamily: 'var(--font-instrument,sans-serif)', fontSize: 11, fontStyle: 'italic', color: 'var(--al-mut6)' }}>
-              Average and median leave out views over 30 min; the distribution counts every view
+              Average and median leave out views over 30 min; the distribution counts every view with a recorded time
             </div>
           </div>
 
