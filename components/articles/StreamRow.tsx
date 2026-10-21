@@ -121,6 +121,7 @@ export function StreamRow({ article }: { article: Article }) {
       {/* Paper row */}
       <Link
         href={`/article/${article.id}`}
+        prefetch={false}
         style={{ display: 'flex', gap: 10, marginBottom: 15, textDecoration: 'none' }}
       >
         <span style={{
@@ -233,6 +234,7 @@ export function StreamRow({ article }: { article: Article }) {
               </p>
               <Link
                 href={`/article/${article.id}`}
+                prefetch={false}
                 style={{
                   display: 'inline-flex', alignItems: 'center', gap: 7,
                   fontFamily: 'var(--font-instrument, sans-serif)',

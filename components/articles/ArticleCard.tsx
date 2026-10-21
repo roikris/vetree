@@ -83,7 +83,7 @@ export function ArticleCard({ article }: ArticleCardProps) {
       </div>
 
       {/* Title */}
-      <Link href={`/article/${article.id}`} style={{ textDecoration: 'none' }}>
+      <Link href={`/article/${article.id}`} prefetch={false} style={{ textDecoration: 'none' }}>
         <h3 style={{
           margin: '0 0 11px',
           fontFamily: 'var(--font-spectral, serif)',

@@ -29,6 +29,7 @@ export function SavedThisWeek({ articles }: SavedThisWeekProps) {
           <Link
             key={article.id}
             href={`/article/${article.id}`}
+            prefetch={false}
             className="flex-shrink-0 w-80 md:w-auto md:flex-1 md:min-w-[300px] md:max-w-[400px] bg-white dark:bg-[#1A1A1A] border-2 border-[#3D7A5F]/20 dark:border-[#4E9A78]/20 rounded-lg p-5 hover:border-[#3D7A5F] dark:hover:border-[#4E9A78] hover:shadow-lg transition-all"
           >
             {/* Rank Badge */}
