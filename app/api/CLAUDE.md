@@ -253,6 +253,9 @@ Article choice is shared with the recommendations panel: `rankGrowthCandidates()
    - Exception: crowd favorites (≥ 20 social clicks) may return 182 days after their last post or
      click — flagged `crowdFavorite`, shown as "⭐ Crowd favorite"
    - Skipped: 7 days; anything touched today: excluded
+   - Passed over (growth-003, Roi 2026-10-21): shown in the panel (`growth_recommendation_sets`) on 3 different
+     Israel days before today with no post or dismissal → out for 14 days, then counted afresh
+     (`lib/growth/passedOver.ts`); the panel shows "N resting"
    - Rank: Claude-scored articles first, by max(practice, talk, wow) (0–10 each, cached in
      `growth_article_scores`, `lib/growth/scoring.ts`); evidence tier then recency break ties.
      Unscored articles only fill in behind (0.5 recency + 0.5 evidence). Validated offline
@@ -290,6 +293,8 @@ Content Agent tab was removed in growth-002) — a new writer would move this ad
 - 9 top picks + 1 **wildcard** (owner, 2026-10-01): drawn first from the bottom half of the scored
   pool, random position, shown as "🎲 Wildcard" — room for serendipity; a dismissal is training data
 - Cards: "⚡ WOW" / "Practice" / "Talk-worthy" chips for dimensions ≥ 7, Claude's one-line reason
+- Always reachable (growth-003): once the day's article is chosen or generated, the cards can be reviewed and
+  dismissed but not picked
 - Every served set is logged to `growth_recommendation_sets` (pool rank, position, wildcard,
   scores) — join to `growth_agent_memory` by article_id + time to learn from what was shown
 - Bump `RUBRIC_VERSION` whenever the rubric changes (older scores stop counting). A model switch keeps

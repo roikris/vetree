@@ -126,7 +126,7 @@ function DailyDay({ today, onDayChange, onReload }: { today: string; onDayChange
   const [loadingRecs, setLoadingRecs] = useState(false)
   const [recsError, setRecsError] = useState<string | null>(null)
   const [eligibleCount, setEligibleCount] = useState<number | null>(null)
-  const [recsMeta, setRecsMeta] = useState<{ scored: number; degraded: boolean; errors: number } | null>(null)
+  const [recsMeta, setRecsMeta] = useState<{ scored: number; degraded: boolean; errors: number; resting: number } | null>(null)
 
   const [missingUrls, setMissingUrls] = useState<{ id: string; article_id: string; article_title: string | null; date: string }[]>([])
   const [urlDrafts, setUrlDrafts] = useState<Record<string, string>>({})
@@ -253,7 +253,7 @@ function DailyDay({ today, onDayChange, onReload }: { today: string; onDayChange
       if (!res.ok) throw new Error(data.details || data.error || `HTTP ${res.status}`)
       setRecommendations(data.recommendations || [])
       setEligibleCount(data.eligible_count ?? null)
-      setRecsMeta({ scored: data.scored_count ?? 0, degraded: !!data.degraded, errors: data.scoring_errors ?? 0 })
+      setRecsMeta({ scored: data.scored_count ?? 0, degraded: !!data.degraded, errors: data.scoring_errors ?? 0, resting: data.resting_count ?? 0 })
     } catch (e) {
       setRecommendations([])
       setRecsError(`Couldn't load recommendations: ${e instanceof Error ? e.message : String(e)}`)
@@ -525,6 +525,7 @@ function DailyDay({ today, onDayChange, onReload }: { today: string; onDayChange
 
   // ─── View ───────────────────────────────────────────────────────────────────────────────────────────────────
   const hasPosts = Object.keys(posts).length > 0
+  const canPick = !articleId && !hasPosts   // the day's article can still be chosen
   const allPosted = POSTING_PLATFORMS.every(p => posted.has(p.platform))
   const linkedinRow = rows.find(r => r.platform === 'linkedin' && r.article_id === articleId)
   const chip = (on: boolean) => `px-3 py-1 text-xs rounded-full transition ${on ? 'bg-emerald-700 text-white' : 'bg-zinc-700 dark:bg-zinc-800 text-zinc-300 hover:bg-zinc-600 dark:hover:bg-zinc-700'}`
@@ -597,21 +598,21 @@ function DailyDay({ today, onDayChange, onReload }: { today: string; onDayChange
         )}
         {exclusionNote && <div className="mb-3 px-3 py-2 rounded-lg bg-amber-900/20 border border-amber-700/50"><span className="text-amber-400 text-xs">⚠ {exclusionNote}</span></div>}
 
-        {/* Choosing the article — only before anything is posted or generated */}
-        {!articleId && !hasPosts && (
-          <>
+        {/* Recommendations — always reachable (growth-003, Roi 2026-10-21); once the day's article is chosen or
+            generated they can be reviewed and dismissed, not picked */}
             <div className="mb-4">
               <button type="button" onClick={loadRecommendations} disabled={loadingRecs} className="flex items-center gap-2 text-sm text-emerald-400 hover:text-emerald-300 transition">
-                {loadingRecs ? <><Loader2 size={14} className="animate-spin" /> Analyzing...</> : <><span>✨</span> Show recommended articles to post</>}
+                {loadingRecs ? <><Loader2 size={14} className="animate-spin" /> Analyzing...</> : <><span>✨</span> {canPick ? 'Show recommended articles to post' : 'Review recommendations (today\'s article is set — dismiss only)'}</>}
               </button>
               {showRecs && (
                 <div className="mt-3">
                   {recsError && <p className="mb-2 text-xs text-red-400">{recsError}</p>}
-                  {!recsError && recommendations.length === 0 && <p className="mb-2 text-xs text-gray-500">No eligible articles right now — everything recent is posted, dismissed or skipped.</p>}
+                  {!recsError && recommendations.length === 0 && <p className="mb-2 text-xs text-gray-500">No eligible articles right now — everything recent is posted, dismissed, skipped or resting{recsMeta && recsMeta.resting > 0 ? ` (${recsMeta.resting} resting: shown on 3 days, no action — back in 14 days)` : ''}.</p>}
                   {eligibleCount !== null && recommendations.length > 0 && (
                     <p className="mb-2 text-xs text-gray-600">
                       {recommendations.some(r => r.wildcard) ? `${recommendations.length - 1} top picks + 1 wildcard` : `Top ${recommendations.length}`} of {eligibleCount} eligible
                       {recsMeta && ` · ${recsMeta.scored} scored for practice / talk-worthiness / WOW`}
+                      {recsMeta && recsMeta.resting > 0 && ` · ${recsMeta.resting} resting (shown on 3 days, no action — back in 14 days)`}
                       {recsMeta?.degraded && ' · scores unavailable, ranked by evidence + recency'}
                       {recsMeta && !recsMeta.degraded && recsMeta.errors > 0 && ' · some new articles couldn\'t be scored this time'}
                     </p>
@@ -620,8 +621,8 @@ function DailyDay({ today, onDayChange, onReload }: { today: string; onDayChange
                     {recommendations.map((a, i) => (
                       <div key={a.id} className="flex items-start gap-3 p-3 bg-gray-800 border border-gray-700 rounded-lg hover:border-emerald-700 transition group">
                         <span className="text-lg font-bold text-gray-600 w-6 shrink-0 mt-0.5">{i + 1}</span>
-                        <div className="flex-1 min-w-0 cursor-pointer" onClick={() => { setSelected({ id: a.id, title: a.title, crowdFavorite: !!a.crowdFavorite }); setShowRecs(false) }}>
-                          <p className="text-sm text-white font-medium truncate group-hover:text-emerald-300">{a.title}</p>
+                        <div className={`flex-1 min-w-0 ${canPick ? 'cursor-pointer' : ''}`} onClick={canPick ? () => { setSelected({ id: a.id, title: a.title, crowdFavorite: !!a.crowdFavorite }); setShowRecs(false) } : undefined}>
+                          <p className={`text-sm text-white font-medium truncate ${canPick ? 'group-hover:text-emerald-300' : ''}`}>{a.title}</p>
                           <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">{a.scores?.reason || a.clinical_bottom_line}</p>
                           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5">
                             <div className="flex gap-1 flex-wrap">
@@ -650,6 +651,9 @@ function DailyDay({ today, onDayChange, onReload }: { today: string; onDayChange
               )}
             </div>
 
+        {/* Choosing the article — only before anything is posted or generated */}
+        {canPick && (
+          <>
             <div className="relative mb-3">
               {selected ? (
                 <div className="flex items-center gap-2 px-3 py-2 bg-emerald-900/30 border border-emerald-700 rounded-lg text-sm">
