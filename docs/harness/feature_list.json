@@ -1877,8 +1877,8 @@
       "status": "in_progress",
       "evidence": [],
       "branch": "fix/growth-003-rest-ignored-recs",
-      "pr": null,
-      "head_sha": null,
+      "pr": 150,
+      "head_sha": "5b82516",
       "wip_sha": null,
       "expected_failures": [],
       "id": "growth-003",
@@ -1910,7 +1910,7 @@
           "paid_calls": false
         }
       ],
-      "notes": "Reported by Roi 2026-10-21. · Investigation 2026-10-21 (read-only, production): dismissals work — 243 irrelevant rows, none dismissed twice, none shown again (2 race cases: a set served 8 s after the click, already loading); no title/DOI duplicates of dismissed articles shown; 0 of 36 vatinoxan articles ever dismissed. Cause of the feeling: the list is ~8/10 identical day to day (fixed ranking) — pubmed-42600645 (Zenalpha) shown 10 days in a row until already_published; pubmed-42838285 in every set since 10-18. Roi chose: rest ignored cards (shown on 3 days without action → out 14 days). Also Roi: recommendations hidden once today's article is fixed (DailyPosts !articleId && !hasPosts) — make them reachable (view + dismiss, no pick)."
+      "notes": "Reported by Roi 2026-10-21. · Investigation 2026-10-21 (read-only, production): dismissals work — 243 irrelevant rows, none dismissed twice, none shown again (2 race cases: a set served 8 s after the click, already loading); no title/DOI duplicates of dismissed articles shown; 0 of 36 vatinoxan articles ever dismissed. Cause of the feeling: the list is ~8/10 identical day to day (fixed ranking) — pubmed-42600645 (Zenalpha) shown 10 days in a row until already_published; pubmed-42838285 in every set since 10-18. Roi chose: rest ignored cards (shown on 3 days without action → out 14 days). Also Roi: recommendations hidden once today's article is fixed (DailyPosts !articleId && !hasPosts) — make them reachable (view + dismiss, no pick). · PR #150 (ready 2026-10-21): lib/growth/passedOver.ts (+7 unit tests), candidates.ts reads growth_recommendation_sets, restingCount → panel; DailyPosts recommendations reachable after the day is set (review + dismiss); app/api/CLAUDE.md. init.sh check GREEN on 173fa3a (incl. dry run: 18 resting, 2 eligible — vatinoxan sedation, bovine colostrum); build green 5b82516. Codex tier 2: r1 BLOCKING none (NB empty-state text fixed 5b82516), r2 BLOCKING none. Deferred NB: ranking integration tests; candidates.ts touchedToday uses UTC day (pre-existing)."
     }
   ]
 }
