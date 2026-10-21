@@ -607,7 +607,7 @@ function DailyDay({ today, onDayChange, onReload }: { today: string; onDayChange
               {showRecs && (
                 <div className="mt-3">
                   {recsError && <p className="mb-2 text-xs text-red-400">{recsError}</p>}
-                  {!recsError && recommendations.length === 0 && <p className="mb-2 text-xs text-gray-500">No eligible articles right now — everything recent is posted, dismissed or skipped.</p>}
+                  {!recsError && recommendations.length === 0 && <p className="mb-2 text-xs text-gray-500">No eligible articles right now — everything recent is posted, dismissed, skipped or resting{recsMeta && recsMeta.resting > 0 ? ` (${recsMeta.resting} resting: shown on 3 days, no action — back in 14 days)` : ''}.</p>}
                   {eligibleCount !== null && recommendations.length > 0 && (
                     <p className="mb-2 text-xs text-gray-600">
                       {recommendations.some(r => r.wildcard) ? `${recommendations.length - 1} top picks + 1 wildcard` : `Top ${recommendations.length}`} of {eligibleCount} eligible
