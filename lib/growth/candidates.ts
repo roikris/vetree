@@ -11,6 +11,8 @@
 //   posted or clicked. They are marked crowdFavorite so the UI can say so.
 // - Eligible = publicly visible, labelled 'Small Animal', not large-animal, not Exotic.
 // - "New" = created_at (new to Vetree), never publication_date — see CLAUDE.md.
+// - Passed over (Roi, 2026-10-21, growth-003): shown in the panel on 3 days without a post or dismissal →
+//   out for 14 days (lib/growth/passedOver.ts), so the list doesn't repeat itself day after day.
 //
 // Supabase errors throw: a failed exclusion read must never look like "nothing excluded".
 
@@ -18,6 +20,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { excludedUsersOrFilter } from '@/lib/analytics-excluded-ids'
 import { getEvidenceLevel } from '@/lib/utils/evidenceBadge'
 import { loadValidScores, scoreArticles, type ArticleScore } from '@/lib/growth/scoring'
+import { restingPassedOver } from '@/lib/growth/passedOver'
 
 export const CANDIDATE_WINDOW_DAYS = 60
 export const CROWD_FAVORITE_MIN_CLICKS = 20   // ≈ top 15% of posted articles (2026-10)
@@ -55,6 +58,8 @@ export type RankResult = {
   degraded: boolean
   scoredCount: number
   scoringErrors: string[]
+  /** eligible articles left out today because they were passed over (shown on 3 days, no action) */
+  restingCount: number
 }
 
 export const RANKING_POLICY = 'max-dimension-v1'
@@ -100,7 +105,7 @@ export async function rankGrowthCandidates(
 ): Promise<RankResult> {
   const today = new Date(now).toISOString().split('T')[0]
 
-  const [memory, socialViews, recent] = await Promise.all([
+  const [memory, socialViews, recent, shownSets] = await Promise.all([
     readAll<{ article_id: string | null; outcome: string; created_at: string }>('memory', (f, t) =>
       supabase.from('growth_agent_memory').select('article_id, outcome, created_at')
         .not('article_id', 'is', null).order('created_at', { ascending: true }).order('id', { ascending: true }).range(f, t)),
@@ -117,7 +122,14 @@ export async function rankGrowthCandidates(
         .or('quarantined.is.null,quarantined.eq.false')
         .gte('created_at', new Date(now - CANDIDATE_WINDOW_DAYS * DAY).toISOString())
         .order('created_at', { ascending: false }).order('id', { ascending: true }).range(f, t)),
+    // Every recommendation set served to the panel (one row per load)
+    readAll<{ served_at: string; items: { article_id: string }[] | null }>('recommendation sets', (f, t) =>
+      supabase.from('growth_recommendation_sets').select('served_at, items')
+        .order('served_at', { ascending: true }).order('id', { ascending: true }).range(f, t)),
   ])
+  const resting = restingPassedOver(
+    shownSets.map(s => ({ served_at: s.served_at, article_ids: (s.items || []).map(i => i.article_id) })), now)
+  let restingCount = 0
 
   // Social clicks + last click per article
   const clicks = new Map<string, number>()
@@ -178,6 +190,7 @@ export async function rankGrowthCandidates(
     if (neverAgain.has(a.id) || recentlySkipped.has(a.id) || touchedToday.has(a.id)) continue
     const crowdFavorite = favoriteSet.has(a.id)
     if (isPosted(a.id) && !crowdFavorite) continue
+    if (resting.has(a.id)) { restingCount++; continue }
 
     // 0..1 each. Recency on created_at; favorites get a flat recency in lieu of it.
     const ageDays = Math.max(0, (now - Date.parse(a.created_at)) / DAY)
@@ -229,7 +242,7 @@ export async function rankGrowthCandidates(
     || x.id.localeCompare(y.id)
   ).map(({ _tie, ...c }) => c)
 
-  return { ranked, degraded, scoredCount: ranked.filter(c => c.scores).length, scoringErrors }
+  return { ranked, degraded, scoredCount: ranked.filter(c => c.scores).length, scoringErrors, restingCount }
 }
 
 export type Recommendation = GrowthCandidate & { wildcard: boolean; poolRank: number }

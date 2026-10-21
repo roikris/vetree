@@ -34,7 +34,7 @@ export async function GET() {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
 
-    const { ranked, degraded, scoredCount, scoringErrors } = await rankGrowthCandidates(supabase, {
+    const { ranked, degraded, scoredCount, scoringErrors, restingCount } = await rankGrowthCandidates(supabase, {
       scoreMissing: { max: 50, deadline: startedAt + 30_000 },
     })
     const recommendations = pickRecommendations(ranked)
@@ -65,6 +65,7 @@ export async function GET() {
       scored_count: scoredCount,
       degraded,
       scoring_errors: scoringErrors.length,
+      resting_count: restingCount,
     })
   } catch (error: any) {
     console.error('[growth/recommendations] Error:', error)
