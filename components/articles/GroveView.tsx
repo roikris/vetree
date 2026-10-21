@@ -286,6 +286,7 @@ export function GroveView() {
                 <Link
                   key={article.id}
                   href={`/article/${article.id}`}
+                  prefetch={false}
                   style={{
                     display: 'block',
                     background: 'var(--al-card)',
