@@ -8,10 +8,10 @@ Routine: `docs/harness/README.md` on `main`. Pre-harness primer (frozen): root `
 ---
 
 ## 1. Current Verified State
-*Updated 2026-10-20 — Session 20261020-1043-claude-d205 (analytics-001: #144–#148 merged, 087 applied, test account deleted, firewall verified)*
+*Updated 2026-10-21 — Session 20261021-1301-claude-0f07 (analytics-001: 503s not reproduced; #149 article links no longer prefetched, merged + manually deployed; paused for growth-003)*
 
 - **Repo root:** `~/dev/vetree` · state worktree: `.harness-state/` (branch `harness-state`)
-- **main:** `b48d847` (#148 component tests for the consent prompts — happy-dom dev dependency, analytics-001, 2026-10-20; #147 unused FollowTagButton / useFollowedTags removed, 2026-10-20; #146 consent prompts re-check when the signed-in user changes (watchSignedInUser → lib/auth/userWatcher.ts), 2026-10-20; #145 migration 087 — the daily purge removes pending durations > 1 day, 2026-10-20; #144 one user lookup per signed-in page + dashboard footnote, 2026-10-20; #140 auth friction — failed email links explained, reset works cross-browser with the token_hash template, verify-email signed out, signup fixes, analytics-001, 2026-10-19; #143 migration 086 — 356 suspected_fleet + 1,372 suspected_datacenter older rows, 2026-10-19; #142 Analytics hides signed-out likely-automated views by default (switch ?automated=include), six readers paged, 2026-10-19; #141 migration 085 — pre-#139 leave-beacon rows merged into their views, analytics-001, 2026-10-18; #139 one page_views row per view (client view_id, visible-time duration), traffic_class estimate (datacenter ranges), hashed Upstash keys, admin analytics reads paged + fail on error, migration 084, analytics-001, 2026-10-17; #138 scan advisories cleared — source-map-js 1.2.2, braces acknowledged — and the scan reads its
+- **main:** `a02736c` (#149 no prefetch on repeated article links — stream, saved-this-week, ArticleCard, Grove, analytics-001, 2026-10-21; Vercel missed the push → production deployed via the API on Roi's go-ahead; #148 component tests for the consent prompts — happy-dom dev dependency, analytics-001, 2026-10-20; #147 unused FollowTagButton / useFollowedTags removed, 2026-10-20; #146 consent prompts re-check when the signed-in user changes (watchSignedInUser → lib/auth/userWatcher.ts), 2026-10-20; #145 migration 087 — the daily purge removes pending durations > 1 day, 2026-10-20; #144 one user lookup per signed-in page + dashboard footnote, 2026-10-20; #140 auth friction — failed email links explained, reset works cross-browser with the token_hash template, verify-email signed out, signup fixes, analytics-001, 2026-10-19; #143 migration 086 — 356 suspected_fleet + 1,372 suspected_datacenter older rows, 2026-10-19; #142 Analytics hides signed-out likely-automated views by default (switch ?automated=include), six readers paged, 2026-10-19; #141 migration 085 — pre-#139 leave-beacon rows merged into their views, analytics-001, 2026-10-18; #139 one page_views row per view (client view_id, visible-time duration), traffic_class estimate (datacenter ranges), hashed Upstash keys, admin analytics reads paged + fail on error, migration 084, analytics-001, 2026-10-17; #138 scan advisories cleared — source-map-js 1.2.2, braces acknowledged — and the scan reads its
   history again, sec-001, 2026-10-16; #137 homepage "Articles saved this week" — every reader's saves, migration 083, anon SELECT on
   saved_articles revoked, feed-002, 2026-10-16; #136 proxy runs only with the Supabase session cookie, perf-001, 2026-10-14; #135 admin Pipeline rebuilt as the Slack messages expanded, Article Health removed, 2026-10-14; #134 daily reminder counts run 2 + excludes the test account, weekly AI report hidden, Overview removed, 2026-10-14; #133 Growth OS daily posts panel, one article → every platform, 2026-10-13; #132 unit tests in init.sh check + PR smoke, 2026-10-13; #131 Facebook IL closing lines: typeable address + WhatsApp Community, 2026-10-13; #129 + #130 Facebook IL link-free posts, vetree.app/il, "save it" hint, 2026-10-13; #127 schema audit + #128 replay safety, migrations 080–082 + 000 recorded, 2026-10-12; #126 unlock log guard, 2026-10-12; PRs #120–#125 least privilege + policy audit, migrations 075–079 applied, 2026-10-11; #119 lint cleanup, 2026-10-10; #118 build warnings / middleware → proxy, 2026-10-10; #117 init.sh lock / unlock, 2026-10-10; #116 "new this week" count, 2026-10-10; #115 shorter digest footer, 2026-10-09; #114 Search Console fixes, 2026-10-07; before it #113 access-control audit,
   migration 074 applied) — last verified: production /api/version = 3dd971f, post-merge health check success; cross-browser reset verified in production (incognito, token_hash template); earlier: 085 log {legacy 482, matched 480, loads 479, deleted 482}, 0 legacy rows left, schema audit PASS
@@ -24,7 +24,7 @@ Routine: `docs/harness/README.md` on `main`. Pre-harness primer (frozen): root `
   if not enough → option B (article ISR). PR rule: drafts until done, ready once, never re-run a passing suite.
   Functions Storage was 8.93 / 10 GB → Roi set deployment retention: pre-production 1 week, production / canceled /
   errored 30 days (2026-10-15); re-read it with the CPU chart.
-- **Highest-priority unfinished item:** analytics-001 remaining (Roi to pick): signed-in localhost home load made 12 RSC prefetches, 11 answered 503 (200 alone) — check production logs (perf-001 overlap); ~25 vetree.app-referer /auth/v1/user calls in the 2026-10-19 auth log unexplained; Gmail warning re-check from an inbox that never saw the sender (Roi). Done 2026-10-20: test account roi.kris+vt1 deleted; firewall verified (0 datacenter:tencent views since 2026-10-19 18:19 UTC, 266 denied in 25 h). CI runs Node 20 (EOL 2026-04) — upgrade is Roi's call. perf-001 monitoring; scripts-001 needs Roi; ai-001 ~2026-11-01
+- **Highest-priority unfinished item:** growth-003 (Roi, 2026-10-21): articles marked "not relevant" keep returning as Growth OS daily post suggestions. analytics-001 paused (blocked) with its follow-ups: nav links prefetched twice; /article/null 404s; 400s on /api/search/batch; ~25 /auth/v1/user calls unexplained; Gmail re-check (Roi). 503 prefetches: not reproduced in production (dev-server artifact). CI Node 20 upgrade is Roi's call; perf-001 monitoring; scripts-001 needs Roi; ai-001 ~2026-11-01
 - **Vercel Firewall (2026-10-19):** custom rule "Block Tencent Cloud bot fleet" — deny AS132203 + AS45090 (CLI: `vercel firewall rules list|…`, publish after changes). Resend click tracking OFF for digest.vetree.app (Roi). Supabase Reset Password template = branded token_hash link (Roi).
 - **Admin panel (admin-002, Roi 2026-10-14):** /admin lands on Analytics; the weekly AI report is hidden (its Friday job
   still runs); /admin/pipeline = the Slack messages expanded (GET /api/admin/pipeline/status) — no Article Health, no
@@ -231,6 +231,28 @@ works today was spot-checked in the code on 2026-10-05.
 (Newest first — only the latest 5 are kept here (D11); every entry, older ones included, is in
 `session-log.md`, which is never trimmed.)
 
+### Session 20261021-1301-claude-0f07 · 2026-10-21 · Claude Code · analytics-001 (503 check + #149; paused for growth-003)
+- Goal: Roi picked the 503 prefetch check; then "do the prefetch change".
+- Done: 503s NOT reproduced in production — 12 h request log (3,472 records, Hobby keeps 12 h) 0 5xx; Roi's signed-in
+  home load 14:31 UTC: 43 requests all 200/304; pages never return 503 in code → localhost 503s were a dev-server
+  artifact. Same load ran ~40 uncached function requests (every visible /article/* prefetched) → #149 prefetch={false}
+  on StreamRow ×2, SavedThisWeek, ArticleCard, GroveView.
+- Start state: main b48d847; lock taken for analytics-001.
+- Verification: init.sh check GREEN (e6c7ca3), build green 042c307; PR suite green (run 39620775429); production
+  16:31 UTC signed-in home load: 0 /article/* prefetches (before ~30), ~10 function requests (before ~40).
+- Review: Codex · tier 1 · 2 rounds (r1 BLOCKING: ArticleCard + GroveView still prefetched — verified, fixed; r2 none).
+- Commits / PR: #149 → a02736c (squash, on Roi's word).
+- Incident: Vercel created NO production deployment for the merge push (previews fine) → post-merge check failed
+  after 15 min. On Roi's go-ahead: POST /v13/deployments (gitSource sha a02736c) → dpl_Fk8XaNVTK7e1fyE2R2dXf3BYaQYr;
+  /api/version = a02736c; check re-run success. The auto-mode permission check blocks production deploys without Roi.
+- Pending Roi approvals: none.
+- Known risks / unresolved: nav links /library /profile /admin prefetched twice per load; 4× 404 /article/null and
+  3× 400 /api/search/batch in 12 h; watch whether Vercel misses another push.
+- Lesson: Hobby request logs reach back only 12 h (`vercel logs requests`); signed-in traffic is a few views a day, so
+  a zero needs a deliberate signed-in load to mean anything. `vercel api --input file.json` for nested bodies (-F
+  nested keys fail with '"files" should be an array').
+- Next best step: growth-003 (Roi, 2026-10-21) — "not relevant" articles keep returning as daily post suggestions.
+
 ### Session 20261020-1043-claude-d205 · 2026-10-20 · Claude Code · analytics-001 (follow-ups; item open)
 - #144 one user lookup per signed-in page + footnote; 087 (#145) purge of pending durations > 1 day (applied
   2026-10-20); test account roi.kris+vt1 deleted; firewall verified (0 datacenter:tencent views since 2026-10-19
@@ -332,43 +354,3 @@ works today was spot-checked in the code on 2026-10-05.
 - Next best step: read the usage chart 2026-10-15..17; if still over, option B (article ISR with an anonymous loader,
   client-side guest wall, throw on transient errors, revalidate on delete), then OG image cost; home page last.
 
-### Session 20261014-0538-claude-a04e · 2026-10-14 · Claude Code · admin-002 (closed; admin-001 closed as removed)
-- Goal / Completed: Roi asked to rethink the admin panel ("article health is part of an older version … reconsider if
-  it's even needed"). A read-only usage pass (Roi's yes) showed 21,056 articles, 3 hidden (all ai_refused), and the
-  Article Health "never attempted" 4,579 / "partial" 16,131 almost all published — re-queueing them would re-enrich
-  ~20.7k live articles. Roi's decisions: /admin lands on Analytics (Overview removed); all Analytics numbers kept, the
-  weekly AI report hidden (the Friday job still runs); Reports, Users, Security, Growth OS, Campaign unchanged; Pipeline
-  = "an extension of the slack messages"; option A (no new table). PR 1 (#134): the daily Slack reminder's "Day 117/90"
-  came from run-1 dates hard-coded in growth-daily-reminder.js — it now uses run 2 (2026-09-29 → 12-27, baseline
-  05-21..06-19) via shared helpers in lib/synthesis/experiment.ts and excludes the test account (found from
-  TEST_USER_EMAIL, since Vercel won't reveal TEST_USER_ID — Roi chose B); the weekly report's campaign line uses the same
-  helpers, no rotation line; Overview, FeatureFlags and getAdminStats removed. PR 2 (#135): /admin/pipeline rebuilt —
-  GET /api/admin/pipeline/status (admin only, any failed query → 500) + PipelineStatus.tsx in the Almanac tokens: Needs
-  you (waiting for Codex, failed + Retry failed, no abstract + Delete & block, queue + Run enrichment, Show more paging),
-  Today's sync, Visibility check (total / public / queued / hidden by reason / unexplained), Scheduled jobs (latest
-  activity + GitHub links, no health verdicts — run totals aren't stored). Removed (Roi: "removals approved"): Article
-  Health, Incomplete Enrichment, diagnostics, stats, label editing, send-digest-now, the CSV download, three admin
-  routes and nine server actions.
-- Start state: main a2cd626, clean; lock taken as backlog, admin-002 added and claimed.
-- Verification: init.sh check GREEN on every head; unit 62 → 68 (experiment + pipeline tests, offline); 7 mocked-network
-  Playwright scenarios on a temporary local page (not committed), each fix's test failing before it; screenshots shown
-  to Roi (made-up data); PR smoke + replay new / old pass on both heads; Roi checked the preview with real data himself
-  ("looks good"). Production 86fdcd6 then edf2009 (/api/version), home 200, status route anonymous 401. Not verified
-  live: the first reminder under the new count (2026-10-15 03:00 UTC, should read Day 16/90).
-- Review: Codex · tier 2 · plan 2 rounds 102.9k / 30.6k · PR 1 3 rounds 50.3k / 21.9k / 24.5k · PR 2 3 rounds 76.1k /
-  29.7k / 17.1k ≈ 353k · BLOCKING: none (fixed on the way: activity is not job health; run totals not recoverable;
-  run-2 engaged as a total, not /day; the retry list = FAILED_UNPUBLISHED_OR; test account not excluded; NULL
-  needs_enrichment uncounted; lists capped at 50; a stale refresh overwriting newer state; a silent delete failure;
-  Show-more during a refresh / two Show-mores at once).
-- Commits / PR: b73a9d2, 0ba3e00, ddaa87f → #134 merged 86fdcd6; 660cf1c, fab966d, a6f207a → #135 merged edf2009 —
-  each on Roi's word.
-- Pending Roi approvals: none. Roi: tomorrow's Slack reminder (Day 16/90, no "not excluded" note); publish the 3
-  ai_refused articles with `npm run enrich:refused` (dry run first); the first daily posting with the Daily Posts panel,
-  then (his yes) a read-only check; Thursday's security scan; Vercel usage ~2026-10-14.
-- Known risks / unresolved: no signed-in non-admin e2e for the status route (no such smoke account); unpinned
-  supabase-js in the reminder workflow; an SDK exception in the test-account lookup would skip that morning's message;
-  CLAUDE.md "Key Features Built" still lists an admin "overview"; making the weekly AI report usable is a later item.
-- Lesson: a number on a screen can come from somewhere other than the page that shows it — "Day 117/90" was the daily
-  reminder script, not the weekly report I first named; find the writer before fixing the reader. Before keeping a
-  repair tool, count what it would touch: Article Health's buttons would have re-enriched ~20.7k live articles.
-- Next best step: feed-002 / scripts-001 need Roi's decisions; ai-001 ~2026-11-01; the weekly AI report later.

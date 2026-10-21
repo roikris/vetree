@@ -758,3 +758,25 @@ Newest at the bottom. The same entries (latest few) appear in primer.md → Rece
 - Handoff for the entry above (same session): that entry went out as its own state commit before unlock, which the
   unlock's append-only check then saw as no growth — this line rides with the lock release. Primer Recent Sessions
   updated (latest 5).
+
+### Session 20261021-1301-claude-0f07 · 2026-10-21 · Claude Code · analytics-001 (503 check + #149; paused for growth-003)
+- Goal: Roi picked the 503 prefetch check; then "do the prefetch change".
+- Done: 503s NOT reproduced in production — 12 h request log (3,472 records, Hobby keeps 12 h) 0 5xx; Roi's signed-in
+  home load 14:31 UTC: 43 requests all 200/304; pages never return 503 in code → localhost 503s were a dev-server
+  artifact. Same load ran ~40 uncached function requests (every visible /article/* prefetched) → #149 prefetch={false}
+  on StreamRow ×2, SavedThisWeek, ArticleCard, GroveView.
+- Start state: main b48d847; lock taken for analytics-001.
+- Verification: init.sh check GREEN (e6c7ca3), build green 042c307; PR suite green (run 39620775429); production
+  16:31 UTC signed-in home load: 0 /article/* prefetches (before ~30), ~10 function requests (before ~40).
+- Review: Codex · tier 1 · 2 rounds (r1 BLOCKING: ArticleCard + GroveView still prefetched — verified, fixed; r2 none).
+- Commits / PR: #149 → a02736c (squash, on Roi's word).
+- Incident: Vercel created NO production deployment for the merge push (previews fine) → post-merge check failed
+  after 15 min. On Roi's go-ahead: POST /v13/deployments (gitSource sha a02736c) → dpl_Fk8XaNVTK7e1fyE2R2dXf3BYaQYr;
+  /api/version = a02736c; check re-run success. The auto-mode permission check blocks production deploys without Roi.
+- Pending Roi approvals: none.
+- Known risks / unresolved: nav links /library /profile /admin prefetched twice per load; 4× 404 /article/null and
+  3× 400 /api/search/batch in 12 h; watch whether Vercel misses another push.
+- Lesson: Hobby request logs reach back only 12 h (`vercel logs requests`); signed-in traffic is a few views a day, so
+  a zero needs a deliberate signed-in load to mean anything. `vercel api --input file.json` for nested bodies (-F
+  nested keys fail with '"files" should be an array').
+- Next best step: growth-003 (Roi, 2026-10-21) — "not relevant" articles keep returning as daily post suggestions.
