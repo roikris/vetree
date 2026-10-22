@@ -21,6 +21,7 @@ import { excludedUsersOrFilter } from '@/lib/analytics-excluded-ids'
 import { getEvidenceLevel } from '@/lib/utils/evidenceBadge'
 import { loadValidScores, scoreArticles, type ArticleScore } from '@/lib/growth/scoring'
 import { restingPassedOver } from '@/lib/growth/passedOver'
+import { israelDate, israelDayBounds } from '@/lib/growth/daily'
 
 export const CANDIDATE_WINDOW_DAYS = 60
 export const CROWD_FAVORITE_MIN_CLICKS = 20   // ≈ top 15% of posted articles (2026-10)
@@ -103,7 +104,9 @@ export async function rankGrowthCandidates(
   supabase: SupabaseClient,
   { now = Date.now(), scoreMissing }: { now?: number; scoreMissing?: { max: number; deadline: number } } = {},
 ): Promise<RankResult> {
-  const today = new Date(now).toISOString().split('T')[0]
+  // "Today" is the Israel day (Asia/Jerusalem), like the rest of Growth OS — a UTC day kept yesterday's posts and
+  // skips "touched today" until 03:00 Israel time
+  const todayStart = Date.parse(israelDayBounds(israelDate(now)).start)
 
   const [memory, socialViews, recent, shownSets] = await Promise.all([
     readAll<{ article_id: string | null; outcome: string; created_at: string }>('memory', (f, t) =>
@@ -151,7 +154,7 @@ export async function rankGrowthCandidates(
     if (m.outcome === 'irrelevant' || m.outcome === 'already_published') neverAgain.add(id)
     if (m.outcome === 'approved') lastApproved.set(id, Math.max(lastApproved.get(id) || 0, at))
     if (m.outcome === 'skipped' && at >= now - SKIP_REST_DAYS * DAY) recentlySkipped.add(id)
-    if (m.created_at >= today) touchedToday.add(id)
+    if (at >= todayStart) touchedToday.add(id)
   }
 
   // Posted articles may only return as rested crowd favorites
