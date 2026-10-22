@@ -5,6 +5,11 @@ import { useRouter, usePathname } from 'next/navigation'
 import { User } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
 import { createUserWatcher } from '@/lib/auth/userWatcher'
+import { createSignInRefresher, hasSessionCookie } from '@/lib/auth/signInRefresh'
+
+// Read before anything async can run (a client-side code exchange writes the cookie only after a network round trip):
+// whether this page's server render had a session. Decides the first SIGNED_IN (lib/auth/signInRefresh.ts).
+const _hadSessionAtLoad = typeof document !== 'undefined' && hasSessionCookie(document.cookie)
 
 // Singleton Supabase client — one GoTrue instance for the entire browser session.
 const supabase = createClient()
@@ -30,13 +35,23 @@ export function getSharedUser() {
 // The cache must follow sign-in / sign-out even on a page where no useAuth() instance is mounted (getSharedUser's
 // other callers), so one module-level listener replaces it — the same rule as the hook's own listener below.
 let _watching = false
+// Mounted useAuth() instances' router.refresh — the one refresh per real sign-in calls any one of them
+// (lib/auth/signInRefresh.ts). One is enough: refresh() re-renders the current route as a whole.
+const _routerRefreshers = new Set<() => void>()
 function watchAuthEvents() {
   if (_watching) return
   _watching = true
+  const onSignInEvent = createSignInRefresher({
+    hadSessionAtLoad: _hadSessionAtLoad,
+    // A fresh sign-in can mean a Server Component on the current page rendered without this session (e.g. a code
+    // exchange that finished client-side). Refresh so it picks up the cookie that was just written, no manual reload.
+    refresh: () => { for (const r of _routerRefreshers) { r(); return } },
+  })
   supabase.auth.onAuthStateChange((event, session) => {
     if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'USER_UPDATED' || event === 'TOKEN_REFRESHED' || event === 'PASSWORD_RECOVERY') {
       _userPromise = Promise.resolve(session?.user ?? null)
     }
+    onSignInEvent(event, session?.user?.id ?? null)
   })
 }
 
@@ -74,6 +89,8 @@ export function useAuth() {
   const pathname = usePathname()
 
   useEffect(() => {
+    const refresh = () => router.refresh()
+    _routerRefreshers.add(refresh)
     // Shared across all useAuth() instances — only one network call to Supabase.
     getSharedUser().then(user => {
       setUser(user)
@@ -102,13 +119,8 @@ export function useAuth() {
       }
       setUser(session?.user ?? null)
       setLoading(false)
-      // A fresh SIGNED_IN can mean a Server Component on the current page
-      // already rendered without this session (e.g. right after an OAuth code
-      // exchange finishes client-side). Refresh so anything server-rendered
-      // here picks up the cookie that was just written, no manual reload.
-      if (event === 'SIGNED_IN') {
-        router.refresh()
-      }
+      // No router.refresh() here: the module-level listener refreshes once per real sign-in (watchAuthEvents). Here it
+      // ran once per useAuth() on every SIGNED_IN, which auth-js also emits on each page start and tab refocus.
       // Account transition: drop the service worker's caches. Since public/sw.js v2 they only
       // hold public static assets, but the old worker stored private responses, and a sign-out
       // on a shared device must not leave anything behind. Every client sign-out path emits
@@ -118,7 +130,10 @@ export function useAuth() {
       }
     })
 
-    return () => subscription.unsubscribe()
+    return () => {
+      subscription.unsubscribe()
+      _routerRefreshers.delete(refresh)
+    }
   }, [])
 
   return { user, loading }
