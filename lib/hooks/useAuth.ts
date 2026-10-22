@@ -5,11 +5,15 @@ import { useRouter, usePathname } from 'next/navigation'
 import { User } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
 import { createUserWatcher } from '@/lib/auth/userWatcher'
-import { createSignInRefresher, hasSessionCookie } from '@/lib/auth/signInRefresh'
+import { createSignInRefresher, sessionUserIdFromCookies } from '@/lib/auth/signInRefresh'
 
 // Read before anything async can run (a client-side code exchange writes the cookie only after a network round trip):
-// whether this page's server render had a session. Decides the first SIGNED_IN (lib/auth/signInRefresh.ts).
-const _hadSessionAtLoad = typeof document !== 'undefined' && hasSessionCookie(document.cookie)
+// the user this page's server render was for — the session cookie's user (lib/auth/signInRefresh.ts). The cookie name
+// is @supabase/ssr's default storage key, sb-<project ref>-auth-token.
+const _renderedAtLoad = typeof document === 'undefined' ? undefined : sessionUserIdFromCookies(
+  document.cookie,
+  `sb-${new URL(process.env.NEXT_PUBLIC_SUPABASE_URL!).hostname.split('.')[0]}-auth-token`,
+)
 
 // Singleton Supabase client — one GoTrue instance for the entire browser session.
 const supabase = createClient()
@@ -42,7 +46,7 @@ function watchAuthEvents() {
   if (_watching) return
   _watching = true
   const onSignInEvent = createSignInRefresher({
-    hadSessionAtLoad: _hadSessionAtLoad,
+    renderedAtLoad: _renderedAtLoad,
     // A fresh sign-in can mean a Server Component on the current page rendered without this session (e.g. a code
     // exchange that finished client-side). Refresh so it picks up the cookie that was just written, no manual reload.
     refresh: () => { for (const r of _routerRefreshers) { r(); return } },
