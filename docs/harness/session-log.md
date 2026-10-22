@@ -780,3 +780,30 @@ Newest at the bottom. The same entries (latest few) appear in primer.md → Rece
   a zero needs a deliberate signed-in load to mean anything. `vercel api --input file.json` for nested bodies (-F
   nested keys fail with '"files" should be an array').
 - Next best step: growth-003 (Roi, 2026-10-21) — "not relevant" articles keep returning as daily post suggestions.
+
+### Session 20261021-1635-claude-31c7 · 2026-10-21 → 2026-10-22 · Claude Code · growth-003 (closed)
+- Goal: Roi — "articles I mark as not relevant keep popping up as daily post suggestions"; also "I can't see
+  recommendations until today's article resets".
+- Investigation (production, read-only): dismissals work — 243 irrelevant rows, none dismissed twice, none shown
+  again (2 cards in a set already loading 8 s after the click); no title/DOI twins of dismissed articles shown; 0 of 36
+  vatinoxan articles ever dismissed. Cause: fixed ranking → ~8/10 cards identical day to day (Zenalpha shown 10 days
+  running until marked already-published; vatinoxan sedation in every set since 10-18).
+- Done: #150 lib/growth/passedOver.ts — shown on 3 earlier Israel days with no post/dismissal → out 14 days (panel +
+  auto-pick), "N resting" in the panel; recommendations reachable after the day's article is set (review + dismiss);
+  app/api/CLAUDE.md. #151 touchedToday on the Israel day (was UTC: yesterday's posts/skips blocked until 03:00 Israel);
+  6 rankGrowthCandidates tests on a fake db.
+- Start state: main a02736c; lock taken for growth-003.
+- Verification: dry run on production data (18 resting, 2 eligible → 3 new articles in the top 10); 7 + 6 unit tests;
+  mutation checks (old UTC line fails the Israel-day test; removing the favorites fetch fails the crowd-favorite test);
+  init.sh check GREEN on both PRs; PR suites green (39638476075, 39816936594); post-merge checks success (39639363425,
+  39818059494).
+- Review: Codex · #150 tier 2 (app/api/CLAUDE.md) · 2 rounds (r1 none + NB empty-state text, fixed; r2 none) · #151
+  tier 1 · 2 rounds (r1 none + 2 NB test gaps, fixed; r2 none, RESOLVED).
+- Commits / PR: #150 → 1de3d45, #151 → 08e7628 (each on Roi's "merge when green"). Vercel deployed both on its own.
+- Pending Roi approvals: none.
+- Known risks / unresolved: the resting rule counts any panel load as "shown", including review-only loads after the
+  day's article is set — intended, watch whether lists empty out.
+- Lesson: when a dashboard "keeps showing" something, check the served-sets log before the exclusion code: the logic was
+  right; the experience came from a static ranking. `npx vercel ls` can hang in a wait loop — poll /api/version instead.
+- Next best step: analytics-001 leftovers (Roi, 2026-10-22): nav links prefetched twice; /article/null 404s; 400s on
+  /api/search/batch.
