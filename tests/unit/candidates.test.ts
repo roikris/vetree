@@ -1,5 +1,6 @@
 // lib/growth/candidates.ts — rankGrowthCandidates end to end on a fake database (growth-003).
 // The fake ignores filters: each table returns the rows given, so tests supply rows that already pass them.
+// `articles` is the recent-articles query; `articles_by_id` answers the crowd-favorite fetch (.in('id', …)) only.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import type { SupabaseClient } from '@supabase/supabase-js'
@@ -10,13 +11,17 @@ type Rows = Record<string, unknown[]>
 function fakeDb(rows: Rows, failing?: string) {
   return {
     from(table: string) {
-      const result = failing === table
-        ? { data: null, error: { message: `${table} unavailable` } }
-        : { data: rows[table] ?? [], error: null }
+      let byId = false
       const builder: object = new Proxy({}, {
         get(_t, prop) {
-          if (prop === 'then') return (ok: (v: unknown) => unknown, bad: (e: unknown) => unknown) => Promise.resolve(result).then(ok, bad)
-          return () => builder
+          if (prop === 'then') {
+            const key = table === 'articles' && byId ? 'articles_by_id' : table
+            const result = failing === table
+              ? { data: null, error: { message: `${table} unavailable` } }
+              : { data: rows[key] ?? [], error: null }
+            return (ok: (v: unknown) => unknown, bad: (e: unknown) => unknown) => Promise.resolve(result).then(ok, bad)
+          }
+          return (...args: unknown[]) => { if (prop === 'in' && args[0] === 'id') byId = true; return builder }
         },
       })
       return builder
@@ -58,7 +63,8 @@ test('resting counts only articles that were otherwise eligible', async () => {
 
 test('a resting crowd favorite stays out too', async () => {
   const clicks = Array.from({ length: CROWD_FAVORITE_MIN_CLICKS }, () => ({ path: '/article/f', created_at: '2026-01-01T00:00:00Z' }))
-  const base = { articles: [article('f')], page_views: clicks }
+  // older than the 60-day window: reachable only through the crowd-favorite fetch
+  const base = { articles: [], articles_by_id: [article('f', { created_at: '2026-01-01T00:00:00Z' })], page_views: clicks }
   const free = await rankGrowthCandidates(fakeDb(base), { now: NOW })
   assert.equal(free.ranked[0]?.crowdFavorite, true)
   const resting = await rankGrowthCandidates(fakeDb({
@@ -81,6 +87,9 @@ test('"today" is the Israel day: yesterday evening is not today after Israel mid
   const touched = (at: string) => fakeDb({ articles: [article('t')], growth_agent_memory: [memory('t', 'regenerated', at)] })
   assert.deepEqual(ids(await rankGrowthCandidates(touched('2026-10-20T17:00:00Z'), { now })), ['t'])  // yesterday
   assert.deepEqual(ids(await rankGrowthCandidates(touched('2026-10-20T21:10:00Z'), { now })), [])     // 00:10 today
+  // exact Israel midnight belongs to the new day; one millisecond before does not
+  assert.deepEqual(ids(await rankGrowthCandidates(touched('2026-10-20T21:00:00.000Z'), { now })), [])
+  assert.deepEqual(ids(await rankGrowthCandidates(touched('2026-10-20T20:59:59.999Z'), { now })), ['t'])
 })
 
 test('a failed read of recommendation history throws — never "nothing resting"', async () => {
