@@ -135,7 +135,7 @@ export function TrackingConsent({ linkedinPartnerId, fbPixelId }: { linkedinPart
           `}</style>
           <p style={{ margin: 0, flex: '1 1 260px' }}>
             {copy.text}{' '}
-            <Link href={copy.policyHref} style={{ color: 'var(--al-accent, #3D7A5F)', textDecoration: 'underline' }}>{copy.policy}</Link>
+            <Link href={copy.policyHref} prefetch={false} style={{ color: 'var(--al-accent, #3D7A5F)', textDecoration: 'underline' }}>{copy.policy}</Link>
             {' · '}
             <button
               type="button"

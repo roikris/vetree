@@ -118,7 +118,7 @@ export function ArticleAppBar({ articleId, articleUrl, articleTitle }: ArticleAp
 
           {/* Avatar or sign-in */}
           {initials ? (
-            <Link href="/profile" style={{
+            <Link href="/profile" prefetch={false} style={{
               width: 34, height: 34, borderRadius: '50%',
               background: 'var(--al-accent)', color: 'var(--al-onaccent)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',

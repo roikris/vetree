@@ -47,6 +47,7 @@ export function AuthButton() {
         {isAdmin && (
           <Link
             href="/admin/reports"
+            prefetch={false}
             className="flex items-center gap-1.5 text-[#3D7A5F] dark:text-[#4E9A78] hover:text-[#2F5F4A] dark:hover:text-[#5FAA88] text-sm font-medium transition-colors"
           >
             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
@@ -57,6 +58,7 @@ export function AuthButton() {
         )}
         <Link
           href="/library"
+          prefetch={false}
           className="flex items-center gap-1.5 text-[#3D7A5F] dark:text-[#4E9A78] hover:text-[#2F5F4A] dark:hover:text-[#5FAA88] text-sm font-medium transition-colors"
         >
           <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
@@ -66,6 +68,7 @@ export function AuthButton() {
         </Link>
         <Link
           href="/profile"
+          prefetch={false}
           className="flex items-center gap-2 hover:opacity-80 transition-opacity"
         >
           {signedAvatarUrl ? (
