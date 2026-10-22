@@ -352,7 +352,7 @@ export function SearchControls({
               )}
 
               {isAdmin && (
-                <Link href="/admin" className="hidden md:block" style={{
+                <Link href="/admin" prefetch={false} className="hidden md:block" style={{
                   fontFamily: 'var(--font-instrument, sans-serif)',
                   fontSize: 13.5, fontWeight: 500, lineHeight: 1,
                   color: 'var(--al-accent)', textDecoration: 'none',
@@ -361,7 +361,7 @@ export function SearchControls({
                 </Link>
               )}
 
-              <Link href="/library" className="hidden md:block" style={{
+              <Link href="/library" prefetch={false} className="hidden md:block" style={{
                 fontFamily: 'var(--font-instrument, sans-serif)',
                 fontSize: 13.5, fontWeight: 500, lineHeight: 1,
                 color: 'var(--al-sub)', textDecoration: 'none',
@@ -373,7 +373,7 @@ export function SearchControls({
 
               <span className={searchOpen ? 'hidden md:contents' : 'contents'}>
               {user ? (
-                <Link href="/profile" style={{
+                <Link href="/profile" prefetch={false} style={{
                   width: 34, height: 34, borderRadius: '50%',
                   background: 'var(--al-accent)', color: 'var(--al-on-accent)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',

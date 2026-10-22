@@ -18,6 +18,7 @@ export function PersonalizedFeed({ articles }: PersonalizedFeedProps) {
         </h2>
         <Link
           href="/profile"
+          prefetch={false}
           className="text-sm text-[#3D7A5F] dark:text-[#4E9A78] hover:text-[#2F5F4A] dark:hover:text-[#5FAA88] font-medium transition-colors"
         >
           Edit interests →
