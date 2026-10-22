@@ -94,6 +94,8 @@ export function BottomNav() {
             <Link
               key={item.path + item.name}
               href={item.path}
+              // Library / Profile render per user on the server: preloading them cost a function call per visit (analytics-001)
+              prefetch={item.path === '/library' || item.path === '/profile' ? false : undefined}
               onClick={item.name === 'Search' && pathname === '/' ? (e) => {
                 // Already on the feed / search results: open the search box here and keep
                 // the current results, rather than navigating away

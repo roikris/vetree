@@ -21,6 +21,7 @@ export function Footer() {
           <span className="hidden sm:inline text-zinc-300 dark:text-zinc-700">•</span>
           <Link
             href="/privacy"
+            prefetch={false}
             className="text-sm text-zinc-500 dark:text-zinc-400 hover:text-[#3D7A5F] dark:hover:text-[#4E9A78] transition-colors"
           >
             Privacy Policy
@@ -28,6 +29,7 @@ export function Footer() {
           <span className="hidden sm:inline text-zinc-300 dark:text-zinc-700">•</span>
           <Link
             href="/terms"
+            prefetch={false}
             className="text-sm text-zinc-500 dark:text-zinc-400 hover:text-[#3D7A5F] dark:hover:text-[#4E9A78] transition-colors"
           >
             Terms of Service

@@ -377,8 +377,8 @@ export function LandingPage({ exampleArticle, articleCountLabel }: LandingPagePr
             <span style={{ font: "400 13px/1 var(--font-instrument, sans-serif)", color: 'var(--al-mut6)', marginLeft: 8 }}>Evidence-based veterinary research, distilled.</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
-            <Link href="/privacy" style={{ font: "400 13px/1 var(--font-instrument, sans-serif)", color: 'var(--al-mut4)', textDecoration: 'none' }}>Privacy</Link>
-            <Link href="/terms" style={{ font: "400 13px/1 var(--font-instrument, sans-serif)", color: 'var(--al-mut4)', textDecoration: 'none' }}>Terms</Link>
+            <Link href="/privacy" prefetch={false} style={{ font: "400 13px/1 var(--font-instrument, sans-serif)", color: 'var(--al-mut4)', textDecoration: 'none' }}>Privacy</Link>
+            <Link href="/terms" prefetch={false} style={{ font: "400 13px/1 var(--font-instrument, sans-serif)", color: 'var(--al-mut4)', textDecoration: 'none' }}>Terms</Link>
             <CookieSettingsButton style={{ font: "400 13px/1 var(--font-instrument, sans-serif)", color: 'var(--al-mut4)', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }} />
             <a href="mailto:contact@vetree.app" style={{ font: "400 13px/1 var(--font-instrument, sans-serif)", color: 'var(--al-mut4)', textDecoration: 'none' }}>Contact</a>
           </div>
