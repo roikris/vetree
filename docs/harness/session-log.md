@@ -807,3 +807,32 @@ Newest at the bottom. The same entries (latest few) appear in primer.md → Rece
   right; the experience came from a static ranking. `npx vercel ls` can hang in a wait loop — poll /api/version instead.
 - Next best step: analytics-001 leftovers (Roi, 2026-10-22): nav links prefetched twice; /article/null 404s; 400s on
   /api/search/batch.
+
+### Session 20261022-1659-claude-63e7 · 2026-10-22 · Claude Code · analytics-001 (follow-ups; item open)
+- Goal: Roi — analytics-001 leftovers (nav prefetch, /article/null, search 400s, /auth/v1/user calls); "let's finish the analytics".
+- Done: #152 prefetch={false} on links to /privacy /terms /library /profile /admin/reports (Footer, cookie banner,
+  landing, AuthButton, app bar, BottomNav, SearchControls, LibraryClient, PersonalizedFeed). #153 useAuth refresh storm:
+  auth-js emits SIGNED_IN on every page start + tab refocus (_recoverAndRefresh) and every useAuth() (one per stream
+  row) called router.refresh() → 47 uncached /index.rsc renders per signed-in home load (342 in 12 h). Now one
+  module-level decision (lib/auth/signInRefresh.ts): refresh once, only when SIGNED_IN / INITIAL_SESSION names a user
+  different from the one in the session cookie at page load. CLAUDE.md Auth & Roles updated.
+- Findings: /auth/v1/user = 1 per signed-in load now (the 10-19 excess gone since #144). /article/null 404s = outside
+  traffic. CORRECTION: the 3 /api/search/batch 400s at ~11:07 UTC are our own production smoke (negative tests,
+  e2e/smoke.spec.ts:108-113; GitHub starts the 06:00 cron ~11:06). Chrome's "503" on superseded RSC fetches = cancelled
+  requests (Vercel logged 200) — likely also the old localhost 503s.
+- Start state: main 08e7628; lock taken for analytics-001.
+- Verification: #152 / #153 init.sh check GREEN; PR suites green (39820624117, 39836572589); post-merge checks success
+  (39822362940, 39838434123). #153 in production (Chrome, signed in): home load 47 → 1 home RSC fetch; 3 simulated
+  refocus events → 0 extra; session cookie readable via document.cookie (2 chunks, base64) and parses to the user id.
+- Review: Codex · #152 tier 1 · 2 rounds (r1 BLOCKING missed links, fixed; r2 none) · #153 tier 2 · 2 rounds (r1 2
+  BLOCKING with SDK repro — late listener / A→B account switch — fixed; r2 none, both RESOLVED).
+- Commits / PR: #152 → 79ed91c, #153 → 483dd31 (Roi: "merge when green", "merge on green").
+- Pending Roi approvals: none.
+- Known risks / unresolved: a burst of ~20 /index.rsc at 19:16:27–32 UTC right after the #153 deploy, alongside
+  /admin/growth requests — most likely another tab still on the old bundle; re-check in the 12 h log.
+- Lesson: count server renders per page load in the Vercel request log, not just requests per link — a client
+  listener multiplied by component count is invisible in code review. Our own production smoke shows up in request
+  logs as US headless traffic at ~11:07 UTC: check the smoke window before blaming outside bots.
+- Next best step: after ~2026-10-23 08:00 UTC, re-read the 12 h request log: /privacy /terms /library /profile
+  (baseline 120 / 17 / 46 / 31 of 1,427) and /index.rsc (baseline 342) should drop. Gmail re-check (Roi). Then close
+  analytics-001.

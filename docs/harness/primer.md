@@ -8,10 +8,10 @@ Routine: `docs/harness/README.md` on `main`. Pre-harness primer (frozen): root `
 ---
 
 ## 1. Current Verified State
-*Updated 2026-10-22 — Session 20261021-1635-claude-31c7 (growth-003 closed: #150 passed-over recommendations rest 14 days + panel reachable after the day is set; #151 Israel-day "touched today" + ranking tests)*
+*Updated 2026-10-22 — Session 20261022-1659-claude-63e7 (analytics-001 follow-ups: #152 no prefetch on legal/account links; #153 one refresh per real sign-in — was ~46 home renders per signed-in load)*
 
 - **Repo root:** `~/dev/vetree` · state worktree: `.harness-state/` (branch `harness-state`)
-- **main:** `08e7628` (#151 "touched today" on the Israel day + ranking tests, growth-003, 2026-10-22; #150 passed-over recommendations rest 14 days (lib/growth/passedOver.ts), panel reachable after the day's article is set, growth-003, 2026-10-21; #149 no prefetch on repeated article links — stream, saved-this-week, ArticleCard, Grove, analytics-001, 2026-10-21; Vercel missed the push → production deployed via the API on Roi's go-ahead; #148 component tests for the consent prompts — happy-dom dev dependency, analytics-001, 2026-10-20; #147 unused FollowTagButton / useFollowedTags removed, 2026-10-20; #146 consent prompts re-check when the signed-in user changes (watchSignedInUser → lib/auth/userWatcher.ts), 2026-10-20; #145 migration 087 — the daily purge removes pending durations > 1 day, 2026-10-20; #144 one user lookup per signed-in page + dashboard footnote, 2026-10-20; #140 auth friction — failed email links explained, reset works cross-browser with the token_hash template, verify-email signed out, signup fixes, analytics-001, 2026-10-19; #143 migration 086 — 356 suspected_fleet + 1,372 suspected_datacenter older rows, 2026-10-19; #142 Analytics hides signed-out likely-automated views by default (switch ?automated=include), six readers paged, 2026-10-19; #141 migration 085 — pre-#139 leave-beacon rows merged into their views, analytics-001, 2026-10-18; #139 one page_views row per view (client view_id, visible-time duration), traffic_class estimate (datacenter ranges), hashed Upstash keys, admin analytics reads paged + fail on error, migration 084, analytics-001, 2026-10-17; #138 scan advisories cleared — source-map-js 1.2.2, braces acknowledged — and the scan reads its
+- **main:** `483dd31` (#153 useAuth refreshes once per real sign-in (lib/auth/signInRefresh.ts) — was ~46 server renders per signed-in home load, analytics-001, 2026-10-22; #152 no prefetch on links to /privacy /terms /library /profile /admin/reports, analytics-001, 2026-10-22; #151 "touched today" on the Israel day + ranking tests, growth-003, 2026-10-22; #150 passed-over recommendations rest 14 days (lib/growth/passedOver.ts), panel reachable after the day's article is set, growth-003, 2026-10-21; #149 no prefetch on repeated article links — stream, saved-this-week, ArticleCard, Grove, analytics-001, 2026-10-21; Vercel missed the push → production deployed via the API on Roi's go-ahead; #148 component tests for the consent prompts — happy-dom dev dependency, analytics-001, 2026-10-20; #147 unused FollowTagButton / useFollowedTags removed, 2026-10-20; #146 consent prompts re-check when the signed-in user changes (watchSignedInUser → lib/auth/userWatcher.ts), 2026-10-20; #145 migration 087 — the daily purge removes pending durations > 1 day, 2026-10-20; #144 one user lookup per signed-in page + dashboard footnote, 2026-10-20; #140 auth friction — failed email links explained, reset works cross-browser with the token_hash template, verify-email signed out, signup fixes, analytics-001, 2026-10-19; #143 migration 086 — 356 suspected_fleet + 1,372 suspected_datacenter older rows, 2026-10-19; #142 Analytics hides signed-out likely-automated views by default (switch ?automated=include), six readers paged, 2026-10-19; #141 migration 085 — pre-#139 leave-beacon rows merged into their views, analytics-001, 2026-10-18; #139 one page_views row per view (client view_id, visible-time duration), traffic_class estimate (datacenter ranges), hashed Upstash keys, admin analytics reads paged + fail on error, migration 084, analytics-001, 2026-10-17; #138 scan advisories cleared — source-map-js 1.2.2, braces acknowledged — and the scan reads its
   history again, sec-001, 2026-10-16; #137 homepage "Articles saved this week" — every reader's saves, migration 083, anon SELECT on
   saved_articles revoked, feed-002, 2026-10-16; #136 proxy runs only with the Supabase session cookie, perf-001, 2026-10-14; #135 admin Pipeline rebuilt as the Slack messages expanded, Article Health removed, 2026-10-14; #134 daily reminder counts run 2 + excludes the test account, weekly AI report hidden, Overview removed, 2026-10-14; #133 Growth OS daily posts panel, one article → every platform, 2026-10-13; #132 unit tests in init.sh check + PR smoke, 2026-10-13; #131 Facebook IL closing lines: typeable address + WhatsApp Community, 2026-10-13; #129 + #130 Facebook IL link-free posts, vetree.app/il, "save it" hint, 2026-10-13; #127 schema audit + #128 replay safety, migrations 080–082 + 000 recorded, 2026-10-12; #126 unlock log guard, 2026-10-12; PRs #120–#125 least privilege + policy audit, migrations 075–079 applied, 2026-10-11; #119 lint cleanup, 2026-10-10; #118 build warnings / middleware → proxy, 2026-10-10; #117 init.sh lock / unlock, 2026-10-10; #116 "new this week" count, 2026-10-10; #115 shorter digest footer, 2026-10-09; #114 Search Console fixes, 2026-10-07; before it #113 access-control audit,
   migration 074 applied) — last verified: production /api/version = 3dd971f, post-merge health check success; cross-browser reset verified in production (incognito, token_hash template); earlier: 085 log {legacy 482, matched 480, loads 479, deleted 482}, 0 legacy rows left, schema audit PASS
@@ -24,7 +24,7 @@ Routine: `docs/harness/README.md` on `main`. Pre-harness primer (frozen): root `
   if not enough → option B (article ISR). PR rule: drafts until done, ready once, never re-run a passing suite.
   Functions Storage was 8.93 / 10 GB → Roi set deployment retention: pre-production 1 week, production / canceled /
   errored 30 days (2026-10-15); re-read it with the CPU chart.
-- **Highest-priority unfinished item:** analytics-001 (resumed by Roi 2026-10-22). growth-003 closed (#150, #151). analytics-001 follow-ups: nav links prefetched twice; /article/null 404s; 400s on /api/search/batch; ~25 /auth/v1/user calls unexplained; Gmail re-check (Roi). 503 prefetches: not reproduced in production (dev-server artifact). CI Node 20 upgrade is Roi's call; perf-001 monitoring; scripts-001 needs Roi; ai-001 ~2026-11-01
+- **Highest-priority unfinished item:** analytics-001 — left: the 12 h request-log check of #152 + #153 (after ~2026-10-23 08:00 UTC; baselines in the item notes) and the Gmail re-check (Roi); then close it. Done 2026-10-22: #152, #153; /auth/v1/user = 1 per load; /article/null = outside traffic; search-batch 400s = our own smoke; Chrome "503"s = cancelled fetches. CI Node 20 upgrade is Roi's call; perf-001 monitoring; scripts-001 needs Roi; ai-001 ~2026-11-01
 - **Vercel Firewall (2026-10-19):** custom rule "Block Tencent Cloud bot fleet" — deny AS132203 + AS45090 (CLI: `vercel firewall rules list|…`, publish after changes). Resend click tracking OFF for digest.vetree.app (Roi). Supabase Reset Password template = branded token_hash link (Roi).
 - **Admin panel (admin-002, Roi 2026-10-14):** /admin lands on Analytics; the weekly AI report is hidden (its Friday job
   still runs); /admin/pipeline = the Slack messages expanded (GET /api/admin/pipeline/status) — no Article Health, no
@@ -231,6 +231,35 @@ works today was spot-checked in the code on 2026-10-05.
 (Newest first — only the latest 5 are kept here (D11); every entry, older ones included, is in
 `session-log.md`, which is never trimmed.)
 
+### Session 20261022-1659-claude-63e7 · 2026-10-22 · Claude Code · analytics-001 (follow-ups; item open)
+- Goal: Roi — analytics-001 leftovers (nav prefetch, /article/null, search 400s, /auth/v1/user calls); "let's finish the analytics".
+- Done: #152 prefetch={false} on links to /privacy /terms /library /profile /admin/reports (Footer, cookie banner,
+  landing, AuthButton, app bar, BottomNav, SearchControls, LibraryClient, PersonalizedFeed). #153 useAuth refresh storm:
+  auth-js emits SIGNED_IN on every page start + tab refocus (_recoverAndRefresh) and every useAuth() (one per stream
+  row) called router.refresh() → 47 uncached /index.rsc renders per signed-in home load (342 in 12 h). Now one
+  module-level decision (lib/auth/signInRefresh.ts): refresh once, only when SIGNED_IN / INITIAL_SESSION names a user
+  different from the one in the session cookie at page load. CLAUDE.md Auth & Roles updated.
+- Findings: /auth/v1/user = 1 per signed-in load now (the 10-19 excess gone since #144). /article/null 404s = outside
+  traffic. CORRECTION: the 3 /api/search/batch 400s at ~11:07 UTC are our own production smoke (negative tests,
+  e2e/smoke.spec.ts:108-113; GitHub starts the 06:00 cron ~11:06). Chrome's "503" on superseded RSC fetches = cancelled
+  requests (Vercel logged 200) — likely also the old localhost 503s.
+- Start state: main 08e7628; lock taken for analytics-001.
+- Verification: #152 / #153 init.sh check GREEN; PR suites green (39820624117, 39836572589); post-merge checks success
+  (39822362940, 39838434123). #153 in production (Chrome, signed in): home load 47 → 1 home RSC fetch; 3 simulated
+  refocus events → 0 extra; session cookie readable via document.cookie (2 chunks, base64) and parses to the user id.
+- Review: Codex · #152 tier 1 · 2 rounds (r1 BLOCKING missed links, fixed; r2 none) · #153 tier 2 · 2 rounds (r1 2
+  BLOCKING with SDK repro — late listener / A→B account switch — fixed; r2 none, both RESOLVED).
+- Commits / PR: #152 → 79ed91c, #153 → 483dd31 (Roi: "merge when green", "merge on green").
+- Pending Roi approvals: none.
+- Known risks / unresolved: a burst of ~20 /index.rsc at 19:16:27–32 UTC right after the #153 deploy, alongside
+  /admin/growth requests — most likely another tab still on the old bundle; re-check in the 12 h log.
+- Lesson: count server renders per page load in the Vercel request log, not just requests per link — a client
+  listener multiplied by component count is invisible in code review. Our own production smoke shows up in request
+  logs as US headless traffic at ~11:07 UTC: check the smoke window before blaming outside bots.
+- Next best step: after ~2026-10-23 08:00 UTC, re-read the 12 h request log: /privacy /terms /library /profile
+  (baseline 120 / 17 / 46 / 31 of 1,427) and /index.rsc (baseline 342) should drop. Gmail re-check (Roi). Then close
+  analytics-001.
+
 ### Session 20261021-1635-claude-31c7 · 2026-10-21 → 2026-10-22 · Claude Code · growth-003 (closed)
 - Goal: Roi — "articles I mark as not relevant keep popping up as daily post suggestions"; also "I can't see
   recommendations until today's article resets".
@@ -316,39 +345,4 @@ works today was spot-checked in the code on 2026-10-05.
   needs its `error`. Prefer a targeted package update to `npm audit fix`, which drags in unrelated bumps.
 - Next best step: perf-001 — read the usage chart 2026-10-16..17; if still over, option B. scripts-001 needs Roi;
   ai-001 ~2026-11-01.
-
-### Session 20261015-0745-claude-f044 · 2026-10-15 → 2026-10-16 · Claude Code · feed-002 (closed)
-- Goal / Completed: the homepage "Trending This Week 🔥" read saved_articles with the visitor's own client, so RLS gave
-  guests nothing and signed-in readers only their own saves. Roi chose 1A + renamed it "Articles saved this week"
-  (every reader's saves, the same list for everyone) and 2 yes (admin + test account excluded). #137: migration 083
-  `public.saved_this_week(since, until, excluded, limit)` — SQL counting in one snapshot, ties broken before the LIMIT
-  (count, newer created_at, id), public-article filter, limit clamped 1–50, EXECUTE for service_role only; and REVOKE
-  SELECT on saved_articles FROM anon (079 kept it only for Trending). `lib/queries/savedThisWeek(Core).ts`: plain server
-  module (not 'use server' — an action would be browser-callable with the service role), 20 candidates → large-animal-
-  only dropped → 5 shown, hidden below 3, unstable_cache keyed by the UTC hour, a failed fill throws (nothing cached),
-  3 s deadline. SavedThisWeek.tsx ("N saves"); app/actions/trending.ts and the unused getArticleSaveCount removed;
-  access.json / schema.json (9 keys from the replay report, the anon ACL key gone) / supabase/CLAUDE.md updated.
-  Also (perf-001): Roi set Vercel deployment retention (pre-production 1 week) after Functions Storage hit 8.93 / 10 GB.
-- Start state: main 181c207, clean; lock taken for feed-002.
-- Verification: unit 80/80 (8 new, fake clients); replay fixture docs/harness/test/replay/saved-this-week.sql (exclusions,
-  NULL user kept, window edges, ties, NULL / 0 / -5 / 999 limits, privileges) + anon / authenticated calls refused —
-  replay new + old PASS; init.sh check GREEN on fda5366 after the push (acl 33, rls 32 / 40, schema 4,301 facts — no
-  snapshot change needed); 083 dry run listed only 083, pushed on Roi's yes; PR suite once after ready (smoke, replay,
-  scope, Vercel pass); squash-merged at fda5366 as 0d3d6ed; production /api/version = 0d3d6ed, home 200 shows the
-  section signed out (4 articles, 1 save each). Not checked by me: the signed-in view on production.
-- Review: Codex · tier 2 (Supabase migration + service role) · plan 3 rounds 66.3k / 41.4k / 32.6k · code 1 round 54.7k
-  ≈ 195k · BLOCKING: none (fixed in the plan: offset paging inconsistent across reads, tie-break after the cut,
-  TEST_USER_ID throwing at module load → SQL function; replay compares schema.json exactly → keys from the replay report
-  before the push; NB applied in fda5366, not re-reviewed). One Codex run lost to the ChatGPT usage limit, then
-  "workspace routing discovery failed"; re-run on Roi's "try now".
-- Commits / PR: 853cec3, 3365c99, fda5366 → #137 merged 0d3d6ed on Roi's word ("merge"). Migration 083 pushed.
-- Pending Roi approvals: none. Roi: Vercel usage chart (CPU + Functions Storage) 2026-10-16..17; daily posting;
-  Thursday's security scan (first after 079 + 083).
-- Known risks / unresolved: the section reads the service role from a server module — anything importing
-  savedThisWeek.ts must stay server-only (next/headers import breaks a client build); counts are low today (1 save each),
-  so the list can be hidden on a quiet week; `supabase migration list --linked` hung once (use `< /dev/null`, background).
-- Lesson: a 'use server' file's every export is a public endpoint — service-role reads belong in a plain server module.
-  An exact schema snapshot means a migration's expected keys come from a rebuild, before production has them.
-- Next best step: perf-001 — read the usage chart 2026-10-16..17 (proxy row down, < ~8 min/day; Functions Storage after
-  the retention change); if still over, option B. scripts-001 needs Roi; ai-001 ~2026-11-01.
 
