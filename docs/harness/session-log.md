@@ -836,3 +836,21 @@ Newest at the bottom. The same entries (latest few) appear in primer.md → Rece
 - Next best step: after ~2026-10-23 08:00 UTC, re-read the 12 h request log: /privacy /terms /library /profile
   (baseline 120 / 17 / 46 / 31 of 1,427) and /index.rsc (baseline 342) should drop. Gmail re-check (Roi). Then close
   analytics-001.
+
+### Session 20261023-1327-claude-8155 · 2026-10-23 · Claude Code · analytics-001 (12 h check; item open for the Gmail re-check)
+- Goal: Roi "let's go" — the 12 h request-log check of #152 + #153.
+- Done (read-only): production request log 2026-10-23 01:29 → 13:16 UTC (3,299 records, one deployment dpl_2kALSVcb = 483dd31).
+  Function requests 1,076 (before: 1,427 / 1,495 per 12 h, about −25%). /privacy 9 (was 120), /terms 4 (17), /library 5
+  (46), /profile 3 (31). /index.rsc 225 (342): 107 = our production smoke (cron ran 10:57:49; same size as on 10-22),
+  118 = signed-out crawlers doing full page loads every ~0.5 s (/login, /, /, …, article pages; US / JP / FR / TH),
+  16 = IL (Roi). No signed-in refresh bursts; the 19:16 post-deploy burst did not recur.
+- Start state: main 483dd31; lock taken for analytics-001.
+- Verification: the counts above (vercel logs requests --since 12h --limit 10000).
+- Review: none (read-only check, no code).
+- Commits / PR: none.
+- Pending Roi approvals: none.
+- Known risks / unresolved: crawler page loads are now the main source of home renders — a perf-001 question (Firewall /
+  bot rules), not analytics-001.
+- Lesson: when comparing day-over-day request counts, subtract the smoke window first (its size is stable ~100 renders).
+- Next best step: Gmail re-check (Roi: does an inbox that never got Vetree mail flag the auth email?) → close
+  analytics-001.

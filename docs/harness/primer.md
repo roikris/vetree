@@ -8,7 +8,7 @@ Routine: `docs/harness/README.md` on `main`. Pre-harness primer (frozen): root `
 ---
 
 ## 1. Current Verified State
-*Updated 2026-10-22 — Session 20261022-1659-claude-63e7 (analytics-001 follow-ups: #152 no prefetch on legal/account links; #153 one refresh per real sign-in — was ~46 home renders per signed-in load)*
+*Updated 2026-10-23 — Session 20261023-1327-claude-8155 (analytics-001 12 h check: #152 + #153 confirmed in the request log, ~25% fewer function requests)*
 
 - **Repo root:** `~/dev/vetree` · state worktree: `.harness-state/` (branch `harness-state`)
 - **main:** `483dd31` (#153 useAuth refreshes once per real sign-in (lib/auth/signInRefresh.ts) — was ~46 server renders per signed-in home load, analytics-001, 2026-10-22; #152 no prefetch on links to /privacy /terms /library /profile /admin/reports, analytics-001, 2026-10-22; #151 "touched today" on the Israel day + ranking tests, growth-003, 2026-10-22; #150 passed-over recommendations rest 14 days (lib/growth/passedOver.ts), panel reachable after the day's article is set, growth-003, 2026-10-21; #149 no prefetch on repeated article links — stream, saved-this-week, ArticleCard, Grove, analytics-001, 2026-10-21; Vercel missed the push → production deployed via the API on Roi's go-ahead; #148 component tests for the consent prompts — happy-dom dev dependency, analytics-001, 2026-10-20; #147 unused FollowTagButton / useFollowedTags removed, 2026-10-20; #146 consent prompts re-check when the signed-in user changes (watchSignedInUser → lib/auth/userWatcher.ts), 2026-10-20; #145 migration 087 — the daily purge removes pending durations > 1 day, 2026-10-20; #144 one user lookup per signed-in page + dashboard footnote, 2026-10-20; #140 auth friction — failed email links explained, reset works cross-browser with the token_hash template, verify-email signed out, signup fixes, analytics-001, 2026-10-19; #143 migration 086 — 356 suspected_fleet + 1,372 suspected_datacenter older rows, 2026-10-19; #142 Analytics hides signed-out likely-automated views by default (switch ?automated=include), six readers paged, 2026-10-19; #141 migration 085 — pre-#139 leave-beacon rows merged into their views, analytics-001, 2026-10-18; #139 one page_views row per view (client view_id, visible-time duration), traffic_class estimate (datacenter ranges), hashed Upstash keys, admin analytics reads paged + fail on error, migration 084, analytics-001, 2026-10-17; #138 scan advisories cleared — source-map-js 1.2.2, braces acknowledged — and the scan reads its
@@ -24,7 +24,7 @@ Routine: `docs/harness/README.md` on `main`. Pre-harness primer (frozen): root `
   if not enough → option B (article ISR). PR rule: drafts until done, ready once, never re-run a passing suite.
   Functions Storage was 8.93 / 10 GB → Roi set deployment retention: pre-production 1 week, production / canceled /
   errored 30 days (2026-10-15); re-read it with the CPU chart.
-- **Highest-priority unfinished item:** analytics-001 — left: the 12 h request-log check of #152 + #153 (after ~2026-10-23 08:00 UTC; baselines in the item notes) and the Gmail re-check (Roi); then close it. Done 2026-10-22: #152, #153; /auth/v1/user = 1 per load; /article/null = outside traffic; search-batch 400s = our own smoke; Chrome "503"s = cancelled fetches. CI Node 20 upgrade is Roi's call; perf-001 monitoring; scripts-001 needs Roi; ai-001 ~2026-11-01
+- **Highest-priority unfinished item:** analytics-001 — left: only the Gmail re-check (Roi); then close it. 12 h check done 2026-10-23: #152 + #153 confirmed (function requests −25%; remaining home renders = our smoke + crawlers → perf-001). Done 2026-10-22: #152, #153; /auth/v1/user = 1 per load; /article/null = outside traffic; search-batch 400s = our own smoke; Chrome "503"s = cancelled fetches. CI Node 20 upgrade is Roi's call; perf-001 monitoring; scripts-001 needs Roi; ai-001 ~2026-11-01
 - **Vercel Firewall (2026-10-19):** custom rule "Block Tencent Cloud bot fleet" — deny AS132203 + AS45090 (CLI: `vercel firewall rules list|…`, publish after changes). Resend click tracking OFF for digest.vetree.app (Roi). Supabase Reset Password template = branded token_hash link (Roi).
 - **Admin panel (admin-002, Roi 2026-10-14):** /admin lands on Analytics; the weekly AI report is hidden (its Friday job
   still runs); /admin/pipeline = the Slack messages expanded (GET /api/admin/pipeline/status) — no Article Health, no
@@ -231,6 +231,24 @@ works today was spot-checked in the code on 2026-10-05.
 (Newest first — only the latest 5 are kept here (D11); every entry, older ones included, is in
 `session-log.md`, which is never trimmed.)
 
+### Session 20261023-1327-claude-8155 · 2026-10-23 · Claude Code · analytics-001 (12 h check; item open for the Gmail re-check)
+- Goal: Roi "let's go" — the 12 h request-log check of #152 + #153.
+- Done (read-only): production request log 2026-10-23 01:29 → 13:16 UTC (3,299 records, one deployment dpl_2kALSVcb = 483dd31).
+  Function requests 1,076 (before: 1,427 / 1,495 per 12 h, about −25%). /privacy 9 (was 120), /terms 4 (17), /library 5
+  (46), /profile 3 (31). /index.rsc 225 (342): 107 = our production smoke (cron ran 10:57:49; same size as on 10-22),
+  118 = signed-out crawlers doing full page loads every ~0.5 s (/login, /, /, …, article pages; US / JP / FR / TH),
+  16 = IL (Roi). No signed-in refresh bursts; the 19:16 post-deploy burst did not recur.
+- Start state: main 483dd31; lock taken for analytics-001.
+- Verification: the counts above (vercel logs requests --since 12h --limit 10000).
+- Review: none (read-only check, no code).
+- Commits / PR: none.
+- Pending Roi approvals: none.
+- Known risks / unresolved: crawler page loads are now the main source of home renders — a perf-001 question (Firewall /
+  bot rules), not analytics-001.
+- Lesson: when comparing day-over-day request counts, subtract the smoke window first (its size is stable ~100 renders).
+- Next best step: Gmail re-check (Roi: does an inbox that never got Vetree mail flag the auth email?) → close
+  analytics-001.
+
 ### Session 20261022-1659-claude-63e7 · 2026-10-22 · Claude Code · analytics-001 (follow-ups; item open)
 - Goal: Roi — analytics-001 leftovers (nav prefetch, /article/null, search 400s, /auth/v1/user calls); "let's finish the analytics".
 - Done: #152 prefetch={false} on links to /privacy /terms /library /profile /admin/reports (Footer, cookie banner,
@@ -317,32 +335,4 @@ works today was spot-checked in the code on 2026-10-05.
 - Lessons: verifyOtp recovery emits PASSWORD_RECOVERY, not SIGNED_IN; delete_user_account() also removes auth.users;
   CI is Node 20 (no node:test mock.module — fakes via require.cache); reuse of a review-file prefix returns stale output.
 - Next: Roi picks — 503 prefetch check (perf-001 overlap); Gmail re-check (Roi); CI Node upgrade (Roi's call).
-
-### Session 20261016-1053-claude-c3de · 2026-10-16 · Claude Code · sec-001 (closed)
-- Goal / Completed: Roi: "the security scan ran and found issues". Run 38812980120 (2026-10-15 21:51 UTC): high, 1
-  finding — Roi pasted the Slack text: 2 unacknowledged dependency advisories, braces GHSA-vfj7-8cjw-p6xm (no patched
-  version; via Sentry's webpack plugin → chokidar and eslint-config-next → fast-glob) and source-map-js GHSA-68fv-2mgg-jv7q
-  (patched 1.2.2; postcss / tailwind) — both build / lint tooling. No database check fired (first scan after 079 + 083).
-  My one-row read of security_reports (Roi's yes) failed: no created_at column — which showed the scan's own
-  previous-runs query had failed silently on every run. Roi's yes to 1–3 → #138: targeted `npm update source-map-js`
-  (lockfile, one package; `npm audit fix` would have bumped eslint-config-next, zod, react-hooks), braces acknowledged at
-  high (rule 16, his sign-off), previous runs ordered by generated_at with a failed read stated in summary + Slack, Slack
-  labels "also in N of the last N runs" / "Resolved or acknowledged" (ACKNOWLEDGED ids kept out).
-- Start state: main 0d3d6ed, clean; lock taken as backlog, sec-001 added and claimed.
-- Verification: local replay of CHECK 14's grouping vs `npm audit --json`: before 2 new, after 0 new + 1 acknowledged;
-  init.sh check GREEN on both heads; PR suite once after ready (smoke, replay new / old, scope, Vercel pass);
-  squash-merged at b8109e4 as 819cd4e; production /api/version = 819cd4e, home 200; manual scan (Roi's yes, run
-  38899535854): clean, 0 findings, acknowledged 1. Not checked by me: the Slack text of that run.
-- Review: Codex · tier 2 (security) · code 1 round 34.0k · BLOCKING: none (NB applied in b8109e4, not re-reviewed:
-  "Resolved" would list an acknowledged finding; recurrence counted runs, labelled weeks).
-- Commits / PR: 673008a, b8109e4 → #138 merged 819cd4e on Roi's word ("mergeand yes").
-- Pending Roi approvals: none. Roi: glance at the manual scan's Slack message (expect "Resolved or acknowledged:
-  dependency_vulnerabilities"); Vercel usage chart (CPU + Functions Storage) 2026-10-16..17; daily posting.
-- Known risks / unresolved: auto mode blocked a grep of supabase/schema.json as a "production read" — I stopped and
-  asked Roi (he pasted the Slack text); a manual scan is a paid Claude call per finding; the scan's history read and
-  Slack wording are unverified until the next run with findings.
-- Lesson: a query that ignores its error turns a typo'd column into "no history" for months — every `{ data }` read
-  needs its `error`. Prefer a targeted package update to `npm audit fix`, which drags in unrelated bumps.
-- Next best step: perf-001 — read the usage chart 2026-10-16..17; if still over, option B. scripts-001 needs Roi;
-  ai-001 ~2026-11-01.
 
