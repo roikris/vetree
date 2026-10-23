@@ -1,7 +1,10 @@
+import type { Metadata } from 'next'
 import Link from 'next/link'
 
-// What Meta's link-preview fetchers get for "/" (lib/metaPreview.ts, next.config.ts rewrites). No metadata of its own:
-// the root layout's title, description, canonical "/", Open Graph and Twitter tags are the home page's, word for word.
+// What Meta's link-preview fetchers get for "/" (lib/metaPreview.ts, next.config.ts rewrites). The root layout's title,
+// description, canonical "/", Open Graph and Twitter tags are the home page's, word for word. Its only own tag:
+// noindex — the page itself is not for search results (Googlebot is never rewritten here; previews ignore it).
+export const metadata: Metadata = { robots: { index: false, follow: true } }
 // Static (prerendered, refreshed with the layout's cached article count) — never a per-request render.
 export default function LinkPreview() {
   return (

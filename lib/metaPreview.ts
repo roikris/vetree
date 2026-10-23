@@ -3,7 +3,8 @@
 // home renders). For "/" only, next.config.ts rewrites these user agents to /link-preview: a prerendered page under
 // the same root layout, so it carries the exact same Open Graph / Twitter tags (app/layout.tsx generateMetadata).
 // Article pages are not rewritten — their tags are per article.
-// Not meta-webindexer (Meta's search crawler): it indexes content, so it gets the real page.
-export const META_PREVIEW_UA = '.*(facebookexternalhit|meta-externalagent|facebookcatalog).*'
+// Not meta-webindexer (Meta's search crawler): it indexes content, so it gets the real page. Not meta-externalagent:
+// that is Meta's AI crawler, which public/robots.txt already blocks — not a preview fetcher.
+export const META_PREVIEW_UA = '.*(facebookexternalhit|facebookcatalog).*'
 
 export const META_PREVIEW_PATH = '/link-preview'
