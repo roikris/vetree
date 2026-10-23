@@ -854,3 +854,29 @@ Newest at the bottom. The same entries (latest few) appear in primer.md → Rece
 - Lesson: when comparing day-over-day request counts, subtract the smoke window first (its size is stable ~100 renders).
 - Next best step: Gmail re-check (Roi: does an inbox that never got Vetree mail flag the auth email?) → close
   analytics-001.
+
+### Session 20261023-1625-claude-3452 · 2026-10-23 · Claude Code · perf-001 (bot traffic; monitoring)
+- Goal: Roi — "let's look at the bot traffic in perf-001".
+- Findings (read-only, 12 h request logs 10-21/22/23): facebookexternalhit fetches / ~155 ×/12 h, every ~2.5 min,
+  identical each day (Roi: no FB ad running) = ~2/3 of all home renders (home is force-dynamic, private no-store);
+  Meta user agents ~25–30% of function requests. Our daily smoke ~230 function requests at ~10:58 (VetreeQABot UA).
+  OAI-SearchBot / ChatGPT-User ~65 (AI search referrals — keep). Google / Bing / Apple / Amazon ~30. The request log
+  has no IP / ASN fields — classification is by user agent + pace only.
+- Done: #154 beforeFiles rewrite (next.config.ts): / with facebookexternalhit|facebookcatalog → /link-preview, a static
+  page under the root layout (same title / description / canonical / OG / Twitter tags; noindex). lib/metaPreview.ts
+  + 2 unit tests. Article pages untouched (per-article tags; ~75 FB fetches / 12 h, mostly the day's post).
+- Start state: main 483dd31; lock taken for perf-001.
+- Verification: init.sh check GREEN; next start locally (FB → prerender HIT, browser → private no-store, tags
+  identical); Vercel preview via `vercel curl` + preview request log (FB → pathType prerender HIT, browser →
+  streaming_func); PR suite green; merged a82f724; production: FB → x-matched-path /link-preview HIT, browser → / MISS,
+  security headers on both; post-merge health check success.
+- Review: Codex · tier 2 (next.config.ts carries security headers) · 1 round · BLOCKING: none; NB noindex + drop
+  meta-externalagent (robots.txt already blocks it) applied, not re-reviewed; NB "verify on Vercel" done.
+- Commits / PR: #154 → a82f724 (Roi: "Merge").
+- Pending Roi approvals: none.
+- Known risks / unresolved: none known. Facebook's cached preview refreshes hourly (description carries the
+  article count).
+- Lesson: `npx vercel curl <path> --deployment <preview url>` reaches protected previews — use it (plus the preview
+  request log's pathType) to prove a route is served without a function before merging.
+- Next best step: after ~2026-10-24 06:00 UTC, 12 h request log: facebookexternalhit on / should show route
+  /link-preview (prerender), home renders ~235 → ~80. Then the Vercel usage chart (daily Fluid Active CPU).
