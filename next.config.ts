@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
+import { META_PREVIEW_PATH, META_PREVIEW_UA } from "./lib/metaPreview";
 
 // NOTE: Using same-origin-allow-popups for COOP (not same-origin) because
 // Google OAuth opens a popup window — strict same-origin would break the login flow.
@@ -40,6 +41,22 @@ const nextConfig: NextConfig = {
         headers: securityHeaders,
       },
     ]
+  },
+
+  // Meta's link-preview fetchers get a prerendered copy of the home page's tags instead of a full render (perf-001,
+  // lib/metaPreview.ts). beforeFiles: decided before the page route, so "/" never runs for them.
+  async rewrites() {
+    return {
+      beforeFiles: [
+        {
+          source: '/',
+          has: [{ type: 'header', key: 'user-agent', value: META_PREVIEW_UA }],
+          destination: META_PREVIEW_PATH,
+        },
+      ],
+      afterFiles: [],
+      fallback: [],
+    }
   },
 
   // /auth/signin was renamed to /login (PR #12); Google still crawls the old URL (Search Console 404).
