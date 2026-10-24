@@ -1236,11 +1236,22 @@
       "notes": "Found by Codex in infra-002's review of 079 (2026-10-11). · 2026-10-14 (20261014-0538-claude-a04e): to be REMOVED, not fixed, by admin-002 PR 2 — the 4,579 \"never attempted\" + 16,131 \"partial\" are ~all published articles (read-only count, Roi approved); re-queueing them would re-enrich ~20.7k live articles. Closes when admin-002 PR 2 merges. · CLOSED 2026-10-14: removed (not fixed) by #135 → edf2009."
     },
     {
-      "status": "not_started",
-      "evidence": [],
+      "status": "merged",
+      "evidence": [
+        {
+          "date": "2026-10-24",
+          "session": "20261024-1214-claude-f837",
+          "sha": "bf627b3",
+          "command": "init.sh check GREEN; Codex tier 2 r1 BLOCKING: none; PR suite + replay green; merged; production /api/version = bf627b3, home 200",
+          "target": "production",
+          "outcome": "pass",
+          "approval": "Roi: delete fix-labels; \"Delete it all\"; \"merge\"",
+          "link": "PR #155"
+        }
+      ],
       "branch": "",
       "pr": null,
-      "head_sha": null,
+      "head_sha": "bf627b3",
       "wip_sha": null,
       "expected_failures": [],
       "id": "scripts-001",
@@ -1265,7 +1276,7 @@
           "paid_calls": false
         }
       ],
-      "notes": "Found by Codex in infra-002's review of 079 (2026-10-11)."
+      "notes": "Found by Codex in infra-002's review of 079 (2026-10-11). · Roi 2026-10-24: both unused → deleted (#155, bf627b3). CLOSED."
     },
     {
       "status": "merged",

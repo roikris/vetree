@@ -903,3 +903,23 @@ Newest at the bottom. The same entries (latest few) appear in primer.md → Rece
 - Lesson: on Hobby the CLI's request log reaches back 12 h only and `vercel usage` / `vercel metrics` are unavailable —
   the request log carries clientIpCountry (country, no IP / ASN).
 - Next best step: Roi reads the usage chart (daily Fluid Active CPU, 10-22 → 10-25); revisit the Chinese fleet ~10-26.
+
+### Session 20261024-1214-claude-f837 · 2026-10-24 · Claude Code · scripts-001 (closed)
+- Goal: Roi — fix-labels can be deleted; the importer's purpose unknown → found: the day-one CSV seeding tool (initial
+  commit 2026-02-27), replaced by daily-sync / enrich / backfill. Roi chose "delete it all".
+- Done (#155): scripts/fix-labels.ts, scripts/import-articles.ts, scripts/sample-articles.csv removed; npm script
+  import-articles, csv-parse (no other user), SETUP.md import sections removed; homepage empty state (count 0, no
+  filters) now "No articles to show / Please check back in a little while." (was an npm command shown to visitors);
+  scripts/debug-labels.ts hint; lint baseline entry removed, total 100 → 99.
+- Start state: main a82f724; lock taken for scripts-001.
+- Verification: init.sh check GREEN (tsc, lint ratchet, unit, acl / rls / schema audits, build); PR suite + replay
+  green; merged bf627b3; production /api/version = bf627b3, home 200; post-merge health check success.
+- Review: Codex · tier 2 (harness lint baseline; Supabase-writing code removed) · 1 round · 41k tokens · BLOCKING:
+  none; NB total_errors 100 → 99 applied, not re-reviewed.
+- Commits / PR: #155 → bf627b3 (Roi: "merge").
+- Pending Roi approvals: none.
+- Known risks / unresolved: none. Remaining anon-key scripts (debug-labels.ts, verify-fix.ts) only read.
+- Lesson: don't commit the session entry yourself before `init.sh unlock` — unlock must append it (log-grew guard);
+  on 10-24 a self-commit had to be reverted first. A review-wait loop must match `^tokens used`, not the phrase —
+  the checklist Codex echoes contains it.
+- Next best step: Roi — Vercel usage chart (perf-001), Gmail re-check (analytics-001); Chinese fleet ~10-26.
