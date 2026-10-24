@@ -880,3 +880,26 @@ Newest at the bottom. The same entries (latest few) appear in primer.md → Rece
   request log's pathType) to prove a route is served without a function before merging.
 - Next best step: after ~2026-10-24 06:00 UTC, 12 h request log: facebookexternalhit on / should show route
   /link-preview (prerender), home renders ~235 → ~80. Then the Vercel usage chart (daily Fluid Active CPU).
+
+### Session 20261024-1148-claude-8763 · 2026-10-24 · Claude Code · perf-001 (#154 check; monitoring)
+- Goal: Roi — "let's pick this up": the 12 h check after #154.
+- Findings (12 h request log 10-23 23:49 → 10-24 11:48 UTC vs 10-23 07:37 → 19:34): facebookexternalhit 170 requests,
+  157 on / served /link-preview from the CDN (prerender HIT/STALE), 0 home renders (was 130 / 12 h); its 11 remaining
+  function requests are article pages (by design). Home renders 404 → 233, of which our smoke 120; without the smoke
+  276 → 113: OAI-SearchBot 49, meta-webindexer 31 (search crawler, kept by design), crawlers ~15, a Baidu-app session
+  from CN 6, people ~10. Function requests 948 → 589 (windows differ: night vs Israeli day — direction only).
+  Vercel CPU: `vercel usage` / `vercel metrics` need a paid plan or add-on (Hobby: no); the dashboard was signed out in
+  the MCP browser → the usage chart is for Roi to read.
+- Side checks: Chinese fleet (primer note, revisit ~10-26) — 10-23: 2 CN views, 10-24: 1; today's 43 CN requests = one
+  Baidu-app burst at 01 UTC (mostly static files) + 5 HeadlessChrome. page_views low (10-23: 43, 10-24 to 11:48: 2
+  human-ish) checked as a possible broken sensor: every /api/analytics/track POST is 200 and matches rows; the day's
+  renders are mostly no-JS scrapers (BD, VN) and it is Friday–Saturday (Saturday 10-17: 9 human views) → not broken.
+- Start state: main a82f724; lock taken for perf-001.
+- Verification: read-only (request logs, page_views via service role, gh run list: scheduled smoke 10-24 success).
+- Review: n/a (no code change).
+- Commits / PR: none.
+- Pending Roi approvals: none.
+- Known risks / unresolved: CPU effect not yet read from the usage chart.
+- Lesson: on Hobby the CLI's request log reaches back 12 h only and `vercel usage` / `vercel metrics` are unavailable —
+  the request log carries clientIpCountry (country, no IP / ASN).
+- Next best step: Roi reads the usage chart (daily Fluid Active CPU, 10-22 → 10-25); revisit the Chinese fleet ~10-26.
