@@ -40,44 +40,6 @@ npm run dev
 
 The application will be available at `http://localhost:3000`.
 
-## Importing Articles from CSV
-
-### CSV Format
-
-Your CSV file should have the following columns:
-- `id` - Unique identifier for the article
-- `title` - Article title
-- `summary` - Brief summary
-- `clinical_bottom_line` - Key clinical takeaway
-- `strength_of_evidence` - Evidence rating
-- `labels` - Comma-separated tags (e.g., "gastroenterology,small animal")
-- `source_journal` - Journal name
-- `article_url` - Link to full article
-- `doi` - Digital Object Identifier
-- `authors` - Author names
-- `pubmed_id` - PubMed ID
-- `publication_date` - Date in YYYY-MM-DD format
-
-See `scripts/sample-articles.csv` for an example.
-
-### Running the Import
-
-```bash
-npm run import-articles path/to/your/articles.csv
-```
-
-Example:
-```bash
-npm run import-articles scripts/sample-articles.csv
-```
-
-The script will:
-- Read the CSV file
-- Parse and validate each row
-- Insert articles into the Supabase `articles` table
-- Use upsert (update if exists, insert if new) based on the `id` field
-- Display progress and a summary of successes/errors
-
 ## Project Structure
 
 ```
@@ -86,8 +48,6 @@ vetree/
 ├── lib/
 │   └── supabase.ts        # Supabase client configuration
 ├── scripts/
-│   ├── import-articles.ts # CSV import script
-│   └── sample-articles.csv # Example CSV format
 ├── supabase/
 │   └── migrations/
 │       └── 001_create_articles_table.sql
@@ -115,14 +75,6 @@ The `Article` type is defined in `lib/supabase.ts` and matches the database sche
 4. Use the Supabase client from `lib/supabase.ts` to query articles
 
 ## Troubleshooting
-
-### Import Script Errors
-
-If you get errors during import:
-- Check that the CSV columns match the expected format
-- Ensure dates are in YYYY-MM-DD format
-- Verify the Supabase table exists and has the correct schema
-- Check that your `.env.local` file has the correct credentials
 
 ### Database Connection Issues
 

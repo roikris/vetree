@@ -168,14 +168,11 @@ export default async function Home({ searchParams }: HomeProps) {
       {!error && count === 0 && !hasActiveFilters && (
         <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-6">
           <h2 className="text-xl font-semibold text-blue-900 dark:text-blue-100 mb-2">
-            No articles yet
+            No articles to show
           </h2>
-          <p className="text-blue-700 dark:text-blue-300 mb-4">
-            Get started by importing articles from a CSV file:
+          <p className="text-blue-700 dark:text-blue-300">
+            Please check back in a little while.
           </p>
-          <code className="block bg-blue-100 dark:bg-blue-900/50 text-blue-900 dark:text-blue-100 p-3 rounded font-mono text-sm">
-            npm run import-articles scripts/sample-articles.csv
-          </code>
         </div>
       )}
 

@@ -186,11 +186,6 @@
       "file": "lib/utils/species.ts",
       "rule": "@typescript-eslint/no-explicit-any",
       "count": 1
-    },
-    {
-      "file": "scripts/fix-labels.ts",
-      "rule": "@typescript-eslint/no-explicit-any",
-      "count": 1
     }
   ]
 }

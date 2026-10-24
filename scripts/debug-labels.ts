@@ -22,7 +22,7 @@ async function debugLabels() {
 
   if (totalCount === 0) {
     console.log('❌ No articles found! Please import some articles first.')
-    console.log('   Run: npm run import-articles scripts/sample-articles.csv')
+    console.log('   Articles arrive through the daily-sync and enrich-articles workflows.')
     return
   }
 
