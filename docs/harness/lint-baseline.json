@@ -1,6 +1,6 @@
 {
   "note": "Known lint errors (D9 ratchet). Only errors above these counts fail. Shrink, never grow.",
-  "total_errors": 100,
+  "total_errors": 99,
   "entries": [
     {
       "file": "app/actions/admin.ts",
@@ -184,11 +184,6 @@
     },
     {
       "file": "lib/utils/species.ts",
-      "rule": "@typescript-eslint/no-explicit-any",
-      "count": 1
-    },
-    {
-      "file": "scripts/fix-labels.ts",
       "rule": "@typescript-eslint/no-explicit-any",
       "count": 1
     }
