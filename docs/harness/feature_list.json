@@ -1925,6 +1925,16 @@
           "outcome": "pass",
           "approval": "Roi: \"can we import data from the google console…\", \"domain property, backfill to 1 month\", \"Push\", \"Merge\"",
           "link": "PR #156"
+        },
+        {
+          "date": "2026-10-31",
+          "session": "20261031-0937-claude-ccc3",
+          "sha": "22a875b",
+          "command": "Search Console backfill: workflow run 41236885088 (days=30) success — 30 days ok (10-01/02 empty, 10-29/30 preliminary); run log scanned: 0 hits for PRIVATE KEY / ya29. / JWT header / MII… / service-account email, 10 masks. search_console_summary 10-03..30: 9,805 impressions, 242 clicks, position 7.8; cat-treats article 296 impressions / 69 clicks / pos 2.1. Pending: Roi compares 10-26..28 site totals (676/17, 589/39, 489/31) with the Search Console UI.",
+          "target": "production",
+          "outcome": "pass",
+          "approval": "Roi: \"Yes\" (backfill)",
+          "link": "run 41236885088"
         }
       ],
       "branch": "fix/analytics-001-signin-refresh",
