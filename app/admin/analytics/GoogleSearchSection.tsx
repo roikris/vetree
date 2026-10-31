@@ -88,7 +88,7 @@ export function GoogleSearchSection() {
       {!error && !data && <div style={{ ...sectionStyle, color: 'var(--al-mut4)' }}>Loading…</div>}
       {!error && data?.empty && (
         <div style={{ ...sectionStyle, color: 'var(--al-mut4)' }}>
-          No Search Console data yet — the daily import (GitHub Action “Search Console Import”) hasn’t run.
+          No successful Search Console import yet — see the GitHub Action “Search Console Import” (a failed run is retried daily).
         </div>
       )}
       {!error && data && !data.empty && <Report data={data} />}

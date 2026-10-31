@@ -137,6 +137,22 @@ function requestBody(day, extraDimension, startRow) {
   }
 }
 
+// A response's shape, checked before it is used: an absent `rows` is a legitimately empty page, anything else that
+// isn't an array of well-formed rows is an error (never silently "no rows", which would replace a day with less).
+function checkResponse(what, body, keyCount) {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) throw safeError(`${what}: unreadable response`)
+  if (body.rows === undefined) return body
+  if (!Array.isArray(body.rows)) throw safeError(`${what}: malformed rows`)
+  for (const r of body.rows) {
+    const ok = r && typeof r === 'object' && Array.isArray(r.keys) && r.keys.length === keyCount
+      && r.keys.every(k => typeof k === 'string')
+      && Number.isFinite(r.clicks) && r.clicks >= 0 && Number.isFinite(r.impressions) && r.impressions >= 0
+      && (r.ctr === undefined || Number.isFinite(r.ctr)) && (r.position === undefined || Number.isFinite(r.position))
+    if (!ok) throw safeError(`${what}: malformed row`)
+  }
+  return body
+}
+
 // Fetches every page of one request. fetchPage(startRow) → parsed response. A failure anywhere throws (the day is
 // then not written). Returns { rows, responses, truncated }.
 async function fetchAllRows(fetchPage) {
@@ -189,5 +205,5 @@ function googleError(what, status, body) {
 module.exports = {
   SITE, SCOPE, TOKEN_URI, GRANT_TYPE, ROW_LIMIT, DAILY_ROW_CAP, RETENTION_MONTHS, LOOKBACK_MAX,
   parseServiceAccount, buildJwt, pacificDate, addDays, monthsBack, parseLookback, selectDays,
-  responseFinal, dayFinal, parsePage, requestBody, fetchAllRows, toPayload, sanitizedError, googleError,
+  responseFinal, dayFinal, parsePage, requestBody, checkResponse, fetchAllRows, toPayload, sanitizedError, googleError,
 }
