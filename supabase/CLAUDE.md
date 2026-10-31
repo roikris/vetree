@@ -500,6 +500,19 @@ Service role only (RLS on, no policies). A duration that reached `/api/analytics
 applied and deleted by `record_page_view_load()`; orphans older than a day are deleted whenever the next duration is
 queued, and by the daily `purge_expired_logs()` (087).
 
+### `search_console_daily` / `search_console_queries` / `search_console_pages` / `search_console_import_days` (migration 088)
+Google Search Console, one Pacific-time day at a time, written only by `.github/workflows/scripts/search-console.js`
+through `replace_search_console_day()`; read by `/api/admin/analytics/search-console` via `search_console_summary()`.
+| Table | Key | Holds |
+|-------|-----|-------|
+| `search_console_daily` | day | the property's totals (dimensions [date]) — what the Search Console UI shows |
+| `search_console_queries` | day, query | top queries Google provides ([date, query]; anonymised queries omitted) |
+| `search_console_pages` | day, page_url | per page ([date, page]); `page_url` verbatim, `host` / `path` derived (path joins `page_views.path` for vetree.app hosts only) |
+| `search_console_import_days` | day | `status` ok / failed / expired, `final`, counts, row-cap flags, sanitized `last_error` |
+Clicks / impressions / ctr / position as Google reports them; aggregate position impression-weighted. The three data
+sets aggregate differently — never sum pages or queries into site totals. Service role only (RLS on, no policies):
+SELECT, INSERT, DELETE on the data tables, SELECT, INSERT, UPDATE on import_days. No personal data, no purge.
+
 ### `analytics_maintenance_log` (migration 065)
 | Column | Type |
 |--------|------|
@@ -521,6 +534,8 @@ Service role only. Records data migrations and each `purge_expired_logs()` run.
 | `record_page_view_duration(id, session_id, seconds)` | 084 | Raises that view's visible seconds (monotonic); 'pending' when the load hasn't landed (held in `page_view_pending_durations`), 'ignored' for another session's view |
 | `record_legacy_page_view_duration(session_id, path, seconds)` | 084 | Old tracker tabs (no view id): updates the latest duration-less load of that session + path in the last 2 h; never inserts |
 | `saved_this_week(since, until, excluded, limit)` | 083 | Homepage "Articles saved this week": save counts per publicly visible article in [since, until), excluded user ids left out, ordered by count, newer article, id — article ids + counts only (feed-002) |
+| `replace_search_console_day(day, final, daily, queries, pages, query_truncated, page_truncated)` | 088 | One Search Console day replaced in all three data sets + marked ok, in one locked transaction; payload dates ignored; a malformed payload raises and changes nothing |
+| `search_console_summary(from, to, limit)` | 088 | Read-only: daily totals, top queries / pages (impression-weighted position), incomplete days in the window (≤ 121 days, limit ≤ 100) |
 | `purge_expired_logs()` | 069/070/087 | 12-month retention purge (pg_cron daily 03:15 UTC); since 087 also pending durations older than a day |
 | `delete_user_account(uuid)` | 070 | GDPR deletion of a user's rows across all PII tables |
 | `search_articles_batch` / `search_articles_fuzzy` / `search_articles_synthesis` | 060 / 054+056 / 026+030 | Search — granted to `anon` (public search) |

@@ -317,6 +317,7 @@ TEST_USER_EMAIL       # Playwright smoke credentials
 TEST_USER_PASSWORD
 NEXT_PUBLIC_LINKEDIN_PARTNER_ID  # LinkedIn Insight Tag partner ID; script is a no-op if unset
 NEXT_PUBLIC_FB_PIXEL_ID          # Meta Pixel ID; script is a no-op if unset
+GSC_SERVICE_ACCOUNT_JSON         # GitHub Actions secret ONLY (not Vercel): read-only Search Console service account key file
 ```
 
 ## Auth & Roles
@@ -491,6 +492,15 @@ excluded, crawlers (`bot_name`) excluded.
 - Cohorts were 5–25 accounts on 2026-10-04: read percentages as direction, not trend
 - User Retention's "7/30-day retention" = users active in the window ÷ ALL registered users (not cohort retention);
   its windows include today, so they span 8 / 31 UTC dates
+**Google Search (analytics-001, Roi 2026-10-31)** — Admin → Analytics → Google Search, from the daily import
+(`.github/workflows/search-console.yml`, domain property `sc-domain:vetree.app`, read-only service account; route
+`/api/admin/analytics/search-console`). Search Console days are **Pacific time** and run **2–3 days behind**; the
+newest days are preliminary until Google finalises them (the import re-fetches them). Three figures that are NOT
+interchangeable: **site totals** (search_console_daily, = the Search Console UI), **top queries** (Google withholds rare
+queries — they add up to less), **per page** (a result showing two of our pages counts for both — never sum as site
+totals). "Our visits from Google" = human page_views on vetree.app with a Google referrer hostname (google.<tld> or the
+Android Google app) over the same dates (UTC bounds of Pacific days — approximate); page_views keeps the referrer on
+later in-app pages, so it can include later pages of a visit. "No recorded post" = no Growth OS approved row.
 **Data quality:** analytics writers record only in production and skip QA traffic since **2026-09-29**
 (`lib/analytics/recording.ts`); earlier rows may include test traffic. `search_logs` before **2026-09-27** certainly
 do (smoke runs searched production). Synthesis events moved out of page_views by migration 065.
@@ -518,6 +528,7 @@ export const getDistinctEvidenceLevels = unstable_cache(async () => { ... }, ['d
 | security-agent.yml | Thursday 19:00 UTC | Security scan |
 | qa-smoke.yml | Mon–Sat 06:00 UTC (essentials); Sunday 06:00 UTC (full); every deploy (HTTP health check only); manual | Production smoke (job `smoke-production`); tests tagged `@weekly` run only in the full suite; post-deploy waits for `/api/version` to serve the pushed commit, then checks home, `/api/version`, `/api/stats/public` and a sitemap article (Slack on failure); Slack only on failure/flaky |
 | qa-smoke-pr.yml | PRs to main: opened / pushed / ready for review | Full suite on the protected Vercel preview — the required `smoke` check; fails fast on drafts ("mark ready to run"), skipped (= passed) only for proven docs-only PRs; runs whenever docs-only can't be proven |
+| search-console.yml | 05:00 UTC daily; manual (`days` 1–60) | Google Search Console → `search_console_*` (migration 088); failed / preliminary days retried every run until final; Slack on failure |
 | reset-enrichment.yml | Manual | Reset enrichment flags |
 | fix-encoding.yml | Manual | Fix HTML entities |
 

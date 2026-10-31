@@ -3,6 +3,7 @@ import { AnalyticsClient } from './AnalyticsClient'
 import { UserRetention } from './UserRetention'
 import { ActivationMetrics } from './ActivationMetrics'
 import { LinkedInSection } from './LinkedInSection'
+import { GoogleSearchSection } from './GoogleSearchSection'
 import { PaidCampaigns } from './PaidCampaigns'
 
 export default async function AdminAnalyticsPage({ searchParams }: { searchParams: Promise<{ automated?: string }> }) {
@@ -91,6 +92,10 @@ export default async function AdminAnalyticsPage({ searchParams }: { searchParam
 
       {/* The weekly AI report (AnalysisAgent.tsx) is hidden until it's made usable (Roi, 2026-10-14);
           the Friday job still runs and posts its summary to Slack. */}
+
+      <div style={{ marginTop: 32 }}>
+        <GoogleSearchSection />
+      </div>
 
       <div style={{ marginTop: 32 }}>
         <LinkedInSection />
