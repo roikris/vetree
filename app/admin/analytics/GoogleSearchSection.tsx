@@ -47,7 +47,7 @@ const h3: React.CSSProperties = { margin: '0 0 12px', fontWeight: 600, fontSize:
 
 const STATUS_LABEL: Record<string, string> = {
   missing: 'not imported', failed: 'import failed (retried daily)', expired: 'beyond Google’s 16 months',
-  preliminary: 'preliminary (Google still processing)', ok: 'hit Google’s row limit',
+  preliminary: 'preliminary or re-import pending', ok: 'hit Google’s row limit',
 }
 
 export function GoogleSearchSection() {

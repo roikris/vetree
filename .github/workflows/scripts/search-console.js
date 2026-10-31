@@ -143,11 +143,26 @@ module.exports = { runImport, readImportDays }
 if (require.main === module) {
   const { createClient } = require('@supabase/supabase-js')
   const ws = require('ws')   // Node 20 has no global WebSocket (supabase-js realtime), as in daily-sync.js
-  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    console.log('Search Console import failed: Supabase credentials are not set')
+  // A startup failure is reported like any other (log + Slack), never with a secret
+  const startupFailure = async message => {
+    console.log(`Search Console import failed: ${message}`)
+    if (process.env.SLACK_WEBHOOK_URL) {
+      await fetch(process.env.SLACK_WEBHOOK_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: `:x: Search Console import failed: ${message}` }) }).catch(() => {})
+    }
     process.exit(1)
   }
-  const db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY,
-    { auth: { persistSession: false }, realtime: { transport: ws } })
-  runImport({ env: process.env, fetch: globalThis.fetch, db }).then(code => process.exit(code))
+  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    startupFailure('Supabase credentials are not set')
+  } else {
+    let db
+    try {
+      db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY,
+        { auth: { persistSession: false }, realtime: { transport: ws } })
+    } catch {
+      db = null
+    }
+    if (!db) startupFailure('could not create the Supabase client')
+    else runImport({ env: process.env, fetch: globalThis.fetch, db }).then(code => process.exit(code))
+  }
 }
