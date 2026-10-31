@@ -499,6 +499,50 @@
       ],
       "PUBLIC": []
     },
+    "public.search_console_daily": {
+      "kind": "table",
+      "anon": [],
+      "authenticated": [],
+      "service_role": [
+        "DELETE",
+        "INSERT",
+        "SELECT"
+      ],
+      "PUBLIC": []
+    },
+    "public.search_console_import_days": {
+      "kind": "table",
+      "anon": [],
+      "authenticated": [],
+      "service_role": [
+        "INSERT",
+        "SELECT",
+        "UPDATE"
+      ],
+      "PUBLIC": []
+    },
+    "public.search_console_pages": {
+      "kind": "table",
+      "anon": [],
+      "authenticated": [],
+      "service_role": [
+        "DELETE",
+        "INSERT",
+        "SELECT"
+      ],
+      "PUBLIC": []
+    },
+    "public.search_console_queries": {
+      "kind": "table",
+      "anon": [],
+      "authenticated": [],
+      "service_role": [
+        "DELETE",
+        "INSERT",
+        "SELECT"
+      ],
+      "PUBLIC": []
+    },
     "public.search_logs": {
       "kind": "table",
       "anon": [],

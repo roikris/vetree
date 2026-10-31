@@ -399,6 +399,26 @@
         }
       }
     },
+    "public.search_console_daily": {
+      "rls": true,
+      "forced": false,
+      "policies": {}
+    },
+    "public.search_console_import_days": {
+      "rls": true,
+      "forced": false,
+      "policies": {}
+    },
+    "public.search_console_pages": {
+      "rls": true,
+      "forced": false,
+      "policies": {}
+    },
+    "public.search_console_queries": {
+      "rls": true,
+      "forced": false,
+      "policies": {}
+    },
     "public.search_logs": {
       "rls": true,
       "forced": false,
