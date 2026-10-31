@@ -78,6 +78,7 @@ Routes verified from `app/api/` directory tree.
 | `/api/admin/analytics/latest-insights` | GET | Fetch most recent insights | Admin |
 | `/api/admin/analytics/insight-feedback` | POST | Implemented/ignored/noted | Admin |
 | `/api/admin/analytics/retention` | GET | DAU/WAU/MAU, active-user retention, churn, most active users (last 30 days; admin/test + crawlers excluded) | Admin |
+| `/api/admin/analytics/search-console` | GET | Google Search section: Search Console totals / top queries / top pages (`?days=` 7, 28 or 90; Pacific days ending at the latest import) + our Google-referrer views and last Growth OS post per page | Admin session |
 | `/api/admin/analytics/paid-campaigns` | GET | Paid ad traffic by campaign/ad set (utm_medium=paid-social) | Admin |
 | `/api/admin/security/scan` | POST | Security audit | DIGEST_SECRET or admin session |
 | `/api/admin/linkedin-metrics/upload` | POST | XLSX import | Admin session |

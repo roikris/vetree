@@ -1,0 +1,49 @@
+name: Search Console Import
+
+# Google Search Console → Supabase (analytics-001, migration 088). Daily; a manual run can widen the lookback
+# (e.g. 30 for the first backfill). Failed / preliminary days are retried by every run until final.
+on:
+  schedule:
+    - cron: '0 5 * * *'
+  workflow_dispatch:
+    inputs:
+      days:
+        description: 'Days to (re)import, ending yesterday Pacific time (1-60, default 10)'
+        required: false
+        default: '10'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: search-console
+  cancel-in-progress: false
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install @supabase/supabase-js@2.108.2 ws
+        working-directory: .github/workflows
+
+      # Secrets and the input reach the script only as environment variables, never in the shell command
+      - name: Import Search Console data
+        run: node scripts/search-console.js
+        working-directory: .github/workflows
+        env:
+          GSC_SERVICE_ACCOUNT_JSON: ${{ secrets.GSC_SERVICE_ACCOUNT_JSON }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          GSC_DAYS: ${{ github.event.inputs.days }}
