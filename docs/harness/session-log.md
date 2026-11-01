@@ -923,3 +923,36 @@ Newest at the bottom. The same entries (latest few) appear in primer.md → Rece
   on 10-24 a self-commit had to be reverted first. A review-wait loop must match `^tokens used`, not the phrase —
   the checklist Codex echoes contains it.
 - Next best step: Roi — Vercel usage chart (perf-001), Gmail re-check (analytics-001); Chinese fleet ~10-26.
+
+### Session 20261031-0937-claude-ccc3 · 2026-10-31 → 2026-11-01 · Claude Code · analytics-001 (Search Console import; item open)
+- Goal: Roi — a surge of Google impressions to an article never posted → investigate; then "import data from the
+  Google console automatically" (domain property, 1-month backfill).
+- Findings: the surge = two new, never-posted articles — pubmed-42908201 (feline treats phosphorus / CKD, JFMS;
+  296 impressions, 69 clicks, position 2.1, ~23% CTR) and pubmed-42915224 (canine adverse food reaction tests, JAVMA;
+  167 / 26, position 5.0). Clicks (not impressions) jumped from 10-25: ~5/day → 15–39/day. Visitors real but shallow
+  (median 11–13 s visible), no signup uplift. Oct 3–30: 9,805 impressions, 242 clicks, avg position 7.8.
+- Done (#156): migration 088 — search_console_daily / _queries / _pages / _import_days (RLS on, no policies,
+  service_role grants only), replace_search_console_day() (atomic per-day replace, advisory lock) and
+  search_console_summary(); .github/workflows/search-console.yml (05:00 UTC + dispatch days 1–60, service account
+  JWT via node:crypto, secrets masked, failed / preliminary days retried until final, no age limit; Slack on failure);
+  /api/admin/analytics/search-console + GoogleSearchSection (7/28/90, site totals, top searches, top pages with our
+  Google-referrer views, median visible time, "No recorded post"). Docs: CLAUDE.md (env var, Actions row, Metrics),
+  supabase/CLAUDE.md, app/api/CLAUDE.md; access / rls / schema snapshots.
+- Start state: main bf627b3; lock taken for analytics-001.
+- Verification: init.sh check GREEN; unit 162/162 (search-console 21/21 on Node 20); PGlite fixture run of 088;
+  PR suite + replay green; merged 22a875b; post-merge health check success. 088 applied to production (Roi: "yes").
+  Backfill run 41236885088: 30 days, Oct 1–2 empty, 3–28 final; log scan clean (no key / token / JWT / account email,
+  10 masks). First scheduled run 41302788590 (2026-11-01, started 11:38 UTC — GitHub cron delay): Oct 22–31 ok,
+  Oct 29 now final, 30–31 preliminary.
+- Review: Codex · tier 2 (migration, secrets, Supabase writes) · plan 3 rounds (r1 5 BLOCKING, r2 1 — failed days
+  abandoned outside the window → durable pending set; r3 none) · code 2 rounds (r1 2 BLOCKING — unchecked failure-
+  status write, unpaged ledger read; r2 none). Two r2 NB (label wording, startup Slack) applied, not re-reviewed.
+- Commits / PR: #156 → 22a875b (Roi: "Push", "Merge"); backfill dispatch (Roi: "Yes").
+- Pending Roi approvals: none.
+- Known risks / unresolved: Roi to compare Oct 26–28 site totals (676/17, 589/39, 489/31, Web) with the Search Console
+  UI. Top queries hide rare searches (Google), so the cat-treats queries are invisible.
+- Lesson: the GSC key file is the whole JSON — Roi pastes it into the GitHub secret himself; never via chat. Gap-fill
+  must start at the retention horizon and only expire recorded days (a test caught hundreds of unrecorded days being
+  expired). PGlite's service_role needs BYPASSRLS to mirror Supabase.
+- Next best step: Roi — the GSC number check, Gmail re-check (then close analytics-001); consider posting the
+  cat-treats article; first-visit experience for Google landings (~12 s). AI model revisit (~2026-11-01) is due.
