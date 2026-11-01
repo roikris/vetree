@@ -956,3 +956,30 @@ Newest at the bottom. The same entries (latest few) appear in primer.md → Rece
   expired). PGlite's service_role needs BYPASSRLS to mirror Supabase.
 - Next best step: Roi — the GSC number check, Gmail re-check (then close analytics-001); consider posting the
   cat-treats article; first-visit experience for Google landings (~12 s). AI model revisit (~2026-11-01) is due.
+
+### Session 20261101-1635-claude-5b3d · 2026-11-01 · Claude Code · sec-002 (closed)
+- Goal: Roi — "security check has critical issues pending" → "start". Backlog session: sec-002 added + claimed.
+- Findings: scan report 2026-10-29 23:02 UTC (scheduled, severity critical) — 3 Next.js advisories (<= 16.4.0, patched
+  16.4.1): GHSA-2464-fhr4-w9xw critical (image optimizer + SVG; /_next/image live, no next/image, no
+  dangerouslyAllowSVG), GHSA-673q-mjm6-r5xr critical (`use cache` — not used), GHSA-p3m5-59mp-jv5r high (Server
+  Actions DoS — 8 action files). npm audit also: zod < 4.6.6 high (lint plugin only), happy-dom <= 21.0.3 high (unit
+  tests only).
+- Done (#157): next ^16.3.8 → ^16.4.3 (+ @next/*); lockfile zod 4.3.6 → 4.6.7, happy-dom 21.0.3 → 21.0.4.
+  eslint-config-next kept at 16.3.8: 16.4.3 brings eslint-plugin-react-hooks 7.1.1 → 4 new lint errors
+  (SynthesisPosts immutability, PipelineStatus + SynthesisPanel ×2 set-state-in-effect) — a separate change.
+  security-acknowledged.json untouched.
+- Start state: main 22a875b; previous lock (20261031-0937-claude-ccc3) released by its session before this one.
+- Verification: init.sh check GREEN (tsc, lint ratchet, unit, acl / rls / schema audits, build); npm audit 0 critical /
+  0 high (39 moderate: eslint / typescript-eslint / Sentry / OpenTelemetry chains, major bumps); lockfile integrity of all
+  12 updated packages = registry; PR suite + replay green; merged aecc2cb; production /api/version = aecc2cb, home 200,
+  /_next/image 200, security headers present; post-merge health check success.
+- Review: Codex · tier 2 (security) · 1 round · 70k tokens · BLOCKING: none; NB "integrity not verified (no registry
+  access)" → verified by me (12/12 match).
+- Commits / PR: #157 → aecc2cb (Roi: "yes", then "merge" — the first merge attempt was blocked by Claude Code's auto-mode
+  classifier; merged after auto mode was exited).
+- Pending Roi approvals: optional manual security scan now (POST /api/admin/security/scan — paid AI call + Slack), else
+  Thursday 2026-11-05's scheduled run confirms.
+- Known risks / unresolved: @sentry/nextjs 9 lists no Next 16 peer (pre-existing, "invalid" in npm ls since Next 16).
+- Lesson: `init.sh lock <new id>` refuses items not in feature_list.json — lock `backlog`, add + claim the item, commit
+  the state, then branch.
+- Next best step: Thursday's scan clean? Follow-up candidate: eslint-config-next 16.4.3 + the 4 react-hooks lint fixes.

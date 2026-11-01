@@ -2003,7 +2003,7 @@
       "type": "fix",
       "title": "Security scan 2026-10-29: 3 unacknowledged Next.js advisories (2 critical RCE, 1 high DoS; next 16.3.8, patched 16.4.1) + zod high (GHSA-mrhx-c7xc-m3w5, < 4.6.6)",
       "user_visible_behavior": "none — the site runs on a patched Next.js; the weekly security report comes back without critical/high findings",
-      "status": "in_progress",
+      "status": "merged",
       "verification": [
         {
           "step": "next 16.3.8 → 16.4.3 (+ eslint-config-next to match), zod ≥ 4.6.6; npm audit shows none of the 4; init.sh check GREEN",
@@ -2027,13 +2027,24 @@
           "paid_calls": false
         }
       ],
-      "evidence": [],
+      "evidence": [
+        {
+          "date": "2026-11-01",
+          "session": "20261101-1635-claude-5b3d",
+          "sha": "aecc2cb",
+          "command": "init.sh check GREEN; npm audit 0 critical / 0 high; lockfile integrity 12/12 = registry; Codex tier 2 r1 BLOCKING: none; PR suite + replay green; merged; production /api/version = aecc2cb, home + /_next/image 200, headers present; post-merge health check success",
+          "target": "production",
+          "outcome": "pass",
+          "approval": "Roi: \"start\"; \"yes\"; \"merge\"",
+          "link": "PR #157"
+        }
+      ],
       "branch": "fix/sec-002-next-16-4",
-      "pr": null,
-      "head_sha": null,
+      "pr": 157,
+      "head_sha": "aecc2cb",
       "wip_sha": null,
       "expected_failures": [],
-      "notes": "Scan report 2026-10-29 23:02 UTC (scheduled), severity critical: GHSA-2464-fhr4-w9xw (image optimizer + SVG, critical), GHSA-p3m5-59mp-jv5r (Server Actions DoS, high), GHSA-673q-mjm6-r5xr (use cache, critical; not used here). Exposure: /_next/image live (no next/image, no dangerouslyAllowSVG), 8 server-action files. Roi: \"start\" (2026-11-01). Claimed by 20261101-1635-claude-5b3d."
+      "notes": "Scan report 2026-10-29 23:02 UTC (scheduled), severity critical: GHSA-2464-fhr4-w9xw (image optimizer + SVG, critical), GHSA-p3m5-59mp-jv5r (Server Actions DoS, high), GHSA-673q-mjm6-r5xr (use cache, critical; not used here). Exposure: /_next/image live (no next/image, no dangerouslyAllowSVG), 8 server-action files. Roi: \"start\" (2026-11-01). Claimed by 20261101-1635-claude-5b3d. · #157 merged aecc2cb (2026-11-01), verified in production. CLOSED. Follow-up candidate: eslint-config-next 16.4.3 + 4 react-hooks lint fixes."
     }
   ]
 }
