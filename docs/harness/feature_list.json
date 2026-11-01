@@ -1995,6 +1995,45 @@
         }
       ],
       "notes": "Reported by Roi 2026-10-21. · Investigation 2026-10-21 (read-only, production): dismissals work — 243 irrelevant rows, none dismissed twice, none shown again (2 race cases: a set served 8 s after the click, already loading); no title/DOI duplicates of dismissed articles shown; 0 of 36 vatinoxan articles ever dismissed. Cause of the feeling: the list is ~8/10 identical day to day (fixed ranking) — pubmed-42600645 (Zenalpha) shown 10 days in a row until already_published; pubmed-42838285 in every set since 10-18. Roi chose: rest ignored cards (shown on 3 days without action → out 14 days). Also Roi: recommendations hidden once today's article is fixed (DailyPosts !articleId && !hasPosts) — make them reachable (view + dismiss, no pick). · PR #150 (ready 2026-10-21): lib/growth/passedOver.ts (+7 unit tests), candidates.ts reads growth_recommendation_sets, restingCount → panel; DailyPosts recommendations reachable after the day is set (review + dismiss); app/api/CLAUDE.md. init.sh check GREEN on 173fa3a (incl. dry run: 18 resting, 2 eligible — vatinoxan sedation, bovine colostrum); build green 5b82516. Codex tier 2: r1 BLOCKING none (NB empty-state text fixed 5b82516), r2 BLOCKING none. Deferred NB: ranking integration tests; candidates.ts touchedToday uses UTC day (pre-existing). · #150 merged 1de3d45 on Roi's word (\"merge when green\"). Follow-ups (Codex NB): ranking integration tests; touchedToday in candidates.ts uses the UTC day, not the Israel day. · 2026-10-22 Roi \"go on\" → follow-ups on fix/growth-003-israel-day: touchedToday uses the Israel day; ranking integration tests (fake db: resting, crowd favorite, skip, Israel day, history read error). · PR #151 (ready 2026-10-22): touchedToday on the Israel day + 6 rankGrowthCandidates tests (fake db). init.sh check GREEN on 16ddcbe; mutation checks: old UTC line fails the Israel-day test, removing the favorites fetch fails the crowd-favorite test; build green 04d470c. Codex tier 1: r1 BLOCKING none (2 NB test gaps → fixed 04d470c), r2 BLOCKING none, both RESOLVED. · #151 merged 08e7628 on Roi's word; deployed by Vercel on its own; health check success. Item closed (no open follow-ups)."
+    },
+    {
+      "id": "sec-002",
+      "priority": 1,
+      "area": "security",
+      "type": "fix",
+      "title": "Security scan 2026-10-29: 3 unacknowledged Next.js advisories (2 critical RCE, 1 high DoS; next 16.3.8, patched 16.4.1) + zod high (GHSA-mrhx-c7xc-m3w5, < 4.6.6)",
+      "user_visible_behavior": "none — the site runs on a patched Next.js; the weekly security report comes back without critical/high findings",
+      "status": "in_progress",
+      "verification": [
+        {
+          "step": "next 16.3.8 → 16.4.3 (+ eslint-config-next to match), zod ≥ 4.6.6; npm audit shows none of the 4; init.sh check GREEN",
+          "target": "local",
+          "db_reads": "none",
+          "db_writes": "none",
+          "paid_calls": false
+        },
+        {
+          "step": "Review: Codex, tier 2 (security) → BLOCKING: none; draft PR, ready once; PR suite green",
+          "target": "preview",
+          "db_reads": "none",
+          "db_writes": "none",
+          "paid_calls": false
+        },
+        {
+          "step": "After merge (Roi's word): /api/version = merge sha, post-merge health check, /_next/image still serves the icon",
+          "target": "production",
+          "db_reads": "none",
+          "db_writes": "none",
+          "paid_calls": false
+        }
+      ],
+      "evidence": [],
+      "branch": "fix/sec-002-next-16-4",
+      "pr": null,
+      "head_sha": null,
+      "wip_sha": null,
+      "expected_failures": [],
+      "notes": "Scan report 2026-10-29 23:02 UTC (scheduled), severity critical: GHSA-2464-fhr4-w9xw (image optimizer + SVG, critical), GHSA-p3m5-59mp-jv5r (Server Actions DoS, high), GHSA-673q-mjm6-r5xr (use cache, critical; not used here). Exposure: /_next/image live (no next/image, no dangerouslyAllowSVG), 8 server-action files. Roi: \"start\" (2026-11-01). Claimed by 20261101-1635-claude-5b3d."
     }
   ]
 }
