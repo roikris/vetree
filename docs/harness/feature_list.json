@@ -1,6 +1,6 @@
 {
   "project": "vetree",
-  "last_updated": "2026-10-17",
+  "last_updated": "2026-11-06",
   "rules": {
     "single_active_feature": true,
     "passing_requires_evidence": true,
@@ -2045,6 +2045,52 @@
       "wip_sha": null,
       "expected_failures": [],
       "notes": "Scan report 2026-10-29 23:02 UTC (scheduled), severity critical: GHSA-2464-fhr4-w9xw (image optimizer + SVG, critical), GHSA-p3m5-59mp-jv5r (Server Actions DoS, high), GHSA-673q-mjm6-r5xr (use cache, critical; not used here). Exposure: /_next/image live (no next/image, no dangerouslyAllowSVG), 8 server-action files. Roi: \"start\" (2026-11-01). Claimed by 20261101-1635-claude-5b3d. · #157 merged aecc2cb (2026-11-01), verified in production. CLOSED. Follow-up candidate: eslint-config-next 16.4.3 + 4 react-hooks lint fixes."
+    },
+    {
+      "id": "growth-004",
+      "priority": 1,
+      "area": "growth",
+      "type": "fix",
+      "title": "Growth OS recommendations: relevance scoring stopped on 2026-10-14 — new articles never ranked",
+      "user_visible_behavior": "New small-animal articles get a relevance score within a day of arriving, so the recommended articles panel offers fresh, good candidates instead of recycled leftovers.",
+      "status": "in_progress",
+      "verification": [
+        {
+          "step": "reproduce: production rows read-only + one timed Claude batch (25 articles)",
+          "target": "production",
+          "db_reads": "growth_article_scores, growth_recommendation_sets, articles",
+          "db_writes": "none",
+          "paid_calls": true
+        },
+        {
+          "step": "fix: score new articles in the daily enrichment workflow after enrichment, smaller batches; panel warns when recent articles are unscored; unit tests; init.sh check GREEN",
+          "target": "local",
+          "db_reads": "none",
+          "db_writes": "none",
+          "paid_calls": false
+        },
+        {
+          "step": "Review: Codex tier 2 (paid AI calls) → BLOCKING: none",
+          "target": "none",
+          "db_reads": "none",
+          "db_writes": "none",
+          "paid_calls": false
+        },
+        {
+          "step": "after merge (Roi): one-off backfill of the ~230 unscored articles via workflow_dispatch; next panel load shows recent scored articles",
+          "target": "production",
+          "db_reads": "prod",
+          "db_writes": "prod",
+          "paid_calls": true
+        }
+      ],
+      "evidence": [],
+      "branch": "fix/growth-004-scoring",
+      "pr": null,
+      "head_sha": null,
+      "wip_sha": null,
+      "expected_failures": [],
+      "notes": "Reported by Roi 2026-11-06 (recommendations worse every day, repeats, high decline rate). Investigation 2026-11-06: last growth_article_scores write 2026-10-14; 0 of the small-animal articles created since 10-10 scored; scored_count in served sets 275 (10-16) -> 160 (11-06) while eligible ~340; youngest article shown 7 -> 29 days; top score 9 -> 5; 10/10 repeats today. Cause: scoring runs on panel load, batches of 25 within a 30 s deadline; one batch of 24 takes 41 s on Sonnet 4.6 (2,174 output tokens) -> every batch aborted, nothing saved. No dismissed article reappeared (by id or title/DOI). Roi: go (2026-11-06)."
     }
   ]
 }
