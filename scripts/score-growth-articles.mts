@@ -14,25 +14,27 @@ import { rankGrowthCandidates } from '../lib/growth/candidates'
 const TOTAL_BUDGET_MS = 15 * 60_000
 const ROUND_MS = 180_000
 
-const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL
-const key = process.env.SUPABASE_SERVICE_ROLE_KEY
-if (!url || !key || !process.env.ANTHROPIC_API_KEY) {
-  console.error('Missing SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY / ANTHROPIC_API_KEY')
-  process.exit(1)
-}
-const supabase = createClient(url, key)
-
 async function slack(text: string) {
   const hook = process.env.SLACK_WEBHOOK_URL
   if (!hook) return
   try {
-    await fetch(hook, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text }) })
+    const res = await fetch(hook, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text }),
+      signal: AbortSignal.timeout(10_000),
+    })
+    if (!res.ok) console.error(`Slack post failed: HTTP ${res.status}`)
   } catch (e) {
     console.error('Slack post failed:', e)
   }
 }
 
 async function main() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!url || !key || !process.env.ANTHROPIC_API_KEY) {
+    throw new Error('Missing SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY / ANTHROPIC_API_KEY')
+  }
+  const supabase = createClient(url, key)
   const stopAt = Date.now() + TOTAL_BUDGET_MS
   let previous = -1
   let firstError = ''
