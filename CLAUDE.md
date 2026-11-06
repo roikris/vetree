@@ -520,7 +520,7 @@ export const getDistinctEvidenceLevels = unstable_cache(async () => { ... }, ['d
 | Workflow | Schedule | Purpose |
 |----------|----------|---------|
 | daily-sync.yml | 06:00 UTC daily | Fetch new PubMed articles |
-| enrich-articles.yml | 07:00 UTC daily | Enrich pending articles (1h after sync) |
+| enrich-articles.yml | 07:00 UTC daily | Enrich pending articles (1h after sync); then job `score` rates unscored Growth OS candidates (`scripts/score-growth-articles.mts`, growth-004) |
 | backfill-articles.yml | Manual | Historical article import |
 | weekly-digest.yml | Friday 10:00 UTC | Send email digest |
 | growth-daily-reminder.yml | 03:00 UTC daily | Slack reminder for content post |

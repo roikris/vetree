@@ -5,6 +5,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { rankGrowthCandidates, CROWD_FAVORITE_MIN_CLICKS } from '../../lib/growth/candidates'
+import { scoreInputHash, RUBRIC_VERSION } from '../../lib/growth/scoring'
 
 type Rows = Record<string, unknown[]>
 
@@ -97,4 +98,28 @@ test('a failed read of recommendation history throws — never "nothing resting"
     rankGrowthCandidates(fakeDb({ articles: [article('a')] }, 'growth_recommendation_sets'), { now: NOW }),
     /recommendation sets: growth_recommendation_sets unavailable/,
   )
+})
+
+// growth-004: scoring moved to the daily job; the panel warns about eligible articles left unscored for over 48 h
+test('staleUnscoredCount: unscored and older than 48 h only — scored or fresh articles do not count', async () => {
+  const old = article('old', { created_at: '2026-10-18T00:00:00Z' })         // 3+ days before NOW, no score
+  const fresh = article('fresh', { created_at: '2026-10-20T12:00:00Z' })     // < 48 h
+  const scoredOld = article('scored', { created_at: '2026-10-10T00:00:00Z' })
+  const model = 'claude-sonnet-4-6'
+  const r = await rankGrowthCandidates(fakeDb({
+    articles: [old, fresh, scoredOld],
+    growth_article_scores: [{ article_id: 'scored', practice: 7, talk: 2, wow: 1, reason: 'r', rubric_version: RUBRIC_VERSION,
+      model, input_hash: scoreInputHash(scoredOld, model) }],
+  }), { now: NOW })
+  assert.equal(r.scoredCount, 1)
+  assert.equal(r.ranked[0].id, 'scored')
+  assert.equal(r.staleUnscoredCount, 1)
+})
+
+test('staleUnscoredCount ignores articles that are not eligible today (dismissed, large animal)', async () => {
+  const r = await rankGrowthCandidates(fakeDb({
+    articles: [article('d', { created_at: '2026-10-01T00:00:00Z' }), article('l', { created_at: '2026-10-01T00:00:00Z', labels: ['Small Animal', 'Equine'] })],
+    growth_agent_memory: [memory('d', 'irrelevant', '2026-10-02T00:00:00Z')],
+  }), { now: NOW })
+  assert.equal(r.staleUnscoredCount, 0)
 })

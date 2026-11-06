@@ -126,7 +126,7 @@ function DailyDay({ today, onDayChange, onReload }: { today: string; onDayChange
   const [loadingRecs, setLoadingRecs] = useState(false)
   const [recsError, setRecsError] = useState<string | null>(null)
   const [eligibleCount, setEligibleCount] = useState<number | null>(null)
-  const [recsMeta, setRecsMeta] = useState<{ scored: number; degraded: boolean; errors: number; resting: number } | null>(null)
+  const [recsMeta, setRecsMeta] = useState<{ scored: number; degraded: boolean; errors: number; resting: number; staleUnscored: number } | null>(null)
 
   const [missingUrls, setMissingUrls] = useState<{ id: string; article_id: string; article_title: string | null; date: string }[]>([])
   const [urlDrafts, setUrlDrafts] = useState<Record<string, string>>({})
@@ -253,7 +253,7 @@ function DailyDay({ today, onDayChange, onReload }: { today: string; onDayChange
       if (!res.ok) throw new Error(data.details || data.error || `HTTP ${res.status}`)
       setRecommendations(data.recommendations || [])
       setEligibleCount(data.eligible_count ?? null)
-      setRecsMeta({ scored: data.scored_count ?? 0, degraded: !!data.degraded, errors: data.scoring_errors ?? 0, resting: data.resting_count ?? 0 })
+      setRecsMeta({ scored: data.scored_count ?? 0, degraded: !!data.degraded, errors: data.scoring_errors ?? 0, resting: data.resting_count ?? 0, staleUnscored: data.stale_unscored_count ?? 0 })
     } catch (e) {
       setRecommendations([])
       setRecsError(`Couldn't load recommendations: ${e instanceof Error ? e.message : String(e)}`)
@@ -607,6 +607,12 @@ function DailyDay({ today, onDayChange, onReload }: { today: string; onDayChange
               {showRecs && (
                 <div className="mt-3">
                   {recsError && <p className="mb-2 text-xs text-red-400">{recsError}</p>}
+                  {/* growth-004: new articles are scored by the daily job after enrichment; unscored ones rank last */}
+                  {!recsError && recsMeta && recsMeta.staleUnscored > 0 && (
+                    <p className="mb-2 text-xs text-amber-400">
+                      ⚠ {recsMeta.staleUnscored} eligible {recsMeta.staleUnscored === 1 ? 'article is' : 'articles are'} over 2 days old with no relevance score, so {recsMeta.staleUnscored === 1 ? 'it ranks' : 'they rank'} last — the daily scoring job (Enrich Articles → Score Growth OS articles) may be failing.
+                    </p>
+                  )}
                   {!recsError && recommendations.length === 0 && <p className="mb-2 text-xs text-gray-500">No eligible articles right now — everything recent is posted, dismissed, skipped or resting{recsMeta && recsMeta.resting > 0 ? ` (${recsMeta.resting} resting: shown on 3 days, no action — back in 14 days)` : ''}.</p>}
                   {eligibleCount !== null && recommendations.length > 0 && (
                     <p className="mb-2 text-xs text-gray-600">
@@ -614,7 +620,7 @@ function DailyDay({ today, onDayChange, onReload }: { today: string; onDayChange
                       {recsMeta && ` · ${recsMeta.scored} scored for practice / talk-worthiness / WOW`}
                       {recsMeta && recsMeta.resting > 0 && ` · ${recsMeta.resting} resting (shown on 3 days, no action — back in 14 days)`}
                       {recsMeta?.degraded && ' · scores unavailable, ranked by evidence + recency'}
-                      {recsMeta && !recsMeta.degraded && recsMeta.errors > 0 && ' · some new articles couldn\'t be scored this time'}
+                      {recsMeta && !recsMeta.degraded && recsMeta.errors > 0 && ' · some scores couldn\'t be read this time'}
                     </p>
                   )}
                   <div className="space-y-2">

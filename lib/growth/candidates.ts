@@ -27,6 +27,9 @@ export const CANDIDATE_WINDOW_DAYS = 60
 export const CROWD_FAVORITE_MIN_CLICKS = 20   // ≈ top 15% of posted articles (2026-10)
 export const CROWD_FAVORITE_REST_DAYS = 182
 const SKIP_REST_DAYS = 7                       // calendar "skip" = not today, not never
+// The daily job scores new articles right after enrichment (growth-004). An eligible article older than this with no
+// score means that job is failing — the panel says so instead of quietly ranking it behind the scored leftovers.
+export const STALE_UNSCORED_HOURS = 48
 
 const LARGE_ANIMAL = ['Equine', 'equine', 'Large Animal', 'large animal', 'Livestock', 'livestock',
   'Poultry', 'poultry', 'Food Animal', 'food animal']
@@ -61,6 +64,8 @@ export type RankResult = {
   scoringErrors: string[]
   /** eligible articles left out today because they were passed over (shown on 3 days, no action) */
   restingCount: number
+  /** eligible articles new to Vetree more than STALE_UNSCORED_HOURS ago that still have no valid score */
+  staleUnscoredCount: number
 }
 
 export const RANKING_POLICY = 'max-dimension-v1'
@@ -245,7 +250,10 @@ export async function rankGrowthCandidates(
     || x.id.localeCompare(y.id)
   ).map(({ _tie, ...c }) => c)
 
-  return { ranked, degraded, scoredCount: ranked.filter(c => c.scores).length, scoringErrors, restingCount }
+  const staleBefore = now - STALE_UNSCORED_HOURS * 60 * 60 * 1000
+  const staleUnscoredCount = ranked.filter(c => !c.scores && Date.parse(c.created_at) < staleBefore).length
+
+  return { ranked, degraded, scoredCount: ranked.filter(c => c.scores).length, scoringErrors, restingCount, staleUnscoredCount }
 }
 
 export type Recommendation = GrowthCandidate & { wildcard: boolean; poolRank: number }
