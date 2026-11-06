@@ -7,7 +7,7 @@ The Content Generation Agent is an AI-powered tool that generates platform-speci
 ## Features
 
 ### 🤖 AI-Powered Generation
-- Uses Claude Sonnet 4.6 to generate clinically relevant content
+- Uses Claude Sonnet 5.5 to generate clinically relevant content
 - References real articles from your database
 - Platform-specific formatting (Twitter, Facebook, Instagram, etc.)
 - Bilingual support (Hebrew & English)
@@ -242,8 +242,8 @@ Includes:
 - Character limits
 
 ### Claude Model
-- **Model**: `claude-sonnet-4-6`
-- **Max tokens**: 1024
+- **Model**: `claude-sonnet-5-5`
+- **Max tokens**: 2500
 - **Temperature**: Default (balanced creativity)
 
 ## Best Practices

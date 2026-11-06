@@ -42,7 +42,7 @@ touches** (by heading). Do not ask a reviewer to read all three CLAUDE.md files 
 
 The critical rules in one line each — the full text is in CLAUDE.md under the same number:
 
-0. Every Claude call uses `CLAUDE_MODEL` from `lib/ai/model.ts` (Sonnet 4.6); never Haiku. Exception:
+0. Every Claude call uses `CLAUDE_MODEL` from `lib/ai/model.ts` (Sonnet 5.5); never Haiku. Exception:
    `scripts/*.mjs` and `.github/workflows/scripts/*.js` can't import TS and repeat the same model ID.
 1. API routes export `runtime = 'nodejs'`, `dynamic = 'force-dynamic'`, `maxDuration` for heavy work.
 2. SDK / Supabase clients are created **inside** the handler, never at module level.
