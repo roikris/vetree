@@ -71,7 +71,7 @@ Solo DVM developer. Target: Israeli + international vets.
 ## Stack
 - **Frontend/Backend:** Next.js 16 (App Router, Turbopack) on Vercel
 - **Database:** Supabase (PostgreSQL + Auth + Storage + RLS)
-- **AI:** Claude Sonnet 4.6 `claude-sonnet-4-6` for every AI call (`lib/ai/model.ts`; Haiku is retired)
+- **AI:** Claude Sonnet 5.5 `claude-sonnet-5-5` for every AI call (`lib/ai/model.ts`; Haiku is retired)
 - **Email:** Resend — weekly digest from `digest@digest.vetree.app`; auth emails via Resend custom SMTP (`auth@digest.vetree.app`)
 - **xlsx:** pinned to SheetJS CDN tarball `https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz` (no CVE; do NOT upgrade via npm)
 - **Monitoring:** Sentry (@sentry/nextjs@9) — error reports only, no tracing/replay. Browser: `instrumentation-client.ts`; server + edge: `instrumentation.ts` `register()` → `sentry.server.config.ts` / `sentry.edge.config.ts` (that file was missing until 2026-10-03, so no server error — rule 13's "fail loud" alerts included — ever reached Sentry). All three share `lib/sentry/options.ts`, which strips email addresses from every event and breadcrumb (`lib/sentry/scrub.ts`). Never log emails; never pass request bodies or user text to `captureException`/`captureMessage`.
@@ -87,16 +87,16 @@ Solo DVM developer. Target: Israeli + international vets.
 
 ## CRITICAL RULES — Never violate these
 
-### 0. AI model — Claude Sonnet 4.6 for ALL calls
+### 0. AI model — Claude Sonnet 5.5 for ALL calls
 ```ts
 // ✅ ONLY valid model in this project — always import the constant, never hard-code the ID
-import { CLAUDE_MODEL } from '@/lib/ai/model'   // = 'claude-sonnet-4-6'
+import { CLAUDE_MODEL } from '@/lib/ai/model'   // = 'claude-sonnet-5-5'
 // scripts/*.mjs and .github/workflows/scripts/*.js can't import TS: they repeat the same ID
 
 // ❌ NEVER use — Haiku is retired from this project
 // 'claude-haiku-4-5-20251001'
 ```
-Every Claude API call — enrichment, synthesis, content agent, analysis agent, security agent, LinkedIn matcher, Growth OS scoring — must use `CLAUDE_MODEL` (`claude-sonnet-4-6`). Sonnet 5.5 ran 2026-09-30 → 2026-10-01 and was reverted: ~1.46x the tokens for the same work (measured side by side on identical production prompts; mostly tokenizer). Roi revisits ~2026-11-01 — switching is one line in `lib/ai/model.ts` plus the three scripts. Do not introduce Haiku for any reason, including cost optimisation.
+Every Claude API call — enrichment, synthesis, content agent, analysis agent, security agent, LinkedIn matcher, Growth OS scoring, QA triage — must use `CLAUDE_MODEL` (`claude-sonnet-5-5`). **Sonnet 5.5 since 2026-11-06 (Roi, ai-001: switch without re-measuring).** History: 5.5 first ran 2026-09-30 → 10-01 and was reverted to `claude-sonnet-4-6` for ~1.46x the tokens on identical production prompts (mostly tokenizer). Sonnet 5.x calls send `thinking: { type: 'between_tools' }` (`NO_UPFRONT_THINKING`; the scripts write it inline) so no upfront thinking eats `max_tokens`. Switching models is one line in `lib/ai/model.ts` plus the three scripts. Do not introduce Haiku for any reason, including cost optimisation.
 
 **Exception (Roi, 2026-10-06): enrichment only — when Claude refuses an article (stop_reason: refusal), the same prompt goes once to the fallback model via Codex on Roi's machine; every other AI call stays on Claude.** The daily job hides the refused article as `quarantine_reason = 'ai_refused'` after ONE attempt; Roi runs `npm run enrich:refused` (`scripts/enrich-refused.mjs`) on his Mac, which sends the identical prompt (`.github/workflows/scripts/enrichment-prompt.js`, shared with the job) to Codex — `gpt-6-astra`, on his **ChatGPT plan** (the script refuses to run unless Codex is signed in with ChatGPT, and never in CI; no OpenAI API key or billing anywhere). Same validation; `prompt_version` = `v2-context-framing+fallback:codex:gpt-6-astra` (internal only). Why: Claude refuses some livestock/poultry pathogen papers (FMD, ASF, HPAI, tularemia…) that `gpt-6-astra` summarizes well (24-article side-by-side review, 2026-10-06). Not in GitHub Actions: OpenAI advises against ChatGPT-account auth in CI, and never for public repositories.
 
