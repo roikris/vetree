@@ -1011,3 +1011,21 @@ Newest at the bottom. The same entries (latest few) appear in primer.md → Rece
   work to a scheduled job that goes red when it leaves work undone.
 - Next best step: Roi — check the panel tomorrow (fresh, high-scored articles; no amber warning); 07:00 UTC run's
   `score` job should score only the day's new articles.
+
+### Session 20261106-1320-claude-2481 · 2026-11-06 · Claude Code · ai-001 (closed)
+- Goal: Roi — "lose the check, let's just move to Sonnet 5.5 altogether" (no side-by-side token re-measure).
+- Done (#159 → 2d167ec): reverses 66c5983 — CLAUDE_MODEL = claude-sonnet-5-5; enrich-articles.js, qa-report.mjs,
+  qa-triage.mjs repeat the ID + `thinking: between_tools` inline; NO_UPFRONT_THINKING kept conditional (switching back =
+  one line + 3 scripts); CLAUDE.md rule 0 (decision + history), CONTENT_AGENT.md (incl. max tokens 2500), review
+  checklist. Audit: all 11 Claude call sites send the thinking flag; 2026-10-01 output budgets unchanged; Growth OS
+  scores stay valid (checked against the model on their row).
+- Start state: main 1ec2069; previous lock (20261106-1150-claude-05a3) released by its session.
+- Verification: init.sh check GREEN; live probe claude-sonnet-5-5 + between_tools → end_turn, text only; PR suite +
+  replay green; merged 2d167ec; /api/version = 2d167ec; post-merge health check success.
+- Review: Codex · tier 2 · 1 round · 50k tokens · BLOCKING: none; NB stale "Max tokens: 1024" doc → fixed.
+- Commits / PR: #159 → 2d167ec (Roi: "merge" — first attempt blocked by the auto-mode classifier, merged after auto mode
+  was exited).
+- Pending Roi approvals: none.
+- Known risks / unresolved: expect ~1.46x Anthropic token spend (last measured 2026-10-01). First 5.5 runs to watch:
+  enrichment + score job 07:00 UTC 11-07, Friday analysis insights, Thursday security scan.
+- Next best step: glance at the 11-07 enrichment Slack report and Anthropic usage after a week.

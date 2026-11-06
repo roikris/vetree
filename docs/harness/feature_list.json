@@ -609,11 +609,16 @@
       "notes": "Session 001 candidates D + C (C judged benign: hoisting, Onboarding remount, Date.now in a server component). \u00b7 claimed by 20261010-1719-claude-9084 \u00b7 CLOSED 2026-10-10. Left (separate items if wanted): 103 no-explicit-any, 13 set-state-in-effect, useFollowedTags immutability."
     },
     {
-      "status": "blocked",
-      "evidence": [],
-      "branch": "",
-      "pr": null,
-      "head_sha": null,
+      "status": "merged",
+      "evidence": [
+        {
+          "sha": "2d167ec",
+          "what": "init.sh check GREEN; live 5.5 probe ok; PR suite green; Codex tier 2 r1 BLOCKING none; merged on Roi's \"merge\" 2026-11-06; /api/version = 2d167ec; post-merge check success"
+        }
+      ],
+      "branch": "chore/ai-001-sonnet-5-5",
+      "pr": 159,
+      "head_sha": "2d167ec",
       "wip_sha": null,
       "expected_failures": [],
       "id": "ai-001",
@@ -631,7 +636,7 @@
           "paid_calls": true
         }
       ],
-      "notes": "Parked until ~2026-11-01 (CLAUDE.md rule 0). Session 001 candidate G."
+      "notes": "Parked until ~2026-11-01 (CLAUDE.md rule 0). Session 001 candidate G. \u00b7 2026-11-06 Roi: switch to Sonnet 5.5 without the re-measure. #159 merged 2d167ec. Item closed."
     },
     {
       "status": "merged",
