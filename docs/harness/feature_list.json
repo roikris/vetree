@@ -76,7 +76,7 @@
           "paid_calls": false
         },
         {
-          "step": "Codex review (full loop — harness is sensitive) reaches BLOCKING: none within 3 rounds",
+          "step": "Codex review (full loop \u2014 harness is sensitive) reaches BLOCKING: none within 3 rounds",
           "target": "none",
           "db_reads": "none",
           "db_writes": "none",
@@ -98,7 +98,7 @@
           "date": "2026-10-05",
           "session": "20261005-1638-claude-3439",
           "sha": "45b510f",
-          "command": "Codex review tier 2, high effort: r1 full 28.6k (1 blocking) → r2 delta 12.2k (1 blocking) → r3 delta 22.0k BLOCKING: none",
+          "command": "Codex review tier 2, high effort: r1 full 28.6k (1 blocking) \u2192 r2 delta 12.2k (1 blocking) \u2192 r3 delta 22.0k BLOCKING: none",
           "target": "none",
           "outcome": "pass",
           "approval": "n/a",
@@ -120,14 +120,14 @@
       "head_sha": "45b510f",
       "wip_sha": null,
       "expected_failures": [],
-      "notes": "Named by Roi 2026-10-05: all 8 measures; sensitive list = auth/session, Supabase writes + migrations, security + secrets, paid AI calls, email sending, harness scripts. Backlog session 001 is paused and still pending. Claimed by 20261005-1638-claude-3439 · passing on PR head 45b510f; awaits Roi's merge · merged by Roi 2026-10-05 as b54393b (#111)"
+      "notes": "Named by Roi 2026-10-05: all 8 measures; sensitive list = auth/session, Supabase writes + migrations, security + secrets, paid AI calls, email sending, harness scripts. Backlog session 001 is paused and still pending. Claimed by 20261005-1638-claude-3439 \u00b7 passing on PR head 45b510f; awaits Roi's merge \u00b7 merged by Roi 2026-10-05 as b54393b (#111)"
     },
     {
       "id": "harness-003",
       "priority": 4,
       "area": "harness",
       "type": "feature",
-      "title": "init.sh lock / unlock — take and release the session lock in one command that refuses when held",
+      "title": "init.sh lock / unlock \u2014 take and release the session lock in one command that refuses when held",
       "user_visible_behavior": "none (agent process): `docs/harness/init.sh lock <item>` and `init.sh unlock` replace hand-written session.lock files",
       "status": "merged",
       "verification": [
@@ -167,7 +167,7 @@
           "paid_calls": false
         },
         {
-          "step": "Review: Codex, tier 2 (harness scripts), high effort, max 3 rounds → BLOCKING: none",
+          "step": "Review: Codex, tier 2 (harness scripts), high effort, max 3 rounds \u2192 BLOCKING: none",
           "target": "none",
           "db_reads": "none",
           "db_writes": "none",
@@ -189,7 +189,7 @@
           "date": "2026-10-10",
           "session": "20261010-0508-claude-6918",
           "sha": "da1636f",
-          "command": "Codex tier 2: plan 3 rounds (33.3k / 32.9k / 40.5k, cap reached; Roi chose A: fold round 3 in and verify in code review); code 2 rounds (50.2k / 39.4k) → BLOCKING: none (2 fixed: git clean skipped an ignored lock file; a lost push acknowledgement was misclassified as NOT published)",
+          "command": "Codex tier 2: plan 3 rounds (33.3k / 32.9k / 40.5k, cap reached; Roi chose A: fold round 3 in and verify in code review); code 2 rounds (50.2k / 39.4k) \u2192 BLOCKING: none (2 fixed: git clean skipped an ignored lock file; a lost push acknowledgement was misclassified as NOT published)",
           "target": "none",
           "outcome": "pass",
           "approval": "Roi: \"A\"",
@@ -211,7 +211,7 @@
       "head_sha": "61f9f4d",
       "wip_sha": null,
       "expected_failures": [],
-      "notes": "Added by 20261005-1947-claude-9005 on Roi's word (2026-10-05). Origin: session 20261005-1630-claude-2221 overwrote a held lock because lock-taking was hand-written and chained after a STOP (reverted 52fed24). Order vs session-001 candidates: Roi decides when the backlog session resumes. · claimed by 20261010-0508-claude-6918 · CLOSED 2026-10-10 (first real release done with init.sh unlock)."
+      "notes": "Added by 20261005-1947-claude-9005 on Roi's word (2026-10-05). Origin: session 20261005-1630-claude-2221 overwrote a held lock because lock-taking was hand-written and chained after a STOP (reverted 52fed24). Order vs session-001 candidates: Roi decides when the backlog session resumes. \u00b7 claimed by 20261010-0508-claude-6918 \u00b7 CLOSED 2026-10-10 (first real release done with init.sh unlock)."
     },
     {
       "status": "merged",
@@ -220,7 +220,7 @@
           "date": "2026-10-06",
           "session": "20261006-1444-claude-6864",
           "sha": "21e2d6b",
-          "command": "read-only prod query: 346 articles with 3+ attempts; 24 unpublished — all last_enrichment_error \"stop_reason: refusal\" (pathogen research)",
+          "command": "read-only prod query: 346 articles with 3+ attempts; 24 unpublished \u2014 all last_enrichment_error \"stop_reason: refusal\" (pathogen research)",
           "target": "production",
           "outcome": "pass",
           "approval": "Roi: read-only prod queries for the investigation",
@@ -250,7 +250,7 @@
           "date": "2026-10-06",
           "session": "20261006-1444-claude-6864",
           "sha": "21e2d6b",
-          "command": "Codex review tier 2: r1 27.4k (2 blocking) → r2 delta 34.7k BLOCKING: none",
+          "command": "Codex review tier 2: r1 27.4k (2 blocking) \u2192 r2 delta 34.7k BLOCKING: none",
           "target": "none",
           "outcome": "pass",
           "approval": "n/a",
@@ -260,7 +260,7 @@
           "date": "2026-10-07",
           "session": "20261006-1824-claude-501f",
           "sha": "75c4363",
-          "command": "Codex review tier 2 (Codex-fallback design): r1 55.7k (5 blocking) → r2 46.8k (1 blocking) → r3 47.8k BLOCKING: none",
+          "command": "Codex review tier 2 (Codex-fallback design): r1 55.7k (5 blocking) \u2192 r2 46.8k (1 blocking) \u2192 r3 47.8k BLOCKING: none",
           "target": "none",
           "outcome": "pass",
           "approval": "n/a",
@@ -290,7 +290,7 @@
           "date": "2026-10-07",
           "session": "20261007-0604-claude-2342",
           "sha": "a527f5f",
-          "command": "Roi ran `npm run enrich:refused` (dry run 08:36–08:39, real run 09:33–09:36 local): \"Saved: 24 · declined 0 · failed batches 0 · Codex tokens 31,829\". Read-only verification: 0 ai_refused waiting; 24 saved with prompt_version …+fallback:codex:gpt-6-astra; 24/24 pass the Public Article Filter; quality 24/24 clean (150–250-word summary, ≤20-word bottom line, 3–5 allowed labels, valid evidence, not the abstract, every number in the abstract); manual-review count 0; live article page HTTP 200",
+          "command": "Roi ran `npm run enrich:refused` (dry run 08:36\u201308:39, real run 09:33\u201309:36 local): \"Saved: 24 \u00b7 declined 0 \u00b7 failed batches 0 \u00b7 Codex tokens 31,829\". Read-only verification: 0 ai_refused waiting; 24 saved with prompt_version \u2026+fallback:codex:gpt-6-astra; 24/24 pass the Public Article Filter; quality 24/24 clean (150\u2013250-word summary, \u226420-word bottom line, 3\u20135 allowed labels, valid evidence, not the abstract, every number in the abstract); manual-review count 0; live article page HTTP 200",
           "target": "production",
           "outcome": "pass",
           "approval": "Roi ran the fallback himself; verification read-only",
@@ -306,7 +306,7 @@
       "priority": 1,
       "area": "enrichment",
       "type": "fix",
-      "title": "24 articles failed enrichment 3+ attempts — investigate and resolve",
+      "title": "24 articles failed enrichment 3+ attempts \u2014 investigate and resolve",
       "user_visible_behavior": "Articles that can be enriched get summaries and appear; ones that cannot are handled per the enrichment rules (quarantine / hidden), with a known cause",
       "verification": [
         {
@@ -317,7 +317,7 @@
           "paid_calls": false
         },
         {
-          "step": "Resolution applied (code fix and/or re-run of enrichment) — prod writes / paid Claude calls only with Roi's OK",
+          "step": "Resolution applied (code fix and/or re-run of enrichment) \u2014 prod writes / paid Claude calls only with Roi's OK",
           "target": "production",
           "db_reads": "prod",
           "db_writes": "prod",
@@ -331,7 +331,7 @@
           "paid_calls": false
         }
       ],
-      "notes": "Roi, 2026-10-06: from the enrichment report (24 articles failed 3+ attempts). Read-only prod queries approved for the investigation; writes / paid calls ask first. · claimed by 20261006-1444-claude-6864 · decisions (Roi 2026-10-06): option A fallback = OpenAI gpt-6-astra, internal-only disclosure, rule 0 exception refusals only. NEXT: Roi adds GitHub secret OPENAI_API_KEY + confirms gpt-6-astra access → mark #112 ready (smoke runs) → Roi merges → with Roi's OK re-run the 24 (Retry failed / force_retry; prod writes + 24 Claude + 24 gpt-6-astra calls) → re-count failed-3+ (expect 0 refusals left). · 2026-10-07: design changed to Codex on Roi's ChatGPT plan (no API billing); migration 073 applied. NEXT: mark #112 ready → smoke → Roi merges → Roi runs npm run enrich:refused (-- --dry-run first) → re-count (expect 0 waiting). · #112 merged (a527f5f). REMAINING: Roi runs `npm run enrich:refused -- --dry-run` then `npm run enrich:refused` on his Mac → next session re-counts (expect 0 ai_refused waiting) → status passing/merged. · CLOSED 2026-10-07: all 24 published via the Codex fallback; verified."
+      "notes": "Roi, 2026-10-06: from the enrichment report (24 articles failed 3+ attempts). Read-only prod queries approved for the investigation; writes / paid calls ask first. \u00b7 claimed by 20261006-1444-claude-6864 \u00b7 decisions (Roi 2026-10-06): option A fallback = OpenAI gpt-6-astra, internal-only disclosure, rule 0 exception refusals only. NEXT: Roi adds GitHub secret OPENAI_API_KEY + confirms gpt-6-astra access \u2192 mark #112 ready (smoke runs) \u2192 Roi merges \u2192 with Roi's OK re-run the 24 (Retry failed / force_retry; prod writes + 24 Claude + 24 gpt-6-astra calls) \u2192 re-count failed-3+ (expect 0 refusals left). \u00b7 2026-10-07: design changed to Codex on Roi's ChatGPT plan (no API billing); migration 073 applied. NEXT: mark #112 ready \u2192 smoke \u2192 Roi merges \u2192 Roi runs npm run enrich:refused (-- --dry-run first) \u2192 re-count (expect 0 waiting). \u00b7 #112 merged (a527f5f). REMAINING: Roi runs `npm run enrich:refused -- --dry-run` then `npm run enrich:refused` on his Mac \u2192 next session re-counts (expect 0 ai_refused waiting) \u2192 status passing/merged. \u00b7 CLOSED 2026-10-07: all 24 published via the Codex fallback; verified."
     },
     {
       "status": "merged",
@@ -350,17 +350,17 @@
           "date": "2026-10-07",
           "session": "20261007-1242-claude-5b95",
           "sha": "5c20d64",
-          "command": "Plan review: 4 rounds (75.7k/48.3k/60.6k/47.0k) → BLOCKING: none; course changed from SQL-text guard to catalog audit (Roi); round 4 beyond cap (Roi)",
+          "command": "Plan review: 4 rounds (75.7k/48.3k/60.6k/47.0k) \u2192 BLOCKING: none; course changed from SQL-text guard to catalog audit (Roi); round 4 beyond cap (Roi)",
           "target": "none",
           "outcome": "pass",
-          "approval": "Roi: middle path → catalog audit; option b",
+          "approval": "Roi: middle path \u2192 catalog audit; option b",
           "link": "PR #113"
         },
         {
           "date": "2026-10-07",
           "session": "20261007-1242-claude-5b95",
           "sha": "5c20d64",
-          "command": "Code review tier 2: 3 rounds (58.4k/39.7k/40.9k) → BLOCKING: none",
+          "command": "Code review tier 2: 3 rounds (58.4k/39.7k/40.9k) \u2192 BLOCKING: none",
           "target": "none",
           "outcome": "pass",
           "approval": "n/a",
@@ -370,7 +370,7 @@
           "date": "2026-10-07",
           "session": "20261007-1242-claude-5b95",
           "sha": "5c20d64",
-          "command": "db push migration 074 (dry run listed only 074); live report: 33 relations × 4 = 132 rows, 0 malformed, 071 revokes visible, anon denied; acl-snapshot → supabase/access.json; acl-audit PASS 33/33; init.sh check GREEN",
+          "command": "db push migration 074 (dry run listed only 074); live report: 33 relations \u00d7 4 = 132 rows, 0 malformed, 071 revokes visible, anon denied; acl-snapshot \u2192 supabase/access.json; acl-audit PASS 33/33; init.sh check GREEN",
           "target": "production",
           "outcome": "pass",
           "approval": "Roi: \"push\" (rule 15)",
@@ -407,14 +407,14 @@
           "paid_calls": false
         },
         {
-          "step": "If gaps: a migration with the missing GRANTs — db push only on Roi's yes (rule 15)",
+          "step": "If gaps: a migration with the missing GRANTs \u2014 db push only on Roi's yes (rule 15)",
           "target": "production",
           "db_reads": "prod",
           "db_writes": "prod",
           "paid_calls": false
         }
       ],
-      "notes": "Deadline 2026-10-30 (supabase/CLAUDE.md:505). Only 22 of 72 migrations contain a GRANT. Tier 2 (Supabase migrations). Ask Roi for read-only prod access when starting. · claimed by 20261007-1242-claude-5b95 · NEXT: mark #113 ready → smoke (first CI run of the audit step) → Roi reviews access.json + merges. · CLOSED 2026-10-07."
+      "notes": "Deadline 2026-10-30 (supabase/CLAUDE.md:505). Only 22 of 72 migrations contain a GRANT. Tier 2 (Supabase migrations). Ask Roi for read-only prod access when starting. \u00b7 claimed by 20261007-1242-claude-5b95 \u00b7 NEXT: mark #113 ready \u2192 smoke (first CI run of the audit step) \u2192 Roi reviews access.json + merges. \u00b7 CLOSED 2026-10-07."
     },
     {
       "status": "merged",
@@ -423,7 +423,7 @@
           "date": "2026-10-10",
           "session": "20261010-0452-claude-9c7c",
           "sha": "b882d93",
-          "command": "Production read-only: old query 46 (13 future-dated), new query (public filter + created_at ≥ now−7d) 117",
+          "command": "Production read-only: old query 46 (13 future-dated), new query (public filter + created_at \u2265 now\u22127d) 117",
           "target": "production",
           "outcome": "pass",
           "approval": "n/a",
@@ -433,7 +433,7 @@
           "date": "2026-10-10",
           "session": "20261010-0452-claude-9c7c",
           "sha": "23ff18f",
-          "command": "init.sh check GREEN (lint baseline 178→177); Codex tier 2, 2 rounds, 47.6k + 16.1k tokens → BLOCKING: none (stale-cache finding fixed: cache keyed by UTC hour); PR #116 smoke pass",
+          "command": "init.sh check GREEN (lint baseline 178\u2192177); Codex tier 2, 2 rounds, 47.6k + 16.1k tokens \u2192 BLOCKING: none (stale-cache finding fixed: cache keyed by UTC hour); PR #116 smoke pass",
           "target": "local",
           "outcome": "pass",
           "approval": "n/a",
@@ -477,7 +477,7 @@
           "paid_calls": false
         }
       ],
-      "notes": "Session 001 candidate A. · claimed by 20261010-0452-claude-9c7c · CLOSED 2026-10-10 (preview step replaced by the live check after merge)."
+      "notes": "Session 001 candidate A. \u00b7 claimed by 20261010-0452-claude-9c7c \u00b7 CLOSED 2026-10-10 (preview step replaced by the live check after merge)."
     },
     {
       "status": "merged",
@@ -486,7 +486,7 @@
           "date": "2026-10-10",
           "session": "20261010-1034-claude-41e2",
           "sha": "e4052d1",
-          "command": "init.sh check GREEN; build log 0 warnings (was: Sentry onRouterTransitionStart ×2, middleware→proxy, 7 Turbopack whole-project traces); proxy built as nodejs with the same matcher; scan route trace 676 files / 6.2 MB → 1,396 / 5.7 MB (package files kept, Roi chose A), all 130 files the checks read present",
+          "command": "init.sh check GREEN; build log 0 warnings (was: Sentry onRouterTransitionStart \u00d72, middleware\u2192proxy, 7 Turbopack whole-project traces); proxy built as nodejs with the same matcher; scan route trace 676 files / 6.2 MB \u2192 1,396 / 5.7 MB (package files kept, Roi chose A), all 130 files the checks read present",
           "target": "local",
           "outcome": "pass",
           "approval": "n/a",
@@ -496,7 +496,7 @@
           "date": "2026-10-10",
           "session": "20261010-1034-claude-41e2",
           "sha": "8762402",
-          "command": "Local next start: / 200, /profile anon → /login, /auth/signin → /login, junk auth cookie 200; probe build (temporary throw + beforeSend log-and-drop, reverted): proxy error reaches Sentry once, path without query",
+          "command": "Local next start: / 200, /profile anon \u2192 /login, /auth/signin \u2192 /login, junk auth cookie 200; probe build (temporary throw + beforeSend log-and-drop, reverted): proxy error reaches Sentry once, path without query",
           "target": "local",
           "outcome": "pass",
           "approval": "n/a",
@@ -506,7 +506,7 @@
           "date": "2026-10-10",
           "session": "20261010-1034-claude-41e2",
           "sha": "e4052d1",
-          "command": "PR #118 smoke on the preview pass (anonymous protected-route redirects, signed-in round trip through the proxy); Codex tier 2: 2 rounds (58.6k / 39.5k) → BLOCKING: none (1 fixed: proxy errors not reported to Sentry on Node)",
+          "command": "PR #118 smoke on the preview pass (anonymous protected-route redirects, signed-in round trip through the proxy); Codex tier 2: 2 rounds (58.6k / 39.5k) \u2192 BLOCKING: none (1 fixed: proxy errors not reported to Sentry on Node)",
           "target": "preview",
           "outcome": "pass",
           "approval": "n/a",
@@ -516,7 +516,7 @@
           "date": "2026-10-10",
           "session": "20261010-1034-claude-41e2",
           "sha": "ba9fb77",
-          "command": "Merged as ba9fb77 (tree = e4052d1). First production deploy failed before building (Vercel: \"Git information retrieval failed\"); Roi redeployed. Production /api/version = ba9fb77; / 200, /profile + /library anon → /login, /auth/signin 308 → /login, /verify-email 200, /sw.js 200, sitemap 200, junk auth cookie 200, feed header \"106 new this week\"",
+          "command": "Merged as ba9fb77 (tree = e4052d1). First production deploy failed before building (Vercel: \"Git information retrieval failed\"); Roi redeployed. Production /api/version = ba9fb77; / 200, /profile + /library anon \u2192 /login, /auth/signin 308 \u2192 /login, /verify-email 200, /sw.js 200, sitemap 200, junk auth cookie 200, feed header \"106 new this week\"",
           "target": "production",
           "outcome": "pass",
           "approval": "Roi: \"merge\"",
@@ -532,7 +532,7 @@
       "priority": 5,
       "area": "build",
       "type": "chore",
-      "title": "Build warnings — Next 16 middleware → proxy rename (plus Sentry onRouterTransitionStart, scan-route tracing)",
+      "title": "Build warnings \u2014 Next 16 middleware \u2192 proxy rename (plus Sentry onRouterTransitionStart, scan-route tracing)",
       "user_visible_behavior": "none; removes deprecation before it becomes an error",
       "verification": [
         {
@@ -550,7 +550,7 @@
           "paid_calls": false
         }
       ],
-      "notes": "Session 001 candidate E. middleware is auth → tier 2. · claimed by 20261010-1034-claude-41e2 · CLOSED 2026-10-10. Follow-ups (Roi): Vercel usage after a few days (proxy = Node function now); Thursday security scan = first run of the trimmed trace."
+      "notes": "Session 001 candidate E. middleware is auth \u2192 tier 2. \u00b7 claimed by 20261010-1034-claude-41e2 \u00b7 CLOSED 2026-10-10. Follow-ups (Roi): Vercel usage after a few days (proxy = Node function now); Thursday security scan = first run of the trimmed trace."
     },
     {
       "status": "merged",
@@ -559,7 +559,7 @@
           "date": "2026-10-10",
           "session": "20261010-1719-claude-9084",
           "sha": "55ce2b3",
-          "command": "init.sh check GREEN; lint-baseline.json 177 → 117 errors (70 → 44 file+rule entries; no new pair, no grown count vs main) via init.sh --write-lint-baseline; warnings 75 → 68",
+          "command": "init.sh check GREEN; lint-baseline.json 177 \u2192 117 errors (70 \u2192 44 file+rule entries; no new pair, no grown count vs main) via init.sh --write-lint-baseline; warnings 75 \u2192 68",
           "target": "local",
           "outcome": "pass",
           "approval": "n/a",
@@ -569,7 +569,7 @@
           "date": "2026-10-10",
           "session": "20261010-1719-claude-9084",
           "sha": "55ce2b3",
-          "command": "Codex tier 2: 2 rounds (45.0k / 26.1k) → BLOCKING: none (1 fixed: useFollowedTags reorder swapped in a new file+rule pair — reverted); PR #119 smoke pass",
+          "command": "Codex tier 2: 2 rounds (45.0k / 26.1k) \u2192 BLOCKING: none (1 fixed: useFollowedTags reorder swapped in a new file+rule pair \u2014 reverted); PR #119 smoke pass",
           "target": "preview",
           "outcome": "pass",
           "approval": "n/a",
@@ -579,7 +579,7 @@
           "date": "2026-10-10",
           "session": "20261010-1719-claude-9084",
           "sha": "9429086",
-          "command": "Merged as 9429086 (tree = 55ce2b3); production /api/version = 9429086 after ~60 s; / 200, /profile anon → /login, /login 200, feed 200, sitemap 200",
+          "command": "Merged as 9429086 (tree = 55ce2b3); production /api/version = 9429086 after ~60 s; / 200, /profile anon \u2192 /login, /login 200, feed 200, sitemap 200",
           "target": "production",
           "outcome": "pass",
           "approval": "Roi: \"Merge\"",
@@ -595,7 +595,7 @@
       "priority": 6,
       "area": "lint",
       "type": "chore",
-      "title": "Lint cleanup — narrow scope (design handoff, workflow scripts), shrink the baseline, incl. the three \"possible bugs\"",
+      "title": "Lint cleanup \u2014 narrow scope (design handoff, workflow scripts), shrink the baseline, incl. the three \"possible bugs\"",
       "user_visible_behavior": "none",
       "verification": [
         {
@@ -606,7 +606,7 @@
           "paid_calls": false
         }
       ],
-      "notes": "Session 001 candidates D + C (C judged benign: hoisting, Onboarding remount, Date.now in a server component). · claimed by 20261010-1719-claude-9084 · CLOSED 2026-10-10. Left (separate items if wanted): 103 no-explicit-any, 13 set-state-in-effect, useFollowedTags immutability."
+      "notes": "Session 001 candidates D + C (C judged benign: hoisting, Onboarding remount, Date.now in a server component). \u00b7 claimed by 20261010-1719-claude-9084 \u00b7 CLOSED 2026-10-10. Left (separate items if wanted): 103 no-explicit-any, 13 set-state-in-effect, useFollowedTags immutability."
     },
     {
       "status": "blocked",
@@ -706,7 +706,7 @@
       "priority": 7,
       "area": "supabase",
       "type": "chore",
-      "title": "Least-privilege review of the access baseline (anon/authenticated hold ALL — incl. DELETE/TRUNCATE — on 29 tables)",
+      "title": "Least-privilege review of the access baseline (anon/authenticated hold ALL \u2014 incl. DELETE/TRUNCATE \u2014 on 29 tables)",
       "user_visible_behavior": "none if done right; narrower grants per role",
       "verification": [
         {
@@ -717,14 +717,14 @@
           "paid_calls": false
         },
         {
-          "step": "migration with REVOKE/GRANT + access.json update — db push on Roi's yes",
+          "step": "migration with REVOKE/GRANT + access.json update \u2014 db push on Roi's yes",
           "target": "production",
           "db_reads": "prod",
           "db_writes": "prod",
           "paid_calls": false
         }
       ],
-      "notes": "From infra-001 (2026-10-07). Tier 2. Careful: tightening can break client reads/writes. · claimed by 20261010-1903-claude-8c5f · CLOSED 2026-10-11 (6 PRs #120–#125, migrations 075–079). Follow-ups: feed-002 (Trending), admin-001 (re-queue buttons), scripts-001 (anon-key scripts)."
+      "notes": "From infra-001 (2026-10-07). Tier 2. Careful: tightening can break client reads/writes. \u00b7 claimed by 20261010-1903-claude-8c5f \u00b7 CLOSED 2026-10-11 (6 PRs #120\u2013#125, migrations 075\u2013079). Follow-ups: feed-002 (Trending), admin-001 (re-queue buttons), scripts-001 (anon-key scripts)."
     },
     {
       "status": "merged",
@@ -743,7 +743,7 @@
           "date": "2026-10-12",
           "session": "20261012-0624-claude-d170",
           "sha": "32bc5ad",
-          "command": "Codex plan review 3 rounds (48.2k / 33.1k / 23.2k) → BLOCKING: none (rev 3); code review 3 rounds (66.5k / 62.1k / 50.1k, plus a 3.1k empty run) → BLOCKING: none",
+          "command": "Codex plan review 3 rounds (48.2k / 33.1k / 23.2k) \u2192 BLOCKING: none (rev 3); code review 3 rounds (66.5k / 62.1k / 50.1k, plus a 3.1k empty run) \u2192 BLOCKING: none",
           "target": "none",
           "outcome": "pass",
           "approval": "Roi: \"build\"",
@@ -763,7 +763,7 @@
           "date": "2026-10-12",
           "session": "20261012-0624-claude-d170",
           "sha": "d13bbac",
-          "command": "db push 080 (dry run listed only 080); production schema-report: 33 relations, 16 routines, 0 unsupported, 0 secret-shaped; schema-snapshot → supabase/schema.json (4,293 facts, nothing redacted, no emails / URLs / UUIDs); acl + rls audits PASS after the push; merged as d13bbac; post-merge qa-smoke: schema audit PASS",
+          "command": "db push 080 (dry run listed only 080); production schema-report: 33 relations, 16 routines, 0 unsupported, 0 secret-shaped; schema-snapshot \u2192 supabase/schema.json (4,293 facts, nothing redacted, no emails / URLs / UUIDs); acl + rls audits PASS after the push; merged as d13bbac; post-merge qa-smoke: schema audit PASS",
           "target": "production",
           "outcome": "pass",
           "approval": "Roi: \"push\" (auto mode blocked the first attempt; Roi: \"try again\"), \"merge\"",
@@ -783,7 +783,7 @@
           "date": "2026-10-12",
           "session": "20261012-0624-claude-d170",
           "sha": "ea8aace",
-          "command": "Codex tier 2 PR 2 code review: round 1 92.1k (1 blocking: added default privileges checked by presence only — fixed, 11 fixtures) → round 2 35.3k BLOCKING: none",
+          "command": "Codex tier 2 PR 2 code review: round 1 92.1k (1 blocking: added default privileges checked by presence only \u2014 fixed, 11 fixtures) \u2192 round 2 35.3k BLOCKING: none",
           "target": "none",
           "outcome": "pass",
           "approval": "Roi: \"proceed with codex now\"",
@@ -810,10 +810,10 @@
       "area": "supabase",
       "type": "chore",
       "title": "Replay safety: a database rebuilt from supabase/migrations/ matches production (option B, Roi 2026-10-12)",
-      "user_visible_behavior": "none (a fresh rebuild from migrations — staging copy, disaster recovery — gets production's schema, policies and grants)",
+      "user_visible_behavior": "none (a fresh rebuild from migrations \u2014 staging copy, disaster recovery \u2014 gets production's schema, policies and grants)",
       "verification": [
         {
-          "step": "PR 1: migration 080 harness_schema_report() + schema-audit vs supabase/schema.json in init.sh check, PR smoke, daily — db push on Roi's yes",
+          "step": "PR 1: migration 080 harness_schema_report() + schema-audit vs supabase/schema.json in init.sh check, PR smoke, daily \u2014 db push on Roi's yes",
           "target": "production",
           "db_reads": "prod",
           "db_writes": "prod",
@@ -834,26 +834,26 @@
           "paid_calls": false
         },
         {
-          "step": "Review: Codex tier 2 per PR → BLOCKING: none",
+          "step": "Review: Codex tier 2 per PR \u2192 BLOCKING: none",
           "target": "none",
           "db_reads": "none",
           "db_writes": "none",
           "paid_calls": false
         }
       ],
-      "notes": "From infra-001 (2026-10-07). Production unaffected; matters for a rebuild after 2026-10-30. · claimed by 20261012-0624-claude-d170 · scope changed to option B by Roi (2026-10-12): the rebuild itself must work. PR 1 (#127, schema audit) merged d13bbac. NEXT: PR 2 — replay job + 000 baseline + 081 grants (Codex tier 2), then repair 000 / push 081 on Roi's yes. · PR 2 (#128) merged 342cacb; 000 recorded as applied, 081 + 082 pushed (no-ops). CLOSED 2026-10-12. Roi decides separately whether production gets back the 4 dropped indexes."
+      "notes": "From infra-001 (2026-10-07). Production unaffected; matters for a rebuild after 2026-10-30. \u00b7 claimed by 20261012-0624-claude-d170 \u00b7 scope changed to option B by Roi (2026-10-12): the rebuild itself must work. PR 1 (#127, schema audit) merged d13bbac. NEXT: PR 2 \u2014 replay job + 000 baseline + 081 grants (Codex tier 2), then repair 000 / push 081 on Roi's yes. \u00b7 PR 2 (#128) merged 342cacb; 000 recorded as applied, 081 + 082 pushed (no-ops). CLOSED 2026-10-12. Roi decides separately whether production gets back the 4 dropped indexes."
     },
     {
       "id": "seo-001",
       "priority": 1,
       "area": "seo",
       "type": "fix",
-      "title": "Google Search Console errors — investigate and fix",
+      "title": "Google Search Console errors \u2014 investigate and fix",
       "user_visible_behavior": "Pages Google reports as errors become indexable (or are deliberately excluded)",
       "status": "merged",
       "verification": [
         {
-          "step": "read Search Console reports (Pages / indexing, sitemaps, enhancements) in Roi's browser — read-only",
+          "step": "read Search Console reports (Pages / indexing, sitemaps, enhancements) in Roi's browser \u2014 read-only",
           "target": "production",
           "db_reads": "none",
           "db_writes": "none",
@@ -879,7 +879,7 @@
           "date": "2026-10-07",
           "session": "20261007-1922-claude-7410",
           "sha": "4686368",
-          "command": "Read GSC Page indexing (read-only): 475 indexed / 195 not — 143 crawled-not-indexed, 30 alternate canonical, 11 redirect, 5 404, 4 soft 404, 2 robots-blocked; curl-reproduced samples",
+          "command": "Read GSC Page indexing (read-only): 475 indexed / 195 not \u2014 143 crawled-not-indexed, 30 alternate canonical, 11 redirect, 5 404, 4 soft 404, 2 robots-blocked; curl-reproduced samples",
           "target": "production",
           "outcome": "pass",
           "approval": "n/a",
@@ -889,7 +889,7 @@
           "date": "2026-10-07",
           "session": "20261007-1922-claude-7410",
           "sha": "5926c9d",
-          "command": "init.sh check GREEN (tsc, lint ratchet, acl 33/33, build); local prod build: /auth/signin 308→/login, noindex,follow on /login, /signup, /?search=; none on / and /?labels=",
+          "command": "init.sh check GREEN (tsc, lint ratchet, acl 33/33, build); local prod build: /auth/signin 308\u2192/login, noindex,follow on /login, /signup, /?search=; none on / and /?labels=",
           "target": "local",
           "outcome": "pass",
           "approval": "n/a",
@@ -899,7 +899,7 @@
           "date": "2026-10-07",
           "session": "20261007-1922-claude-7410",
           "sha": "5926c9d",
-          "command": "Codex review tier 2, 1 round, 36.1k tokens → BLOCKING: none; PR #114 smoke pass",
+          "command": "Codex review tier 2, 1 round, 36.1k tokens \u2192 BLOCKING: none; PR #114 smoke pass",
           "target": "none",
           "outcome": "pass",
           "approval": "n/a",
@@ -909,7 +909,7 @@
           "date": "2026-10-07",
           "session": "20261007-1922-claude-7410",
           "sha": "f0b17e6",
-          "command": "Merged as f0b17e6; production /api/version = f0b17e6; live: /auth/signin 308→/login; robots noindex,follow on /login, /signup, /?search=…; none on /",
+          "command": "Merged as f0b17e6; production /api/version = f0b17e6; live: /auth/signin 308\u2192/login; robots noindex,follow on /login, /signup, /?search=\u2026; none on /",
           "target": "production",
           "outcome": "pass",
           "approval": "Roi: \"merge\"",
@@ -921,7 +921,7 @@
       "head_sha": "f0b17e6",
       "wip_sha": null,
       "expected_failures": [],
-      "notes": "Side quest named by Roi 2026-10-07 (before feed-001). Claimed by 20261007-1922-claude-7410 · CLOSED 2026-10-07. Remaining (Roi): \"Validate fix\" on the GSC Not found + Soft 404 reports. /article/pubmed- (empty id) had no source in code or sitemap — already a correct 404."
+      "notes": "Side quest named by Roi 2026-10-07 (before feed-001). Claimed by 20261007-1922-claude-7410 \u00b7 CLOSED 2026-10-07. Remaining (Roi): \"Validate fix\" on the GSC Not found + Soft 404 reports. /article/pubmed- (empty id) had no source in code or sitemap \u2014 already a correct 404."
     },
     {
       "id": "digest-001",
@@ -929,7 +929,7 @@
       "area": "email",
       "type": "fix",
       "title": "Digest footer: shorten the legal notice (same legal content, no repetition)",
-      "user_visible_behavior": "Digest footer states the §30A / §17F details once per language: short English line naming \"Vetree\", Hebrew line with Roi's name and address",
+      "user_visible_behavior": "Digest footer states the \u00a730A / \u00a717F details once per language: short English line naming \"Vetree\", Hebrew line with Roi's name and address",
       "status": "merged",
       "verification": [
         {
@@ -952,7 +952,7 @@
           "date": "2026-10-09",
           "session": "20261009-1730-claude-5a0d",
           "sha": "6c2885e",
-          "command": "init.sh check GREEN (tsc, lint ratchet, acl 33/33, build); Codex tier 2, 1 round, 22.2k tokens → BLOCKING: none; PR #115 smoke pass",
+          "command": "init.sh check GREEN (tsc, lint ratchet, acl 33/33, build); Codex tier 2, 1 round, 22.2k tokens \u2192 BLOCKING: none; PR #115 smoke pass",
           "target": "local",
           "outcome": "pass",
           "approval": "n/a",
@@ -962,7 +962,7 @@
           "date": "2026-10-09",
           "session": "20261009-1730-claude-5a0d",
           "sha": "946f146",
-          "command": "Merged as 946f146; production /api/version = 946f146. No digest sent — first live use: next Friday digest",
+          "command": "Merged as 946f146; production /api/version = 946f146. No digest sent \u2014 first live use: next Friday digest",
           "target": "production",
           "outcome": "pass",
           "approval": "Roi: \"merge\"",
@@ -974,7 +974,7 @@
       "head_sha": "946f146",
       "wip_sha": null,
       "expected_failures": [],
-      "notes": "Named by Roi 2026-10-09 (side step). Not a company yet → English names \"Vetree\" only (no \"Ltd.\"); Hebrew keeps name + address (§30A, §17F). Claimed by 20261009-1730-claude-5a0d · CLOSED 2026-10-09."
+      "notes": "Named by Roi 2026-10-09 (side step). Not a company yet \u2192 English names \"Vetree\" only (no \"Ltd.\"); Hebrew keeps name + address (\u00a730A, \u00a717F). Claimed by 20261009-1730-claude-5a0d \u00b7 CLOSED 2026-10-09."
     },
     {
       "status": "merged",
@@ -983,7 +983,7 @@
           "date": "2026-10-12",
           "session": "20261011-1725-claude-656c",
           "sha": "b2053fb",
-          "command": "docs/harness/test/lock/selftest.sh: 244/244 on bash 3.2 + 5.3 (before b2053fb), new cases 73/73 after it, 251/251 in PR #126 CI (bash 5.2.21); 16 new log cases (refusals: truncated, edited byte, line deleted, reordered, same length, LF↔CRLF, BOM removed, entry only in the old part; passes with exact published bytes); with the check disabled 10 cases fail",
+          "command": "docs/harness/test/lock/selftest.sh: 244/244 on bash 3.2 + 5.3 (before b2053fb), new cases 73/73 after it, 251/251 in PR #126 CI (bash 5.2.21); 16 new log cases (refusals: truncated, edited byte, line deleted, reordered, same length, LF\u2194CRLF, BOM removed, entry only in the old part; passes with exact published bytes); with the check disabled 10 cases fail",
           "target": "local",
           "outcome": "pass",
           "approval": "n/a",
@@ -993,7 +993,7 @@
           "date": "2026-10-12",
           "session": "20261011-1725-claude-656c",
           "sha": "b2053fb",
-          "command": "Codex tier 2: plan 1 round (43.6k) + code 2 rounds (56.3k / 48.2k) → BLOCKING: none (3 non-blocking fixed in b2053fb)",
+          "command": "Codex tier 2: plan 1 round (43.6k) + code 2 rounds (56.3k / 48.2k) \u2192 BLOCKING: none (3 non-blocking fixed in b2053fb)",
           "target": "none",
           "outcome": "pass",
           "approval": "n/a",
@@ -1030,14 +1030,14 @@
           "paid_calls": false
         },
         {
-          "step": "Review: Codex, tier 2 (harness scripts) → BLOCKING: none",
+          "step": "Review: Codex, tier 2 (harness scripts) \u2192 BLOCKING: none",
           "target": "none",
           "db_reads": "none",
           "db_writes": "none",
           "paid_calls": false
         }
       ],
-      "notes": "Added by 20261010-1903-claude-8c5f on Roi's word (2026-10-10, \"add the guard\"). Origin: session-log.md truncated to one entry in f81d84f by a close-out script (restored in d94ff26); unlock only checked that the session's entry exists. · claimed by 20261011-1725-claude-656c · CLOSED 2026-10-12 (#126)."
+      "notes": "Added by 20261010-1903-claude-8c5f on Roi's word (2026-10-10, \"add the guard\"). Origin: session-log.md truncated to one entry in f81d84f by a close-out script (restored in d94ff26); unlock only checked that the session's entry exists. \u00b7 claimed by 20261011-1725-claude-656c \u00b7 CLOSED 2026-10-12 (#126)."
     },
     {
       "status": "merged",
@@ -1056,7 +1056,7 @@
           "date": "2026-10-15",
           "session": "20261015-0745-claude-f044",
           "sha": "fda5366",
-          "command": "Migration 083 pushed to production: dry run listed only 083_saved_this_week.sql; `npx supabase db push --linked` applied it (exit 0); init.sh check --item feed-002 GREEN on fda5366 — acl audit 33 relations, rls audit 32 tables / 40 policies, schema audit 4301 facts match (production prints the function exactly as replay did; no snapshot change); tsc / lint ratchet / unit / build PASS",
+          "command": "Migration 083 pushed to production: dry run listed only 083_saved_this_week.sql; `npx supabase db push --linked` applied it (exit 0); init.sh check --item feed-002 GREEN on fda5366 \u2014 acl audit 33 relations, rls audit 32 tables / 40 policies, schema audit 4301 facts match (production prints the function exactly as replay did; no snapshot change); tsc / lint ratchet / unit / build PASS",
           "target": "production",
           "outcome": "pass",
           "approval": "Roi: \"yes\" (apply 083)",
@@ -1066,7 +1066,7 @@
           "date": "2026-10-16",
           "session": "20261015-0745-claude-f044",
           "sha": "fda5366",
-          "command": "gh pr ready 137 (one suite run): scope, replay (new) 1m28s, replay (old) 1m18s, smoke 2m04s, Vercel — all pass on fda5366; preview https://vetree-l8xxaanmf-roikris-projects.vercel.app",
+          "command": "gh pr ready 137 (one suite run): scope, replay (new) 1m28s, replay (old) 1m18s, smoke 2m04s, Vercel \u2014 all pass on fda5366; preview https://vetree-l8xxaanmf-roikris-projects.vercel.app",
           "target": "preview",
           "outcome": "pass",
           "approval": "Roi: \"yes\" (mark ready)",
@@ -1093,7 +1093,7 @@
       "area": "feed",
       "type": "fix",
       "title": "Homepage \"Trending\" counts only the reader's own saves (app/actions/trending.ts reads saved_articles with the cookie client)",
-      "user_visible_behavior": "Trending shows the most-saved articles of the last 7 days to everyone (today: never for guests; for signed-in readers only their own saves, and only if they saved ≥ 3)",
+      "user_visible_behavior": "Trending shows the most-saved articles of the last 7 days to everyone (today: never for guests; for signed-in readers only their own saves, and only if they saved \u2265 3)",
       "verification": [
         {
           "step": "decide with Roi what Trending should show; count saves with the service role (article ids only); then migration: revoke anon SELECT on saved_articles + access.json",
@@ -1103,14 +1103,14 @@
           "paid_calls": false
         },
         {
-          "step": "Review: Codex, tier 2 → BLOCKING: none",
+          "step": "Review: Codex, tier 2 \u2192 BLOCKING: none",
           "target": "none",
           "db_reads": "none",
           "db_writes": "none",
           "paid_calls": false
         }
       ],
-      "notes": "Found by 20261010-1903-claude-8c5f in infra-002's grant sweep (2026-10-11). Visible product change — Roi decides. anon keeps SELECT on saved_articles only for this (migration 079). · claimed by 20261015-0745-claude-f044 · Roi 2026-10-15: \"1A but let's change it to 'articles saved this week'\" (count every reader's saves on the server, same list for everyone; heading renamed, which also answers thin counts — no production count needed) and \"2 yes\" (exclude admin + test account, rule 10). Plan: ~/dev/vetree-harness-work/feed-002-plan.md. · Codex plan r1 66.3k (3 blocking: offset paging inconsistent; tie-break after the cut; TEST_USER_ID throws at module load) → Roi: \"yes\" to a SQL function public.saved_this_week (service role only) → r2 delta 41.4k (1 blocking: replay compares schema.json exactly → candidate keys from the replay report before the push) → r3 delta 32.6k BLOCKING: none (NB: schema-snapshot --report to a temp file, merge only relevant keys, delete the revoked ACL key; SQL fixture before replay's self-check). Plan rev 3 awaits Roi's go to build. · Codex code r1 54.7k BLOCKING: none (first 17:31 attempt failed: Codex usage limit, then 'workspace routing discovery failed'). Next: db push 083 needs Roi's explicit yes. · 083 pushed on Roi's yes (2026-10-15); production audits GREEN. #137 ready → suite pass once; merged 0d3d6ed on Roi's word (2026-10-16); production home shows the section signed out. Closed."
+      "notes": "Found by 20261010-1903-claude-8c5f in infra-002's grant sweep (2026-10-11). Visible product change \u2014 Roi decides. anon keeps SELECT on saved_articles only for this (migration 079). \u00b7 claimed by 20261015-0745-claude-f044 \u00b7 Roi 2026-10-15: \"1A but let's change it to 'articles saved this week'\" (count every reader's saves on the server, same list for everyone; heading renamed, which also answers thin counts \u2014 no production count needed) and \"2 yes\" (exclude admin + test account, rule 10). Plan: ~/dev/vetree-harness-work/feed-002-plan.md. \u00b7 Codex plan r1 66.3k (3 blocking: offset paging inconsistent; tie-break after the cut; TEST_USER_ID throws at module load) \u2192 Roi: \"yes\" to a SQL function public.saved_this_week (service role only) \u2192 r2 delta 41.4k (1 blocking: replay compares schema.json exactly \u2192 candidate keys from the replay report before the push) \u2192 r3 delta 32.6k BLOCKING: none (NB: schema-snapshot --report to a temp file, merge only relevant keys, delete the revoked ACL key; SQL fixture before replay's self-check). Plan rev 3 awaits Roi's go to build. \u00b7 Codex code r1 54.7k BLOCKING: none (first 17:31 attempt failed: Codex usage limit, then 'workspace routing discovery failed'). Next: db push 083 needs Roi's explicit yes. \u00b7 083 pushed on Roi's yes (2026-10-15); production audits GREEN. #137 ready \u2192 suite pass once; merged 0d3d6ed on Roi's word (2026-10-16); production home shows the section signed out. Closed."
     },
     {
       "status": "merged",
@@ -1119,7 +1119,7 @@
           "date": "2026-10-14",
           "session": "20261014-0538-claude-a04e",
           "sha": "0ba3e00",
-          "command": "PR 1 (#134): init.sh check GREEN on b73a9d2 and 0ba3e00; unit 61/61 (8 new in tests/unit/experiment.test.ts, offline); Codex plan r1 102.9k + r2 30.6k; code r1 50.3k (1 blocking: TEST_USER_ID not excluded) → r2 delta 21.9k BLOCKING: none; PR smoke + replay new/old pass on 0ba3e00",
+          "command": "PR 1 (#134): init.sh check GREEN on b73a9d2 and 0ba3e00; unit 61/61 (8 new in tests/unit/experiment.test.ts, offline); Codex plan r1 102.9k + r2 30.6k; code r1 50.3k (1 blocking: TEST_USER_ID not excluded) \u2192 r2 delta 21.9k BLOCKING: none; PR smoke + replay new/old pass on 0ba3e00",
           "target": "preview",
           "outcome": "pass",
           "approval": "Roi: \"A, approve\"",
@@ -1139,7 +1139,7 @@
           "date": "2026-10-14",
           "session": "20261014-0538-claude-a04e",
           "sha": "a6f207a",
-          "command": "PR 2 (#135): Pipeline rebuilt (GET /api/admin/pipeline/status + PipelineStatus.tsx, Almanac tokens; Roi: \"great, just make sure the color scheme matches\"), Article Health + Incomplete Enrichment + diagnostics + stats + label edit + send-digest-now + CSV removed (Roi: \"removals approved\"); init.sh check GREEN on 660cf1c, fab966d, a6f207a; unit 68/68 (6 new); shown to Roi with made-up data (desktop light / phone dark); 7 mocked-network Playwright scenarios on a temporary local page (not committed), each fix's test failing before it; Codex r1 76.1k (4 blocking: NULL flag, lists capped at 50, stale refresh, silent delete failure) → r2 delta 29.7k (2 blocking: Show-more interleavings) → r3 delta 17.1k BLOCKING: none; PR smoke + replay pass on a6f207a",
+          "command": "PR 2 (#135): Pipeline rebuilt (GET /api/admin/pipeline/status + PipelineStatus.tsx, Almanac tokens; Roi: \"great, just make sure the color scheme matches\"), Article Health + Incomplete Enrichment + diagnostics + stats + label edit + send-digest-now + CSV removed (Roi: \"removals approved\"); init.sh check GREEN on 660cf1c, fab966d, a6f207a; unit 68/68 (6 new); shown to Roi with made-up data (desktop light / phone dark); 7 mocked-network Playwright scenarios on a temporary local page (not committed), each fix's test failing before it; Codex r1 76.1k (4 blocking: NULL flag, lists capped at 50, stale refresh, silent delete failure) \u2192 r2 delta 29.7k (2 blocking: Show-more interleavings) \u2192 r3 delta 17.1k BLOCKING: none; PR smoke + replay pass on a6f207a",
           "target": "preview",
           "outcome": "pass",
           "approval": "Roi: \"start\", \"removals approved\"",
@@ -1166,10 +1166,10 @@
       "area": "admin",
       "type": "feature",
       "title": "Admin panel rethink: weekly report uses the real campaign day (no rotation line), weekly AI report hidden, Overview item + dead code removed (PR 1); Pipeline rebuilt as \"the Slack messages, expanded\", Article Health removed (PR 2)",
-      "user_visible_behavior": "The Friday Slack report shows run 2's real day (\"Day 16/90\" on 2026-10-14, not \"Day 117/90\") and no rotation line; Analytics hides the weekly AI report section; the sidebar has no empty Overview; /admin/pipeline shows each job's last run, today's sync and enrichment, what needs Roi (waiting for Codex, failed + Retry failed, queue + Run enrichment) and hidden articles by reason — no Article Health",
+      "user_visible_behavior": "The Friday Slack report shows run 2's real day (\"Day 16/90\" on 2026-10-14, not \"Day 117/90\") and no rotation line; Analytics hides the weekly AI report section; the sidebar has no empty Overview; /admin/pipeline shows each job's last run, today's sync and enrichment, what needs Roi (waiting for Codex, failed + Retry failed, queue + Run enrichment) and hidden articles by reason \u2014 no Article Health",
       "verification": [
         {
-          "step": "Plan: ~/dev/vetree-harness-work/admin-002-plan.md (Roi approved 2026-10-14) → Codex plan review for improvements before implementation",
+          "step": "Plan: ~/dev/vetree-harness-work/admin-002-plan.md (Roi approved 2026-10-14) \u2192 Codex plan review for improvements before implementation",
           "target": "none",
           "db_reads": "none",
           "db_writes": "none",
@@ -1190,7 +1190,7 @@
           "paid_calls": false
         }
       ],
-      "notes": "Roi 2026-10-14: \"the admin panel needs rethinking … article health is part of an older version … reconsider if it's even needed\". Decisions D1–D5 in the plan (Analytics landing; keep all Analytics numbers, hide the weekly AI report; Reports + Users unchanged; Pipeline = extension of the Slack messages; Campaign reset = the weekly report's day). Read-only usage pass approved: admin-usage-result.txt. Supersedes admin-001. · Plan rev 3: Codex plan r1 102.9k (2 blocking: activity ≠ job health; run totals not recoverable) → Roi chose A (no new table) → r2 delta 30.6k (2 blocking folded in: run-2 engaged total not /day; retry list = FAILED_UNPUBLISHED_OR). Real 'Day 117/90' source: growth-daily-reminder.js (run-1 dates hard-coded). · claimed by 20261014-0538-claude-a04e (PR 1 branch fix/admin-002-reminder-cleanup) · PR 1 #134 merged 86fdcd6 (2026-10-14); no secret step needed (lookup by TEST_USER_EMAIL). First live check: the 03:00 UTC Slack message on 2026-10-15 should read Day 16/90 without the 'not excluded' note. NEXT: PR 2 (Pipeline rebuild, option A) on a new branch from main. · PR 2 #135 ready on a6f207a (all checks pass); awaits Roi's look at the preview with real data + his merge. NON-BLOCKING left: no signed-in non-admin e2e for the status route (no such smoke account). · PR 2 #135 merged edf2009 (2026-10-14) on Roi's word after his look at the preview. CLOSED 2026-10-14. Open: the 2026-10-15 Slack reminder should read Day 16/90 with no 'not excluded' note; making the weekly AI report usable is a separate later item. NON-BLOCKING left: no signed-in non-admin e2e for the status route; unpinned supabase-js in the reminder workflow; an SDK exception in the test-account lookup would skip that morning's message; CLAUDE.md 'Key Features Built' still lists an admin 'overview'."
+      "notes": "Roi 2026-10-14: \"the admin panel needs rethinking \u2026 article health is part of an older version \u2026 reconsider if it's even needed\". Decisions D1\u2013D5 in the plan (Analytics landing; keep all Analytics numbers, hide the weekly AI report; Reports + Users unchanged; Pipeline = extension of the Slack messages; Campaign reset = the weekly report's day). Read-only usage pass approved: admin-usage-result.txt. Supersedes admin-001. \u00b7 Plan rev 3: Codex plan r1 102.9k (2 blocking: activity \u2260 job health; run totals not recoverable) \u2192 Roi chose A (no new table) \u2192 r2 delta 30.6k (2 blocking folded in: run-2 engaged total not /day; retry list = FAILED_UNPUBLISHED_OR). Real 'Day 117/90' source: growth-daily-reminder.js (run-1 dates hard-coded). \u00b7 claimed by 20261014-0538-claude-a04e (PR 1 branch fix/admin-002-reminder-cleanup) \u00b7 PR 1 #134 merged 86fdcd6 (2026-10-14); no secret step needed (lookup by TEST_USER_EMAIL). First live check: the 03:00 UTC Slack message on 2026-10-15 should read Day 16/90 without the 'not excluded' note. NEXT: PR 2 (Pipeline rebuild, option A) on a new branch from main. \u00b7 PR 2 #135 ready on a6f207a (all checks pass); awaits Roi's look at the preview with real data + his merge. NON-BLOCKING left: no signed-in non-admin e2e for the status route (no such smoke account). \u00b7 PR 2 #135 merged edf2009 (2026-10-14) on Roi's word after his look at the preview. CLOSED 2026-10-14. Open: the 2026-10-15 Slack reminder should read Day 16/90 with no 'not excluded' note; making the weekly AI report usable is a separate later item. NON-BLOCKING left: no signed-in non-admin e2e for the status route; unpinned supabase-js in the reminder workflow; an SDK exception in the test-account lookup would skip that morning's message; CLAUDE.md 'Key Features Built' still lists an admin 'overview'."
     },
     {
       "status": "merged",
@@ -1219,21 +1219,21 @@
       "user_visible_behavior": "the two buttons re-queue articles for enrichment (since 079 they show a permission error; before, a false \"success\" with no change)",
       "verification": [
         {
-          "step": "switch to the service role after the admin check, return a real count; Roi decides first — re-queued articles are enriched by the daily job (paid Claude calls)",
+          "step": "switch to the service role after the admin check, return a real count; Roi decides first \u2014 re-queued articles are enriched by the daily job (paid Claude calls)",
           "target": "production",
           "db_reads": "prod",
           "db_writes": "prod",
           "paid_calls": true
         },
         {
-          "step": "Review: Codex, tier 2 → BLOCKING: none",
+          "step": "Review: Codex, tier 2 \u2192 BLOCKING: none",
           "target": "none",
           "db_reads": "none",
           "db_writes": "none",
           "paid_calls": false
         }
       ],
-      "notes": "Found by Codex in infra-002's review of 079 (2026-10-11). · 2026-10-14 (20261014-0538-claude-a04e): to be REMOVED, not fixed, by admin-002 PR 2 — the 4,579 \"never attempted\" + 16,131 \"partial\" are ~all published articles (read-only count, Roi approved); re-queueing them would re-enrich ~20.7k live articles. Closes when admin-002 PR 2 merges. · CLOSED 2026-10-14: removed (not fixed) by #135 → edf2009."
+      "notes": "Found by Codex in infra-002's review of 079 (2026-10-11). \u00b7 2026-10-14 (20261014-0538-claude-a04e): to be REMOVED, not fixed, by admin-002 PR 2 \u2014 the 4,579 \"never attempted\" + 16,131 \"partial\" are ~all published articles (read-only count, Roi approved); re-queueing them would re-enrich ~20.7k live articles. Closes when admin-002 PR 2 merges. \u00b7 CLOSED 2026-10-14: removed (not fixed) by #135 \u2192 edf2009."
     },
     {
       "status": "merged",
@@ -1269,14 +1269,14 @@
           "paid_calls": false
         },
         {
-          "step": "Review: Codex, tier 1 or 2 → BLOCKING: none",
+          "step": "Review: Codex, tier 1 or 2 \u2192 BLOCKING: none",
           "target": "none",
           "db_reads": "none",
           "db_writes": "none",
           "paid_calls": false
         }
       ],
-      "notes": "Found by Codex in infra-002's review of 079 (2026-10-11). · Roi 2026-10-24: both unused → deleted (#155, bf627b3). CLOSED."
+      "notes": "Found by Codex in infra-002's review of 079 (2026-10-11). \u00b7 Roi 2026-10-24: both unused \u2192 deleted (#155, bf627b3). CLOSED."
     },
     {
       "status": "merged",
@@ -1285,7 +1285,7 @@
           "date": "2026-10-13",
           "session": "20261012-1839-claude-df86",
           "sha": "512e549",
-          "command": "linkFree offline tests 23/23 (Codex's bare-domain examples, https / www / co.il stripped; clinical text, titles and organism names E.coli / S.aureus kept; X.com / T.co / x.com still links; idempotent); guard simulation (3 clicks → 1 write, failure → retry); Playwright screenshots: hint only with utm_content=page-button, no horizontal overflow, gone at ~15 s; init.sh check GREEN",
+          "command": "linkFree offline tests 23/23 (Codex's bare-domain examples, https / www / co.il stripped; clinical text, titles and organism names E.coli / S.aureus kept; X.com / T.co / x.com still links; idempotent); guard simulation (3 clicks \u2192 1 write, failure \u2192 retry); Playwright screenshots: hint only with utm_content=page-button, no horizontal overflow, gone at ~15 s; init.sh check GREEN",
           "target": "local",
           "outcome": "pass",
           "approval": "Roi chose design A (link-free posts + Page button vetree.app/il)",
@@ -1295,7 +1295,7 @@
           "date": "2026-10-13",
           "session": "20261012-1839-claude-df86",
           "sha": "512e549",
-          "command": "Codex tier 2: r1 65.9k (3 blocking) → r2 delta 36.8k (2 blocking; +28.1k attempt lost to the ChatGPT usage limit) → r3 delta 24.9k BLOCKING: none; PR #129 smoke + replay new/old pass; merged as e05aae3, production /api/version = e05aae3",
+          "command": "Codex tier 2: r1 65.9k (3 blocking) \u2192 r2 delta 36.8k (2 blocking; +28.1k attempt lost to the ChatGPT usage limit) \u2192 r3 delta 24.9k BLOCKING: none; PR #129 smoke + replay new/old pass; merged as e05aae3, production /api/version = e05aae3",
           "target": "preview",
           "outcome": "pass",
           "approval": "Roi: \"merge\"",
@@ -1305,7 +1305,7 @@
           "date": "2026-10-13",
           "session": "20261012-1839-claude-df86",
           "sha": "4cf3963",
-          "command": "Roi tapped vetree.app/il after #129: opened a months-old article (rows saved as facebook_il only on the deprecated rotation's day). #130: /il = newest approved row with an article, any platform; CLAUDE.md Campaign Calendar documents the real daily flow. Codex r1 46.7k (1 blocking: Content Agent approvals — Roi: tab unused, documented) → r2 delta 30.0k BLOCKING: none; smoke + replay pass; merged as 4cf3963, production /api/version = 4cf3963, home 200. /il on production NOT re-checked by me (prod read denied by auto mode)",
+          "command": "Roi tapped vetree.app/il after #129: opened a months-old article (rows saved as facebook_il only on the deprecated rotation's day). #130: /il = newest approved row with an article, any platform; CLAUDE.md Campaign Calendar documents the real daily flow. Codex r1 46.7k (1 blocking: Content Agent approvals \u2014 Roi: tab unused, documented) \u2192 r2 delta 30.0k BLOCKING: none; smoke + replay pass; merged as 4cf3963, production /api/version = 4cf3963, home 200. /il on production NOT re-checked by me (prod read denied by auto mode)",
           "target": "production",
           "outcome": "pass",
           "approval": "Roi: \"merge\"; \"nope, no need for it\" (Content Agent tab)",
@@ -1322,7 +1322,7 @@
       "area": "growth",
       "type": "fix",
       "title": "Facebook link limit: some free business accounts may attach only 2 links per month, but the Facebook IL campaign posts an article link every day",
-      "user_visible_behavior": "Facebook IL posts reach readers without relying on an attached link (e.g. link in a comment / first comment, a short vetree.app URL in the text, or another flow Roi chooses) — readers can open the article again",
+      "user_visible_behavior": "Facebook IL posts reach readers without relying on an attached link (e.g. link in a comment / first comment, a short vetree.app URL in the text, or another flow Roi chooses) \u2014 readers can open the article again",
       "verification": [
         {
           "step": "confirm Facebook's current rule for the account type (Roi's account, read-only) and how the daily facebook_il post is built (Content Agent prompt, Campaign Calendar, Copy & mark posted, UTM)",
@@ -1339,14 +1339,14 @@
           "paid_calls": false
         },
         {
-          "step": "Review: Codex, tier 1 or 2 (tier 2 if it touches paid AI prompts) → BLOCKING: none",
+          "step": "Review: Codex, tier 1 or 2 (tier 2 if it touches paid AI prompts) \u2192 BLOCKING: none",
           "target": "none",
           "db_reads": "none",
           "db_writes": "none",
           "paid_calls": false
         }
       ],
-      "notes": "Named by Roi 2026-10-12, to start after infra-003 ships: Facebook now allows only 2 links per month on posts for certain free business accounts; the Facebook IL account posts a link every day, so readers can no longer reach the articles. Design decision is Roi's. · claimed by 20261012-1839-claude-df86 · design A (Roi 2026-10-12): link-free facebook_il posts + Page action button → vetree.app/il (Roi set it) + 15-s \"save it\" hint. #129 merged e05aae3. Roi 2026-10-13: every day ONE article to EVERY platform via Generate All; the 90-day rotation is deprecated → #130 merged 4cf3963 (/il any platform). CLOSED 2026-10-13. Open: yesterday's post (pubmed-42806282) may never have been saved as posted — the read was blocked by auto mode; Roi presses Copy & mark posted once and taps vetree.app/il. facebook_intl unchanged (Roi didn't say it is limited). Follow-up: growth-002."
+      "notes": "Named by Roi 2026-10-12, to start after infra-003 ships: Facebook now allows only 2 links per month on posts for certain free business accounts; the Facebook IL account posts a link every day, so readers can no longer reach the articles. Design decision is Roi's. \u00b7 claimed by 20261012-1839-claude-df86 \u00b7 design A (Roi 2026-10-12): link-free facebook_il posts + Page action button \u2192 vetree.app/il (Roi set it) + 15-s \"save it\" hint. #129 merged e05aae3. Roi 2026-10-13: every day ONE article to EVERY platform via Generate All; the 90-day rotation is deprecated \u2192 #130 merged 4cf3963 (/il any platform). CLOSED 2026-10-13. Open: yesterday's post (pubmed-42806282) may never have been saved as posted \u2014 the read was blocked by auto mode; Roi presses Copy & mark posted once and taps vetree.app/il. facebook_intl unchanged (Roi didn't say it is limited). Follow-up: growth-002."
     },
     {
       "status": "merged",
@@ -1355,7 +1355,7 @@
           "date": "2026-10-13",
           "session": "20261013-1029-claude-35c5",
           "sha": "62b242f",
-          "command": "Plan rev 3 (Roi approved: rebuild, Content Agent tab removed, single-post flow dropped, six platforms, Telegram = WhatsApp with its UTM, AI Photos kept); Codex plan 2 rounds 68.4k / 27.3k → BLOCKING: none. PR 1 (#132): tests — linkFree / ilTarget / postProcess 38 unit tests (tsx --test) in init.sh check (hard RED) + PR smoke; SaveHint browser test on the preview; Codex 2 rounds 64.9k / 27.7k → BLOCKING: none; merged as 62b242f",
+          "command": "Plan rev 3 (Roi approved: rebuild, Content Agent tab removed, single-post flow dropped, six platforms, Telegram = WhatsApp with its UTM, AI Photos kept); Codex plan 2 rounds 68.4k / 27.3k \u2192 BLOCKING: none. PR 1 (#132): tests \u2014 linkFree / ilTarget / postProcess 38 unit tests (tsx --test) in init.sh check (hard RED) + PR smoke; SaveHint browser test on the preview; Codex 2 rounds 64.9k / 27.7k \u2192 BLOCKING: none; merged as 62b242f",
           "target": "preview",
           "outcome": "pass",
           "approval": "Roi: \"build\", \"merge\"",
@@ -1365,7 +1365,7 @@
           "date": "2026-10-13",
           "session": "20261013-1029-claude-35c5",
           "sha": "ea85fea",
-          "command": "PR 2 (#133): DailyPosts panel, lib/growth/daily.ts + approvals.ts, feedback dedup per article + platform + Israel day, GET /api/admin/growth/today; 53 unit tests; 15 mocked-network Playwright scenarios against a temporary local page (all requests mocked, anything leaving localhost aborted; not committed) — each fix's test fails on the code before it; init.sh check GREEN on every head; PR smoke + replay new / old pass on ea85fea",
+          "command": "PR 2 (#133): DailyPosts panel, lib/growth/daily.ts + approvals.ts, feedback dedup per article + platform + Israel day, GET /api/admin/growth/today; 53 unit tests; 15 mocked-network Playwright scenarios against a temporary local page (all requests mocked, anything leaving localhost aborted; not committed) \u2014 each fix's test fails on the code before it; init.sh check GREEN on every head; PR smoke + replay new / old pass on ea85fea",
           "target": "local",
           "outcome": "pass",
           "approval": "n/a",
@@ -1375,7 +1375,7 @@
           "date": "2026-10-13",
           "session": "20261013-1029-claude-35c5",
           "sha": "ea85fea",
-          "command": "Codex tier 2 PR 2: r1 80.8k (5 blocking) → r2 delta 43.6k (3 blocking) → r3 delta 34.3k (1 blocking, from my r2 fix) → r4 delta 26.5k (beyond the cap, Roi: \"run one more review\") BLOCKING: none; one earlier attempt lost to the ChatGPT usage limit",
+          "command": "Codex tier 2 PR 2: r1 80.8k (5 blocking) \u2192 r2 delta 43.6k (3 blocking) \u2192 r3 delta 34.3k (1 blocking, from my r2 fix) \u2192 r4 delta 26.5k (beyond the cap, Roi: \"run one more review\") BLOCKING: none; one earlier attempt lost to the ChatGPT usage limit",
           "target": "none",
           "outcome": "pass",
           "approval": "Roi: \"run one more review\"",
@@ -1385,7 +1385,7 @@
           "date": "2026-10-13",
           "session": "20261013-1029-claude-35c5",
           "sha": "a2cd626",
-          "command": "Merged as a2cd626 (a cancelled duplicate smoke run blocked the merge; re-ran it on the same head → pass); production /api/version = a2cd626, home 200. Live run of the panel = Roi's next daily posting; no production rows read by me",
+          "command": "Merged as a2cd626 (a cancelled duplicate smoke run blocked the merge; re-ran it on the same head \u2192 pass); production /api/version = a2cd626, home 200. Live run of the panel = Roi's next daily posting; no production rows read by me",
           "target": "production",
           "outcome": "pass",
           "approval": "Roi: \"merge\"",
@@ -1405,7 +1405,7 @@
       "user_visible_behavior": "Growth OS (/admin/growth) is built around the day's one article and its per-platform posts; each \"posted\" record says which platform it really went to and that it belongs to the daily campaign; no \"today's platform\" rotation; the unused standalone Content Agent tab removed or reworked",
       "verification": [
         {
-          "step": "Plan first (Roi approves, Codex tier 2 plan review): rule 14 rebuild-vs-patch assessment for CampaignCalendar.tsx (3 fixes in 7 days by social-001); the daily-campaign marker on growth_agent_memory (migration → db push on Roi's yes); what replaces todaysPlatform / todaysTask / growth_tasks; what the stats + LinkedIn matching read",
+          "step": "Plan first (Roi approves, Codex tier 2 plan review): rule 14 rebuild-vs-patch assessment for CampaignCalendar.tsx (3 fixes in 7 days by social-001); the daily-campaign marker on growth_agent_memory (migration \u2192 db push on Roi's yes); what replaces todaysPlatform / todaysTask / growth_tasks; what the stats + LinkedIn matching read",
           "target": "none",
           "db_reads": "none",
           "db_writes": "none",
@@ -1419,14 +1419,14 @@
           "paid_calls": false
         },
         {
-          "step": "Review: Codex tier 2 (Supabase writes, paid AI prompts) → BLOCKING: none",
+          "step": "Review: Codex tier 2 (Supabase writes, paid AI prompts) \u2192 BLOCKING: none",
           "target": "none",
           "db_reads": "none",
           "db_writes": "none",
           "paid_calls": false
         }
       ],
-      "notes": "Named by Roi 2026-10-13 after social-001 (\"redesign the growth OS to match the current daily flow along with codex suggestions\"). Known today: the main Copy & mark posted labels rows with the rotation's platform; the Content Agent tab's Approve writes approved rows for its own article (would move /il); recordToMemory sends language 'en' for every platform. · Roi 2026-10-13: Facebook international is NOT link-limited for now — facebook_intl keeps its links. · claimed by 20261013-1029-claude-35c5 · PR 1 #132 (branch feat/growth-002-daily-flow) merged 62b242f; PR 2 #133 merged a2cd626. CLOSED 2026-10-13. Open: first live daily posting with the new panel (Roi); with Roi's yes, a read-only check of that day's approved rows + vetree.app/il. Rows before 2026-10-13 keep the rotation's platform label. NON-BLOCKING left: Telegram has no Skip; the generate-post threads hook read (rule 14: that route changed 3× in 7 days)."
+      "notes": "Named by Roi 2026-10-13 after social-001 (\"redesign the growth OS to match the current daily flow along with codex suggestions\"). Known today: the main Copy & mark posted labels rows with the rotation's platform; the Content Agent tab's Approve writes approved rows for its own article (would move /il); recordToMemory sends language 'en' for every platform. \u00b7 Roi 2026-10-13: Facebook international is NOT link-limited for now \u2014 facebook_intl keeps its links. \u00b7 claimed by 20261013-1029-claude-35c5 \u00b7 PR 1 #132 (branch feat/growth-002-daily-flow) merged 62b242f; PR 2 #133 merged a2cd626. CLOSED 2026-10-13. Open: first live daily posting with the new panel (Roi); with Roi's yes, a read-only check of that day's approved rows + vetree.app/il. Rows before 2026-10-13 keep the rotation's platform label. NON-BLOCKING left: Telegram has no Skip; the generate-post threads hook read (rule 14: that route changed 3\u00d7 in 7 days)."
     },
     {
       "status": "merged",
@@ -1435,7 +1435,7 @@
           "date": "2026-10-13",
           "session": "20261013-0829-claude-fb5e",
           "sha": "4161229",
-          "command": "Roi's composer tests (Facebook IL Page, nothing published): chat.whatsapp.com invite link → no link counter; 'vetree.app/il' → counter; 'vetree . app/il' (spaces) → no counter",
+          "command": "Roi's composer tests (Facebook IL Page, nothing published): chat.whatsapp.com invite link \u2192 no link counter; 'vetree.app/il' \u2192 counter; 'vetree . app/il' (spaces) \u2192 no counter",
           "target": "production",
           "outcome": "pass",
           "approval": "Roi ran them",
@@ -1445,7 +1445,7 @@
           "date": "2026-10-13",
           "session": "20261013-0829-claude-fb5e",
           "sha": "4161229",
-          "command": "makeLinkFree offline 44/44 (bare domains stripped, organism names kept, current / old / reworded closing lines → exactly one ending, clinical text before a link kept and stays hook_line, 📄 title line always kept, only the Community link left); init.sh check GREEN",
+          "command": "makeLinkFree offline 44/44 (bare domains stripped, organism names kept, current / old / reworded closing lines \u2192 exactly one ending, clinical text before a link kept and stays hook_line, \ud83d\udcc4 title line always kept, only the Community link left); init.sh check GREEN",
           "target": "local",
           "outcome": "pass",
           "approval": "n/a",
@@ -1455,7 +1455,7 @@
           "date": "2026-10-13",
           "session": "20261013-0829-claude-fb5e",
           "sha": "cba7324",
-          "command": "Codex tier 2: r1 35.3k (2 blocking) → r2 delta 21.4k (1 blocking) → r3 delta 32.2k BLOCKING: none; PR #131 smoke + replay new/old pass; merged as cba7324, production /api/version = cba7324, home 200",
+          "command": "Codex tier 2: r1 35.3k (2 blocking) \u2192 r2 delta 21.4k (1 blocking) \u2192 r3 delta 32.2k BLOCKING: none; PR #131 smoke + replay new/old pass; merged as cba7324, production /api/version = cba7324, home 200",
           "target": "production",
           "outcome": "pass",
           "approval": "Roi: \"merge\"",
@@ -1472,10 +1472,10 @@
       "area": "growth",
       "type": "fix",
       "title": "Facebook IL posts reach readers in the feed: a typeable vetree.app/il address Facebook doesn't count as a link + a clickable WhatsApp Community link + the Page button",
-      "user_visible_behavior": "Every Facebook IL post ends with the short address written so Facebook doesn't detect it (readers type it), a clickable link to the Vetree WhatsApp Community (links to Meta apps don't count toward the 2-a-month limit — Roi checked in the composer, 2026-10-13), and the Page button as a fallback",
+      "user_visible_behavior": "Every Facebook IL post ends with the short address written so Facebook doesn't detect it (readers type it), a clickable link to the Vetree WhatsApp Community (links to Meta apps don't count toward the 2-a-month limit \u2014 Roi checked in the composer, 2026-10-13), and the Page button as a fallback",
       "verification": [
         {
-          "step": "Roi's composer test: WhatsApp link shows no link counter (done 2026-10-13); vetree.app/il does → pick the first of 'vetree . app/il', 'vetree(.)app/il', 'vetree נקודה app/il' that shows no counter",
+          "step": "Roi's composer test: WhatsApp link shows no link counter (done 2026-10-13); vetree.app/il does \u2192 pick the first of 'vetree . app/il', 'vetree(.)app/il', 'vetree \u05e0\u05e7\u05d5\u05d3\u05d4 app/il' that shows no counter",
           "target": "none",
           "db_reads": "none",
           "db_writes": "none",
@@ -1489,14 +1489,14 @@
           "paid_calls": false
         },
         {
-          "step": "Review: Codex tier 2 (paid AI prompt) → BLOCKING: none",
+          "step": "Review: Codex tier 2 (paid AI prompt) \u2192 BLOCKING: none",
           "target": "none",
           "db_reads": "none",
           "db_writes": "none",
           "paid_calls": false
         }
       ],
-      "notes": "Named by Roi 2026-10-13 after social-001: in a reader's feed \"the button at the top of the page\" means nothing. Roi chose A + C and the WhatsApp Community (announcements group muted for members + a discussion group). Invite link given by Roi in chat (chat.whatsapp.com/…). Rule 14: generate-post/route.ts has 2 changes in 7 days (e05aae3, 9429086) → this is the 3rd; CampaignCalendar.tsx not touched. · claimed by 20261013-0829-claude-fb5e · address form: 'vetree . app/il' (Roi's test). CLOSED 2026-10-13. Roi: generate a fresh Facebook IL post (earlier ones carry the old 👆 ending); mark posted before publishing."
+      "notes": "Named by Roi 2026-10-13 after social-001: in a reader's feed \"the button at the top of the page\" means nothing. Roi chose A + C and the WhatsApp Community (announcements group muted for members + a discussion group). Invite link given by Roi in chat (chat.whatsapp.com/\u2026). Rule 14: generate-post/route.ts has 2 changes in 7 days (e05aae3, 9429086) \u2192 this is the 3rd; CampaignCalendar.tsx not touched. \u00b7 claimed by 20261013-0829-claude-fb5e \u00b7 address form: 'vetree . app/il' (Roi's test). CLOSED 2026-10-13. Roi: generate a fresh Facebook IL post (earlier ones carry the old \ud83d\udc46 ending); mark posted before publishing."
     },
     {
       "id": "perf-001",
@@ -1504,7 +1504,7 @@
       "area": "infra",
       "type": "investigation",
       "title": "Vercel Fluid Active CPU over the Hobby limit (4h 50m / 4h, 30 days to 2026-10-14): find what drives it, then cut it",
-      "user_visible_behavior": "none directly — the site stays inside Vercel Hobby's 4h CPU allowance (no throttling / pause risk)",
+      "user_visible_behavior": "none directly \u2014 the site stays inside Vercel Hobby's 4h CPU allowance (no throttling / pause risk)",
       "status": "merged",
       "verification": [
         {
@@ -1527,7 +1527,7 @@
           "date": "2026-10-14",
           "session": "20261014-1443-claude-dbb9",
           "sha": "a749e08",
-          "command": "Option A (PR #136): proxy matcher with cookie conditions (session cookie or its .0 chunk), path exclusions unchanged; built functions-config-manifest carries both `has` entries; tests/unit/proxy.test.ts 4 tests (fail on the old matcher at the no-cookie assertion and with .0 removed); init.sh check GREEN on faf0a9b and a749e08; Codex plan r1 72.9k (3 blocking folded into A) → code r1 59.5k BLOCKING: none (NB1 applied in a749e08); PR smoke (signed-in tests incl.) + replay new / old pass on a749e08",
+          "command": "Option A (PR #136): proxy matcher with cookie conditions (session cookie or its .0 chunk), path exclusions unchanged; built functions-config-manifest carries both `has` entries; tests/unit/proxy.test.ts 4 tests (fail on the old matcher at the no-cookie assertion and with .0 removed); init.sh check GREEN on faf0a9b and a749e08; Codex plan r1 72.9k (3 blocking folded into A) \u2192 code r1 59.5k BLOCKING: none (NB1 applied in a749e08); PR smoke (signed-in tests incl.) + replay new / old pass on a749e08",
           "target": "preview",
           "outcome": "pass",
           "approval": "Roi: \"yes\" (C now, A next)",
@@ -1547,7 +1547,7 @@
           "date": "2026-10-23",
           "session": "20261023-1625-claude-3452",
           "sha": "a82f724",
-          "command": "#154: init.sh check GREEN; next start + Vercel preview (vercel curl, preview request log: FB → prerender HIT, browser → streaming_func); Codex tier 2 r1 BLOCKING: none; PR suite green; merged a82f724; production FB → /link-preview HIT, browser → / MISS; post-merge health check success",
+          "command": "#154: init.sh check GREEN; next start + Vercel preview (vercel curl, preview request log: FB \u2192 prerender HIT, browser \u2192 streaming_func); Codex tier 2 r1 BLOCKING: none; PR suite green; merged a82f724; production FB \u2192 /link-preview HIT, browser \u2192 / MISS; post-merge health check success",
           "target": "production",
           "outcome": "pass",
           "approval": "Roi: \"Do #2\"; \"Merge\"",
@@ -1557,7 +1557,7 @@
           "date": "2026-10-24",
           "session": "20261024-1148-claude-8763",
           "sha": "a82f724",
-          "command": "vercel logs requests --environment production --since 12h --json: facebookexternalhit on / 157/157 → /link-preview prerender (0 home renders, was 130/12 h); home renders w/o smoke 276 → 113",
+          "command": "vercel logs requests --environment production --since 12h --json: facebookexternalhit on / 157/157 \u2192 /link-preview prerender (0 home renders, was 130/12 h); home renders w/o smoke 276 \u2192 113",
           "target": "production",
           "outcome": "pass",
           "approval": "Roi: \"let's pick this up\"",
@@ -1569,7 +1569,7 @@
       "head_sha": "a82f724",
       "wip_sha": null,
       "expected_failures": [],
-      "notes": "Roi 2026-10-14: \"scan the vercel's webpage for usage, there are some measurements there that are trending up\" → usage read (read only): Fluid Active CPU 4h 50m / 4h (proxy 'middleware' 2h 6m 43.6%, functions 2h 43m 56.4%); daily ~5 min (Sep 14–23), 7–24 (Sep 24–Oct 3), ~7 (Oct 4–9), 9→13 (Oct 10–13). Everything else well under: invocations 389K/1M, CDN requests 434K/1M, ISR writes 21K/200K. Roi: \"Yes\" (open the item, start read-only). · claimed by 20261014-1443-claude-dbb9 · Read-only findings (2026-10-14): (1) /article/[id] and / are 0% cached (Vercel CDN, 12 h) — the article page reads cookies() via the server Supabase client (getUser for the registration wall), which makes it dynamic despite revalidate 86400; the home page is force-dynamic; these two are the top CPU routes. (2) proxy.ts runs on every page request (matcher excludes only static / api / OG); for visitors without an auth cookie it skips the Supabase call but is still a Node invocation — 43.6% of the month's CPU. (3) Preview traffic 5.5K CDN requests vs production 2.9K in the same 12 h (smoke runs on #135); full PR suites per day 2–10, drafts fail in seconds. AI bots small (285 requests / 12 h). Hobby observability keeps 12 h only, so per-route monthly totals are not available. Options to Roi: A proxy matcher skips requests without the auth cookie (missing-cookie condition); B article page static/ISR with the per-user parts client-side; C fewer / lighter PR smoke runs. · Codex plan r1 72.9k (Roi: \"What does codex say?\"): 3 blocking — A must match the chunked cookie (.0/.1) literally, an early return saves nothing (invocation still happens), B needs a cache-failure + invalidation policy (DB error cached as 404; delete doesn't revalidate). Ranking: redundant smoke runs first, corrected A, article ISR, home page last; separate production vs preview CPU before attributing. · Option C in effect (memory rule: drafts until done, ready once). PR #136 ready on a749e08, all checks pass; awaits Roi's preview check (sign in / browse / sign out) + his merge. After merge: daily CPU for 2–3 days (target < ~8 min/day; proxy row). · PR #136 merged 181c207 (2026-10-14) on Roi's word. OPEN (monitoring): daily Fluid Active CPU on the Vercel usage chart 2026-10-15..17 — the proxy ('middleware') row should fall sharply, daily total < ~8 min. If not enough: option B (article ISR with anonymous loader, client-side guest wall, throw on transient errors, revalidate on delete), then OG image cost; home page last. · Roi 2026-10-14/15: Vercel Functions Storage 8.93 / 10 GB (grows with retained deployments) → Roi changed deployment retention himself (option 1): pre-production 1 week; production / canceled / errored 30 days. Re-read Functions Storage with the CPU chart. · 2026-10-23 (session 20261023-1625-claude-3452, Roi: \"let's look at the bot traffic in perf-001\"): 12 h request logs 10-21/22/23 — facebookexternalhit fetches / ~155 ×/12 h (every ~2.5 min, steady; Roi: no FB ad running) = ~2/3 of home renders, Meta UAs ~25–30% of function requests; own smoke ~230 at ~10:58; OAI-SearchBot / ChatGPT-User ~65 (keep). Roi: \"Do #2\" → PR #154 (branch fix/perf-001-meta-preview-home): beforeFiles rewrite / + UA facebookexternalhit|facebookcatalog → /link-preview (static under the root layout, same OG/Twitter/canonical tags, noindex). init.sh check GREEN; next start: FB → prerender HIT, browser → private no-store, tags identical; Vercel preview (vercel curl): FB → pathType prerender (HIT), browser → streaming_func. Codex tier 2 r1 BLOCKING: none (NB noindex + drop meta-externalagent applied ad70bf0, not re-reviewed); PR suite green. Awaiting Roi merge. · #154 merged a82f724 on Roi's word (2026-10-23); verified in production. Next: 12 h log after ~2026-10-24 06:00 UTC (FB on / → /link-preview; home renders ~235 → ~80), then the Vercel usage chart. · 2026-10-24: #154 confirmed in the 12 h log (FB → CDN, 0 home renders). Left: Vercel usage chart (Roi; CLI usage/metrics unavailable on Hobby)."
+      "notes": "Roi 2026-10-14: \"scan the vercel's webpage for usage, there are some measurements there that are trending up\" \u2192 usage read (read only): Fluid Active CPU 4h 50m / 4h (proxy 'middleware' 2h 6m 43.6%, functions 2h 43m 56.4%); daily ~5 min (Sep 14\u201323), 7\u201324 (Sep 24\u2013Oct 3), ~7 (Oct 4\u20139), 9\u219213 (Oct 10\u201313). Everything else well under: invocations 389K/1M, CDN requests 434K/1M, ISR writes 21K/200K. Roi: \"Yes\" (open the item, start read-only). \u00b7 claimed by 20261014-1443-claude-dbb9 \u00b7 Read-only findings (2026-10-14): (1) /article/[id] and / are 0% cached (Vercel CDN, 12 h) \u2014 the article page reads cookies() via the server Supabase client (getUser for the registration wall), which makes it dynamic despite revalidate 86400; the home page is force-dynamic; these two are the top CPU routes. (2) proxy.ts runs on every page request (matcher excludes only static / api / OG); for visitors without an auth cookie it skips the Supabase call but is still a Node invocation \u2014 43.6% of the month's CPU. (3) Preview traffic 5.5K CDN requests vs production 2.9K in the same 12 h (smoke runs on #135); full PR suites per day 2\u201310, drafts fail in seconds. AI bots small (285 requests / 12 h). Hobby observability keeps 12 h only, so per-route monthly totals are not available. Options to Roi: A proxy matcher skips requests without the auth cookie (missing-cookie condition); B article page static/ISR with the per-user parts client-side; C fewer / lighter PR smoke runs. \u00b7 Codex plan r1 72.9k (Roi: \"What does codex say?\"): 3 blocking \u2014 A must match the chunked cookie (.0/.1) literally, an early return saves nothing (invocation still happens), B needs a cache-failure + invalidation policy (DB error cached as 404; delete doesn't revalidate). Ranking: redundant smoke runs first, corrected A, article ISR, home page last; separate production vs preview CPU before attributing. \u00b7 Option C in effect (memory rule: drafts until done, ready once). PR #136 ready on a749e08, all checks pass; awaits Roi's preview check (sign in / browse / sign out) + his merge. After merge: daily CPU for 2\u20133 days (target < ~8 min/day; proxy row). \u00b7 PR #136 merged 181c207 (2026-10-14) on Roi's word. OPEN (monitoring): daily Fluid Active CPU on the Vercel usage chart 2026-10-15..17 \u2014 the proxy ('middleware') row should fall sharply, daily total < ~8 min. If not enough: option B (article ISR with anonymous loader, client-side guest wall, throw on transient errors, revalidate on delete), then OG image cost; home page last. \u00b7 Roi 2026-10-14/15: Vercel Functions Storage 8.93 / 10 GB (grows with retained deployments) \u2192 Roi changed deployment retention himself (option 1): pre-production 1 week; production / canceled / errored 30 days. Re-read Functions Storage with the CPU chart. \u00b7 2026-10-23 (session 20261023-1625-claude-3452, Roi: \"let's look at the bot traffic in perf-001\"): 12 h request logs 10-21/22/23 \u2014 facebookexternalhit fetches / ~155 \u00d7/12 h (every ~2.5 min, steady; Roi: no FB ad running) = ~2/3 of home renders, Meta UAs ~25\u201330% of function requests; own smoke ~230 at ~10:58; OAI-SearchBot / ChatGPT-User ~65 (keep). Roi: \"Do #2\" \u2192 PR #154 (branch fix/perf-001-meta-preview-home): beforeFiles rewrite / + UA facebookexternalhit|facebookcatalog \u2192 /link-preview (static under the root layout, same OG/Twitter/canonical tags, noindex). init.sh check GREEN; next start: FB \u2192 prerender HIT, browser \u2192 private no-store, tags identical; Vercel preview (vercel curl): FB \u2192 pathType prerender (HIT), browser \u2192 streaming_func. Codex tier 2 r1 BLOCKING: none (NB noindex + drop meta-externalagent applied ad70bf0, not re-reviewed); PR suite green. Awaiting Roi merge. \u00b7 #154 merged a82f724 on Roi's word (2026-10-23); verified in production. Next: 12 h log after ~2026-10-24 06:00 UTC (FB on / \u2192 /link-preview; home renders ~235 \u2192 ~80), then the Vercel usage chart. \u00b7 2026-10-24: #154 confirmed in the 12 h log (FB \u2192 CDN, 0 home renders). Left: Vercel usage chart (Roi; CLI usage/metrics unavailable on Hobby)."
     },
     {
       "id": "sec-001",
@@ -1577,25 +1577,25 @@
       "area": "security",
       "type": "fix",
       "title": "Thursday's security scan (2026-10-15): 2 unacknowledged dependency advisories (braces, source-map-js); the scan's previous-runs query sorts by a column that doesn't exist",
-      "user_visible_behavior": "none — the weekly security report comes back clean and can track recurring / resolved findings again",
+      "user_visible_behavior": "none \u2014 the weekly security report comes back clean and can track recurring / resolved findings again",
       "status": "merged",
       "verification": [
         {
-          "step": "source-map-js 1.2.1 → 1.2.2 (lockfile only, targeted update); braces GHSA-vfj7-8cjw-p6xm acknowledged in security-acknowledged.json (Roi's sign-off); scan route's previous-runs query sorted by the real timestamp column, error checked; init.sh check GREEN; local npm audit shows neither advisory as new",
+          "step": "source-map-js 1.2.1 \u2192 1.2.2 (lockfile only, targeted update); braces GHSA-vfj7-8cjw-p6xm acknowledged in security-acknowledged.json (Roi's sign-off); scan route's previous-runs query sorted by the real timestamp column, error checked; init.sh check GREEN; local npm audit shows neither advisory as new",
           "target": "local",
           "db_reads": "none",
           "db_writes": "none",
           "paid_calls": false
         },
         {
-          "step": "Review: Codex, tier 2 (security) → BLOCKING: none; draft PR, ready once",
+          "step": "Review: Codex, tier 2 (security) \u2192 BLOCKING: none; draft PR, ready once",
           "target": "preview",
           "db_reads": "none",
           "db_writes": "none",
           "paid_calls": false
         },
         {
-          "step": "After merge, with Roi's yes: run the scan once by hand (POST /api/admin/security/scan) — writes one security_reports row and a Slack message; expect 0 new findings",
+          "step": "After merge, with Roi's yes: run the scan once by hand (POST /api/admin/security/scan) \u2014 writes one security_reports row and a Slack message; expect 0 new findings",
           "target": "production",
           "db_reads": "prod",
           "db_writes": "prod",
@@ -1607,20 +1607,20 @@
           "date": "2026-10-16",
           "session": "20261016-1053-claude-c3de",
           "sha": "b8109e4",
-          "command": "PR #138 (673008a + b8109e4): source-map-js 1.2.2 (lockfile, one package), braces acknowledged (high), scan previous-runs ordered by generated_at with the error reported in summary + Slack, Slack labels 'N of the last N runs' / 'Resolved or acknowledged'; local replay of CHECK 14 vs npm audit: 0 new, 1 acknowledged; init.sh check GREEN on 673008a's tree and on b8109e4's tree; Codex code r1 34.0k BLOCKING: none (NB1–2 applied in b8109e4, not re-reviewed); marked ready once on b8109e4",
+          "command": "PR #138 (673008a + b8109e4): source-map-js 1.2.2 (lockfile, one package), braces acknowledged (high), scan previous-runs ordered by generated_at with the error reported in summary + Slack, Slack labels 'N of the last N runs' / 'Resolved or acknowledged'; local replay of CHECK 14 vs npm audit: 0 new, 1 acknowledged; init.sh check GREEN on 673008a's tree and on b8109e4's tree; Codex code r1 34.0k BLOCKING: none (NB1\u20132 applied in b8109e4, not re-reviewed); marked ready once on b8109e4",
           "target": "local",
           "outcome": "pass",
-          "approval": "Roi: \"yes\" (1–3)",
+          "approval": "Roi: \"yes\" (1\u20133)",
           "link": "PR #138"
         },
         {
           "date": "2026-10-16",
           "session": "20261016-1053-claude-c3de",
           "sha": "b8109e4",
-          "command": "gh pr ready 138 (one suite run): scope, replay (new) 1m38s, replay (old) 1m46s, smoke 2m08s, Vercel — all pass",
+          "command": "gh pr ready 138 (one suite run): scope, replay (new) 1m38s, replay (old) 1m46s, smoke 2m08s, Vercel \u2014 all pass",
           "target": "preview",
           "outcome": "pass",
-          "approval": "Roi: \"yes\" (1–3, draft → ready once)",
+          "approval": "Roi: \"yes\" (1\u20133, draft \u2192 ready once)",
           "link": "PR #138"
         },
         {
@@ -1639,15 +1639,15 @@
       "head_sha": "819cd4e",
       "wip_sha": null,
       "expected_failures": [],
-      "notes": "Scan run 38812980120 (2026-10-15 21:51 UTC, on 181c207): severity high, findings_count 1, acknowledged_count 0 — Roi pasted the Slack message: '2 unacknowledged dependency advisories': braces GHSA-vfj7-8cjw-p6xm (no patched version; via @sentry/webpack-plugin → unplugin → chokidar, and eslint-config-next → fast-glob → micromatch) and source-map-js GHSA-68fv-2mgg-jv7q (patched 1.2.2; via postcss / @tailwindcss). Both published 2026-09-18; build / lint tooling only. First scan after 079 + 083: no database check fired. My read of the latest security_reports row (Roi's yes) failed: 'column security_reports.created_at does not exist' — the scan's own previous-runs query (route.ts:71-75) orders by created_at and ignores the error; then auto mode blocked a schema lookup as a production read, so I stopped and Roi pasted the Slack text. · claimed by 20261016-1053-claude-c3de · Roi 2026-10-16: \"yes\" to 1 targeted source-map-js update, 2 acknowledge braces (high; no patched version; build / lint tooling only; revisit when a patched braces ships), 3 fix the previous-runs query; then a manual scan run with his yes. · #138 merged 819cd4e on Roi's word (2026-10-16); manual scan clean (0 findings, 1 acknowledged). Not checked by me: the Slack text (history line 'Resolved or acknowledged: dependency_vulnerabilities') — Roi's channel. Closed."
+      "notes": "Scan run 38812980120 (2026-10-15 21:51 UTC, on 181c207): severity high, findings_count 1, acknowledged_count 0 \u2014 Roi pasted the Slack message: '2 unacknowledged dependency advisories': braces GHSA-vfj7-8cjw-p6xm (no patched version; via @sentry/webpack-plugin \u2192 unplugin \u2192 chokidar, and eslint-config-next \u2192 fast-glob \u2192 micromatch) and source-map-js GHSA-68fv-2mgg-jv7q (patched 1.2.2; via postcss / @tailwindcss). Both published 2026-09-18; build / lint tooling only. First scan after 079 + 083: no database check fired. My read of the latest security_reports row (Roi's yes) failed: 'column security_reports.created_at does not exist' \u2014 the scan's own previous-runs query (route.ts:71-75) orders by created_at and ignores the error; then auto mode blocked a schema lookup as a production read, so I stopped and Roi pasted the Slack text. \u00b7 claimed by 20261016-1053-claude-c3de \u00b7 Roi 2026-10-16: \"yes\" to 1 targeted source-map-js update, 2 acknowledge braces (high; no patched version; build / lint tooling only; revisit when a patched braces ships), 3 fix the previous-runs query; then a manual scan run with his yes. \u00b7 #138 merged 819cd4e on Roi's word (2026-10-16); manual scan clean (0 findings, 1 acknowledged). Not checked by me: the Slack text (history line 'Resolved or acknowledged: dependency_vulnerabilities') \u2014 Roi's channel. Closed."
     },
     {
       "id": "analytics-001",
       "priority": 1,
       "area": "analytics",
       "type": "investigation",
-      "title": "Three analytics patterns (last 7 days): IL ~5:1 views per unique, a traffic surge from SG, many non-promoted articles read — real users or bots, what they mean, how to use them",
-      "user_visible_behavior": "none — a research report for Roi; any bot-tagging change is a separate item",
+      "title": "Three analytics patterns (last 7 days): IL ~5:1 views per unique, a traffic surge from SG, many non-promoted articles read \u2014 real users or bots, what they mean, how to use them",
+      "user_visible_behavior": "none \u2014 a research report for Roi; any bot-tagging change is a separate item",
       "status": "in_progress",
       "verification": [
         {
@@ -1658,7 +1658,7 @@
           "paid_calls": false
         },
         {
-          "step": "PR A: one row per view, traffic_class estimate, hashed limiter keys, admin reads paged + fail on error; migration 084 (expand) pushed with Roi's yes; 085 (legacy merge, ≥24 h after deploy) and 086 (retro classification) later, each with Roi's yes",
+          "step": "PR A: one row per view, traffic_class estimate, hashed limiter keys, admin reads paged + fail on error; migration 084 (expand) pushed with Roi's yes; 085 (legacy merge, \u226524 h after deploy) and 086 (retro classification) later, each with Roi's yes",
           "target": "preview",
           "db_reads": "prod",
           "db_writes": "prod",
@@ -1670,7 +1670,7 @@
           "date": "2026-10-17",
           "session": "20261017-1603-claude-ea2b",
           "sha": "819cd4e",
-          "command": "Read-only pull of page_views (597), analytics_events (161), search_logs (5), growth_agent_memory approved rows (134), plus titles of ~45 articles (articles, public content) — last 7 days; analysed locally (scratchpad)",
+          "command": "Read-only pull of page_views (597), analytics_events (161), search_logs (5), growth_agent_memory approved rows (134), plus titles of ~45 articles (articles, public content) \u2014 last 7 days; analysed locally (scratchpad)",
           "target": "production",
           "outcome": "pass",
           "approval": "Roi: \"yes, and last 7 days\"",
@@ -1680,7 +1680,7 @@
           "date": "2026-10-17",
           "session": "20261017-1616-claude-e12a",
           "sha": "a220d23",
-          "command": "Codex tier 2: analysis r1 (83k) + plan r2–r4 (71k, 43k, 63k; r4 = extra round on Roi's word, last BLOCKING was a missing enum value, fixed) + code r1 (168k) BLOCKING: none, NB 1–3 applied in a220d23 (not re-reviewed); PGlite fixtures for 084 pass",
+          "command": "Codex tier 2: analysis r1 (83k) + plan r2\u2013r4 (71k, 43k, 63k; r4 = extra round on Roi's word, last BLOCKING was a missing enum value, fixed) + code r1 (168k) BLOCKING: none, NB 1\u20133 applied in a220d23 (not re-reviewed); PGlite fixtures for 084 pass",
           "target": "local",
           "outcome": "pass",
           "approval": "Roi: \"do another round\", \"go\"",
@@ -1700,7 +1700,7 @@
           "date": "2026-10-17",
           "session": "20261017-1616-claude-e12a",
           "sha": "b1b8285",
-          "command": "gh pr ready 139 (one suite run 39053781357): scope, replay (new), replay (old), smoke — all success; Vercel pass",
+          "command": "gh pr ready 139 (one suite run 39053781357): scope, replay (new), replay (old), smoke \u2014 all success; Vercel pass",
           "target": "preview",
           "outcome": "pass",
           "approval": "Roi: \"go\"",
@@ -1710,7 +1710,7 @@
           "date": "2026-10-17",
           "session": "20261017-1616-claude-e12a",
           "sha": "be191db",
-          "command": "gh pr merge 139 --squash --match-head-commit b1b8285… → be191db; production /api/version = be191db, home 200",
+          "command": "gh pr merge 139 --squash --match-head-commit b1b8285\u2026 \u2192 be191db; production /api/version = be191db, home 200",
           "target": "production",
           "outcome": "pass",
           "approval": "Roi: \"merge\"",
@@ -1720,7 +1720,7 @@
           "date": "2026-10-17",
           "session": "20261017-1616-claude-e12a",
           "sha": "d6b8e60",
-          "command": "PR B #140 (draft): reset-password (SDK owns PKCE exchange; form only if ?code= consumed this load + amr recovery; token_hash on submit; error params), AuthLinkErrorNotice, /verify-email signed out, sign-up show-password + hint, wall ?return=. init.sh check GREEN. Codex tier 2: r1 BLOCKING double exchange (31k? see log) → fixed 5c04540; r2 BLOCKING old recovery session → fixed d6b8e60; r3 BLOCKING: none",
+          "command": "PR B #140 (draft): reset-password (SDK owns PKCE exchange; form only if ?code= consumed this load + amr recovery; token_hash on submit; error params), AuthLinkErrorNotice, /verify-email signed out, sign-up show-password + hint, wall ?return=. init.sh check GREEN. Codex tier 2: r1 BLOCKING double exchange (31k? see log) \u2192 fixed 5c04540; r2 BLOCKING old recovery session \u2192 fixed d6b8e60; r3 BLOCKING: none",
           "target": "local",
           "outcome": "pass",
           "approval": "Roi: \"go\"",
@@ -1730,7 +1730,7 @@
           "date": "2026-10-17",
           "session": "20261017-1616-claude-e12a",
           "sha": "be191db",
-          "command": "Upstash (production, creds pulled to scratchpad then deleted): 2,732 keys = 2,731 @upstash/ratelimit/*:events:* analytics zsets holding raw IPv4 identifiers + 1 hashed window key; deleted the 2,731 (DEL in batches) → 0 keys left, 0 raw-IP identifiers",
+          "command": "Upstash (production, creds pulled to scratchpad then deleted): 2,732 keys = 2,731 @upstash/ratelimit/*:events:* analytics zsets holding raw IPv4 identifiers + 1 hashed window key; deleted the 2,731 (DEL in batches) \u2192 0 keys left, 0 raw-IP identifiers",
           "target": "production",
           "outcome": "pass",
           "approval": "Roi: \"take care of upstash, auto mode removed\"",
@@ -1740,7 +1740,7 @@
           "date": "2026-10-17",
           "session": "20261017-1616-claude-e12a",
           "sha": "be191db",
-          "command": "Read-only page_views since 18:20 UTC (at 18:46): 2 rows (1 bot, 1 SG traffic_class datacenter:tencent); 0 old-style duplicate rows; 0 pending durations; no multi-page human visit yet — one-row-with-duration not yet observed",
+          "command": "Read-only page_views since 18:20 UTC (at 18:46): 2 rows (1 bot, 1 SG traffic_class datacenter:tencent); 0 old-style duplicate rows; 0 pending durations; no multi-page human visit yet \u2014 one-row-with-duration not yet observed",
           "target": "production",
           "outcome": "partial",
           "approval": "Roi: \"yes, run the production check\"",
@@ -1760,7 +1760,7 @@
           "date": "2026-10-18",
           "session": "20261017-1616-claude-e12a",
           "sha": "e4093d8",
-          "command": "PR B #140 localhost (next dev --webpack; Turbopack panicked on an unrelated route; the PWA service worker served stale dev chunks, cleared before each test): bogus ?code → explained; error params → explained; failed-link notice on /privacy (top, URL cleaned, #fragment kept); unrelated provider error → no notice; /verify-email signed out → email field; sign-up hint + show/hide; wall Sign Up → /signup?return=<encoded page>. Fixes from the test in e4093d8 (notice at the top — it covered the consent banner; verify-email .catch). NOT tested: real email delivery (Roi)",
+          "command": "PR B #140 localhost (next dev --webpack; Turbopack panicked on an unrelated route; the PWA service worker served stale dev chunks, cleared before each test): bogus ?code \u2192 explained; error params \u2192 explained; failed-link notice on /privacy (top, URL cleaned, #fragment kept); unrelated provider error \u2192 no notice; /verify-email signed out \u2192 email field; sign-up hint + show/hide; wall Sign Up \u2192 /signup?return=<encoded page>. Fixes from the test in e4093d8 (notice at the top \u2014 it covered the consent banner; verify-email .catch). NOT tested: real email delivery (Roi)",
           "target": "local",
           "outcome": "pass",
           "approval": "Roi: \"test on localhost\"",
@@ -1790,10 +1790,10 @@
           "date": "2026-10-19",
           "session": "20261019-1624-claude-ba0d",
           "sha": "26845e6",
-          "command": "PR #142 (hide likely-automated signed-out views by default + switch in the URL; LinkedIn / Paid Campaigns follow it; six dashboard readers page past 1,000 rows; failed reads shown): init.sh check GREEN on 26845e6; Codex tier 2 r1 BLOCKING (LinkedIn / Paid Campaigns unfiltered) → fixed, r2 BLOCKING (replaceState with history.state skips Next's router sync — verified in node_modules/next app-router.js) → fixed, r3 BLOCKING: none",
+          "command": "PR #142 (hide likely-automated signed-out views by default + switch in the URL; LinkedIn / Paid Campaigns follow it; six dashboard readers page past 1,000 rows; failed reads shown): init.sh check GREEN on 26845e6; Codex tier 2 r1 BLOCKING (LinkedIn / Paid Campaigns unfiltered) \u2192 fixed, r2 BLOCKING (replaceState with history.state skips Next's router sync \u2014 verified in node_modules/next app-router.js) \u2192 fixed, r3 BLOCKING: none",
           "target": "local + PR",
           "outcome": "pass",
-          "approval": "Roi: \"let's do it\" (steps 1–3)",
+          "approval": "Roi: \"let's do it\" (steps 1\u20133)",
           "link": "PR #142"
         },
         {
@@ -1820,7 +1820,7 @@
           "date": "2026-10-19",
           "session": "20261019-1624-claude-ba0d",
           "sha": "ce86728",
-          "command": "#140 real-email test on localhost (next start of ce86728, SW + cookies cleared; test account roi.kris+vt1, Roi typed passwords / ticked terms, links read from Gmail or pasted by Roi): signup → 'only the newest link works' line PASS; signed-out resend (neutral copy) PASS; FIRST confirmation link after a second email → home + failed-link notice, params cleared (empty #sb= left) PASS — Supabase log 403 otp; NEWEST link → confirmed + signed in (/profile) PASS; reset link whose PKCE verifier was replaced (= other browser) → LINK_FAILED message, no form PASS; fresh reset link → new-password form, code gone from URL, update → /login → sign-in with the new password PASS; same reset link again → LINK_FAILED PASS. Supabase auth log (Roi's export) matches; Resend: both reset emails Delivered (the Gmail connector could not see them; Gmail flags the email as suspicious — click-tracked links).",
+          "command": "#140 real-email test on localhost (next start of ce86728, SW + cookies cleared; test account roi.kris+vt1, Roi typed passwords / ticked terms, links read from Gmail or pasted by Roi): signup \u2192 'only the newest link works' line PASS; signed-out resend (neutral copy) PASS; FIRST confirmation link after a second email \u2192 home + failed-link notice, params cleared (empty #sb= left) PASS \u2014 Supabase log 403 otp; NEWEST link \u2192 confirmed + signed in (/profile) PASS; reset link whose PKCE verifier was replaced (= other browser) \u2192 LINK_FAILED message, no form PASS; fresh reset link \u2192 new-password form, code gone from URL, update \u2192 /login \u2192 sign-in with the new password PASS; same reset link again \u2192 LINK_FAILED PASS. Supabase auth log (Roi's export) matches; Resend: both reset emails Delivered (the Gmail connector could not see them; Gmail flags the email as suspicious \u2014 click-tracked links).",
           "target": "localhost + production Supabase auth",
           "outcome": "pass",
           "approval": "Roi: \"Connect Gmail\"; typed passwords himself",
@@ -1840,7 +1840,7 @@
           "date": "2026-10-19",
           "session": "20261019-1624-claude-ba0d",
           "sha": "3dd971f",
-          "command": "Production after Roi's template switch (Reset Password → branded token_hash link): reset requested on vetree.app for roi.kris+vt1; email link = https://vetree.app/reset-password?token_hash=pkce_…&type=recovery; Roi opened it in a fresh incognito window (different browser state) → new-password form → password updated. No Gmail warning on this email (inconclusive: Roi had dismissed an earlier warning for the sender).",
+          "command": "Production after Roi's template switch (Reset Password \u2192 branded token_hash link): reset requested on vetree.app for roi.kris+vt1; email link = https://vetree.app/reset-password?token_hash=pkce_\u2026&type=recovery; Roi opened it in a fresh incognito window (different browser state) \u2192 new-password form \u2192 password updated. No Gmail warning on this email (inconclusive: Roi had dismissed an earlier warning for the sender).",
           "target": "production",
           "outcome": "pass",
           "approval": "Roi: \"template saved\"; ran the incognito step himself",
@@ -1850,7 +1850,7 @@
           "date": "2026-10-20",
           "session": "20261020-1043-claude-d205",
           "sha": "2157c33",
-          "command": "PR #144: ConsentGate + DigestConsentPrompt use useAuth's getSharedUser (module-level auth-event listener) — localhost signed-in page loads (home, /profile, article): 1 /auth/v1/user call each (3 before: the 2026-10-19 log's localhost-referer triplets); footnote wording. init.sh check GREEN; Codex tier 2 r1 BLOCKING: none (NB2 wording applied; NB1 = mount-only consent checks, predates); PR suite 39412286835 success.",
+          "command": "PR #144: ConsentGate + DigestConsentPrompt use useAuth's getSharedUser (module-level auth-event listener) \u2014 localhost signed-in page loads (home, /profile, article): 1 /auth/v1/user call each (3 before: the 2026-10-19 log's localhost-referer triplets); footnote wording. init.sh check GREEN; Codex tier 2 r1 BLOCKING: none (NB2 wording applied; NB1 = mount-only consent checks, predates); PR suite 39412286835 success.",
           "target": "local + PR",
           "outcome": "pass",
           "approval": "Roi: 'Dashboard + sign-in fixes'",
@@ -1860,7 +1860,7 @@
           "date": "2026-10-20",
           "session": "20261020-1043-claude-d205",
           "sha": "82c8c64",
-          "command": "PR #145 / migration 087: purge_expired_logs() also deletes page_view_pending_durations older than 1 day (070 otherwise unchanged). PGlite fixture pass; Codex tier 2 r1 BLOCKING: none; db push dry run = 087 only, applied 2026-10-20; schema-snapshot → schema-audit PASS (4412 facts); PR suite 39421765264 success (replay new/old, smoke); merged bbdd2e1; post-merge health check success.",
+          "command": "PR #145 / migration 087: purge_expired_logs() also deletes page_view_pending_durations older than 1 day (070 otherwise unchanged). PGlite fixture pass; Codex tier 2 r1 BLOCKING: none; db push dry run = 087 only, applied 2026-10-20; schema-snapshot \u2192 schema-audit PASS (4412 facts); PR suite 39421765264 success (replay new/old, smoke); merged bbdd2e1; post-merge health check success.",
           "target": "production + PR",
           "outcome": "pass",
           "approval": "Roi: \"Push\"; \"merge\"",
@@ -1870,7 +1870,7 @@
           "date": "2026-10-20",
           "session": "20261020-1043-claude-d205",
           "sha": "a3ee3c3",
-          "command": "PR #146: ConsentGate + DigestConsentPrompt re-check on each change of signed-in user (watchSignedInUser → lib/auth/userWatcher.ts; PASSWORD_RECOVERY counts; synchronous invalidation; stale submits ignored). tests/unit/userWatcher.test.ts 6 pass (unit 96 pass); build green; Codex tier 2 r1 3 BLOCKING (all verified + fixed), r2 BLOCKING: none (NB: no component tests — no component-test setup); PR suite 39440926570 success; merged 34d515b; post-merge health check success. Not exercised in a browser.",
+          "command": "PR #146: ConsentGate + DigestConsentPrompt re-check on each change of signed-in user (watchSignedInUser \u2192 lib/auth/userWatcher.ts; PASSWORD_RECOVERY counts; synchronous invalidation; stale submits ignored). tests/unit/userWatcher.test.ts 6 pass (unit 96 pass); build green; Codex tier 2 r1 3 BLOCKING (all verified + fixed), r2 BLOCKING: none (NB: no component tests \u2014 no component-test setup); PR suite 39440926570 success; merged 34d515b; post-merge health check success. Not exercised in a browser.",
           "target": "PR + production",
           "outcome": "pass",
           "approval": "Roi: \"do the small consent.\"; \"merge\"",
@@ -1880,7 +1880,7 @@
           "date": "2026-10-20",
           "session": "20261020-1043-claude-d205",
           "sha": "5a9b4ac",
-          "command": "PR #147: removed unused components/ui/FollowTagButton.tsx + lib/hooks/useFollowedTags.ts (no imports anywhere); lint baseline entry dropped (total 100, matches regenerated ESLint per Codex). Build green; init.sh check GREEN (lint ratchet PASS); Codex tier 2 r1 BLOCKING: none; smoke run 39443933476 failed first (2 search @weekly tests timing out on both projects + 2 flaky; unrelated — production search 200) → rerun --failed success; merged 9f83192; post-merge health check success.",
+          "command": "PR #147: removed unused components/ui/FollowTagButton.tsx + lib/hooks/useFollowedTags.ts (no imports anywhere); lint baseline entry dropped (total 100, matches regenerated ESLint per Codex). Build green; init.sh check GREEN (lint ratchet PASS); Codex tier 2 r1 BLOCKING: none; smoke run 39443933476 failed first (2 search @weekly tests timing out on both projects + 2 flaky; unrelated \u2014 production search 200) \u2192 rerun --failed success; merged 9f83192; post-merge health check success.",
           "target": "PR + production",
           "outcome": "pass",
           "approval": "Roi: \"remove the dead follow-tag code\"; \"merge\"",
@@ -1890,7 +1890,7 @@
           "date": "2026-10-20",
           "session": "20261020-1043-claude-d205",
           "sha": "fc03c73",
-          "command": "PR #148: tests/unit/consentPrompts.test.ts — 15 component tests render the real ConsentGate + DigestConsentPrompt in happy-dom (new devDependency, 6 packages, none in npm audit); fakes via require.cache (CI Node 20 has no mock.module). Removing any one of 11 guards fails a test (checked locally). Unit 111 pass on Node 20 + 24; Codex tier 2 r1 BLOCKING: none (3 NB coverage gaps → added), r2 none/none (relaunched after Codex usage limit); PR suite 39454124406 success (CI unit 111/111); merged b48d847; post-merge health check success.",
+          "command": "PR #148: tests/unit/consentPrompts.test.ts \u2014 15 component tests render the real ConsentGate + DigestConsentPrompt in happy-dom (new devDependency, 6 packages, none in npm audit); fakes via require.cache (CI Node 20 has no mock.module). Removing any one of 11 guards fails a test (checked locally). Unit 111 pass on Node 20 + 24; Codex tier 2 r1 BLOCKING: none (3 NB coverage gaps \u2192 added), r2 none/none (relaunched after Codex usage limit); PR suite 39454124406 success (CI unit 111/111); merged b48d847; post-merge health check success.",
           "target": "PR + CI",
           "outcome": "pass",
           "approval": "Roi: \"Do the tedts\"; \"merge\"",
@@ -1900,7 +1900,7 @@
           "date": "2026-10-22",
           "session": "20261022-1659-claude-63e7",
           "sha": "483dd31",
-          "command": "#152 (79ed91c) + #153 (483dd31): init.sh check GREEN; Codex #152 tier 1 r2 none, #153 tier 2 r2 none; PR suites 39820624117, 39836572589 success; post-merge checks 39822362940, 39838434123 success; production Chrome signed-in home load: 47 → 1 home RSC fetch, 3 simulated refocus → 0 extra, /auth/v1/user 1 per load",
+          "command": "#152 (79ed91c) + #153 (483dd31): init.sh check GREEN; Codex #152 tier 1 r2 none, #153 tier 2 r2 none; PR suites 39820624117, 39836572589 success; post-merge checks 39822362940, 39838434123 success; production Chrome signed-in home load: 47 \u2192 1 home RSC fetch, 3 simulated refocus \u2192 0 extra, /auth/v1/user 1 per load",
           "target": "production",
           "outcome": "pass",
           "approval": "Roi: \"merge when green\" (#152); \"merge on green then reload recheck then wrap up\" (#153)",
@@ -1910,7 +1910,7 @@
           "date": "2026-10-23",
           "session": "20261023-1327-claude-8155",
           "sha": "483dd31",
-          "command": "vercel logs requests --environment production --since 12h --limit 10000 (01:29→13:16 UTC, 3,299 records): function requests 1,076 (was 1,427–1,495); /privacy 9 (120), /terms 4 (17), /library 5 (46), /profile 3 (31); /index.rsc 225 (342) = 107 own smoke + 118 crawlers + 16 IL; no signed-in refresh bursts",
+          "command": "vercel logs requests --environment production --since 12h --limit 10000 (01:29\u219213:16 UTC, 3,299 records): function requests 1,076 (was 1,427\u20131,495); /privacy 9 (120), /terms 4 (17), /library 5 (46), /profile 3 (31); /index.rsc 225 (342) = 107 own smoke + 118 crawlers + 16 IL; no signed-in refresh bursts",
           "target": "production",
           "outcome": "pass",
           "approval": "Roi: \"let's go\"",
@@ -1920,17 +1920,17 @@
           "date": "2026-10-31",
           "session": "20261031-0937-claude-ccc3",
           "sha": "915058e",
-          "command": "PR #156: Google Search Console import (migration 088: search_console_daily / _queries / _pages / _import_days + replace_search_console_day + search_console_summary, service role only; .github/workflows/search-console.yml daily 05:00 UTC, read-only service account GSC_SERVICE_ACCOUNT_JSON, node:crypto JWT, Pacific days, retries until final, 16-month retention) + /api/admin/analytics/search-console + Admin → Analytics → Google Search. Plan: Codex tier 2, 3 rounds (BLOCKING none). 088 PGlite run (atomic replace, payload dates ignored, grants); db push 2026-10-31 (Roi: \"Push\"); acl/rls/schema snapshots → audits PASS. Code: Codex r1 2 BLOCKING (unchecked failure write; unpaged ledger) → fixed + runner tests (mutation-checked), r2 BLOCKING none (2 NB applied, unreviewed: label, startup Slack). Unit 162/162 (Node 24), search-console 21/21 (Node 20); PR suite 41235787361 success; merged 22a875b; post-merge health check success.",
+          "command": "PR #156: Google Search Console import (migration 088: search_console_daily / _queries / _pages / _import_days + replace_search_console_day + search_console_summary, service role only; .github/workflows/search-console.yml daily 05:00 UTC, read-only service account GSC_SERVICE_ACCOUNT_JSON, node:crypto JWT, Pacific days, retries until final, 16-month retention) + /api/admin/analytics/search-console + Admin \u2192 Analytics \u2192 Google Search. Plan: Codex tier 2, 3 rounds (BLOCKING none). 088 PGlite run (atomic replace, payload dates ignored, grants); db push 2026-10-31 (Roi: \"Push\"); acl/rls/schema snapshots \u2192 audits PASS. Code: Codex r1 2 BLOCKING (unchecked failure write; unpaged ledger) \u2192 fixed + runner tests (mutation-checked), r2 BLOCKING none (2 NB applied, unreviewed: label, startup Slack). Unit 162/162 (Node 24), search-console 21/21 (Node 20); PR suite 41235787361 success; merged 22a875b; post-merge health check success.",
           "target": "production + PR",
           "outcome": "pass",
-          "approval": "Roi: \"can we import data from the google console…\", \"domain property, backfill to 1 month\", \"Push\", \"Merge\"",
+          "approval": "Roi: \"can we import data from the google console\u2026\", \"domain property, backfill to 1 month\", \"Push\", \"Merge\"",
           "link": "PR #156"
         },
         {
           "date": "2026-10-31",
           "session": "20261031-0937-claude-ccc3",
           "sha": "22a875b",
-          "command": "Search Console backfill: workflow run 41236885088 (days=30) success — 30 days ok (10-01/02 empty, 10-29/30 preliminary); run log scanned: 0 hits for PRIVATE KEY / ya29. / JWT header / MII… / service-account email, 10 masks. search_console_summary 10-03..30: 9,805 impressions, 242 clicks, position 7.8; cat-treats article 296 impressions / 69 clicks / pos 2.1. Pending: Roi compares 10-26..28 site totals (676/17, 589/39, 489/31) with the Search Console UI.",
+          "command": "Search Console backfill: workflow run 41236885088 (days=30) success \u2014 30 days ok (10-01/02 empty, 10-29/30 preliminary); run log scanned: 0 hits for PRIVATE KEY / ya29. / JWT header / MII\u2026 / service-account email, 10 masks. search_console_summary 10-03..30: 9,805 impressions, 242 clicks, position 7.8; cat-treats article 296 impressions / 69 clicks / pos 2.1. Pending: Roi compares 10-26..28 site totals (676/17, 589/39, 489/31) with the Search Console UI.",
           "target": "production",
           "outcome": "pass",
           "approval": "Roi: \"Yes\" (backfill)",
@@ -1942,7 +1942,7 @@
       "head_sha": "483dd31",
       "wip_sha": null,
       "expected_failures": [],
-      "notes": "Roi 2026-10-17: research the 3 patterns; \"yes\" to read-only production reads, window = last 7 days. · claimed by 20261017-1603-claude-ea2b · Findings 2026-10-17: (1) SG + CN = headless-Chrome fleet (Chrome 148–150, desktop, no referrer, flat 24h, 1 view per IP, never a duration beacon): 221 rows, 193 distinct articles, 4% promoted = pattern 3; a 2nd SG bot since 10-16 (randomised Chrome 103–133, Windows): 34 rows. (2) usePageTracking's leave beacon INSERTs a 2nd page_views row (duration_seconds set) per page left: 32 rows, all human — inflates multi-page human sessions. IL 124 rows / 29 IPs → 94 real views (3.2:1); 57% from 3 IPs: Rehovot mobile (WhatsApp, Sun 10-11, 8 min of article↔signup / login / reset-password before signing in) and a Petah Tikva desktop skimming home→article→home at 3–11 s (maybe Roi signed out — ask). (3) ~66 of 83 US rows + IE/SE = Meta / AWS / Azure datacenter towns (Prineville, Clonee, Luleå, Forest City, Gallatin, Boardman, Boydton): link scanners opening shared ?intent=save URLs — save_intent 31 arrived / 1 completed is mostly them. Real signal: ~40 Google organic article visits from 20+ countries (specialist long-tail: emergency / toxicology hemodialysis, equine, ophthalmology, oncology) + 3 chatgpt.com referrals. Follow-up candidates (Roi to pick): fix the beacon (update the view row, not insert); tag datacenter/fleet traffic; Vercel Firewall bot rule (also cuts perf-001 CPU); signup_error ×5 (Ramat Gan, 10-12) + the Rehovot login struggle; SEO on the topics Google already sends. Status blocked = report delivered, awaiting Roi's pick. · PR A = #139 (passing on b1b8285, awaiting Roi's merge word). After merge: production check (one real navigation → one row with a duration; Roi's yes), then ≥24 h → 085, then 086. PR B (auth friction) next. Open questions to Roi: clear Upstash analytics history (raw IPs pre-#139)? save-consent stores the raw IP in user_consents (app/api/auth/save-consent/route.ts:75) — keep as consent evidence? · #139 merged be191db on Roi's word (2026-10-17, deploy ~18:18 UTC). Item stays in_progress: production row check, 085 (≥24 h), 086, PR B. · PR B = #140 draft on d6b8e60, Codex BLOCKING: none after 3 rounds; NOT verified with real email (needs Roi, incognito). Upstash clear: Roi said yes, but auto mode blocked pulling the production Upstash credentials (twice) — Roi does it in the Upstash console. Production row check for #139: awaiting Roi's yes. · Upstash cleared 2026-10-17 (2,731 raw-IP analytics keys). Production check at 18:46: too little traffic to show a duration row; re-check later (Roi's yes covers it). · Roi 2026-10-18: keep the raw IP in user_consents (consent evidence). token_hash template switch: Roi wants it — auto mode blocked the Supabase Management API via the CLI keychain token → Roi does it in the dashboard, only AFTER #140 merges. 085: db push ≥ 18:18 UTC on Roi's yes. · 085 applied 2026-10-18 18:29 UTC; #141 green, awaiting Roi's merge word. #140 real-email test queued by Roi for another day (localhost server stopped; Gmail option offered). Still to do: 086 retro classification (Roi's yes on SQL), Firewall rule decision with the Tencent data, token_hash template switch after #140 merges (Roi, dashboard). · #141 merged 0e3171d on Roi's word (2026-10-18); ../vetree-085 worktree + branch removed. · Roi 2026-10-19: remove suspected automated traffic from the analytics — step 1 dashboard filter (#142), step 2 = 086 retro tagging (production read-only calibration needs Roi's yes), step 3 Vercel Firewall rule for Tencent / Alibaba (not Meta / Microsoft / Google). Then #140. #140 head e4093d8 is LOCAL ONLY (PR still on d6b8e60) — push it; its AuthLinkErrorNotice also passes history.state to replaceState (same Next __NA skip) → pass null. · #142 merged 083d1db on Roi's word (2026-10-19); post-merge health check success. · 086 applied 2026-10-19 18:14 UTC (356 suspected_fleet + 1,372 suspected_datacenter; mixed towns Washington / Santa Clara / San Jose / Ashburn / Dulles / Springfield / The Dalles left out, 573 rows); #143 green, awaiting Roi's merge word. Codex NB follow-ups: 'Session duration' label → visible time per view; funnel read error shows as 'no events'; pending-duration orphans only cleaned opportunistically. · #143 merged 1806b1a (2026-10-19). Firewall rule live 2026-10-19 (deny AS132203 + AS45090; undo: `vercel firewall rules` remove/disable + publish). Check in a few days: datacenter:tencent rows should stop; `vercel firewall overview` for denied counts. Next: #140. · #140 email test PASS 2026-10-19 (all cases). Findings for Roi: Gmail marks the auth emails suspicious — Resend click tracking wraps auth links (links.digest.vetree.app); recommend off for auth + token_hash template after merge. ~30 /auth/v1/user calls in one second after sign-in (getUser per component) — later item. Codex round 4 (Roi approved) blocked by Codex usage limit until 23:01. · Roi 2026-10-19 ~22:40: Resend click tracking OFF for digest.vetree.app (auth + digest links now direct). token_hash template switch still after #140 merges. · #140 merged 3dd971f (2026-10-19). Roi next: Supabase Reset Password template → branded token_hash version (draft in session), then one reset to roi.kris+vt1 to check cross-browser + Gmail warning. · Cross-browser reset WORKS in production (token_hash template, 2026-10-19). Gmail warning check inconclusive — re-check with an inbox that never saw the sender. Test account roi.kris+vt1 exists in production auth (not in EXCLUDED_USER_IDS) — Roi to decide: delete via profile → delete account. · 2026-10-20: FollowTagButton / useFollowedTags is unused (dead code). The ~25 vetree.app-referer /user calls in the 2026-10-19 auth log are unexplained (no session recorded). On localhost a signed-in home load made 12 RSC prefetches, 11 answered 503 (200 when fetched alone) — check production logs under perf-001. Codex NB: consent checks are mount-only (predates). · #144 merged ae229b7 on Roi's word (2026-10-20); post-merge health check success. · 087 applied 2026-10-20 (daily purge removes pending durations > 1 day); #145 merged bbdd2e1 on Roi's word; health check success. · 2026-10-20 (Roi: \"delete the test account and check the firewall\"): roi.kris+vt1 deleted via delete_user_account() (held 1 consent row; it also removes auth.users). Firewall check: rule enabled, 266 denied Oct 19 13:00–Oct 20 14:00 UTC; last datacenter:tencent page view 2026-10-19 18:19:35 (135 that day before, 144 on 10-18, 0 since); signed-out SG+CN 136 → 2 + 5; only 1 datacenter:* row since (aws). · #146 merged 34d515b on Roi's word (2026-10-20): consent prompts re-check on user change. Follow-up: component tests for the prompts (none possible without a component-test setup). · #147 merged 9f83192 on Roi's word (2026-10-20): dead follow-tag code removed. Note: PR #147 first smoke run had both search @weekly tests time out (preview, ~15:00 UTC); rerun passed — watch for recurrence. · #148 merged b48d847 on Roi's word (2026-10-20): component tests for the consent prompts (happy-dom). Note: CI runs Node 20 (EOL 2026-04) — a separate upgrade decision for Roi. · 2026-10-21 503 prefetch check (session 20261021-1301-claude-0f07, read-only): NOT reproduced in production. 12 h request log (3,472 records, Hobby keeps 12 h) had 0 5xx but no signed-in visit; Roi then loaded vetree.app signed in at 14:31 UTC → 43 requests, all 200/304, no 503. Code returns 503 only from synthesis / image-generation API routes, never pages → the localhost 503s were a dev-server artifact. Side finding for perf-001: that one signed-in home load ran ~40 uncached function requests (every visible /article/* link prefetched, /admin /profile /library /privacy /terms twice) — candidate: prefetch={false} on stream article links (Roi to decide). Also seen: 4× 404 /article/null, 3× 400 /api/search/batch in 12 h. · Prior branch fix/analytics-001-truthful-counts (PR #139, merged). 2026-10-21 Roi: \"do the prefetch change\" → branch fix/analytics-001-no-article-prefetch (prefetch={false} on stream + saved-this-week article links). · PR #149 (draft→ready 2026-10-21): prefetch={false} on StreamRow ×2, SavedThisWeek, ArticleCard, GroveView; init.sh check GREEN on e6c7ca3, build green on 042c307; Codex tier 1 r1 BLOCKING ArticleCard+GroveView → fixed 042c307, r2 BLOCKING: none. · #149 smoke green on head 042c307 (run 39620775429: smoke, replay new/old, scope, Vercel all pass); awaiting Roi merge. · #149 merged a02736c on Roi's word (2026-10-21 ~15:16 UTC). Vercel created NO production deployment for the push (none in Vercel or GitHub; previews built fine), so post-merge check run 39624122534 failed after 15 min. On Roi's go-ahead: production deployment created via the Vercel API (POST /v13/deployments, gitSource sha a02736c) = dpl_Fk8XaNVTK7e1fyE2R2dXf3BYaQYr, Ready; /api/version = a02736c; check re-run: success. Pending: Roi signed-in home load to confirm no /article/* prefetches. · #149 verified in production (2026-10-21 16:31 UTC, deployment dpl_…BYaQYr): Roi's signed-in home load made 0 /article/* prefetches (before: ~30); remaining function requests: /, /api/analytics/track, /api/admin/feature-flags, /api/saved-articles, /library /profile /admin x2 each (nav-link prefetch, seen twice in both runs). Next candidates: nav links prefetching twice; /article/null 404s; 400s on /api/search/batch. · 2026-10-21 paused by Roi for growth-003 (\"articles I mark as not relevant keep popping up as daily post suggestions\"). Next step when resumed: nav links /library /profile /admin prefetched twice; /article/null 404s; 400s on /api/search/batch; /auth/v1/user calls; Gmail re-check (Roi). · 2026-10-22 resumed (session 20261022-1659-claude-63e7). /article/null 404s (~5/day) and /api/search/batch 400s (3 at once, 11:07 UTC daily): all US, generic headless Chrome UAs, no page_views; nothing we serve links /article/null (home, search, /il, /library, /login, article pages, all 6 sitemaps, topic_syntheses html, 0 null-id articles); our client never calls batch without search → outside automated traffic, no fix. 'Nav links twice' = Next 16 sends 2 prefetch requests per link. Real cost (12 h, 1,427 function requests): /privacy 120 (dynamic: reads ?lang=; linked from the cookie banner every new visitor sees), /terms 17, /library 46, /profile 31 → branch fix/analytics-001-nav-prefetch: prefetch={false} on links to /privacy /terms /library /profile /admin/reports (Footer, TrackingConsent, LandingPage, AuthButton, ArticleAppBar, BottomNav library/profile only). · PR #152 (ready 2026-10-22): init.sh check GREEN on 5b04a9b, build green b31fadb. Codex tier 1: r1 BLOCKING SearchControls /library + /profile, LibraryClient /profile (verified, fixed b31fadb, plus SearchControls /admin and PersonalizedFeed /profile); r2 BLOCKING none, RESOLVED. Left (rare): SaveIntentHandler /library, legal-page /privacy links, profile page 'View All' /library. · #152 merged 79ed91c on Roi's \"merge when green\" (2026-10-22); PR suite run 39820624117 green; Vercel deployed on its own; /api/version = 79ed91c; post-merge check 39822362940 success. Next: after ~12 h, re-read the request log — /privacy /terms /library /profile function requests should drop to about real visits (baseline 12 h to 10-22 17:00 UTC: 120 / 17 / 46 / 31 of 1,427). Still open: ~25 /auth/v1/user calls (10-19) unexplained; Gmail re-check (Roi). · 2026-10-22 18:46 UTC (Roi: \"let's finish the analytics\"): signed-in production home load in Chrome = 1 /auth/v1/user call (the 10-19 excess is gone since #144) BUT 47 uncached /index.rsc renders in ~1 s (Vercel log; Chrome shows the superseded ones as 503 = cancelled — explains the old localhost '503s'). Cause: useAuth router.refresh() on every SIGNED_IN × each useAuth instance (~45, one per StreamRow); auth-js emits SIGNED_IN on each page start + tab refocus (_recoverAndRefresh). 342 /index.rsc in 12 h. Correction: the 3 /api/search/batch 400s at 11:07 UTC are OUR production smoke (e2e/smoke.spec.ts:108-113 negative tests; GitHub runs the 06:00 cron ~11:06) — not outside traffic; /article/null 404s fall outside the smoke window (outside traffic stands). Fix PR #153 (draft): lib/auth/signInRefresh.ts — refresh once, only when the signed-in user changes vs the session cookie at load; 9 unit tests; init.sh check GREEN; CLAUDE.md Auth & Roles updated. Codex tier 2 r1 running. · #153 Codex tier 2 r1 BLOCKING (verified, SDK repro): late listener → INITIAL_SESSION(new user) first suppressed the refresh; cookie presence cannot tell A from B → fixed e368a9e: user id read from the session cookie at load (sessionUserIdFromCookies; production cookie readable, 2 chunks, base64, parses to the signed-in id), any SIGNED_IN / INITIAL_SESSION naming a different user refreshes once; 15 unit tests; init.sh check GREEN. r2 BLOCKING: none (both RESOLVED via SDK repro). Marked ready; suite run 39836572589. · #153 merged 483dd31 on Roi's word (2026-10-22); health check success; verified in production (47 → 1). Burst of ~20 /index.rsc at 19:16:27–32 UTC right after deploy with /admin/growth requests — likely an old-bundle tab; confirm in the 12 h log. Remaining: 12 h log check (after ~2026-10-23 08:00 UTC: /privacy /terms /library /profile baseline 120/17/46/31, /index.rsc baseline 342), Gmail re-check (Roi) → then close. · 2026-10-23 12 h check PASS (see evidence). Remaining: Gmail re-check (Roi) → close. Crawler full-page loads now dominate home renders — perf-001. · 2026-10-31 (Roi: Google search surge + an unposted article — investigate; read-only production reads): Google-referred human views ~5/day (10-01..24) → 19/35/47/37/27/16 (10-25..30). 115 of 183 surge views land on two NEW, never-posted articles: pubmed-42908201 (JFMS, feline treats phosphorus/calcium in CKD; published 10-21, added 10-23; 80 views / 72 IPs, peak 32 on 10-26) and pubmed-42915224 (JAVMA, canine adverse food reaction tests; added 10-24; 35 views). Real people (40+ countries, mobile+desktop, 90% beacons) but shallow: median 11-13 s, ~25% ≥ 30 s, 4/115 went on to another page; signups flat (signup_step_completed 2 vs 4 the week before; 1 new account vs 3). Not Discover (half desktop). Googlebot is not recorded in page_views (client-side tracker). Queries/impressions need Search Console (Roi). · #156 merged 22a875b (2026-10-31): Search Console import live; secret GSC_SERVICE_ACCOUNT_JSON set by Roi. Next: Roi's yes → dispatch days=30 backfill → compare 3 days of site totals with the Search Console UI."
+      "notes": "Roi 2026-10-17: research the 3 patterns; \"yes\" to read-only production reads, window = last 7 days. \u00b7 claimed by 20261017-1603-claude-ea2b \u00b7 Findings 2026-10-17: (1) SG + CN = headless-Chrome fleet (Chrome 148\u2013150, desktop, no referrer, flat 24h, 1 view per IP, never a duration beacon): 221 rows, 193 distinct articles, 4% promoted = pattern 3; a 2nd SG bot since 10-16 (randomised Chrome 103\u2013133, Windows): 34 rows. (2) usePageTracking's leave beacon INSERTs a 2nd page_views row (duration_seconds set) per page left: 32 rows, all human \u2014 inflates multi-page human sessions. IL 124 rows / 29 IPs \u2192 94 real views (3.2:1); 57% from 3 IPs: Rehovot mobile (WhatsApp, Sun 10-11, 8 min of article\u2194signup / login / reset-password before signing in) and a Petah Tikva desktop skimming home\u2192article\u2192home at 3\u201311 s (maybe Roi signed out \u2014 ask). (3) ~66 of 83 US rows + IE/SE = Meta / AWS / Azure datacenter towns (Prineville, Clonee, Lule\u00e5, Forest City, Gallatin, Boardman, Boydton): link scanners opening shared ?intent=save URLs \u2014 save_intent 31 arrived / 1 completed is mostly them. Real signal: ~40 Google organic article visits from 20+ countries (specialist long-tail: emergency / toxicology hemodialysis, equine, ophthalmology, oncology) + 3 chatgpt.com referrals. Follow-up candidates (Roi to pick): fix the beacon (update the view row, not insert); tag datacenter/fleet traffic; Vercel Firewall bot rule (also cuts perf-001 CPU); signup_error \u00d75 (Ramat Gan, 10-12) + the Rehovot login struggle; SEO on the topics Google already sends. Status blocked = report delivered, awaiting Roi's pick. \u00b7 PR A = #139 (passing on b1b8285, awaiting Roi's merge word). After merge: production check (one real navigation \u2192 one row with a duration; Roi's yes), then \u226524 h \u2192 085, then 086. PR B (auth friction) next. Open questions to Roi: clear Upstash analytics history (raw IPs pre-#139)? save-consent stores the raw IP in user_consents (app/api/auth/save-consent/route.ts:75) \u2014 keep as consent evidence? \u00b7 #139 merged be191db on Roi's word (2026-10-17, deploy ~18:18 UTC). Item stays in_progress: production row check, 085 (\u226524 h), 086, PR B. \u00b7 PR B = #140 draft on d6b8e60, Codex BLOCKING: none after 3 rounds; NOT verified with real email (needs Roi, incognito). Upstash clear: Roi said yes, but auto mode blocked pulling the production Upstash credentials (twice) \u2014 Roi does it in the Upstash console. Production row check for #139: awaiting Roi's yes. \u00b7 Upstash cleared 2026-10-17 (2,731 raw-IP analytics keys). Production check at 18:46: too little traffic to show a duration row; re-check later (Roi's yes covers it). \u00b7 Roi 2026-10-18: keep the raw IP in user_consents (consent evidence). token_hash template switch: Roi wants it \u2014 auto mode blocked the Supabase Management API via the CLI keychain token \u2192 Roi does it in the dashboard, only AFTER #140 merges. 085: db push \u2265 18:18 UTC on Roi's yes. \u00b7 085 applied 2026-10-18 18:29 UTC; #141 green, awaiting Roi's merge word. #140 real-email test queued by Roi for another day (localhost server stopped; Gmail option offered). Still to do: 086 retro classification (Roi's yes on SQL), Firewall rule decision with the Tencent data, token_hash template switch after #140 merges (Roi, dashboard). \u00b7 #141 merged 0e3171d on Roi's word (2026-10-18); ../vetree-085 worktree + branch removed. \u00b7 Roi 2026-10-19: remove suspected automated traffic from the analytics \u2014 step 1 dashboard filter (#142), step 2 = 086 retro tagging (production read-only calibration needs Roi's yes), step 3 Vercel Firewall rule for Tencent / Alibaba (not Meta / Microsoft / Google). Then #140. #140 head e4093d8 is LOCAL ONLY (PR still on d6b8e60) \u2014 push it; its AuthLinkErrorNotice also passes history.state to replaceState (same Next __NA skip) \u2192 pass null. \u00b7 #142 merged 083d1db on Roi's word (2026-10-19); post-merge health check success. \u00b7 086 applied 2026-10-19 18:14 UTC (356 suspected_fleet + 1,372 suspected_datacenter; mixed towns Washington / Santa Clara / San Jose / Ashburn / Dulles / Springfield / The Dalles left out, 573 rows); #143 green, awaiting Roi's merge word. Codex NB follow-ups: 'Session duration' label \u2192 visible time per view; funnel read error shows as 'no events'; pending-duration orphans only cleaned opportunistically. \u00b7 #143 merged 1806b1a (2026-10-19). Firewall rule live 2026-10-19 (deny AS132203 + AS45090; undo: `vercel firewall rules` remove/disable + publish). Check in a few days: datacenter:tencent rows should stop; `vercel firewall overview` for denied counts. Next: #140. \u00b7 #140 email test PASS 2026-10-19 (all cases). Findings for Roi: Gmail marks the auth emails suspicious \u2014 Resend click tracking wraps auth links (links.digest.vetree.app); recommend off for auth + token_hash template after merge. ~30 /auth/v1/user calls in one second after sign-in (getUser per component) \u2014 later item. Codex round 4 (Roi approved) blocked by Codex usage limit until 23:01. \u00b7 Roi 2026-10-19 ~22:40: Resend click tracking OFF for digest.vetree.app (auth + digest links now direct). token_hash template switch still after #140 merges. \u00b7 #140 merged 3dd971f (2026-10-19). Roi next: Supabase Reset Password template \u2192 branded token_hash version (draft in session), then one reset to roi.kris+vt1 to check cross-browser + Gmail warning. \u00b7 Cross-browser reset WORKS in production (token_hash template, 2026-10-19). Gmail warning check inconclusive \u2014 re-check with an inbox that never saw the sender. Test account roi.kris+vt1 exists in production auth (not in EXCLUDED_USER_IDS) \u2014 Roi to decide: delete via profile \u2192 delete account. \u00b7 2026-10-20: FollowTagButton / useFollowedTags is unused (dead code). The ~25 vetree.app-referer /user calls in the 2026-10-19 auth log are unexplained (no session recorded). On localhost a signed-in home load made 12 RSC prefetches, 11 answered 503 (200 when fetched alone) \u2014 check production logs under perf-001. Codex NB: consent checks are mount-only (predates). \u00b7 #144 merged ae229b7 on Roi's word (2026-10-20); post-merge health check success. \u00b7 087 applied 2026-10-20 (daily purge removes pending durations > 1 day); #145 merged bbdd2e1 on Roi's word; health check success. \u00b7 2026-10-20 (Roi: \"delete the test account and check the firewall\"): roi.kris+vt1 deleted via delete_user_account() (held 1 consent row; it also removes auth.users). Firewall check: rule enabled, 266 denied Oct 19 13:00\u2013Oct 20 14:00 UTC; last datacenter:tencent page view 2026-10-19 18:19:35 (135 that day before, 144 on 10-18, 0 since); signed-out SG+CN 136 \u2192 2 + 5; only 1 datacenter:* row since (aws). \u00b7 #146 merged 34d515b on Roi's word (2026-10-20): consent prompts re-check on user change. Follow-up: component tests for the prompts (none possible without a component-test setup). \u00b7 #147 merged 9f83192 on Roi's word (2026-10-20): dead follow-tag code removed. Note: PR #147 first smoke run had both search @weekly tests time out (preview, ~15:00 UTC); rerun passed \u2014 watch for recurrence. \u00b7 #148 merged b48d847 on Roi's word (2026-10-20): component tests for the consent prompts (happy-dom). Note: CI runs Node 20 (EOL 2026-04) \u2014 a separate upgrade decision for Roi. \u00b7 2026-10-21 503 prefetch check (session 20261021-1301-claude-0f07, read-only): NOT reproduced in production. 12 h request log (3,472 records, Hobby keeps 12 h) had 0 5xx but no signed-in visit; Roi then loaded vetree.app signed in at 14:31 UTC \u2192 43 requests, all 200/304, no 503. Code returns 503 only from synthesis / image-generation API routes, never pages \u2192 the localhost 503s were a dev-server artifact. Side finding for perf-001: that one signed-in home load ran ~40 uncached function requests (every visible /article/* link prefetched, /admin /profile /library /privacy /terms twice) \u2014 candidate: prefetch={false} on stream article links (Roi to decide). Also seen: 4\u00d7 404 /article/null, 3\u00d7 400 /api/search/batch in 12 h. \u00b7 Prior branch fix/analytics-001-truthful-counts (PR #139, merged). 2026-10-21 Roi: \"do the prefetch change\" \u2192 branch fix/analytics-001-no-article-prefetch (prefetch={false} on stream + saved-this-week article links). \u00b7 PR #149 (draft\u2192ready 2026-10-21): prefetch={false} on StreamRow \u00d72, SavedThisWeek, ArticleCard, GroveView; init.sh check GREEN on e6c7ca3, build green on 042c307; Codex tier 1 r1 BLOCKING ArticleCard+GroveView \u2192 fixed 042c307, r2 BLOCKING: none. \u00b7 #149 smoke green on head 042c307 (run 39620775429: smoke, replay new/old, scope, Vercel all pass); awaiting Roi merge. \u00b7 #149 merged a02736c on Roi's word (2026-10-21 ~15:16 UTC). Vercel created NO production deployment for the push (none in Vercel or GitHub; previews built fine), so post-merge check run 39624122534 failed after 15 min. On Roi's go-ahead: production deployment created via the Vercel API (POST /v13/deployments, gitSource sha a02736c) = dpl_Fk8XaNVTK7e1fyE2R2dXf3BYaQYr, Ready; /api/version = a02736c; check re-run: success. Pending: Roi signed-in home load to confirm no /article/* prefetches. \u00b7 #149 verified in production (2026-10-21 16:31 UTC, deployment dpl_\u2026BYaQYr): Roi's signed-in home load made 0 /article/* prefetches (before: ~30); remaining function requests: /, /api/analytics/track, /api/admin/feature-flags, /api/saved-articles, /library /profile /admin x2 each (nav-link prefetch, seen twice in both runs). Next candidates: nav links prefetching twice; /article/null 404s; 400s on /api/search/batch. \u00b7 2026-10-21 paused by Roi for growth-003 (\"articles I mark as not relevant keep popping up as daily post suggestions\"). Next step when resumed: nav links /library /profile /admin prefetched twice; /article/null 404s; 400s on /api/search/batch; /auth/v1/user calls; Gmail re-check (Roi). \u00b7 2026-10-22 resumed (session 20261022-1659-claude-63e7). /article/null 404s (~5/day) and /api/search/batch 400s (3 at once, 11:07 UTC daily): all US, generic headless Chrome UAs, no page_views; nothing we serve links /article/null (home, search, /il, /library, /login, article pages, all 6 sitemaps, topic_syntheses html, 0 null-id articles); our client never calls batch without search \u2192 outside automated traffic, no fix. 'Nav links twice' = Next 16 sends 2 prefetch requests per link. Real cost (12 h, 1,427 function requests): /privacy 120 (dynamic: reads ?lang=; linked from the cookie banner every new visitor sees), /terms 17, /library 46, /profile 31 \u2192 branch fix/analytics-001-nav-prefetch: prefetch={false} on links to /privacy /terms /library /profile /admin/reports (Footer, TrackingConsent, LandingPage, AuthButton, ArticleAppBar, BottomNav library/profile only). \u00b7 PR #152 (ready 2026-10-22): init.sh check GREEN on 5b04a9b, build green b31fadb. Codex tier 1: r1 BLOCKING SearchControls /library + /profile, LibraryClient /profile (verified, fixed b31fadb, plus SearchControls /admin and PersonalizedFeed /profile); r2 BLOCKING none, RESOLVED. Left (rare): SaveIntentHandler /library, legal-page /privacy links, profile page 'View All' /library. \u00b7 #152 merged 79ed91c on Roi's \"merge when green\" (2026-10-22); PR suite run 39820624117 green; Vercel deployed on its own; /api/version = 79ed91c; post-merge check 39822362940 success. Next: after ~12 h, re-read the request log \u2014 /privacy /terms /library /profile function requests should drop to about real visits (baseline 12 h to 10-22 17:00 UTC: 120 / 17 / 46 / 31 of 1,427). Still open: ~25 /auth/v1/user calls (10-19) unexplained; Gmail re-check (Roi). \u00b7 2026-10-22 18:46 UTC (Roi: \"let's finish the analytics\"): signed-in production home load in Chrome = 1 /auth/v1/user call (the 10-19 excess is gone since #144) BUT 47 uncached /index.rsc renders in ~1 s (Vercel log; Chrome shows the superseded ones as 503 = cancelled \u2014 explains the old localhost '503s'). Cause: useAuth router.refresh() on every SIGNED_IN \u00d7 each useAuth instance (~45, one per StreamRow); auth-js emits SIGNED_IN on each page start + tab refocus (_recoverAndRefresh). 342 /index.rsc in 12 h. Correction: the 3 /api/search/batch 400s at 11:07 UTC are OUR production smoke (e2e/smoke.spec.ts:108-113 negative tests; GitHub runs the 06:00 cron ~11:06) \u2014 not outside traffic; /article/null 404s fall outside the smoke window (outside traffic stands). Fix PR #153 (draft): lib/auth/signInRefresh.ts \u2014 refresh once, only when the signed-in user changes vs the session cookie at load; 9 unit tests; init.sh check GREEN; CLAUDE.md Auth & Roles updated. Codex tier 2 r1 running. \u00b7 #153 Codex tier 2 r1 BLOCKING (verified, SDK repro): late listener \u2192 INITIAL_SESSION(new user) first suppressed the refresh; cookie presence cannot tell A from B \u2192 fixed e368a9e: user id read from the session cookie at load (sessionUserIdFromCookies; production cookie readable, 2 chunks, base64, parses to the signed-in id), any SIGNED_IN / INITIAL_SESSION naming a different user refreshes once; 15 unit tests; init.sh check GREEN. r2 BLOCKING: none (both RESOLVED via SDK repro). Marked ready; suite run 39836572589. \u00b7 #153 merged 483dd31 on Roi's word (2026-10-22); health check success; verified in production (47 \u2192 1). Burst of ~20 /index.rsc at 19:16:27\u201332 UTC right after deploy with /admin/growth requests \u2014 likely an old-bundle tab; confirm in the 12 h log. Remaining: 12 h log check (after ~2026-10-23 08:00 UTC: /privacy /terms /library /profile baseline 120/17/46/31, /index.rsc baseline 342), Gmail re-check (Roi) \u2192 then close. \u00b7 2026-10-23 12 h check PASS (see evidence). Remaining: Gmail re-check (Roi) \u2192 close. Crawler full-page loads now dominate home renders \u2014 perf-001. \u00b7 2026-10-31 (Roi: Google search surge + an unposted article \u2014 investigate; read-only production reads): Google-referred human views ~5/day (10-01..24) \u2192 19/35/47/37/27/16 (10-25..30). 115 of 183 surge views land on two NEW, never-posted articles: pubmed-42908201 (JFMS, feline treats phosphorus/calcium in CKD; published 10-21, added 10-23; 80 views / 72 IPs, peak 32 on 10-26) and pubmed-42915224 (JAVMA, canine adverse food reaction tests; added 10-24; 35 views). Real people (40+ countries, mobile+desktop, 90% beacons) but shallow: median 11-13 s, ~25% \u2265 30 s, 4/115 went on to another page; signups flat (signup_step_completed 2 vs 4 the week before; 1 new account vs 3). Not Discover (half desktop). Googlebot is not recorded in page_views (client-side tracker). Queries/impressions need Search Console (Roi). \u00b7 #156 merged 22a875b (2026-10-31): Search Console import live; secret GSC_SERVICE_ACCOUNT_JSON set by Roi. Next: Roi's yes \u2192 dispatch days=30 backfill \u2192 compare 3 days of site totals with the Search Console UI."
     },
     {
       "status": "merged",
@@ -1987,14 +1987,14 @@
           "paid_calls": false
         },
         {
-          "step": "Review: Codex, tier per review-checklist → BLOCKING: none",
+          "step": "Review: Codex, tier per review-checklist \u2192 BLOCKING: none",
           "target": "none",
           "db_reads": "none",
           "db_writes": "none",
           "paid_calls": false
         }
       ],
-      "notes": "Reported by Roi 2026-10-21. · Investigation 2026-10-21 (read-only, production): dismissals work — 243 irrelevant rows, none dismissed twice, none shown again (2 race cases: a set served 8 s after the click, already loading); no title/DOI duplicates of dismissed articles shown; 0 of 36 vatinoxan articles ever dismissed. Cause of the feeling: the list is ~8/10 identical day to day (fixed ranking) — pubmed-42600645 (Zenalpha) shown 10 days in a row until already_published; pubmed-42838285 in every set since 10-18. Roi chose: rest ignored cards (shown on 3 days without action → out 14 days). Also Roi: recommendations hidden once today's article is fixed (DailyPosts !articleId && !hasPosts) — make them reachable (view + dismiss, no pick). · PR #150 (ready 2026-10-21): lib/growth/passedOver.ts (+7 unit tests), candidates.ts reads growth_recommendation_sets, restingCount → panel; DailyPosts recommendations reachable after the day is set (review + dismiss); app/api/CLAUDE.md. init.sh check GREEN on 173fa3a (incl. dry run: 18 resting, 2 eligible — vatinoxan sedation, bovine colostrum); build green 5b82516. Codex tier 2: r1 BLOCKING none (NB empty-state text fixed 5b82516), r2 BLOCKING none. Deferred NB: ranking integration tests; candidates.ts touchedToday uses UTC day (pre-existing). · #150 merged 1de3d45 on Roi's word (\"merge when green\"). Follow-ups (Codex NB): ranking integration tests; touchedToday in candidates.ts uses the UTC day, not the Israel day. · 2026-10-22 Roi \"go on\" → follow-ups on fix/growth-003-israel-day: touchedToday uses the Israel day; ranking integration tests (fake db: resting, crowd favorite, skip, Israel day, history read error). · PR #151 (ready 2026-10-22): touchedToday on the Israel day + 6 rankGrowthCandidates tests (fake db). init.sh check GREEN on 16ddcbe; mutation checks: old UTC line fails the Israel-day test, removing the favorites fetch fails the crowd-favorite test; build green 04d470c. Codex tier 1: r1 BLOCKING none (2 NB test gaps → fixed 04d470c), r2 BLOCKING none, both RESOLVED. · #151 merged 08e7628 on Roi's word; deployed by Vercel on its own; health check success. Item closed (no open follow-ups)."
+      "notes": "Reported by Roi 2026-10-21. \u00b7 Investigation 2026-10-21 (read-only, production): dismissals work \u2014 243 irrelevant rows, none dismissed twice, none shown again (2 race cases: a set served 8 s after the click, already loading); no title/DOI duplicates of dismissed articles shown; 0 of 36 vatinoxan articles ever dismissed. Cause of the feeling: the list is ~8/10 identical day to day (fixed ranking) \u2014 pubmed-42600645 (Zenalpha) shown 10 days in a row until already_published; pubmed-42838285 in every set since 10-18. Roi chose: rest ignored cards (shown on 3 days without action \u2192 out 14 days). Also Roi: recommendations hidden once today's article is fixed (DailyPosts !articleId && !hasPosts) \u2014 make them reachable (view + dismiss, no pick). \u00b7 PR #150 (ready 2026-10-21): lib/growth/passedOver.ts (+7 unit tests), candidates.ts reads growth_recommendation_sets, restingCount \u2192 panel; DailyPosts recommendations reachable after the day is set (review + dismiss); app/api/CLAUDE.md. init.sh check GREEN on 173fa3a (incl. dry run: 18 resting, 2 eligible \u2014 vatinoxan sedation, bovine colostrum); build green 5b82516. Codex tier 2: r1 BLOCKING none (NB empty-state text fixed 5b82516), r2 BLOCKING none. Deferred NB: ranking integration tests; candidates.ts touchedToday uses UTC day (pre-existing). \u00b7 #150 merged 1de3d45 on Roi's word (\"merge when green\"). Follow-ups (Codex NB): ranking integration tests; touchedToday in candidates.ts uses the UTC day, not the Israel day. \u00b7 2026-10-22 Roi \"go on\" \u2192 follow-ups on fix/growth-003-israel-day: touchedToday uses the Israel day; ranking integration tests (fake db: resting, crowd favorite, skip, Israel day, history read error). \u00b7 PR #151 (ready 2026-10-22): touchedToday on the Israel day + 6 rankGrowthCandidates tests (fake db). init.sh check GREEN on 16ddcbe; mutation checks: old UTC line fails the Israel-day test, removing the favorites fetch fails the crowd-favorite test; build green 04d470c. Codex tier 1: r1 BLOCKING none (2 NB test gaps \u2192 fixed 04d470c), r2 BLOCKING none, both RESOLVED. \u00b7 #151 merged 08e7628 on Roi's word; deployed by Vercel on its own; health check success. Item closed (no open follow-ups)."
     },
     {
       "id": "sec-002",
@@ -2002,18 +2002,18 @@
       "area": "security",
       "type": "fix",
       "title": "Security scan 2026-10-29: 3 unacknowledged Next.js advisories (2 critical RCE, 1 high DoS; next 16.3.8, patched 16.4.1) + zod high (GHSA-mrhx-c7xc-m3w5, < 4.6.6)",
-      "user_visible_behavior": "none — the site runs on a patched Next.js; the weekly security report comes back without critical/high findings",
+      "user_visible_behavior": "none \u2014 the site runs on a patched Next.js; the weekly security report comes back without critical/high findings",
       "status": "merged",
       "verification": [
         {
-          "step": "next 16.3.8 → 16.4.3 (+ eslint-config-next to match), zod ≥ 4.6.6; npm audit shows none of the 4; init.sh check GREEN",
+          "step": "next 16.3.8 \u2192 16.4.3 (+ eslint-config-next to match), zod \u2265 4.6.6; npm audit shows none of the 4; init.sh check GREEN",
           "target": "local",
           "db_reads": "none",
           "db_writes": "none",
           "paid_calls": false
         },
         {
-          "step": "Review: Codex, tier 2 (security) → BLOCKING: none; draft PR, ready once; PR suite green",
+          "step": "Review: Codex, tier 2 (security) \u2192 BLOCKING: none; draft PR, ready once; PR suite green",
           "target": "preview",
           "db_reads": "none",
           "db_writes": "none",
@@ -2044,16 +2044,16 @@
       "head_sha": "aecc2cb",
       "wip_sha": null,
       "expected_failures": [],
-      "notes": "Scan report 2026-10-29 23:02 UTC (scheduled), severity critical: GHSA-2464-fhr4-w9xw (image optimizer + SVG, critical), GHSA-p3m5-59mp-jv5r (Server Actions DoS, high), GHSA-673q-mjm6-r5xr (use cache, critical; not used here). Exposure: /_next/image live (no next/image, no dangerouslyAllowSVG), 8 server-action files. Roi: \"start\" (2026-11-01). Claimed by 20261101-1635-claude-5b3d. · #157 merged aecc2cb (2026-11-01), verified in production. CLOSED. Follow-up candidate: eslint-config-next 16.4.3 + 4 react-hooks lint fixes."
+      "notes": "Scan report 2026-10-29 23:02 UTC (scheduled), severity critical: GHSA-2464-fhr4-w9xw (image optimizer + SVG, critical), GHSA-p3m5-59mp-jv5r (Server Actions DoS, high), GHSA-673q-mjm6-r5xr (use cache, critical; not used here). Exposure: /_next/image live (no next/image, no dangerouslyAllowSVG), 8 server-action files. Roi: \"start\" (2026-11-01). Claimed by 20261101-1635-claude-5b3d. \u00b7 #157 merged aecc2cb (2026-11-01), verified in production. CLOSED. Follow-up candidate: eslint-config-next 16.4.3 + 4 react-hooks lint fixes."
     },
     {
       "id": "growth-004",
       "priority": 1,
       "area": "growth",
       "type": "fix",
-      "title": "Growth OS recommendations: relevance scoring stopped on 2026-10-14 — new articles never ranked",
+      "title": "Growth OS recommendations: relevance scoring stopped on 2026-10-14 \u2014 new articles never ranked",
       "user_visible_behavior": "New small-animal articles get a relevance score within a day of arriving, so the recommended articles panel offers fresh, good candidates instead of recycled leftovers.",
-      "status": "in_progress",
+      "status": "merged",
       "verification": [
         {
           "step": "reproduce: production rows read-only + one timed Claude batch (25 articles)",
@@ -2070,7 +2070,7 @@
           "paid_calls": false
         },
         {
-          "step": "Review: Codex tier 2 (paid AI calls) → BLOCKING: none",
+          "step": "Review: Codex tier 2 (paid AI calls) \u2192 BLOCKING: none",
           "target": "none",
           "db_reads": "none",
           "db_writes": "none",
@@ -2084,13 +2084,22 @@
           "paid_calls": true
         }
       ],
-      "evidence": [],
+      "evidence": [
+        {
+          "sha": "f6f859f",
+          "what": "init.sh check GREEN; PR suite + replay green; Codex tier 2: r1 1 BLOCKING (Node 20 WebSocket) fixed, r2 BLOCKING none"
+        },
+        {
+          "sha": "1ec2069",
+          "what": "merged on Roi's \"merge and backfill\" 2026-11-06; /api/version = 1ec2069; post-merge check success; backfill run 42219120027 success: scored 338/338 eligible (179 new scores)"
+        }
+      ],
       "branch": "fix/growth-004-scoring",
-      "pr": null,
-      "head_sha": null,
+      "pr": 158,
+      "head_sha": "1ec2069",
       "wip_sha": null,
       "expected_failures": [],
-      "notes": "Reported by Roi 2026-11-06 (recommendations worse every day, repeats, high decline rate). Investigation 2026-11-06: last growth_article_scores write 2026-10-14; 0 of the small-animal articles created since 10-10 scored; scored_count in served sets 275 (10-16) -> 160 (11-06) while eligible ~340; youngest article shown 7 -> 29 days; top score 9 -> 5; 10/10 repeats today. Cause: scoring runs on panel load, batches of 25 within a 30 s deadline; one batch of 24 takes 41 s on Sonnet 4.6 (2,174 output tokens) -> every batch aborted, nothing saved. No dismissed article reappeared (by id or title/DOI). Roi: go (2026-11-06)."
+      "notes": "Reported by Roi 2026-11-06 (recommendations worse every day, repeats, high decline rate). Investigation 2026-11-06: last growth_article_scores write 2026-10-14; 0 of the small-animal articles created since 10-10 scored; scored_count in served sets 275 (10-16) -> 160 (11-06) while eligible ~340; youngest article shown 7 -> 29 days; top score 9 -> 5; 10/10 repeats today. Cause: scoring runs on panel load, batches of 25 within a 30 s deadline; one batch of 24 takes 41 s on Sonnet 4.6 (2,174 output tokens) -> every batch aborted, nothing saved. No dismissed article reappeared (by id or title/DOI). Roi: go (2026-11-06). \u00b7 #158 merged 1ec2069; backfill done via workflow (local run blocked by the auto-mode classifier). Item closed."
     }
   ]
 }

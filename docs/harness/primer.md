@@ -8,10 +8,10 @@ Routine: `docs/harness/README.md` on `main`. Pre-harness primer (frozen): root `
 ---
 
 ## 1. Current Verified State
-*Updated 2026-11-01 — Session 20261101-1635-claude-5b3d (sec-002: Next.js 16.4.3 — scan's 2 critical + 1 high advisories fixed, #157)*
+*Updated 2026-11-06 — Session 20261106-1150-claude-05a3 (growth-004: Growth OS scoring moved to the daily enrichment workflow, #158)*
 
 - **Repo root:** `~/dev/vetree` · state worktree: `.harness-state/` (branch `harness-state`)
-- **main:** `aecc2cb` (#157 next 16.3.8 → 16.4.3, zod + happy-dom patched — scan 2026-10-29 critical advisories, sec-002, 2026-11-01; #156 Google Search Console → Admin → Analytics → Google Search — migration 088, search-console.yml daily 05:00 UTC, 30-day backfill done, analytics-001, 2026-10-31; #155 anon-key writer scripts + day-one CSV importer removed, scripts-001, 2026-10-24; #154 facebookexternalhit on / → static /link-preview (next.config.ts beforeFiles rewrite, lib/metaPreview.ts), perf-001, 2026-10-23; #153 useAuth refreshes once per real sign-in (lib/auth/signInRefresh.ts) — was ~46 server renders per signed-in home load, analytics-001, 2026-10-22; #152 no prefetch on links to /privacy /terms /library /profile /admin/reports, analytics-001, 2026-10-22; #151 "touched today" on the Israel day + ranking tests, growth-003, 2026-10-22; #150 passed-over recommendations rest 14 days (lib/growth/passedOver.ts), panel reachable after the day's article is set, growth-003, 2026-10-21; #149 no prefetch on repeated article links — stream, saved-this-week, ArticleCard, Grove, analytics-001, 2026-10-21; Vercel missed the push → production deployed via the API on Roi's go-ahead; #148 component tests for the consent prompts — happy-dom dev dependency, analytics-001, 2026-10-20; #147 unused FollowTagButton / useFollowedTags removed, 2026-10-20; #146 consent prompts re-check when the signed-in user changes (watchSignedInUser → lib/auth/userWatcher.ts), 2026-10-20; #145 migration 087 — the daily purge removes pending durations > 1 day, 2026-10-20; #144 one user lookup per signed-in page + dashboard footnote, 2026-10-20; #140 auth friction — failed email links explained, reset works cross-browser with the token_hash template, verify-email signed out, signup fixes, analytics-001, 2026-10-19; #143 migration 086 — 356 suspected_fleet + 1,372 suspected_datacenter older rows, 2026-10-19; #142 Analytics hides signed-out likely-automated views by default (switch ?automated=include), six readers paged, 2026-10-19; #141 migration 085 — pre-#139 leave-beacon rows merged into their views, analytics-001, 2026-10-18; #139 one page_views row per view (client view_id, visible-time duration), traffic_class estimate (datacenter ranges), hashed Upstash keys, admin analytics reads paged + fail on error, migration 084, analytics-001, 2026-10-17; #138 scan advisories cleared — source-map-js 1.2.2, braces acknowledged — and the scan reads its
+- **main:** `1ec2069` (#158 Growth OS relevance scoring runs as job `score` of enrich-articles.yml after enrichment — panel scoring had timed out on every batch since 10-14, 338/338 backfilled, growth-004, 2026-11-06; #157 next 16.3.8 → 16.4.3, zod + happy-dom patched — scan 2026-10-29 critical advisories, sec-002, 2026-11-01; #156 Google Search Console → Admin → Analytics → Google Search — migration 088, search-console.yml daily 05:00 UTC, 30-day backfill done, analytics-001, 2026-10-31; #155 anon-key writer scripts + day-one CSV importer removed, scripts-001, 2026-10-24; #154 facebookexternalhit on / → static /link-preview (next.config.ts beforeFiles rewrite, lib/metaPreview.ts), perf-001, 2026-10-23; #153 useAuth refreshes once per real sign-in (lib/auth/signInRefresh.ts) — was ~46 server renders per signed-in home load, analytics-001, 2026-10-22; #152 no prefetch on links to /privacy /terms /library /profile /admin/reports, analytics-001, 2026-10-22; #151 "touched today" on the Israel day + ranking tests, growth-003, 2026-10-22; #150 passed-over recommendations rest 14 days (lib/growth/passedOver.ts), panel reachable after the day's article is set, growth-003, 2026-10-21; #149 no prefetch on repeated article links — stream, saved-this-week, ArticleCard, Grove, analytics-001, 2026-10-21; Vercel missed the push → production deployed via the API on Roi's go-ahead; #148 component tests for the consent prompts — happy-dom dev dependency, analytics-001, 2026-10-20; #147 unused FollowTagButton / useFollowedTags removed, 2026-10-20; #146 consent prompts re-check when the signed-in user changes (watchSignedInUser → lib/auth/userWatcher.ts), 2026-10-20; #145 migration 087 — the daily purge removes pending durations > 1 day, 2026-10-20; #144 one user lookup per signed-in page + dashboard footnote, 2026-10-20; #140 auth friction — failed email links explained, reset works cross-browser with the token_hash template, verify-email signed out, signup fixes, analytics-001, 2026-10-19; #143 migration 086 — 356 suspected_fleet + 1,372 suspected_datacenter older rows, 2026-10-19; #142 Analytics hides signed-out likely-automated views by default (switch ?automated=include), six readers paged, 2026-10-19; #141 migration 085 — pre-#139 leave-beacon rows merged into their views, analytics-001, 2026-10-18; #139 one page_views row per view (client view_id, visible-time duration), traffic_class estimate (datacenter ranges), hashed Upstash keys, admin analytics reads paged + fail on error, migration 084, analytics-001, 2026-10-17; #138 scan advisories cleared — source-map-js 1.2.2, braces acknowledged — and the scan reads its
   history again, sec-001, 2026-10-16; #137 homepage "Articles saved this week" — every reader's saves, migration 083, anon SELECT on
   saved_articles revoked, feed-002, 2026-10-16; #136 proxy runs only with the Supabase session cookie, perf-001, 2026-10-14; #135 admin Pipeline rebuilt as the Slack messages expanded, Article Health removed, 2026-10-14; #134 daily reminder counts run 2 + excludes the test account, weekly AI report hidden, Overview removed, 2026-10-14; #133 Growth OS daily posts panel, one article → every platform, 2026-10-13; #132 unit tests in init.sh check + PR smoke, 2026-10-13; #131 Facebook IL closing lines: typeable address + WhatsApp Community, 2026-10-13; #129 + #130 Facebook IL link-free posts, vetree.app/il, "save it" hint, 2026-10-13; #127 schema audit + #128 replay safety, migrations 080–082 + 000 recorded, 2026-10-12; #126 unlock log guard, 2026-10-12; PRs #120–#125 least privilege + policy audit, migrations 075–079 applied, 2026-10-11; #119 lint cleanup, 2026-10-10; #118 build warnings / middleware → proxy, 2026-10-10; #117 init.sh lock / unlock, 2026-10-10; #116 "new this week" count, 2026-10-10; #115 shorter digest footer, 2026-10-09; #114 Search Console fixes, 2026-10-07; before it #113 access-control audit,
   migration 074 applied) — last verified: production /api/version = 3dd971f, post-merge health check success; cross-browser reset verified in production (incognito, token_hash template); earlier: 085 log {legacy 482, matched 480, loads 479, deleted 482}, 0 legacy rows left, schema audit PASS
@@ -24,7 +24,7 @@ Routine: `docs/harness/README.md` on `main`. Pre-harness primer (frozen): root `
   if not enough → option B (article ISR). PR rule: drafts until done, ready once, never re-run a passing suite.
   Functions Storage was 8.93 / 10 GB → Roi set deployment retention: pre-production 1 week, production / canceled /
   errored 30 days (2026-10-15); re-read it with the CPU chart.
-- **Highest-priority unfinished item:** sec-002 done (#157) — Thursday 2026-11-05 scan should be clean. perf-001: #154 confirmed 2026-10-24 (FB on / → CDN, 0 home renders; home renders without smoke 276 → 113 / 12 h) — left: Roi reads the Vercel usage chart (CLI can't on Hobby). analytics-001 — left: Roi compares Oct 26–28 GSC site totals (676/17, 589/39, 489/31) with the Search Console UI + the Gmail re-check; then close it. Optional: post the cat-treats article (pubmed-42908201, position 2.1, never posted); Google landings leave after ~12 s. Revisit ~2026-10-26 (Roi, 2026-10-23: leave it for now): the Chinese fleet came back 10-20 from Chinese ISP addresses (mostly Hangzhou) after the Tencent firewall block — 17–39 views/day 10-20..22, 1 view per IP, Chrome 148–150 + iPhone, article pages, no referrer, flat over 24 h — untagged (086 was a one-off backfill; live tagging = hosting ranges only), so Admin → Analytics counts them as people; 10-23 nearly none. Options: live fleet tagging + re-tag 10-20.. (recommended), firewall challenge for CN, or nothing. 12 h check done 2026-10-23: #152 + #153 confirmed (function requests −25%; remaining home renders = our smoke + crawlers → perf-001). Done 2026-10-22: #152, #153; /auth/v1/user = 1 per load; /article/null = outside traffic; search-batch 400s = our own smoke; Chrome "503"s = cancelled fetches. CI Node 20 upgrade is Roi's call; perf-001 monitoring; ai-001 ~2026-11-01
+- **Highest-priority unfinished item:** growth-004 done (#158) — Roi checks the panel 11-07 (fresh picks, no amber warning). sec-002 done (#157); manual scan 11-01 clean. perf-001: #154 confirmed 2026-10-24 (FB on / → CDN, 0 home renders; home renders without smoke 276 → 113 / 12 h) — left: Roi reads the Vercel usage chart (CLI can't on Hobby). analytics-001 — left: Roi compares Oct 26–28 GSC site totals (676/17, 589/39, 489/31) with the Search Console UI + the Gmail re-check; then close it. Optional: post the cat-treats article (pubmed-42908201, position 2.1, never posted); Google landings leave after ~12 s. Revisit ~2026-10-26 (Roi, 2026-10-23: leave it for now): the Chinese fleet came back 10-20 from Chinese ISP addresses (mostly Hangzhou) after the Tencent firewall block — 17–39 views/day 10-20..22, 1 view per IP, Chrome 148–150 + iPhone, article pages, no referrer, flat over 24 h — untagged (086 was a one-off backfill; live tagging = hosting ranges only), so Admin → Analytics counts them as people; 10-23 nearly none. Options: live fleet tagging + re-tag 10-20.. (recommended), firewall challenge for CN, or nothing. 12 h check done 2026-10-23: #152 + #153 confirmed (function requests −25%; remaining home renders = our smoke + crawlers → perf-001). Done 2026-10-22: #152, #153; /auth/v1/user = 1 per load; /article/null = outside traffic; search-batch 400s = our own smoke; Chrome "503"s = cancelled fetches. CI Node 20 upgrade is Roi's call; perf-001 monitoring; ai-001 ~2026-11-01
 - **Vercel Firewall (2026-10-19):** custom rule "Block Tencent Cloud bot fleet" — deny AS132203 + AS45090 (CLI: `vercel firewall rules list|…`, publish after changes). Resend click tracking OFF for digest.vetree.app (Roi). Supabase Reset Password template = branded token_hash link (Roi).
 - **Admin panel (admin-002, Roi 2026-10-14):** /admin lands on Analytics; the weekly AI report is hidden (its Friday job
   still runs); /admin/pipeline = the Slack messages expanded (GET /api/admin/pipeline/status) — no Article Health, no
@@ -231,6 +231,34 @@ works today was spot-checked in the code on 2026-10-05.
 (Newest first — only the latest 5 are kept here (D11); every entry, older ones included, is in
 `session-log.md`, which is never trimmed.)
 
+### Session 20261106-1150-claude-05a3 · 2026-11-06 · Claude Code · growth-004 (closed)
+- Goal: Roi — Growth OS recommendations "poorer and poorer": repeats, high decline rate, clearing the roster more than
+  once a day. Backlog session: growth-004 added + claimed. Roi: "go", then "merge and backfill".
+- Findings: no growth_article_scores write since 2026-10-14; 0 small-animal articles created since 10-10 scored. The
+  panel scored on load (50 max, batches of 25, 30 s budget); one batch of 24 timed at 41 s on Sonnet 4.6 (2,174 output
+  tokens) → every batch aborted. Worked while < ~15 new articles/day; the 10-14/15 backlog made every batch a full 25
+  and it never recovered. Effect: scored pool 275 (10-16) → 160 (11-06) of ~340 eligible, youngest shown 7 → 29 days,
+  top score 9 → 5, 10/10 repeats on 11-06 (passed-over articles returning after 14 days). Dismissals work: no
+  dismissed article reappeared (by id or title/DOI). The 911 → 339 eligible drop on 10-16 = the 60-day window.
+- Done (#158 → 1ec2069): enrich-articles.yml job `score` (after enrich, if !cancelled, Node 22, npm ci) runs
+  scripts/score-growth-articles.mts (15 min budget, exit 1 + Slack when eligible articles stay unscored); batches of
+  10; recommendations route reads cached scores only + `stale_unscored_count` → amber panel warning (> 48 h unscored);
+  2 unit tests (mutation-checked); CLAUDE.md + app/api/CLAUDE.md.
+- Start state: main aecc2cb; no lock held.
+- Verification: init.sh check GREEN on ee749eb and f6f859f; PR suite + replay green; merged 1ec2069; /api/version =
+  1ec2069, post-merge health check success. Backfill: Enrich Articles dispatch run 42219120027 (both jobs success):
+  "scored 259/338" → "scored 338/338"; 179 scores written today (max-score ≥ 8: 28).
+- Review: Codex · tier 2 · 2 rounds · 38k + 20k tokens · r1 BLOCKING: Node 20 has no native WebSocket → supabase-js
+  throws (verified, fixed: Node 22) + 2 NB (Slack timeout, setup inside catch) fixed; r2 BLOCKING: none.
+- Commits / PR: #158 → 1ec2069 (Roi: "merge and backfill").
+- Pending Roi approvals: none.
+- Known risks / unresolved: the local backfill was blocked by the auto-mode classifier (prod write) — done via the
+  workflow instead. Each manual Enrich Articles run also runs enrichment (harmless when nothing is pending).
+- Lesson: an in-request AI step with a fixed time budget can fail silently forever once its backlog grows; move such
+  work to a scheduled job that goes red when it leaves work undone.
+- Next best step: Roi — check the panel tomorrow (fresh, high-scored articles; no amber warning); 07:00 UTC run's
+  `score` job should score only the day's new articles.
+
 ### Session 20261101-1635-claude-5b3d · 2026-11-01 · Claude Code · sec-002 (closed)
 - Goal: Roi — "security check has critical issues pending" → "start". Backlog session: sec-002 added + claimed.
 - Findings: scan report 2026-10-29 23:02 UTC (scheduled, severity critical) — 3 Next.js advisories (<= 16.4.0, patched
@@ -333,30 +361,4 @@ works today was spot-checked in the code on 2026-10-05.
 - Lesson: on Hobby the CLI's request log reaches back 12 h only and `vercel usage` / `vercel metrics` are unavailable —
   the request log carries clientIpCountry (country, no IP / ASN).
 - Next best step: Roi reads the usage chart (daily Fluid Active CPU, 10-22 → 10-25); revisit the Chinese fleet ~10-26.
-
-### Session 20261023-1625-claude-3452 · 2026-10-23 · Claude Code · perf-001 (bot traffic; monitoring)
-- Goal: Roi — "let's look at the bot traffic in perf-001".
-- Findings (read-only, 12 h request logs 10-21/22/23): facebookexternalhit fetches / ~155 ×/12 h, every ~2.5 min,
-  identical each day (Roi: no FB ad running) = ~2/3 of all home renders (home is force-dynamic, private no-store);
-  Meta user agents ~25–30% of function requests. Our daily smoke ~230 function requests at ~10:58 (VetreeQABot UA).
-  OAI-SearchBot / ChatGPT-User ~65 (AI search referrals — keep). Google / Bing / Apple / Amazon ~30. The request log
-  has no IP / ASN fields — classification is by user agent + pace only.
-- Done: #154 beforeFiles rewrite (next.config.ts): / with facebookexternalhit|facebookcatalog → /link-preview, a static
-  page under the root layout (same title / description / canonical / OG / Twitter tags; noindex). lib/metaPreview.ts
-  + 2 unit tests. Article pages untouched (per-article tags; ~75 FB fetches / 12 h, mostly the day's post).
-- Start state: main 483dd31; lock taken for perf-001.
-- Verification: init.sh check GREEN; next start locally (FB → prerender HIT, browser → private no-store, tags
-  identical); Vercel preview via `vercel curl` + preview request log (FB → pathType prerender HIT, browser →
-  streaming_func); PR suite green; merged a82f724; production: FB → x-matched-path /link-preview HIT, browser → / MISS,
-  security headers on both; post-merge health check success.
-- Review: Codex · tier 2 (next.config.ts carries security headers) · 1 round · BLOCKING: none; NB noindex + drop
-  meta-externalagent (robots.txt already blocks it) applied, not re-reviewed; NB "verify on Vercel" done.
-- Commits / PR: #154 → a82f724 (Roi: "Merge").
-- Pending Roi approvals: none.
-- Known risks / unresolved: none known. Facebook's cached preview refreshes hourly (description carries the
-  article count).
-- Lesson: `npx vercel curl <path> --deployment <preview url>` reaches protected previews — use it (plus the preview
-  request log's pathType) to prove a route is served without a function before merging.
-- Next best step: after ~2026-10-24 06:00 UTC, 12 h request log: facebookexternalhit on / should show route
-  /link-preview (prerender), home renders ~235 → ~80. Then the Vercel usage chart (daily Fluid Active CPU).
 

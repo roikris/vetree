@@ -983,3 +983,31 @@ Newest at the bottom. The same entries (latest few) appear in primer.md → Rece
 - Lesson: `init.sh lock <new id>` refuses items not in feature_list.json — lock `backlog`, add + claim the item, commit
   the state, then branch.
 - Next best step: Thursday's scan clean? Follow-up candidate: eslint-config-next 16.4.3 + the 4 react-hooks lint fixes.
+
+### Session 20261106-1150-claude-05a3 · 2026-11-06 · Claude Code · growth-004 (closed)
+- Goal: Roi — Growth OS recommendations "poorer and poorer": repeats, high decline rate, clearing the roster more than
+  once a day. Backlog session: growth-004 added + claimed. Roi: "go", then "merge and backfill".
+- Findings: no growth_article_scores write since 2026-10-14; 0 small-animal articles created since 10-10 scored. The
+  panel scored on load (50 max, batches of 25, 30 s budget); one batch of 24 timed at 41 s on Sonnet 4.6 (2,174 output
+  tokens) → every batch aborted. Worked while < ~15 new articles/day; the 10-14/15 backlog made every batch a full 25
+  and it never recovered. Effect: scored pool 275 (10-16) → 160 (11-06) of ~340 eligible, youngest shown 7 → 29 days,
+  top score 9 → 5, 10/10 repeats on 11-06 (passed-over articles returning after 14 days). Dismissals work: no
+  dismissed article reappeared (by id or title/DOI). The 911 → 339 eligible drop on 10-16 = the 60-day window.
+- Done (#158 → 1ec2069): enrich-articles.yml job `score` (after enrich, if !cancelled, Node 22, npm ci) runs
+  scripts/score-growth-articles.mts (15 min budget, exit 1 + Slack when eligible articles stay unscored); batches of
+  10; recommendations route reads cached scores only + `stale_unscored_count` → amber panel warning (> 48 h unscored);
+  2 unit tests (mutation-checked); CLAUDE.md + app/api/CLAUDE.md.
+- Start state: main aecc2cb; no lock held.
+- Verification: init.sh check GREEN on ee749eb and f6f859f; PR suite + replay green; merged 1ec2069; /api/version =
+  1ec2069, post-merge health check success. Backfill: Enrich Articles dispatch run 42219120027 (both jobs success):
+  "scored 259/338" → "scored 338/338"; 179 scores written today (max-score ≥ 8: 28).
+- Review: Codex · tier 2 · 2 rounds · 38k + 20k tokens · r1 BLOCKING: Node 20 has no native WebSocket → supabase-js
+  throws (verified, fixed: Node 22) + 2 NB (Slack timeout, setup inside catch) fixed; r2 BLOCKING: none.
+- Commits / PR: #158 → 1ec2069 (Roi: "merge and backfill").
+- Pending Roi approvals: none.
+- Known risks / unresolved: the local backfill was blocked by the auto-mode classifier (prod write) — done via the
+  workflow instead. Each manual Enrich Articles run also runs enrichment (harmless when nothing is pending).
+- Lesson: an in-request AI step with a fixed time budget can fail silently forever once its backlog grows; move such
+  work to a scheduled job that goes red when it leaves work undone.
+- Next best step: Roi — check the panel tomorrow (fresh, high-scored articles; no amber warning); 07:00 UTC run's
+  `score` job should score only the day's new articles.
