@@ -243,7 +243,7 @@ Includes:
 
 ### Claude Model
 - **Model**: `claude-sonnet-5-5`
-- **Max tokens**: 1024
+- **Max tokens**: 2500
 - **Temperature**: Default (balanced creativity)
 
 ## Best Practices
