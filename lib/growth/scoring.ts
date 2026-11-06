@@ -13,7 +13,9 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { CLAUDE_MODEL, NO_UPFRONT_THINKING, responseText } from '@/lib/ai/model'
 
 export const RUBRIC_VERSION = 1
-const BATCH_SIZE = 25
+// 25 per call took ~41 s on Sonnet 4.6 (2026-11-06, ~2,200 output tokens) — longer than the panel's old 30 s budget, so
+// every batch was aborted and nothing was saved from 2026-10-14 (growth-004). Smaller calls also lose less when one fails.
+const BATCH_SIZE = 10
 
 const RUBRIC = `You choose research articles for a daily social-media post aimed at first-opinion (general practice) small-animal veterinarians — dogs and cats. Score each article on three independent 0–10 scales:
 - practice: would a GP vet reading it this week confirm or change something they do in the consult room? (treatment, drugs, dosing, sedation, tests a GP runs, common conditions, guidelines)
@@ -130,7 +132,7 @@ class PartialBatch extends Error {
 }
 
 /**
- * Score articles in batches of 25, `parallel` at a time. Everything — Claude calls including the
+ * Score articles in batches of BATCH_SIZE, `parallel` at a time. Everything — Claude calls including the
  * response body, and the upserts — is aborted at the deadline (epoch ms); no new wave starts with
  * < 10s left. Each batch settles independently. Returns how many were scored and any batch errors.
  */

@@ -261,8 +261,12 @@ Article choice is shared with the recommendations panel: `rankGrowthCandidates()
      `growth_article_scores`, `lib/growth/scoring.ts`); evidence tier then recency break ties.
      Unscored articles only fill in behind (0.5 recency + 0.5 evidence). Validated offline
      2026-10-01: AUC 0.80 vs 0.67 keyword rules on the owner's 324 past decisions
-   - The auto-pick never scores (generation budget); the recommendations panel scores up to 50
-     unscored articles per load (30s budget, fail-open). Backfill: `scripts/score-growth-articles.mts`
+   - Neither the auto-pick nor the panel scores — both read cached scores only. New articles are scored daily
+     by the `score` job of `enrich-articles.yml` right after enrichment (`scripts/score-growth-articles.mts`,
+     10 articles per call; red + Slack if any eligible article is left unscored) — growth-004: scoring 50 per
+     panel load within 30 s timed out on every batch from 2026-10-14 (25 per call took ~41 s), so 3 weeks of new
+     articles ranked behind the old leftovers. The panel warns when eligible articles are > 48 h old and unscored
+     (`staleUnscoredCount`, `STALE_UNSCORED_HOURS`)
    - Read errors throw (500) — never silently "nothing excluded"
 3. Call Claude Sonnet with platform-specific prompt (SDK timeout 35s, no retries; twitter shorten 12s) — fits maxDuration 60
 4. `SKIP_LARGE_ANIMAL` reply → 500 error, never returned as post content

@@ -8,11 +8,11 @@ import { rankGrowthCandidates, pickRecommendations, RANKING_POLICY } from '@/lib
 import { RUBRIC_VERSION } from '@/lib/growth/scoring'
 
 // GET /api/admin/growth/recommendations — 9 top picks of the shared Growth OS ranking + 1 low-ranked
-// wildcard (lib/growth/candidates.ts; same pool the daily auto-pick draws from). Scores up to 50
-// not-yet-scored articles first, within 30s. Every served set is logged to
+// wildcard (lib/growth/candidates.ts; same pool the daily auto-pick draws from). Cached scores only: new articles are
+// scored by the daily job after enrichment (enrich-articles.yml → scripts/score-growth-articles.mts, growth-004) —
+// scoring here, within the request's time budget, failed silently for 3 weeks. Every served set is logged to
 // growth_recommendation_sets so later approvals/dismissals can be traced to what was shown.
 export async function GET() {
-  const startedAt = Date.now()
   try {
     const serverClient = await createClient()
     const { data: { user } } = await serverClient.auth.getUser()
@@ -34,9 +34,7 @@ export async function GET() {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
 
-    const { ranked, degraded, scoredCount, scoringErrors, restingCount } = await rankGrowthCandidates(supabase, {
-      scoreMissing: { max: 50, deadline: startedAt + 30_000 },
-    })
+    const { ranked, degraded, scoredCount, scoringErrors, restingCount, staleUnscoredCount } = await rankGrowthCandidates(supabase)
     const recommendations = pickRecommendations(ranked)
 
     // The log is what later decisions are learned against — no log, no set
@@ -66,6 +64,7 @@ export async function GET() {
       degraded,
       scoring_errors: scoringErrors.length,
       resting_count: restingCount,
+      stale_unscored_count: staleUnscoredCount,
     })
   } catch (error: any) {
     console.error('[growth/recommendations] Error:', error)
