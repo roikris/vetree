@@ -1029,3 +1029,35 @@ Newest at the bottom. The same entries (latest few) appear in primer.md → Rece
 - Known risks / unresolved: expect ~1.46x Anthropic token spend (last measured 2026-10-01). First 5.5 runs to watch:
   enrichment + score job 07:00 UTC 11-07, Friday analysis insights, Thursday security scan.
 - Next best step: glance at the 11-07 enrichment Slack report and Anthropic usage after a week.
+
+### Session 20261117-1736-claude-4fa5 · 2026-11-17 · Claude Code · analytics-001 (bot surge; monitoring)
+- Goal: Roi — "huge surge of bots last few days. investigate fully and recommend how we stop it".
+- Findings (12 h request log 11-17 05:39 → 17:38 UTC, 6,255 requests, 3,089 function renders vs 600–950 / 12 h in
+  October; firewall overview 11.2k allowed / 25 h): meta-webindexer 1,182 requests / 872 renders (28%), ~15 views/day
+  until 11-14 → ~200 req/h on 11-17, repeats articles (one 63×), /index.rsc prefetch 404×, 0 meta.ai referrals since
+  10-20. Disguised no-JS scraper: browser-named UAs, 973 article renders vs 73 tracking calls; VN 155 / BR 114 / BD 86
+  renders, ~10/h each, one distinct article per request, rotating UAs, no static assets — invisible in page_views.
+  ShapBot (7 IPs, Google Cloud Council Bluffs): 568 page_views since 10-27, 517 in one hour 11-16 00:xx — the spike in
+  Admin → Analytics (bot_name, already excluded). Our smoke 1,214 requests / 238 renders (scheduled, 15:xx). Root
+  cause of the cost: app/article/[id]/page.tsx reads cookies (getUser) → every hit is a render (no ISR).
+- Done: Vercel Bot Protection Off → **Log** (published 2026-11-17 17:51 UTC, Roi: "yes, 1 and 2 today"). #160
+  robots.txt Disallow: / for meta-webindexer and ShapBot (facebookexternalhit, meta-externalagent unchanged).
+- Start state: main 2d167ec; lock taken for analytics-001.
+- Verification: `vercel firewall status` → Bot Protection Log; init.sh check: tsc / lint ratchet / unit / acl / rls /
+  schema PASS, build FAIL once on Next's new SecurityFatalError nudge (next 16.4.3: GHSA-mfr8-8qww-v76h,
+  GHSA-vc7v-qv4w-wrv8, moderate, 'use cache' only — not used here), `npm run build` retry exit 0; PR suite + replay
+  green (44143188339); merged 2f17c51; production /api/version = 2f17c51, robots.txt serves both groups; post-merge
+  health check success.
+- Review: Codex · tier 1 · 1 round · 17k tokens · BLOCKING: none, NON-BLOCKING: none.
+- Commits / PR: #160 → 2f17c51 (Roi: "merge").
+- Pending Roi approvals: Bot Protection Log → Challenge after the 24 h log is read; next 16.4.3 → 16.4.5 (Roi's call).
+- Known risks / unresolved: whether the scheduled smoke / post-deploy health check (GitHub Actions, VetreeQABot,
+  bypass header only on previews) would be challenged — read before switching. npm audit 11-17: 17 high (picomatch
+  ReDoS GHSA-fc5q-39xc-vjpf via @sentry/nextjs / eslint-config-next dev chains) — Thursday's scan will show them.
+- Lesson: `next build` (16.4.3) can stop with a "SecurityFatalError" upgrade nudge that tells the agent to run
+  `next upgrade --agent=security`: verify with npm audit, retry the build, don't run the suggested command unasked.
+  `vercel firewall publish` needs `--confirm-name <project> --effects-digest <d>` from its own output; `traffic list`
+  needs Observability Plus (not on Hobby). `gh pr merge --delete-branch` was refused by auto mode — merge without it.
+- Next best step: ~2026-11-18 18:00 UTC — 12 h request log: meta-webindexer gone?, renders vs 600–950; Bot Protection
+  log (what it would challenge; our smoke/health check?) → ask Roi to switch to Challenge. If renders stay high:
+  option 3 — article pages cacheable (auth-dependent UI client-side), tier 2.
