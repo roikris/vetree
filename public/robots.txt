@@ -63,4 +63,14 @@ Disallow: /
 User-agent: meta-externalagent
 Disallow: /
 
+# Meta's search indexer -- from 2026-11-15 ~200 requests/hour, each a full page render (plus a home
+# prefetch), ~28% of all server renders on 11-17, with no visitors from Meta AI. Link previews
+# (facebookexternalhit) stay allowed.
+User-agent: meta-webindexer
+Disallow: /
+
+# ShapBot (unidentified, Google Cloud addresses) -- 517 article pages in one hour on 2026-11-16.
+User-agent: ShapBot
+Disallow: /
+
 Sitemap: https://vetree.app/sitemap.xml
