@@ -2167,45 +2167,13 @@
       "notes": "Roi 2026-11-23: \"run a trial for a month, another tab like synthesis test and leave the growth OS as it is now \u2026 through the month of December \u2026 dedicated analytics \u2026 A/B testing against the data we've already collected\"; \"go ahead\" (defaults taken: LinkedIn link split kept, WhatsApp 4 days/week, X out of the trial). Source: Growth Review artifact 4WU7efW9X2pZESkpc3hpLe. Must be merged before 2026-12-01. Tier 2 (paid AI prompts + migration). Found: DailyPosts sends recentPosts but generate-post never reads it. \u00b7 claimed by 20261123-1151-claude-3a7d \u00b7 2026-11-23: plan review 3 rounds (r1 9 blocking, r2 4, r3 none); PR #161 code review r1 5 blocking (fixed c37d006), r2 1 (fixed 71a705b), r3 1 left at the cap: WhatsApp Skip still enabled after Telegram is recorded \u2014 asked Roi. Pending: Roi's yes for db push 089, then schema-snapshot. \u00b7 089 pushed on Roi's \"push db\"; audits PASS (39 / 38+40 / 5019). Roi: \"wait with codex round 4 for the moment\" \u2014 the Skip fix is NOT applied. \u00b7 Roi \"continue\": Skip fix 70647c1, Codex round 4 (authorised past the cap) BLOCKING: none; PR marked ready. \u00b7 passing on 70647c1; awaits Roi's merge. Not yet exercised in a browser (trial tab, mark, results) \u2014 do it on production before Dec 1 (a mark before Dec 1 is refused by design; preview generate = paid call, needs Roi OK). \u00b7 merged by Roi 2026-11-23 as c2334c8 (#161); production /api/version = c2334c8, post-deploy health check success, trial routes 401 signed out."
     },
     {
-      "id": "ux-001",
-      "priority": 2,
-      "area": "auth",
-      "type": "fix",
-      "title": "Mobile signup: no 'Passwords do not match' dead end",
-      "user_visible_behavior": "Signup drops the confirm-password field (or adds a show-password toggle); a pending ?intent=save survives Google sign-up.",
-      "status": "blocked",
-      "verification": [
-        {
-          "step": "init.sh check GREEN; unit/component test for the signup form",
-          "target": "local",
-          "db_reads": "prod",
-          "db_writes": "none",
-          "paid_calls": false
-        },
-        {
-          "step": "incognito signup on the preview, mobile viewport",
-          "target": "preview",
-          "db_reads": "prod",
-          "db_writes": "prod",
-          "paid_calls": false
-        }
-      ],
-      "evidence": [],
-      "branch": "fix/ux-001-mobile-signup",
-      "pr": null,
-      "head_sha": null,
-      "wip_sha": null,
-      "expected_failures": [],
-      "notes": "Report 2026-11-22: all 5 signup_error events = 'Passwords do not match' on mobile. Roi 2026-11-23: \"let's fix Outside Growth OS small fixes\". Tier 2 (auth). \u00b7 claimed by 20261123-1607-claude-d1c7 \u00b7 2026-11-23 (20261123-1607-claude-d1c7): stopped before any code \u2014 the premise was wrong. All 5 'Passwords do not match' errors are one phone, 2026-10-12 13:07\u201313:29 UTC, BEFORE #140 (2026-10-19) added the show-passwords toggle + live mismatch hint; no signup_error since (Oct 12 \u2192 Nov 22). Awaiting Roi: close as not needed, or keep only the 'pending save survives Google sign-up' check. Branch fix/ux-001-mobile-signup has no commits."
-    },
-    {
       "id": "seo-002",
       "priority": 3,
       "area": "seo",
       "type": "feature",
       "title": "Google landings: related articles + inline save on article pages",
       "user_visible_behavior": "Article pages reached from search show related articles and an inline save prompt; the 3-article wall is unchanged.",
-      "status": "not_started",
+      "status": "in_progress",
       "verification": [
         {
           "step": "init.sh check GREEN",
@@ -2223,12 +2191,12 @@
         }
       ],
       "evidence": [],
-      "branch": "",
+      "branch": "feat/seo-002-article-landings",
       "pr": null,
       "head_sha": null,
       "wip_sha": null,
       "expected_failures": [],
-      "notes": "Report 2026-11-22: Google 783 visits \u2192 1 signup, 18% stay \u2265 30 s. Roi 2026-11-23 go-ahead. Watch Vercel CPU (article pages render per request)."
+      "notes": "Report 2026-11-22: Google 783 visits \u2192 1 signup, 18% stay \u2265 30 s. Roi 2026-11-23 go-ahead. Watch Vercel CPU (article pages render per request). \u00b7 claimed by 20261123-2026-claude-b570"
     },
     {
       "id": "analytics-002",
