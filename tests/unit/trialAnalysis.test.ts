@@ -83,3 +83,33 @@ test('analyzeTrial runs end to end on empty input', () => {
   assert.equal(r.splits.whatsapp_visits.verdict, 'too_few')
   assert.equal(r.scorecard.length, 10)
 })
+
+test('review r1: two tagged links in one tab are two arrivals; a preview visit before the post never counts', () => {
+  const a = arrivalsOf([
+    view({ created_at: '2026-12-01T09:00:00Z', session_id: 's', utm_source: 'linkedin', utm_medium: 'social', utm_campaign: 'trial-20261201' }),
+    view({ created_at: '2026-12-01T09:05:00Z', session_id: 's', utm_source: 'linkedin', utm_medium: 'social', utm_campaign: 'trial-20261201', path: '/article/b' }),
+    view({ created_at: '2026-12-02T09:00:00Z', session_id: 's', utm_source: 'linkedin', utm_medium: 'social', utm_campaign: 'trial-20261202' }),
+    view({ created_at: '2026-11-23T09:00:00Z', session_id: 'p', utm_source: 'linkedin', utm_medium: 'social', utm_campaign: 'trial-20261201' }),
+  ])
+  assert.equal(a.length, 3)
+  const tr = (id: string, date: string) => ({ approval_id: id, platform: 'linkedin', trial_date: date, variant: 'in_post', utm_campaign: null, char_count: null, ends_with_question: null, li_comments: null, li_comments_age_hours: null, li_impressions: null, li_impressions_age_hours: null })
+  const { posts } = postOutcomes({
+    now: new Date('2026-12-20T00:00:00Z'),
+    approvals: [
+      { id: 'd1', article_id: 'a1', platform: 'linkedin', created_at: '2026-12-01T06:00:00Z' },
+      { id: 'd2', article_id: 'a2', platform: 'linkedin', created_at: '2026-12-02T06:00:00Z' },
+    ],
+    trialRows: [tr('d1', '2026-12-01'), tr('d2', '2026-12-02')],
+  }, a)
+  assert.deepEqual(posts.map(p => [p.approval_id, p.visits]), [['d1', 1], ['d2', 1]])
+})
+
+test('review r1: a Dec 31 arrival signing up on Jan 1 counts for December', () => {
+  const views = [
+    view({ created_at: '2026-12-31T20:00:00Z', session_id: 'a', ip_hash: 'h', utm_source: 'whatsapp', utm_medium: 'social' }),
+    view({ created_at: '2027-01-01T08:05:00Z', session_id: 'b', ip_hash: 'h', user_id: 'u' }),
+  ]
+  const r = analyzeTrial({ now: new Date('2027-01-09T00:00:00Z'), approvals: [], trialRows: [], views, events: [], signups: [{ id: 'u', created_at: '2027-01-01T08:00:00Z' }], scores: new Map(), labels: new Map(), linkedinDaily: [] })
+  assert.equal(r.scorecard.find(x => x.channel === 'whatsapp' && x.period === 'trial')!.signups, 1)
+  assert.equal(r.funnel.find(f => f.source === 'whatsapp')!.signups, 1)
+})

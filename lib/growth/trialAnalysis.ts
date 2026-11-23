@@ -80,7 +80,8 @@ export function arrivalsOf(views: ViewIn[]): Arrival[] {
     const ch = channelOf(v)
     const source: Source | null = ch ?? (isGoogleReferrer(v.referrer) ? 'google' : null)
     if (!source) continue
-    const key = v.session_id ? `${v.session_id}|${source}` : null
+    // a new tagged link in the same tab is a new arrival (its campaign differs); later pages repeat the stored set
+    const key = v.session_id ? `${v.session_id}|${source}|${v.utm_campaign ?? ''}` : null
     if (key && seen.has(key)) continue
     if (key) seen.add(key)
     out.push({
@@ -135,7 +136,9 @@ export function postOutcomes(input: Pick<AnalysisInput, 'now' | 'approvals' | 't
       if (eligible.length > 1) ambiguous++
       target = eligible.sort((x, y) => createdAt.get(y.approval_id)! - createdAt.get(x.approval_id)!)[0]
     }
-    if (target && ar.at < createdAt.get(target.approval_id)! + FOLLOW_UP_DAYS * DAY) {
+    // both bounds, for token matches too (a preview link opened before the post was marked never counts)
+    const postedAt = target ? createdAt.get(target.approval_id)! : 0
+    if (target && ar.at >= postedAt && ar.at < postedAt + FOLLOW_UP_DAYS * DAY) {
       target.visits++
       if (ar.engaged) target.engaged++
     } else unmatched++
@@ -245,7 +248,8 @@ export function analyzeTrial(input: AnalysisInput) {
       const visits = mature.reduce((s, p) => s + p.visits, 0)
       const engaged = mature.reduce((s, p) => s + p.engaged, 0)
       const arr = arrivals.filter(a => a.source === channel && periodOf(a.date) === period).length
-      const su = signups.filter(s => s.source === channel && periodOf(s.date) === period && s.arrivalDate && periodOf(s.arrivalDate) === period).length
+      // conversions belong to the arrival's period (a Dec 31 arrival signing up on Jan 1 counts for December)
+      const su = signups.filter(s => s.source === channel && s.arrivalDate && periodOf(s.arrivalDate) === period).length
       scorecard.push({
         channel, period, posts: ps.length, mature: mature.length, visits, meanVisits: mature.length ? visits / mature.length : NaN,
         shareWithVisit: mature.length ? mature.filter(p => p.visits > 0).length / mature.length : NaN,
@@ -255,7 +259,7 @@ export function analyzeTrial(input: AnalysisInput) {
   }
   const google = (['baseline', 'trial'] as const).map(period => {
     const arr = arrivals.filter(a => a.source === 'google' && periodOf(a.date) === period).length
-    const su = signups.filter(s => s.source === 'google' && periodOf(s.date) === period && s.arrivalDate && periodOf(s.arrivalDate) === period).length
+    const su = signups.filter(s => s.source === 'google' && s.arrivalDate && periodOf(s.arrivalDate) === period).length
     return { period, arrivals: arr, signups: su, signupsPer100: arr ? (100 * su) / arr : null }
   })
 
@@ -344,7 +348,7 @@ export function analyzeTrial(input: AnalysisInput) {
       && t(e.created_at) >= a.at && t(e.created_at) < a.at + DAY)).length
     return {
       source, arrivals: arr.length, wallShown: within('wall_shown'), signupViewed: within('signup_step_viewed'),
-      signups: signups.filter(s => s.source === source && periodOf(s.date) === 'trial' && s.arrivalDate && periodOf(s.arrivalDate) === 'trial').length,
+      signups: signups.filter(s => s.source === source && s.arrivalDate && periodOf(s.arrivalDate) === 'trial').length,
     }
   })
 

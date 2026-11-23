@@ -65,8 +65,10 @@ function LinkedinToRecord() {
 
   const save = async (approvalId: string, kind: 'comments' | 'impressions') => {
     const key = `${approvalId}:${kind}`
-    const value = Number(drafts[key])
-    if (!Number.isInteger(value) || value < 0) { setError('Enter a whole number ≥ 0'); return }
+    const raw = (drafts[key] ?? '').trim()
+    const value = Number(raw)
+    // a cleared box is "not measured", never a measured zero
+    if (!raw || !Number.isInteger(value) || value < 0) { setError('Enter a whole number ≥ 0'); return }
     setSaving(key)
     try {
       const res = await fetch('/api/admin/growth/trial/metric', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ approval_id: approvalId, kind, value }) })

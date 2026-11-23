@@ -812,7 +812,8 @@ function DailyDay({ today, mode, onDayChange, onReload }: { today: string; mode:
           <div className="mt-2">
             <div className="flex flex-wrap gap-1 mb-3" role="tablist">
               {platforms.map(p => {
-                const has = !!textFor(p.platform)
+                // trial cards stay (and stay editable) even when their text is cleared
+                const has = isTrial ? textFor(p.platform) !== null : !!textFor(p.platform)
                 if (!has && !failed.includes(p.platform)) return null
                 return (
                   <button key={p.platform} type="button" role="tab" aria-selected={activeTab === p.platform} onClick={() => setActiveTab(p.platform)} className={chip(activeTab === p.platform)} data-testid={`tab-${p.platform}`}>
@@ -827,7 +828,7 @@ function DailyDay({ today, mode, onDayChange, onReload }: { today: string; mode:
               const info = platformInfo(activeTab)
               const text = textFor(activeTab)
               if (!info) return null
-              if (!text) return <div className="p-4 rounded-lg border border-zinc-700 text-sm text-zinc-400">No post for {info.name} — use Retry Failed{info.derivedFrom ? ` (Telegram follows ${platformInfo(info.derivedFrom)?.name})` : ''}.</div>
+              if (text === null || (!isTrial && !text)) return <div className="p-4 rounded-lg border border-zinc-700 text-sm text-zinc-400">No post for {info.name} — use Retry Failed{info.derivedFrom ? ` (Telegram follows ${platformInfo(info.derivedFrom)?.name})` : ''}.</div>
               const isPosted = posted.has(activeTab)
               return (
                 <div className="relative bg-zinc-900 dark:bg-zinc-950 rounded-lg p-4 border border-zinc-700 dark:border-zinc-800" data-testid={`card-${activeTab}`}>
@@ -896,8 +897,8 @@ function DailyDay({ today, mode, onDayChange, onReload }: { today: string; mode:
                     </div>
                   )}
 
-                  {/* Rewrites — not on Telegram (it follows WhatsApp) */}
-                  {!info.derivedFrom && (
+                  {/* Rewrites — not on Telegram (it follows WhatsApp); a recorded trial post keeps the text it was posted with */}
+                  {!info.derivedFrom && !(isTrial && isPosted) && (
                     <div className="flex gap-2 mt-3 flex-wrap">
                       {Object.entries(STYLE_PROMPTS).map(([key, instruction]) => (
                         <button key={key} type="button" onClick={() => rewrite(activeTab, instruction)} disabled={!!busy}
