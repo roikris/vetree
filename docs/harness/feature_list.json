@@ -2173,7 +2173,7 @@
       "type": "feature",
       "title": "Google landings: related articles + inline save on article pages",
       "user_visible_behavior": "Article pages reached from search show related articles and an inline save prompt; the 3-article wall is unchanged.",
-      "status": "in_progress",
+      "status": "passing",
       "verification": [
         {
           "step": "init.sh check GREEN",
@@ -2190,10 +2190,16 @@
           "paid_calls": false
         }
       ],
-      "evidence": [],
+      "evidence": [
+        "init.sh check GREEN @5ae2438 (tsc, lint ratchet, 186 unit incl. tests/unit/related.test.ts, acl/rls/schema audits, build)",
+        "PR #162 smoke run 45262656835 pass (2m37s); replay old/new pass",
+        "local dev vs prod reads: desktop + 390px frame, no horizontal scroll; Keep reading 4 items; inline guest Save opens save-auth-prompt",
+        "Codex tier-1 review: BLOCKING: none; NB1 (placement lost across sign-in) fixed in 5ae2438",
+        "render cost: same single related query per render (limit 6 -> 40 light columns)"
+      ],
       "branch": "feat/seo-002-article-landings",
-      "pr": null,
-      "head_sha": null,
+      "pr": 162,
+      "head_sha": "5ae2438",
       "wip_sha": null,
       "expected_failures": [],
       "notes": "Report 2026-11-22: Google 783 visits \u2192 1 signup, 18% stay \u2265 30 s. Roi 2026-11-23 go-ahead. Watch Vercel CPU (article pages render per request). \u00b7 claimed by 20261123-2026-claude-b570"
