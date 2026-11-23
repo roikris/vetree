@@ -2173,7 +2173,7 @@
       "type": "fix",
       "title": "Mobile signup: no 'Passwords do not match' dead end",
       "user_visible_behavior": "Signup drops the confirm-password field (or adds a show-password toggle); a pending ?intent=save survives Google sign-up.",
-      "status": "not_started",
+      "status": "in_progress",
       "verification": [
         {
           "step": "init.sh check GREEN; unit/component test for the signup form",
@@ -2191,12 +2191,12 @@
         }
       ],
       "evidence": [],
-      "branch": "",
+      "branch": "fix/ux-001-mobile-signup",
       "pr": null,
       "head_sha": null,
       "wip_sha": null,
       "expected_failures": [],
-      "notes": "Report 2026-11-22: all 5 signup_error events = 'Passwords do not match' on mobile. Roi 2026-11-23: \"let's fix Outside Growth OS small fixes\". Tier 2 (auth)."
+      "notes": "Report 2026-11-22: all 5 signup_error events = 'Passwords do not match' on mobile. Roi 2026-11-23: \"let's fix Outside Growth OS small fixes\". Tier 2 (auth). \u00b7 claimed by 20261123-1607-claude-d1c7"
     },
     {
       "id": "seo-002",
