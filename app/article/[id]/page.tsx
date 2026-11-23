@@ -8,6 +8,8 @@ import { SoftRegistrationPrompt } from '@/components/articles/SoftRegistrationPr
 import { ArticleAppBar } from '@/components/articles/ArticleAppBar'
 import { SaveIntentHandler } from '@/components/articles/SaveIntentHandler'
 import { OriginalAbstract } from '@/components/articles/OriginalAbstract'
+import { InlineSave } from '@/components/articles/InlineSave'
+import { lookupLabels, rankRelated } from '@/lib/articles/related'
 import Link from 'next/link'
 import type { Metadata } from 'next'
 import { getEvidenceBadge } from '@/lib/utils/evidenceBadge'
@@ -82,8 +84,11 @@ async function getArticle(id: string): Promise<Article | null> {
   return data as Article
 }
 
+// "Keep reading" (seo-002): candidates share the article's specific labels (lib/articles/related.ts), ranked by how
+// much they share. Same one query per render as before — 40 light rows instead of 6.
 async function getRelatedArticles(labels: string[] | null, currentArticleId: string): Promise<Article[]> {
-  if (!labels || labels.length === 0) return []
+  const lookup = lookupLabels(labels)
+  if (lookup.length === 0) return []
 
   const supabase = await createClient()
 
@@ -95,13 +100,11 @@ async function getRelatedArticles(labels: string[] | null, currentArticleId: str
     .not('summary', 'is', null)
     .not('clinical_bottom_line', 'is', null)
     .or('quarantined.is.null,quarantined.eq.false')
-    .overlaps('labels', labels)
+    .overlaps('labels', lookup)
     .order('publication_date', { ascending: false })
-    .limit(6)
+    .limit(40)
 
-  const LARGE_ANIMAL = ['Equine','equine','Large Animal','large animal','Livestock','livestock','Poultry','poultry','Food Animal','food animal']
-  const filtered = ((data || []) as Article[]).filter(a => !a.labels?.some((l: string) => LARGE_ANIMAL.includes(l)))
-  return filtered.slice(0, 2)
+  return rankRelated(labels, currentArticleId, (data || []) as Article[], 4)
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -196,7 +199,7 @@ export default async function ArticlePage({ params }: PageProps) {
 
       <ArticleViewTracker isLoggedIn={isLoggedIn} />
       {!isLoggedIn && <RegistrationWall />}
-      <SaveIntentHandler articleId={article.id} relatedArticles={relatedArticles} />
+      <SaveIntentHandler articleId={article.id} relatedArticles={relatedArticles.slice(0, 3)} />
 
       {/* Article-specific app bar */}
       <ArticleAppBar
@@ -277,6 +280,9 @@ export default async function ArticlePage({ params }: PageProps) {
               </p>
             </div>
 
+            {/* Inline save, right under the bottom line (seo-002) */}
+            <InlineSave articleId={article.id} isLoggedIn={isLoggedIn} />
+
             {/* Summary */}
             {summaryParagraphs.length > 0 && (
               <div style={{ marginBottom: 38 }}>
@@ -347,6 +353,58 @@ export default async function ArticlePage({ params }: PageProps) {
                 journal={article.source_journal || null}
                 year={article.publication_date ? article.publication_date.slice(0, 4) : null}
               />
+            )}
+
+            {/* Keep reading (seo-002): in the reading column, so phones reach it right after the article */}
+            {relatedArticles.length > 0 && (
+              <section data-testid="keep-reading" aria-labelledby="keep-reading-h" style={{ marginTop: 44 }}>
+                <h2 id="keep-reading-h" style={{
+                  margin: '0 0 16px',
+                  font: "600 11px/1 var(--font-instrument, sans-serif)",
+                  letterSpacing: '.15em', textTransform: 'uppercase', color: 'var(--al-mut4)',
+                }}>
+                  Keep reading
+                </h2>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {relatedArticles.map(rel => {
+                    const relEv = getEvidenceBadge(rel.strength_of_evidence, rel.labels)
+                    const relLabel = rel.labels?.find(l => article.labels?.includes(l)) ?? rel.labels?.[0] ?? null
+                    return (
+                      <Link
+                        key={rel.id}
+                        href={`/article/${rel.id}`}
+                        data-testid="keep-reading-item"
+                        style={{
+                          display: 'block', textDecoration: 'none',
+                          background: 'var(--al-card)', border: '1px solid rgba(var(--al-line),0.1)',
+                          borderRadius: 14, padding: '16px 18px',
+                        }}
+                      >
+                        <p style={{
+                          margin: '0 0 6px',
+                          font: "600 15.5px/1.4 var(--font-spectral, serif)", color: 'var(--al-ink2)',
+                        }}>
+                          {rel.title}
+                        </p>
+                        {rel.clinical_bottom_line && (
+                          <p style={{
+                            margin: '0 0 9px',
+                            font: "400 13.5px/1.5 var(--font-instrument, sans-serif)", color: 'var(--al-body)',
+                            display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
+                          }}>
+                            {rel.clinical_bottom_line}
+                          </p>
+                        )}
+                        <div style={{ font: "400 11.5px/1.3 var(--font-instrument, sans-serif)", color: 'var(--al-mut4)' }}>
+                          <span style={{ color: relEv.hue }}>{relEv.label}</span>
+                          {relLabel && <> · {relLabel}</>}
+                          {rel.source_journal && <> · {rel.source_journal}</>}
+                        </div>
+                      </Link>
+                    )
+                  })}
+                </div>
+              </section>
             )}
           </article>
 
@@ -465,49 +523,6 @@ export default async function ArticlePage({ params }: PageProps) {
               </p>
             </div>
 
-            {/* Related articles */}
-            {relatedArticles.length > 0 && (
-              <div style={{
-                background: 'var(--al-card2)', border: '1px solid rgba(var(--al-line),0.1)',
-                borderRadius: 16, padding: '20px 22px',
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-                  {relatedArticles[0]?.labels?.[0] && (
-                    <span style={{
-                      width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
-                      background: getLabelHue(relatedArticles[0].labels[0]),
-                    }} />
-                  )}
-                  <span style={{
-                    font: "600 10.5px/1 var(--font-instrument, sans-serif)",
-                    letterSpacing: '.13em', textTransform: 'uppercase',
-                    color: 'var(--al-mut3)',
-                  }}>
-                    Related in your grove
-                  </span>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                  {relatedArticles.map(rel => {
-                    const relEv = getEvidenceBadge(rel.strength_of_evidence, rel.labels)
-                    return (
-                      <Link key={rel.id} href={`/article/${rel.id}`} style={{ textDecoration: 'none' }}>
-                        <p style={{
-                          margin: '0 0 7px',
-                          font: "500 13.5px/1.45 var(--font-spectral, serif)",
-                          color: 'var(--al-ink4)',
-                        }}>
-                          {rel.clinical_bottom_line}
-                        </p>
-                        <div style={{ font: "400 10.5px/1 var(--font-instrument, sans-serif)", color: 'var(--al-mut4)' }}>
-                          <span style={{ color: relEv.hue }}>{relEv.label}</span>
-                          {rel.source_journal && <> · {rel.source_journal}</>}
-                        </div>
-                      </Link>
-                    )
-                  })}
-                </div>
-              </div>
-            )}
           </aside>
         </div>
       </div>

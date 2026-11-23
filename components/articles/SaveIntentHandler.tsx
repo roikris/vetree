@@ -260,12 +260,15 @@ export function SaveIntentHandler({ articleId, relatedArticles }: Props) {
   const saveActedRef = useRef(false)
   const urlIntentPending = () =>
     !handled.current && new URLSearchParams(window.location.search).get('intent') === 'save'
+  // placement (seo-002): which button — 'appbar' or 'inline' (under the clinical bottom line)
+  const pendingPlacement = useRef<string>('appbar')
   const openGuestPrompt = () => {
     if (promptOpenRef.current) return // prompt already open: don't re-count the funnel
     promptOpenRef.current = true
-    trackEvent('save_intent_arrived', articleId, { source: 'save_button' })
-    trackEvent('save_intent_auth_shown', articleId, { source: 'save_button' })
-    trackEvent('save_intent_resolved', articleId, { branch: 'auth_shown', auth_state: 'anonymous', ms_from_arrival: 0, source: 'save_button' })
+    const placement = pendingPlacement.current
+    trackEvent('save_intent_arrived', articleId, { source: 'save_button', placement })
+    trackEvent('save_intent_auth_shown', articleId, { source: 'save_button', placement })
+    trackEvent('save_intent_resolved', articleId, { branch: 'auth_shown', auth_state: 'anonymous', ms_from_arrival: 0, source: 'save_button', placement })
     setShowAuthPrompt(true)
   }
   const resolveButtonSave = () => {
@@ -281,8 +284,9 @@ export function SaveIntentHandler({ articleId, relatedArticles }: Props) {
   }
   useEffect(() => {
     const onRequest = (e: Event) => {
-      const detail = (e as CustomEvent<{ articleId: string }>).detail
+      const detail = (e as CustomEvent<{ articleId: string; placement?: string }>).detail
       if (!detail || detail.articleId !== articleId) return
+      pendingPlacement.current = detail.placement === 'inline' ? 'inline' : 'appbar'
       if (authLoading || (user && saveLoading)) { pendingButtonSave.current = true; return }
       resolveButtonSave()
     }
