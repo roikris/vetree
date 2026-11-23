@@ -1113,3 +1113,18 @@ Newest at the bottom. The same entries (latest few) appear in primer.md → Rece
   --yes only on Roi's explicit word. Harness audits outside init.sh need `node --env-file-if-exists=.env.local`.
 - Next best step: Dec 1 — Roi posts from 🧪 December Trial; Mondays: 7-day LinkedIn export + the to-record list. Then
   ux-001, seo-002, analytics-002.
+
+### Session 20261123-1607-claude-d1c7 · 2026-11-23 · Claude Code · ux-001 (stopped — premise wrong)
+- Goal: ux-001 (mobile signup "Passwords do not match"), from Roi's "let's fix Outside Growth OS small fixes".
+- Completed: nothing built. app/signup/page.tsx already has a show-passwords toggle and a live mismatch hint (#140,
+  2026-10-19). The 5 errors in the 11-22 report are one phone on 2026-10-12 (13:07–13:29 UTC), before that fix; no
+  signup_error since. The report presented them as a current problem — corrected to Roi.
+- Start state: main c2334c8; branch fix/ux-001-mobile-signup created, no commits.
+- Verification: production analytics_events export (rep/analytics_events.json): signup_error 2026-08 ×3, 2026-10 ×5
+  (all 10-12), none after; signup_step_viewed/completed Nov 41/8.
+- Review: n/a (no change).
+- Commits / PR: none.
+- Pending Roi approvals: close ux-001, or keep only the Google sign-up + pending save check; go-ahead for seo-002.
+- Known risks / unresolved: none new.
+- Lesson: before building a fix from a report finding, check the finding's dates against what has shipped since.
+- Next best step: Roi's call on ux-001; then seo-002.
