@@ -540,6 +540,12 @@ function DailyDay({ today, mode, onDayChange, onReload }: { today: string; mode:
 
   const skip = async (platform: string) => {
     if (!articleId) return
+    // trial: never drop the source of a recorded copy (WhatsApp once Telegram is recorded) — Retry Failed would
+    // regenerate it and change the recorded Telegram text
+    if (isTrial && platforms.some(p => p.derivedFrom === platform && posted.has(p.platform))) {
+      setMessage({ type: 'error', text: `${platformInfo(platform)?.name} can't be skipped — its text is already posted elsewhere` })
+      return
+    }
     fetch('/api/growth/feedback', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ article_id: articleId, platform, language: platformInfo(platform)?.language ?? 'en', outcome: 'skipped' }),
@@ -868,7 +874,7 @@ function DailyDay({ today, mode, onDayChange, onReload }: { today: string; mode:
                       <button type="button" onClick={() => markPosted(activeTab, text)} disabled={marking === activeTab || busy === 'all'} data-testid="mark-manual"
                         className="text-sm px-3 py-2 bg-amber-700 hover:bg-amber-600 text-white rounded-md transition disabled:opacity-50">I copied it by hand — mark posted</button>
                     )}
-                    {!isPosted && !info.derivedFrom && (
+                    {!isPosted && !info.derivedFrom && !locked && (
                       <button type="button" onClick={() => skip(activeTab)} disabled={!!busy} className="text-sm px-3 py-2 bg-zinc-700 text-zinc-300 rounded-md hover:bg-zinc-600 transition disabled:opacity-50">⏭ Skip</button>
                     )}
                   </div>
