@@ -153,12 +153,15 @@ function FirstSaveShelf({
 
 function SaveAuthPrompt({
   articleId,
+  placement,
   onDismiss,
 }: {
   articleId: string
+  placement?: string
   onDismiss: () => void
 }) {
-  const returnUrl = encodeURIComponent(`/article/${articleId}?intent=save`)
+  // placement rides along so the completed save is attributed to the button that started it (seo-002)
+  const returnUrl = encodeURIComponent(`/article/${articleId}?intent=save${placement === 'inline' ? '&placement=inline' : ''}`)
 
   return (
     <div
@@ -262,6 +265,7 @@ export function SaveIntentHandler({ articleId, relatedArticles }: Props) {
     !handled.current && new URLSearchParams(window.location.search).get('intent') === 'save'
   // placement (seo-002): which button — 'appbar' or 'inline' (under the clinical bottom line)
   const pendingPlacement = useRef<string>('appbar')
+  const [promptPlacement, setPromptPlacement] = useState<string | undefined>(undefined)
   const openGuestPrompt = () => {
     if (promptOpenRef.current) return // prompt already open: don't re-count the funnel
     promptOpenRef.current = true
@@ -269,6 +273,7 @@ export function SaveIntentHandler({ articleId, relatedArticles }: Props) {
     trackEvent('save_intent_arrived', articleId, { source: 'save_button', placement })
     trackEvent('save_intent_auth_shown', articleId, { source: 'save_button', placement })
     trackEvent('save_intent_resolved', articleId, { branch: 'auth_shown', auth_state: 'anonymous', ms_from_arrival: 0, source: 'save_button', placement })
+    setPromptPlacement(placement)
     setShowAuthPrompt(true)
   }
   const resolveButtonSave = () => {
@@ -310,14 +315,16 @@ export function SaveIntentHandler({ articleId, relatedArticles }: Props) {
     // Passthrough for the resolved/arrived events — read before 'intent' is stripped below
     const utm_source = params.get('utm_source') || undefined
     const utm_content = params.get('utm_content') || undefined
+    const placement = params.get('placement') === 'inline' ? 'inline' : undefined
 
     // Strip intent=save from URL immediately so refresh doesn't re-trigger
     params.delete('intent')
+    params.delete('placement')
     const newSearch = params.toString()
     history.replaceState(null, '', window.location.pathname + (newSearch ? '?' + newSearch : ''))
 
     arrivedAtRef.current = Date.now()
-    trackEvent('save_intent_arrived', articleId, { utm_source, utm_content })
+    trackEvent('save_intent_arrived', articleId, { utm_source, utm_content, placement })
 
     // Fires once per arrival, at whichever branch this instance resolves to.
     // Makes abandonment (arrived with no matching resolved event) and
@@ -332,12 +339,14 @@ export function SaveIntentHandler({ articleId, relatedArticles }: Props) {
         ms_from_arrival: arrivedAtRef.current ? Date.now() - arrivedAtRef.current : null,
         utm_source,
         utm_content,
+        placement,
       })
     }
 
     if (!user) {
-      trackEvent('save_intent_auth_shown', articleId, { utm_source, utm_content })
+      trackEvent('save_intent_auth_shown', articleId, { utm_source, utm_content, placement })
       resolve('auth_shown', 'anonymous')
+      setPromptPlacement(placement)
       setShowAuthPrompt(true)
       return
     }
@@ -369,7 +378,7 @@ export function SaveIntentHandler({ articleId, relatedArticles }: Props) {
         setTimeout(() => setToast(null), 5000)
         return
       }
-      trackEvent('save_intent_completed', articleId)
+      trackEvent('save_intent_completed', articleId, placement ? { placement } : undefined)
       resolve('saved_now', 'authenticated')
       if (isFirstSave && !shelfShown && relatedArticles.length > 0) {
         localStorage.setItem('vetree_first_save_shelf_shown', '1')
@@ -431,7 +440,7 @@ export function SaveIntentHandler({ articleId, relatedArticles }: Props) {
       )}
 
       {showAuthPrompt && (
-        <SaveAuthPrompt articleId={articleId} onDismiss={() => (promptOpenRef.current = false, setShowAuthPrompt(false))} />
+        <SaveAuthPrompt articleId={articleId} placement={promptPlacement} onDismiss={() => (promptOpenRef.current = false, setShowAuthPrompt(false))} />
       )}
 
       {showFirstSave && (
