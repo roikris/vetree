@@ -71,6 +71,10 @@ Routes verified from `app/api/` directory tree.
 | `/api/admin/pipeline/status` | GET | Pipeline page: needs-you lists, today's sync, latest skips, visibility check, each job's latest activity (read-only) | Admin |
 | `/api/admin/growth/memory/posted-url` | PATCH | Set posted_url on memory row | Admin |
 | `/api/admin/growth/recommendations` | GET | AI content recommendations | Admin |
+| `/api/admin/growth/trial/mark` | POST | December trial: Copy & mark posted → `record_trial_post()` (approval + trial row, one transaction; 409 on a second article / outside the window / posted elsewhere) | Admin session |
+| `/api/admin/growth/trial/today` | GET | December trial: today's trial rows + every LinkedIn trial post with its entered numbers (read-only) | Admin session |
+| `/api/admin/growth/trial/metric` | PATCH | December trial: Roi's LinkedIn audience comments / impressions for a post (`record_trial_linkedin_metric`) | Admin session |
+| `/api/admin/growth/trial/results` | GET | December trial analysis (splits, baseline comparison, drivers, funnel) — `lib/growth/trialAnalysis.ts` | Admin session |
 | `/api/admin/growth/today` | GET | Daily posts' state: today's approved rows (Israel day), the day's article, streak (read-only) | Admin |
 | `/api/admin/analytics/aggregate` | POST | Daily snapshot | DIGEST_SECRET |
 | `/api/admin/analytics/signals` | POST | Signal extraction | DIGEST_SECRET |
@@ -272,6 +276,13 @@ Article choice is shared with the recommendations panel: `rankGrowthCandidates()
 4. `SKIP_LARGE_ANIMAL` reply → 500 error, never returned as post content
 5. Check length limits (twitter ≤ 280), embed UTM in article URL
 6. Return `{ post_content, article_id, article_title, article_labels, crowd_favorite, hook_line, ... }`
+
+## December trial (growth-005)
+`generate-post` with `trial: true` (only from 🧪 December Trial): the variant comes from the Israel date
+(`lib/growth/trial.ts`, Dec 1's before December), trial links carry the `utm_campaign` token, LinkedIn and WhatsApp
+'short' use `lib/growth/trialPrompts.ts` (with the last 10 approved openings on that platform as a repetition guard),
+LinkedIn 'first_comment' posts must come back link-free and get a `comment_text`. Without `trial` the route is unchanged.
+`/api/growth/feedback` refuses `outcome: 'approved'` (409) during Dec 1–31 (Israel dates).
 
 ## Facebook IL posts carry no web link (social-001 / social-002, Roi 2026-10-12 / 13)
 Meta limits some business / creator Pages to two external links a month (posts **and** comments), and the Facebook IL

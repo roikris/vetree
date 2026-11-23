@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { approvedRowToday, type ApprovalClient } from '@/lib/growth/approvals'
+import { israelDate } from '@/lib/growth/daily'
+import { inTrial } from '@/lib/growth/trial'
 
 // Force this route to use Node.js runtime
 export const runtime = 'nodejs'
@@ -64,6 +66,12 @@ export async function POST(request: NextRequest) {
         { error: 'Missing required fields' },
         { status: 400 }
       )
+    }
+
+    // December trial (growth-005): every December post goes through 🧪 December Trial (record_trial_post, migration
+    // 089), which keeps one article per day across both tabs. Skips still record.
+    if (outcome === 'approved' && inTrial(israelDate(new Date()))) {
+      return NextResponse.json({ error: 'December trial running — post from 🧪 December Trial' }, { status: 409 })
     }
 
     // One 'approved' row per article + platform + Israel day (growth-002): a second Copy & mark posted — another click,

@@ -196,6 +196,15 @@ UNIQUE(user_id, tag)
 | approved_count | integer |
 | skipped_count | integer |
 
+### `growth_trial_posts` (migration 089, growth-005)
+One row per post marked posted in 🧪 December Trial, written only by `record_trial_post()` together with its
+growth_agent_memory approval row. `approval_id` PK (FK, cascade), `article_id`, `platform`, `trial_date` (Israel, Dec
+2026), `variant` (`in_post` / `first_comment` / `short` / `current` / NULL), `utm_campaign` (the post's token),
+`post_text` (exactly what Roi copied), `comment_text`, `char_count`, `ends_with_question`, LinkedIn only:
+`li_comments` / `li_impressions` each with `_recorded_at` and `_age_hours` (entered by Roi via
+`record_trial_linkedin_metric`; not fixed-age measures). `trial_variant(date, platform)` = `TRIAL_SCHEDULE`.
+Service role only (RLS on, no policies; table SELECT/INSERT/UPDATE, the three functions EXECUTE). No personal data.
+
 ### `growth_article_scores` (migration 071)
 | Column | Type | Notes |
 |--------|------|-------|

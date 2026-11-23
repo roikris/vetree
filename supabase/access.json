@@ -386,6 +386,17 @@
       ],
       "PUBLIC": []
     },
+    "public.growth_trial_posts": {
+      "kind": "table",
+      "anon": [],
+      "authenticated": [],
+      "service_role": [
+        "INSERT",
+        "SELECT",
+        "UPDATE"
+      ],
+      "PUBLIC": []
+    },
     "public.linkedin_daily_metrics": {
       "kind": "table",
       "anon": [],
