@@ -2140,10 +2140,10 @@
       "evidence": [],
       "branch": "feat/growth-005-december-trial",
       "pr": 161,
-      "head_sha": "c99978b",
+      "head_sha": "71a705b",
       "wip_sha": null,
       "expected_failures": [],
-      "notes": "Roi 2026-11-23: \"run a trial for a month, another tab like synthesis test and leave the growth OS as it is now \u2026 through the month of December \u2026 dedicated analytics \u2026 A/B testing against the data we've already collected\"; \"go ahead\" (defaults taken: LinkedIn link split kept, WhatsApp 4 days/week, X out of the trial). Source: Growth Review artifact 4WU7efW9X2pZESkpc3hpLe. Must be merged before 2026-12-01. Tier 2 (paid AI prompts + migration). Found: DailyPosts sends recentPosts but generate-post never reads it. \u00b7 claimed by 20261123-1151-claude-3a7d"
+      "notes": "Roi 2026-11-23: \"run a trial for a month, another tab like synthesis test and leave the growth OS as it is now \u2026 through the month of December \u2026 dedicated analytics \u2026 A/B testing against the data we've already collected\"; \"go ahead\" (defaults taken: LinkedIn link split kept, WhatsApp 4 days/week, X out of the trial). Source: Growth Review artifact 4WU7efW9X2pZESkpc3hpLe. Must be merged before 2026-12-01. Tier 2 (paid AI prompts + migration). Found: DailyPosts sends recentPosts but generate-post never reads it. \u00b7 claimed by 20261123-1151-claude-3a7d \u00b7 2026-11-23: plan review 3 rounds (r1 9 blocking, r2 4, r3 none); PR #161 code review r1 5 blocking (fixed c37d006), r2 1 (fixed 71a705b), r3 1 left at the cap: WhatsApp Skip still enabled after Telegram is recorded \u2014 asked Roi. Pending: Roi's yes for db push 089, then schema-snapshot."
     },
     {
       "id": "ux-001",
