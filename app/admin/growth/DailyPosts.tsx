@@ -830,6 +830,8 @@ function DailyDay({ today, mode, onDayChange, onReload }: { today: string; mode:
               if (!info) return null
               if (text === null || (!isTrial && !text)) return <div className="p-4 rounded-lg border border-zinc-700 text-sm text-zinc-400">No post for {info.name} — use Retry Failed{info.derivedFrom ? ` (Telegram follows ${platformInfo(info.derivedFrom)?.name})` : ''}.</div>
               const isPosted = posted.has(activeTab)
+              // trial: a recorded post keeps its text — WhatsApp too once Telegram (which copies it) is recorded
+              const locked = isTrial && (isPosted || platforms.some(p => p.derivedFrom === activeTab && posted.has(p.platform)))
               return (
                 <div className="relative bg-zinc-900 dark:bg-zinc-950 rounded-lg p-4 border border-zinc-700 dark:border-zinc-800" data-testid={`card-${activeTab}`}>
                   {busy === `rewrite:${activeTab}` && (
@@ -838,7 +840,7 @@ function DailyDay({ today, mode, onDayChange, onReload }: { today: string; mode:
                     </div>
                   )}
                   {info.derivedFrom && <p className="text-xs text-zinc-500 mb-2">The {platformInfo(info.derivedFrom)?.name} post with Telegram tracking — edit it on the {platformInfo(info.derivedFrom)?.name} card.</p>}
-                  {isTrial && !info.derivedFrom && !isPosted ? (
+                  {isTrial && !info.derivedFrom && !locked ? (
                     <textarea value={text} onChange={e => editText(activeTab, e.target.value)} rows={Math.min(24, Math.max(8, text.split('\n').length + 2))} data-testid="post-text"
                       className="w-full whitespace-pre-wrap text-sm font-mono text-zinc-200 bg-transparent border border-zinc-700 rounded p-2 focus:outline-none focus:border-emerald-600" />
                   ) : (
@@ -898,7 +900,7 @@ function DailyDay({ today, mode, onDayChange, onReload }: { today: string; mode:
                   )}
 
                   {/* Rewrites — not on Telegram (it follows WhatsApp); a recorded trial post keeps the text it was posted with */}
-                  {!info.derivedFrom && !(isTrial && isPosted) && (
+                  {!info.derivedFrom && !locked && (
                     <div className="flex gap-2 mt-3 flex-wrap">
                       {Object.entries(STYLE_PROMPTS).map(([key, instruction]) => (
                         <button key={key} type="button" onClick={() => rewrite(activeTab, instruction)} disabled={!!busy}
