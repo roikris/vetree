@@ -1087,3 +1087,29 @@ Newest at the bottom. The same entries (latest few) appear in primer.md → Rece
 - Pending Roi approvals: Bot Protection Log → Challenge (after the overdue 11-18 log read); next 16.4.3 → 16.4.5.
 - Known risks / unresolved: the 11-18 bot-surge re-check was never done.
 - Next best step: growth-005 now (Dec 1 deadline), then ux-001, seo-002, analytics-002.
+
+### Session 20261123-1151-claude-3a7d · 2026-11-23 · Claude Code · growth-005 (merged)
+- Goal: Roi — a month-long trial "another tab like synthesis test and leave the growth OS as it is now … through the
+  month of December … dedicated analytics … A/B testing against the data we've already collected"; "go ahead".
+- Completed: #161 → c2334c8. Growth OS → 🧪 December Trial (TrialTab.tsx, DailyPosts mode="trial"); lib/growth/trial.ts
+  (no X; WhatsApp + Telegram Sun/Mon/Tue/Thu; week-balanced pre-assigned splits: LinkedIn link in post vs first
+  comment, WhatsApp short vs current; utm_campaign tokens trial-YYYYMMDD / intl-trial-YYYYMMDD); trial prompts with a
+  repetition guard (the panel's recentPosts was never read); migration 089 growth_trial_posts + record_trial_post()
+  (approval + trial row, one transaction, one article per Israel day) + record_trial_linkedin_metric() + trial_variant();
+  /api/growth/feedback refuses 'approved' Dec 1–31; results (lib/growth/trialAnalysis.ts) final 2027-01-08;
+  usePageTracking replaces all four UTMs on a tagged arrival (site-wide).
+- Start state: main 2f17c51, clean; branch feat/growth-005-december-trial.
+- Verification: init.sh check (tsc, lint ratchet, unit PASS; acl/rls GONE until push — expected); 089 pushed on Roi's
+  "push db" (dry run first: 089 only; `--yes` needed in agent mode); schema-snapshot 5019 facts; acl / rls / schema
+  audits PASS; rpc trial_variant 3/3; PR suite 45210059689 green on 70647c1; production /api/version = c2334c8,
+  post-deploy health check success; trial routes 401 signed out. Not exercised in a browser yet.
+- Review: Codex · tier 2 · plan 3 rounds (9 → 4 → 0 blocking) · code 4 rounds (5 → 1 → 1 → 0; round 4 authorised by
+  Roi past the cap) · ~70k / 36k / 21k + 101k / 40k / 30k / 36k tokens · BLOCKING: none.
+- Commits / PR: #161 (Roi: "merge").
+- Pending Roi approvals: optional production preview of the trial tab (4 paid generates) before Dec 1.
+- Known risks / unresolved: `next build` hits the SecurityFatalError nudge about half the time (retry passes) — the
+  16.4.3 → 16.4.5 bump would end it (Roi's call). Bot-surge re-check (11-18) still overdue.
+- Lesson: `supabase db push` in agent mode refuses without `--yes` (HostedMutationConsentRequiredError) — rerun with
+  --yes only on Roi's explicit word. Harness audits outside init.sh need `node --env-file-if-exists=.env.local`.
+- Next best step: Dec 1 — Roi posts from 🧪 December Trial; Mondays: 7-day LinkedIn export + the to-record list. Then
+  ux-001, seo-002, analytics-002.
