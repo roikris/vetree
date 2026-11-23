@@ -8,7 +8,7 @@ Routine: `docs/harness/README.md` on `main`. Pre-harness primer (frozen): root `
 ---
 
 ## 1. Current Verified State
-*Updated 2026-11-17 — Session 20261117-1736-claude-4fa5 (analytics-001: bot surge — robots.txt #160, Bot Protection Log)*
+*Updated 2026-11-23 — Session 20261122-1742-claude-bdb8 (analytics-001: growth review report; growth-005 / ux-001 / seo-002 / analytics-002 added)*
 
 - **Repo root:** `~/dev/vetree` · state worktree: `.harness-state/` (branch `harness-state`)
 - **main:** `2f17c51` (#160 robots.txt blocks meta-webindexer + ShapBot — bot surge 11-15..17, analytics-001, 2026-11-17; #159 every Claude call on claude-sonnet-5-5 — Roi, no re-measure; expect ~1.46x tokens, ai-001, 2026-11-06; #158 Growth OS relevance scoring runs as job `score` of enrich-articles.yml after enrichment — panel scoring had timed out on every batch since 10-14, 338/338 backfilled, growth-004, 2026-11-06; #157 next 16.3.8 → 16.4.3, zod + happy-dom patched — scan 2026-10-29 critical advisories, sec-002, 2026-11-01; #156 Google Search Console → Admin → Analytics → Google Search — migration 088, search-console.yml daily 05:00 UTC, 30-day backfill done, analytics-001, 2026-10-31; #155 anon-key writer scripts + day-one CSV importer removed, scripts-001, 2026-10-24; #154 facebookexternalhit on / → static /link-preview (next.config.ts beforeFiles rewrite, lib/metaPreview.ts), perf-001, 2026-10-23; #153 useAuth refreshes once per real sign-in (lib/auth/signInRefresh.ts) — was ~46 server renders per signed-in home load, analytics-001, 2026-10-22; #152 no prefetch on links to /privacy /terms /library /profile /admin/reports, analytics-001, 2026-10-22; #151 "touched today" on the Israel day + ranking tests, growth-003, 2026-10-22; #150 passed-over recommendations rest 14 days (lib/growth/passedOver.ts), panel reachable after the day's article is set, growth-003, 2026-10-21; #149 no prefetch on repeated article links — stream, saved-this-week, ArticleCard, Grove, analytics-001, 2026-10-21; Vercel missed the push → production deployed via the API on Roi's go-ahead; #148 component tests for the consent prompts — happy-dom dev dependency, analytics-001, 2026-10-20; #147 unused FollowTagButton / useFollowedTags removed, 2026-10-20; #146 consent prompts re-check when the signed-in user changes (watchSignedInUser → lib/auth/userWatcher.ts), 2026-10-20; #145 migration 087 — the daily purge removes pending durations > 1 day, 2026-10-20; #144 one user lookup per signed-in page + dashboard footnote, 2026-10-20; #140 auth friction — failed email links explained, reset works cross-browser with the token_hash template, verify-email signed out, signup fixes, analytics-001, 2026-10-19; #143 migration 086 — 356 suspected_fleet + 1,372 suspected_datacenter older rows, 2026-10-19; #142 Analytics hides signed-out likely-automated views by default (switch ?automated=include), six readers paged, 2026-10-19; #141 migration 085 — pre-#139 leave-beacon rows merged into their views, analytics-001, 2026-10-18; #139 one page_views row per view (client view_id, visible-time duration), traffic_class estimate (datacenter ranges), hashed Upstash keys, admin analytics reads paged + fail on error, migration 084, analytics-001, 2026-10-17; #138 scan advisories cleared — source-map-js 1.2.2, braces acknowledged — and the scan reads its
@@ -24,7 +24,7 @@ Routine: `docs/harness/README.md` on `main`. Pre-harness primer (frozen): root `
   if not enough → option B (article ISR). PR rule: drafts until done, ready once, never re-run a passing suite.
   Functions Storage was 8.93 / 10 GB → Roi set deployment retention: pre-production 1 week, production / canceled /
   errored 30 days (2026-10-15); re-read it with the CPU chart.
-- **Highest-priority unfinished item:** bot surge (analytics-001, 2026-11-17): ~11-18 18:00 UTC read the 12 h request log (meta-webindexer gone? renders vs Oct 600–950; were 3,089 / 12 h) + Bot Protection's log → ask Roi to switch Log → Challenge (check our smoke / health check first); still high → article pages cacheable (option 3, tier 2). growth-004 done (#158) — Roi checks the panel 11-07 (fresh picks, no amber warning). ai-001 done (#159, Sonnet 5.5) — watch the 11-07 enrichment + score runs and Anthropic usage. sec-002 done (#157); manual scan 11-01 clean. perf-001: #154 confirmed 2026-10-24 (FB on / → CDN, 0 home renders; home renders without smoke 276 → 113 / 12 h) — left: Roi reads the Vercel usage chart (CLI can't on Hobby). analytics-001 — left: Roi compares Oct 26–28 GSC site totals (676/17, 589/39, 489/31) with the Search Console UI + the Gmail re-check; then close it. Optional: post the cat-treats article (pubmed-42908201, position 2.1, never posted); Google landings leave after ~12 s. Revisit ~2026-10-26 (Roi, 2026-10-23: leave it for now): the Chinese fleet came back 10-20 from Chinese ISP addresses (mostly Hangzhou) after the Tencent firewall block — 17–39 views/day 10-20..22, 1 view per IP, Chrome 148–150 + iPhone, article pages, no referrer, flat over 24 h — untagged (086 was a one-off backfill; live tagging = hosting ranges only), so Admin → Analytics counts them as people; 10-23 nearly none. Options: live fleet tagging + re-tag 10-20.. (recommended), firewall challenge for CN, or nothing. 12 h check done 2026-10-23: #152 + #153 confirmed (function requests −25%; remaining home renders = our smoke + crawlers → perf-001). Done 2026-10-22: #152, #153; /auth/v1/user = 1 per load; /article/null = outside traffic; search-batch 400s = our own smoke; Chrome "503"s = cancelled fetches. CI Node 20 upgrade is Roi's call; perf-001 monitoring
+- **Highest-priority unfinished item:** growth-005 — December posting trial tab + trial analytics (Roi 2026-11-23), must merge before 2026-12-01; then ux-001, seo-002, analytics-002. Still overdue: bot surge (analytics-001, 2026-11-17): ~11-18 18:00 UTC read the 12 h request log (meta-webindexer gone? renders vs Oct 600–950; were 3,089 / 12 h) + Bot Protection's log → ask Roi to switch Log → Challenge (check our smoke / health check first); still high → article pages cacheable (option 3, tier 2). growth-004 done (#158) — Roi checks the panel 11-07 (fresh picks, no amber warning). ai-001 done (#159, Sonnet 5.5) — watch the 11-07 enrichment + score runs and Anthropic usage. sec-002 done (#157); manual scan 11-01 clean. perf-001: #154 confirmed 2026-10-24 (FB on / → CDN, 0 home renders; home renders without smoke 276 → 113 / 12 h) — left: Roi reads the Vercel usage chart (CLI can't on Hobby). analytics-001 — left: Roi compares Oct 26–28 GSC site totals (676/17, 589/39, 489/31) with the Search Console UI + the Gmail re-check; then close it. Optional: post the cat-treats article (pubmed-42908201, position 2.1, never posted); Google landings leave after ~12 s. Revisit ~2026-10-26 (Roi, 2026-10-23: leave it for now): the Chinese fleet came back 10-20 from Chinese ISP addresses (mostly Hangzhou) after the Tencent firewall block — 17–39 views/day 10-20..22, 1 view per IP, Chrome 148–150 + iPhone, article pages, no referrer, flat over 24 h — untagged (086 was a one-off backfill; live tagging = hosting ranges only), so Admin → Analytics counts them as people; 10-23 nearly none. Options: live fleet tagging + re-tag 10-20.. (recommended), firewall challenge for CN, or nothing. 12 h check done 2026-10-23: #152 + #153 confirmed (function requests −25%; remaining home renders = our smoke + crawlers → perf-001). Done 2026-10-22: #152, #153; /auth/v1/user = 1 per load; /article/null = outside traffic; search-batch 400s = our own smoke; Chrome "503"s = cancelled fetches. CI Node 20 upgrade is Roi's call; perf-001 monitoring
 - **Vercel Firewall:** Bot Protection = **Log** since 2026-11-17 17:51 UTC (Roi; was Off). 2026-10-19: custom rule "Block Tencent Cloud bot fleet" — deny AS132203 + AS45090 (CLI: `vercel firewall rules list|…`, publish after changes). Resend click tracking OFF for digest.vetree.app (Roi). Supabase Reset Password template = branded token_hash link (Roi).
 - **Admin panel (admin-002, Roi 2026-10-14):** /admin lands on Analytics; the weekly AI report is hidden (its Friday job
   still runs); /admin/pipeline = the Slack messages expanded (GET /api/admin/pipeline/status) — no Article Health, no
@@ -231,6 +231,32 @@ works today was spot-checked in the code on 2026-10-05.
 (Newest first — only the latest 5 are kept here (D11); every entry, older ones included, is in
 `session-log.md`, which is never trimmed.)
 
+### Session 20261122-1742-claude-bdb8 · 2026-11-22 → 11-23 · Claude Code · analytics-001 (growth review; item open)
+- Goal: Roi — "look at the analytics patterns and produce a full report on what we can be doing better … why linkedin
+  impressions have declined … send it to codex as well for an independent evaluation". Then (11-23) turn it into Growth OS
+  changes + a posting schedule → Roi: a December trial in its own tab, Daily Posts unchanged; "go ahead, also let's fix
+  Outside Growth OS small fixes".
+- Completed: report published privately (claude.ai artifact 4WU7efW9X2pZESkpc3hpLe, "Vetree Growth Review"). Findings:
+  LinkedIn weekly impressions 3,843 (Jun 1–Aug 10) → 437 (last 4 weeks); breakout posts (13 ≥ 1,000 Mar–mid-Aug) stopped,
+  2 since; 0 comments on the last 29 posts (winners had 3–11); engagement rate steady; followers 991 → 1,016. Since 09-29:
+  WhatsApp 265 visits / 11 of 18 signups, Google 783 / 1, LinkedIn 35 / 1; WhatsApp weekly visits falling (13 last week).
+  Since 10-13 (~38 posts each): X 1 visit, Facebook IL 4. Mobile signup: all 5 signup_errors = "Passwords do not match".
+  Codex (independent analysis, own Terminal) agreed; pushback: daily posting + long format existed in the good months,
+  judge by activated users, one change per channel at a time.
+- Found in code: DailyPosts sends `recentPosts` to generate-post, which never reads it (no repetition guard → templated
+  openings). Standing constraint (insights contract): never suggest changing LinkedIn cadence — plan keeps LinkedIn daily.
+- Backlog: added growth-005 (December trial tab + trial analytics, must merge before 12-01), ux-001 (mobile signup),
+  seo-002 (Google landings: related + inline save), analytics-002 (stale LinkedIn per-post rows).
+- Start state: main 2f17c51, clean.
+- Verification: read-only production reads (service role, temp scripts deleted); LinkedIn analytics pages in Chrome
+  (past_365_days / past_28_days top posts). LinkedIn XLSX exports list only the top 50 posts → linkedin_post_metrics
+  per-post values go stale (one row stored at 4 impressions has 9,375); linkedin_daily_metrics totals are right.
+- Review: n/a (analysis, no code) · Codex independent analysis 1 round.
+- Commits / PR: none (state only).
+- Pending Roi approvals: Bot Protection Log → Challenge (after the overdue 11-18 log read); next 16.4.3 → 16.4.5.
+- Known risks / unresolved: the 11-18 bot-surge re-check was never done.
+- Next best step: growth-005 now (Dec 1 deadline), then ux-001, seo-002, analytics-002.
+
 ### Session 20261117-1736-claude-4fa5 · 2026-11-17 · Claude Code · analytics-001 (bot surge; monitoring)
 - Goal: Roi — "huge surge of bots last few days. investigate fully and recommend how we stop it".
 - Findings (12 h request log 11-17 05:39 → 17:38 UTC, 6,255 requests, 3,089 function renders vs 600–950 / 12 h in
@@ -336,35 +362,3 @@ works today was spot-checked in the code on 2026-10-05.
   the state, then branch.
 - Next best step: Thursday's scan clean? Follow-up candidate: eslint-config-next 16.4.3 + the 4 react-hooks lint fixes.
 
-### Session 20261031-0937-claude-ccc3 · 2026-10-31 → 2026-11-01 · Claude Code · analytics-001 (Search Console import; item open)
-- Goal: Roi — a surge of Google impressions to an article never posted → investigate; then "import data from the
-  Google console automatically" (domain property, 1-month backfill).
-- Findings: the surge = two new, never-posted articles — pubmed-42908201 (feline treats phosphorus / CKD, JFMS;
-  296 impressions, 69 clicks, position 2.1, ~23% CTR) and pubmed-42915224 (canine adverse food reaction tests, JAVMA;
-  167 / 26, position 5.0). Clicks (not impressions) jumped from 10-25: ~5/day → 15–39/day. Visitors real but shallow
-  (median 11–13 s visible), no signup uplift. Oct 3–30: 9,805 impressions, 242 clicks, avg position 7.8.
-- Done (#156): migration 088 — search_console_daily / _queries / _pages / _import_days (RLS on, no policies,
-  service_role grants only), replace_search_console_day() (atomic per-day replace, advisory lock) and
-  search_console_summary(); .github/workflows/search-console.yml (05:00 UTC + dispatch days 1–60, service account
-  JWT via node:crypto, secrets masked, failed / preliminary days retried until final, no age limit; Slack on failure);
-  /api/admin/analytics/search-console + GoogleSearchSection (7/28/90, site totals, top searches, top pages with our
-  Google-referrer views, median visible time, "No recorded post"). Docs: CLAUDE.md (env var, Actions row, Metrics),
-  supabase/CLAUDE.md, app/api/CLAUDE.md; access / rls / schema snapshots.
-- Start state: main bf627b3; lock taken for analytics-001.
-- Verification: init.sh check GREEN; unit 162/162 (search-console 21/21 on Node 20); PGlite fixture run of 088;
-  PR suite + replay green; merged 22a875b; post-merge health check success. 088 applied to production (Roi: "yes").
-  Backfill run 41236885088: 30 days, Oct 1–2 empty, 3–28 final; log scan clean (no key / token / JWT / account email,
-  10 masks). First scheduled run 41302788590 (2026-11-01, started 11:38 UTC — GitHub cron delay): Oct 22–31 ok,
-  Oct 29 now final, 30–31 preliminary.
-- Review: Codex · tier 2 (migration, secrets, Supabase writes) · plan 3 rounds (r1 5 BLOCKING, r2 1 — failed days
-  abandoned outside the window → durable pending set; r3 none) · code 2 rounds (r1 2 BLOCKING — unchecked failure-
-  status write, unpaged ledger read; r2 none). Two r2 NB (label wording, startup Slack) applied, not re-reviewed.
-- Commits / PR: #156 → 22a875b (Roi: "Push", "Merge"); backfill dispatch (Roi: "Yes").
-- Pending Roi approvals: none.
-- Known risks / unresolved: Roi to compare Oct 26–28 site totals (676/17, 589/39, 489/31, Web) with the Search Console
-  UI. Top queries hide rare searches (Google), so the cat-treats queries are invisible.
-- Lesson: the GSC key file is the whole JSON — Roi pastes it into the GitHub secret himself; never via chat. Gap-fill
-  must start at the retention horizon and only expire recorded days (a test caught hundreds of unrecorded days being
-  expired). PGlite's service_role needs BYPASSRLS to mirror Supabase.
-- Next best step: Roi — the GSC number check, Gmail re-check (then close analytics-001); consider posting the
-  cat-treats article; first-visit experience for Google landings (~12 s). AI model revisit (~2026-11-01) is due.

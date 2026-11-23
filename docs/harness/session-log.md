@@ -1061,3 +1061,29 @@ Newest at the bottom. The same entries (latest few) appear in primer.md → Rece
 - Next best step: ~2026-11-18 18:00 UTC — 12 h request log: meta-webindexer gone?, renders vs 600–950; Bot Protection
   log (what it would challenge; our smoke/health check?) → ask Roi to switch to Challenge. If renders stay high:
   option 3 — article pages cacheable (auth-dependent UI client-side), tier 2.
+
+### Session 20261122-1742-claude-bdb8 · 2026-11-22 → 11-23 · Claude Code · analytics-001 (growth review; item open)
+- Goal: Roi — "look at the analytics patterns and produce a full report on what we can be doing better … why linkedin
+  impressions have declined … send it to codex as well for an independent evaluation". Then (11-23) turn it into Growth OS
+  changes + a posting schedule → Roi: a December trial in its own tab, Daily Posts unchanged; "go ahead, also let's fix
+  Outside Growth OS small fixes".
+- Completed: report published privately (claude.ai artifact 4WU7efW9X2pZESkpc3hpLe, "Vetree Growth Review"). Findings:
+  LinkedIn weekly impressions 3,843 (Jun 1–Aug 10) → 437 (last 4 weeks); breakout posts (13 ≥ 1,000 Mar–mid-Aug) stopped,
+  2 since; 0 comments on the last 29 posts (winners had 3–11); engagement rate steady; followers 991 → 1,016. Since 09-29:
+  WhatsApp 265 visits / 11 of 18 signups, Google 783 / 1, LinkedIn 35 / 1; WhatsApp weekly visits falling (13 last week).
+  Since 10-13 (~38 posts each): X 1 visit, Facebook IL 4. Mobile signup: all 5 signup_errors = "Passwords do not match".
+  Codex (independent analysis, own Terminal) agreed; pushback: daily posting + long format existed in the good months,
+  judge by activated users, one change per channel at a time.
+- Found in code: DailyPosts sends `recentPosts` to generate-post, which never reads it (no repetition guard → templated
+  openings). Standing constraint (insights contract): never suggest changing LinkedIn cadence — plan keeps LinkedIn daily.
+- Backlog: added growth-005 (December trial tab + trial analytics, must merge before 12-01), ux-001 (mobile signup),
+  seo-002 (Google landings: related + inline save), analytics-002 (stale LinkedIn per-post rows).
+- Start state: main 2f17c51, clean.
+- Verification: read-only production reads (service role, temp scripts deleted); LinkedIn analytics pages in Chrome
+  (past_365_days / past_28_days top posts). LinkedIn XLSX exports list only the top 50 posts → linkedin_post_metrics
+  per-post values go stale (one row stored at 4 impressions has 9,375); linkedin_daily_metrics totals are right.
+- Review: n/a (analysis, no code) · Codex independent analysis 1 round.
+- Commits / PR: none (state only).
+- Pending Roi approvals: Bot Protection Log → Challenge (after the overdue 11-18 log read); next 16.4.3 → 16.4.5.
+- Known risks / unresolved: the 11-18 bot-surge re-check was never done.
+- Next best step: growth-005 now (Dec 1 deadline), then ux-001, seo-002, analytics-002.
