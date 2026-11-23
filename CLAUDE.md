@@ -429,6 +429,16 @@ const articleUrl = `https://vetree.app/article/${article.id}?${utmParams[platfor
   Agent tab, the growth_tasks server actions (the table stays), six unused components. Approved rows from before
   2026-10-13 may carry the rotation's platform label, not where Roi posted.
 - GitHub Action: growth-daily-reminder.yml (03:00 UTC = 06:00 Israel)
+- **December 2026 trial (growth-005, Roi 2026-11-23):** Growth OS → **🧪 December Trial** (`TrialTab.tsx`, DailyPosts
+  `mode="trial"`) is the posting surface for all of December; Daily Posts stays as it is but **records nothing in
+  December** (`/api/growth/feedback` answers 409 for 'approved'; its panel shows a banner). Rules in `lib/growth/trial.ts`:
+  no X; WhatsApp + Telegram Sun / Mon / Tue / Thu only; LinkedIn daily (cadence constraint) in a new format with Roi's
+  own take (`[YOUR TAKE …]` must be rewritten before copying); two randomised splits fixed in advance (`TRIAL_SCHEDULE`
+  = migration 089's `trial_variant()`): LinkedIn link in the post vs the first comment, WhatsApp short vs current.
+  Trial links carry `utm_campaign=trial-YYYYMMDD` (Facebook Intl `intl-trial-YYYYMMDD`). Marking posted =
+  `record_trial_post()` (approval row + `growth_trial_posts` row, one transaction, one article per Israel day). Results:
+  `/api/admin/growth/trial/results` (`lib/growth/trialAnalysis.ts`) — final 2027-01-08; only the splits are
+  like-for-like, the baseline (Oct 13 – Nov 30), Facebook and Dec 2025 are descriptive. Plan: Codex 3 rounds.
 
 ## Rate Limiting (Upstash)
 Applied to (lib/ratelimit.ts limiters, verified 2026-10-04): /api/delete-account (`deleteAccountLimiter`),

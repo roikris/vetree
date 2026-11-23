@@ -4,10 +4,13 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { Copy, Check, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import {
-  POSTING_PLATFORMS, GENERATED_PLATFORMS, platformInfo, telegramFromWhatsapp, israelDate, israelDateMinus,
+  POSTING_PLATFORMS, platformInfo, telegramFromWhatsapp, israelDate, israelDateMinus,
   reconcileDay, postedPlatforms, type ApprovedRow, type Draft,
 } from '@/lib/growth/daily'
 import { onceGuard } from '@/lib/growth/approvals'
+import {
+  TRIAL_START, inTrial, trialPhase, trialPlatformsFor, trialDayNumber, assignmentFor, hasTakePlaceholder, TAKE_MARKER,
+} from '@/lib/growth/trial'
 
 // Growth OS — the daily posts (growth-002, replaces CampaignCalendar.tsx). The owner's flow (Roi, 2026-10-13): every
 // day ONE article goes to EVERY platform. Generate All writes a post per platform for one article (Telegram = the
@@ -16,6 +19,12 @@ import { onceGuard } from '@/lib/growth/approvals'
 // posted state and the streak come from the database (/api/admin/growth/today); only the drafts live in this browser.
 // Once anything is marked posted today, that article is the day's article: drafts for another one are dropped and
 // every generation / retry / rewrite is forced to it and echo-checked.
+//
+// mode 'trial' (growth-005, December 2026): the 🧪 December Trial tab. Same flow, with: the trial's platforms (no X;
+// WhatsApp + Telegram on WhatsApp days only), trial prompts (generate-post `trial: true`, variant from the date),
+// editable cards, LinkedIn's [YOUR TAKE …] line must be rewritten before copying, and "Copy & mark posted" goes to
+// /api/admin/growth/trial/mark (approval + trial row in one transaction). Posted = has a trial row. Its drafts live
+// under their own localStorage key. In mode 'daily' during December, marking is off (the feedback route refuses too).
 
 // AI Photos prompt (owner's wording, 2026-09-26). Copied into ChatGPT with the logo attached
 // by hand; "@Create image" is ChatGPT's image command. The content is the article's source
@@ -33,32 +42,41 @@ const STYLE_PROMPTS: Record<string, string> = {
 const TIGHTEN_INSTRUCTION = 'Rewrite this post staying strictly faithful to the following original study summary. Every factual claim must be directly supported by the summary text. Do not add interpretation beyond what the summary states.'
 const NORMALLY_EXCLUDED = ['Equine', 'equine', 'Large Animal', 'large animal', 'Livestock', 'livestock', 'Poultry', 'poultry', 'Food Animal', 'food animal']
 
-type Post = Draft & { language: string; hook_line?: string; crowd_favorite?: boolean; article_labels?: string[] }
+type Post = Draft & {
+  language: string; hook_line?: string; crowd_favorite?: boolean; article_labels?: string[]
+  /** trial only: the Israel date + variant the server generated it for, and LinkedIn's first comment */
+  trial_date?: string; trial_variant?: string | null; comment_text?: string | null
+}
+export type PanelMode = 'daily' | 'trial'
 type DayStore = { articleId: string | null; articleTitle: string | null; posts: Record<string, Post>; failed?: string[] }
 type Article = { id: string; title: string; crowdFavorite?: boolean }
 
 // Drafts are this browser's, per Israel day (posted state is in the database)
-const storeKey = (date: string) => `vetree_daily_posts_${date}`
-function readStore(date: string): DayStore | null {
+const STORE_PREFIX: Record<PanelMode, string> = { daily: 'vetree_daily_posts_', trial: 'vetree_trial_posts_' }
+const storeKey = (date: string, mode: PanelMode = 'daily') => `${STORE_PREFIX[mode]}${date}`
+function readStore(date: string, mode: PanelMode = 'daily'): DayStore | null {
   try {
-    const raw = localStorage.getItem(storeKey(date))
+    const raw = localStorage.getItem(storeKey(date, mode))
     return raw ? JSON.parse(raw) as DayStore : null
   } catch { return null }
 }
-function writeStore(date: string, store: DayStore) {
-  try { localStorage.setItem(storeKey(date), JSON.stringify(store)) } catch { /* storage full / blocked: drafts just aren't kept */ }
+function writeStore(date: string, store: DayStore, mode: PanelMode = 'daily') {
+  try { localStorage.setItem(storeKey(date, mode), JSON.stringify(store)) } catch { /* storage full / blocked: drafts just aren't kept */ }
 }
 function cleanupOldStores(today: string) {
   try {
-    const keep = new Set([0, 1, 2, 3, 4, 5, 6, 7].map(i => storeKey(israelDateMinus(today, i))))
+    const keep = new Set((['daily', 'trial'] as PanelMode[]).flatMap(m => [0, 1, 2, 3, 4, 5, 6, 7].map(i => storeKey(israelDateMinus(today, i), m))))
     Object.keys(localStorage)
-      .filter(k => (k.startsWith('vetree_daily_posts_') && !keep.has(k)) || k.startsWith('vetree_campaign_'))
+      .filter(k => (Object.values(STORE_PREFIX).some(pre => k.startsWith(pre)) && !keep.has(k)) || k.startsWith('vetree_campaign_'))
       .forEach(k => localStorage.removeItem(k))
   } catch { /* ignore */ }
 }
 
-type GenerateBody = { platform: string; language: string; article_id?: string; recentPosts?: string[]; style_instruction?: string; existing_post?: string; abstract_override?: string }
-type GenerateResult = { post_content: string; article_id: string; article_title?: string; article_labels?: string[]; crowd_favorite?: boolean; hook_line?: string }
+type GenerateBody = { platform: string; language: string; article_id?: string; recentPosts?: string[]; style_instruction?: string; existing_post?: string; abstract_override?: string; trial?: boolean }
+type GenerateResult = {
+  post_content: string; article_id: string; article_title?: string; article_labels?: string[]; crowd_favorite?: boolean; hook_line?: string
+  trial_date?: string; trial_variant?: string | null; comment_text?: string | null
+}
 
 async function generate(body: GenerateBody): Promise<{ ok: true; data: GenerateResult } | { ok: false; status: number; error: string }> {
   try {
@@ -74,12 +92,13 @@ async function generate(body: GenerateBody): Promise<{ ok: true; data: GenerateR
 const toPost = (d: GenerateResult, language: string): Post => ({
   post_content: d.post_content, article_id: d.article_id, article_title: d.article_title, language,
   hook_line: d.hook_line, crowd_favorite: d.crowd_favorite, article_labels: d.article_labels,
+  ...(d.trial_date ? { trial_date: d.trial_date, trial_variant: d.trial_variant ?? null, comment_text: d.comment_text ?? null } : {}),
 })
 const hookOf = (text: string) => text.split('\n').find(l => l.trim())?.trim()
 
 // The panel lives for one Israel day: at midnight (or on Retry loading) it is rebuilt from scratch — today's posted
 // state reloaded, yesterday's article / flags / double-click guard gone, drafts read from the new day's key.
-export function DailyPosts() {
+export function DailyPosts({ mode = 'daily' }: { mode?: PanelMode } = {}) {
   // the Israel date — identical on the server and in the browser (fixed time zone), so no hydration mismatch
   const [day, setDay] = useState(() => israelDate(new Date()))
   const [attempt, setAttempt] = useState(0)
@@ -90,11 +109,21 @@ export function DailyPosts() {
     window.addEventListener('focus', check)
     return () => { clearInterval(timer); document.removeEventListener('visibilitychange', check); window.removeEventListener('focus', check) }
   }, [])
-  return <DailyDay key={`${day}:${attempt}`} today={day}
+  return <DailyDay key={`${mode}:${day}:${attempt}`} today={day} mode={mode}
     onDayChange={() => setDay(israelDate(new Date()))} onReload={() => setAttempt(a => a + 1)} />
 }
 
-function DailyDay({ today, onDayChange, onReload }: { today: string; onDayChange: () => void; onReload: () => void }) {
+function DailyDay({ today, mode, onDayChange, onReload }: { today: string; mode: PanelMode; onDayChange: () => void; onReload: () => void }) {
+  const isTrial = mode === 'trial'
+  // the platforms of this panel and day (trial: no X; WhatsApp + Telegram on WhatsApp days only)
+  const platforms = isTrial ? trialPlatformsFor(today) : POSTING_PLATFORMS
+  const generated = platforms.filter(p => !p.derivedFrom)
+  // trial drafts are generated for today's December date, or for Dec 1 as a preview before the trial
+  const trialDraftDate = inTrial(today) ? today : TRIAL_START
+  const phase = trialPhase(new Date())
+  // where marking posted is off: the trial tab before December (preview), Daily Posts during December
+  const markingOff = isTrial ? phase !== 'running' : inTrial(today)
+  const [trialPosted, setTrialPosted] = useState<Set<string>>(new Set())
   const [loaded, setLoaded] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [rows, setRows] = useState<ApprovedRow[]>([])
@@ -141,7 +170,8 @@ function DailyDay({ today, onDayChange, onReload }: { today: string; onDayChange
 
   const articleId = dayArticle?.id ?? Object.values(posts)[0]?.article_id ?? null
   const articleTitle = dayArticle?.title ?? Object.values(posts)[0]?.article_title ?? null
-  const posted = postedPlatforms(rows, articleId)
+  // trial: a platform counts as posted only with a trial row (an approval made elsewhere is not a trial post)
+  const posted = isTrial ? trialPosted : postedPlatforms(rows, articleId)
   // nothing that can write a "posted" row or change the article runs until today's posted state is known
   const ready = loaded && !loadError
   const photo = photoArticle?.id === articleId ? photoArticle : null // never the previous article's abstract
@@ -170,8 +200,8 @@ function DailyDay({ today, onDayChange, onReload }: { today: string; onDayChange
       articleId: dayArticle?.id ?? first?.article_id ?? null,
       articleTitle: dayArticle?.title ?? first?.article_title ?? null,
       posts, failed,
-    })
-  }, [loaded, today, posts, failed, dayArticle])
+    }, mode)
+  }, [loaded, today, posts, failed, dayArticle, mode])
 
   const loadMissingUrls = async () => {
     try {
@@ -188,7 +218,7 @@ function DailyDay({ today, onDayChange, onReload }: { today: string; onDayChange
     cleanupOldStores(date)
     loadMissingUrls()
     ;(async () => {
-      const stored = readStore(date)
+      const stored = readStore(date, mode)
       let todayRows: ApprovedRow[] = []
       let fixed: Article | null = null
       try {
@@ -199,19 +229,28 @@ function DailyDay({ today, onDayChange, onReload }: { today: string; onDayChange
         todayRows = data.rows || []
         fixed = data.article ? { id: data.article.id, title: data.article.title } : null
         if (!cancelled && typeof data.streak === 'number') setStreak({ days: data.streak, capped: !!data.streak_capped })
+        if (isTrial) {
+          const tr = await fetch('/api/admin/growth/trial/today')
+          const td = await tr.json()
+          if (!tr.ok) throw new Error(td.details || td.error || `HTTP ${tr.status}`)
+          if (!cancelled) setTrialPosted(new Set((td.rows ?? []).filter((r: { article_id: string }) => !fixed || r.article_id === fixed.id).map((r: { platform: string }) => r.platform)))
+        }
       } catch (e) {
         if (!cancelled) setLoadError(`Couldn't load today's posted state (${e instanceof Error ? e.message : String(e)}) — generating and marking posted are off until it loads`)
       }
       if (cancelled) return
-      const r = reconcileDay(stored?.posts ?? {}, todayRows)
+      // trial drafts made for another date / assignment (e.g. the Dec 1 preview on Dec 2) are dropped like other-article ones
+      const storedPosts = Object.fromEntries(Object.entries(stored?.posts ?? {}).filter(([, d]) =>
+        !isTrial || (d as Post).trial_date === trialDraftDate)) as Record<string, Post>
+      const r = reconcileDay(storedPosts, todayRows)
       setRows(todayRows)
       setDayArticle(fixed)
       setPosts(r.drafts as Record<string, Post>)
       // platforms still without a post (failed earlier, or a dropped draft) stay retryable after a reload
       const drafts = r.drafts as Record<string, Post>
-      setFailed([...new Set([...(stored?.failed ?? []), ...r.dropped])].filter(p => GENERATED_PLATFORMS.some(g => g.platform === p) && !drafts[p]))
+      setFailed([...new Set([...(stored?.failed ?? []), ...r.dropped])].filter(p => generated.some(g => g.platform === p) && !drafts[p]))
       if (r.dropped.length) setMessage({ type: 'error', text: `Dropped ${r.dropped.length} draft(s) for a different article than today's — use Retry Failed to regenerate them` })
-      const firstTab = POSTING_PLATFORMS.find(p => (r.drafts as Record<string, Post>)[p.derivedFrom ?? p.platform])?.platform
+      const firstTab = platforms.find(p => (r.drafts as Record<string, Post>)[p.derivedFrom ?? p.platform])?.platform
       if (firstTab) setActiveTab(firstTab)
       setLoaded(true)
     })()
@@ -311,7 +350,7 @@ function DailyDay({ today, onDayChange, onReload }: { today: string; onDayChange
     setBusy('all'); setMessage(null) // `failed` stays until replaced, so a reload mid-retry keeps it
     const recent = recentPosts()
     const next: Record<string, Post> = keepExisting ? { ...posts } : {}
-    const todo = GENERATED_PLATFORMS.filter(p => !(keepExisting && next[p.platform]))
+    const todo = generated.filter(p => !(keepExisting && next[p.platform]))
     let shared: string | null = locked?.id ?? (keepExisting ? articleId : null)
     const failedNow: string[] = []
     try {
@@ -322,7 +361,7 @@ function DailyDay({ today, onDayChange, onReload }: { today: string; onDayChange
         let got: GenerateResult | null = null
         for (let attempt = 0; attempt < 3 && !got; attempt++) {
           if (!op.current.alive) return
-          const r = await generate({ platform: first.platform, language: first.language, recentPosts: recent })
+          const r = await generate({ platform: first.platform, language: first.language, recentPosts: recent, ...(isTrial ? { trial: true } : {}) })
           if (r.ok) got = r.data
           else if (r.status >= 400 && r.status < 500) { setMessage({ type: 'error', text: r.error }); return }
         }
@@ -337,7 +376,7 @@ function DailyDay({ today, onDayChange, onReload }: { today: string; onDayChange
         const settled = await Promise.all(batch.map(async p => {
           for (let attempt = 0; attempt < 2; attempt++) {
             if (!op.current.alive) return { p, error: 'stopped' }
-            const r = await generate({ platform: p.platform, language: p.language, recentPosts: recent, article_id: shared! })
+            const r = await generate({ platform: p.platform, language: p.language, recentPosts: recent, article_id: shared!, ...(isTrial ? { trial: true } : {}) })
             if (r.ok && r.data.article_id === shared) return { p, data: r.data }
             if (r.ok) return { p, mismatch: r.data.article_title ?? r.data.article_id }
             if (r.status >= 400 && r.status < 500) return { p, error: r.error }
@@ -361,11 +400,11 @@ function DailyDay({ today, onDayChange, onReload }: { today: string; onDayChange
       }
       setPosts(next)
       setFailed(failedNow)
-      if (!activeTab || !next[activeTab]) setActiveTab(POSTING_PLATFORMS.find(p => next[p.derivedFrom ?? p.platform])?.platform ?? '')
+      if (!activeTab || !next[activeTab]) setActiveTab(platforms.find(p => next[p.derivedFrom ?? p.platform])?.platform ?? '')
       const made = Object.keys(next).length
       setMessage(prev => prev?.type === 'error' && failedNow.length ? prev : {
         type: failedNow.length ? 'error' : 'success',
-        text: `${failedNow.length ? '⚠️' : '✅'} ${made}/${GENERATED_PLATFORMS.length} posts for one article${failedNow.length ? ` — failed: ${failedNow.join(', ')}` : ''} (Telegram follows WhatsApp)`,
+        text: `${failedNow.length ? '⚠️' : '✅'} ${made}/${generated.length} posts for one article${failedNow.length ? ` — failed: ${failedNow.join(', ')}` : ''} (Telegram follows WhatsApp)`,
       })
     } finally {
       op.current.generating = false
@@ -393,7 +432,7 @@ function DailyDay({ today, onDayChange, onReload }: { today: string; onDayChange
         if (!abstractOverride) { setMessage({ type: 'error', text: 'No study summary available for this article' }); return }
       }
       const r = await generate({
-        platform, language: info.language, article_id: articleId,
+        platform, language: info.language, article_id: articleId, ...(isTrial ? { trial: true } : {}),
         ...(instruction && current ? { style_instruction: instruction, existing_post: current.post_content } : {}),
         ...(abstractOverride ? { abstract_override: abstractOverride } : {}),
       })
@@ -421,9 +460,28 @@ function DailyDay({ today, onDayChange, onReload }: { today: string; onDayChange
     } catch { return null }
   }))
 
+  // trial: the approval + trial row in one call (record_trial_post); the text is exactly what was copied
+  const trialGuard = useRef(onceGuard<string>(async key => {
+    const [platform, article, text, comment] = JSON.parse(key) as [string, string, string, string | null]
+    try {
+      const res = await fetch('/api/admin/growth/trial/mark', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ article_id: article, platform, final_text: text, comment_text: comment }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (res.ok && data.approval_id) return String(data.approval_id)
+      setMessage({ type: 'error', text: `⚠️ ${platformInfo(platform)?.name}: copied, but NOT recorded — ${data.error || `HTTP ${res.status}`}` })
+      return null
+    } catch { return null }
+  }))
+
   const copyAndMark = async (platform: string) => {
     const text = textFor(platform)
     if (!text || !articleId) return
+    if (isTrial && platform === 'linkedin' && hasTakePlaceholder(text)) {
+      setMessage({ type: 'error', text: `Rewrite the ${TAKE_MARKER} …] line in your own words first — nothing was copied` })
+      return
+    }
     const already = posted.has(platform)
     if (!already && op.current.generating) { setMessage({ type: 'error', text: 'Posts are generating — copy and mark once they are done' }); return }
     if (!already) op.current.marking++ // held from before the clipboard wait: no generation can start in between
@@ -437,6 +495,12 @@ function DailyDay({ today, onDayChange, onReload }: { today: string; onDayChange
       }
       setCopyFailed(null)
       setCopiedTab(platform); setTimeout(() => setCopiedTab(t => (t === platform ? null : t)), 2000)
+      if (markingOff && !already) {
+        setMessage({ type: 'error', text: isTrial
+          ? 'Copied — preview only: the trial records posts from 2026-12-01'
+          : 'Copied — NOT marked posted: the December trial is running, post from 🧪 December Trial' })
+        return
+      }
       await markPosted(platform, text)
     } finally {
       if (!already) op.current.marking--
@@ -450,20 +514,25 @@ function DailyDay({ today, onDayChange, onReload }: { today: string; onDayChange
     if (!ready) { setMessage({ type: 'error', text: "Copied — but NOT marked posted: today's posted state didn't load. Press Retry loading, then mark again." }); return }
     if (op.current.generating) { setMessage({ type: 'error', text: 'Copied — but NOT marked posted while posts are generating. Mark it once they are done.' }); return }
     if (dayChanged()) return
+    if (markingOff) return
     setCopyFailed(null)
     setMarking(platform)
     op.current.marking++
     let id: string | null
     try {
-      id = await guard.current(JSON.stringify([platform, articleId, hookOf(text)]))
+      id = isTrial
+        ? await trialGuard.current(JSON.stringify([platform, articleId, text, platform === 'linkedin' ? posts.linkedin?.comment_text ?? null : null]))
+        : await guard.current(JSON.stringify([platform, articleId, hookOf(text)]))
     } finally {
       op.current.marking--
       setMarking(null)
     }
     if (!id) {
-      setMessage({ type: 'error', text: `⚠️ ${platformInfo(platform)?.name}: copied, but NOT marked as posted — try again${platform === 'facebook_il' ? ' (vetree.app/il would open the previous article)' : ''}` })
+      // the trial guard already showed the server's reason
+      if (!isTrial) setMessage({ type: 'error', text: `⚠️ ${platformInfo(platform)?.name}: copied, but NOT marked as posted — try again${platform === 'facebook_il' ? ' (vetree.app/il would open the previous article)' : ''}` })
       return
     }
+    if (isTrial) setTrialPosted(prev => new Set([...prev, platform]))
     setRows(prev => prev.some(r => r.id === id) ? prev : [...prev, { id, article_id: articleId, platform, created_at: new Date().toISOString(), posted_url: null }])
     if (!dayArticle) setDayArticle({ id: articleId, title: articleTitle ?? articleId })
     setMessage({ type: 'success', text: `✅ ${platformInfo(platform)?.name}: copied and marked posted${platform === 'facebook_il' ? ' — vetree.app/il opens this article' : ''}` })
@@ -471,6 +540,12 @@ function DailyDay({ today, onDayChange, onReload }: { today: string; onDayChange
 
   const skip = async (platform: string) => {
     if (!articleId) return
+    // trial: never drop the source of a recorded copy (WhatsApp once Telegram is recorded) — Retry Failed would
+    // regenerate it and change the recorded Telegram text
+    if (isTrial && platforms.some(p => p.derivedFrom === platform && posted.has(p.platform))) {
+      setMessage({ type: 'error', text: `${platformInfo(platform)?.name} can't be skipped — its text is already posted elsewhere` })
+      return
+    }
     fetch('/api/growth/feedback', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ article_id: articleId, platform, language: platformInfo(platform)?.language ?? 'en', outcome: 'skipped' }),
@@ -503,7 +578,7 @@ function DailyDay({ today, onDayChange, onReload }: { today: string; onDayChange
   }
 
   const generateImage = async () => {
-    const first = GENERATED_PLATFORMS.find(p => posts[p.platform])
+    const first = generated.find(p => posts[p.platform])
     if (!first || !articleId) return
     setBusy('img')
     try {
@@ -526,7 +601,10 @@ function DailyDay({ today, onDayChange, onReload }: { today: string; onDayChange
   // ─── View ───────────────────────────────────────────────────────────────────────────────────────────────────
   const hasPosts = Object.keys(posts).length > 0
   const canPick = !articleId && !hasPosts   // the day's article can still be chosen
-  const allPosted = POSTING_PLATFORMS.every(p => posted.has(p.platform))
+  const allPosted = platforms.every(p => posted.has(p.platform))
+  const assignment = isTrial ? assignmentFor(today, { preview: true }) : null
+  const editText = (platform: string, value: string) =>
+    setPosts(prev => (prev[platform] ? { ...prev, [platform]: { ...prev[platform], post_content: value } } : prev))
   const linkedinRow = rows.find(r => r.platform === 'linkedin' && r.article_id === articleId)
   const chip = (on: boolean) => `px-3 py-1 text-xs rounded-full transition ${on ? 'bg-emerald-700 text-white' : 'bg-zinc-700 dark:bg-zinc-800 text-zinc-300 hover:bg-zinc-600 dark:hover:bg-zinc-700'}`
 
@@ -568,13 +646,28 @@ function DailyDay({ today, onDayChange, onReload }: { today: string; onDayChange
       <div className={`bg-white dark:bg-[#1A1A1A] border-2 rounded-lg p-6 transition-colors ${allPosted ? 'border-green-500 dark:border-green-600' : 'border-zinc-200 dark:border-zinc-800'}`} data-testid="daily-posts">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-xl font-semibold text-[#1A1A1A] dark:text-[#E8E8E8]">Today&apos;s Posts</h2>
+            <h2 className="text-xl font-semibold text-[#1A1A1A] dark:text-[#E8E8E8]">{isTrial ? '🧪 December Trial — today\'s posts' : 'Today\'s Posts'}</h2>
             <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1">
               {today} · one article, every platform{streak && ` · 🔥 ${streak.days}${streak.capped ? '+' : ''}-day streak`}
             </p>
           </div>
-          <div className="text-sm text-zinc-500" data-testid="posted-count">{posted.size}/{POSTING_PLATFORMS.length} posted</div>
+          <div className="text-sm text-zinc-500" data-testid="posted-count">{[...posted].filter(p => platforms.some(x => x.platform === p)).length}/{platforms.length} posted</div>
         </div>
+        {isTrial && assignment && (
+          <div className="mb-4 p-3 rounded-lg text-sm bg-sky-50 dark:bg-sky-950/30 border border-sky-300 dark:border-sky-800 text-sky-900 dark:text-sky-200" data-testid="trial-banner">
+            {phase === 'running'
+              ? <>Trial day {trialDayNumber(today)}/31</>
+              : <>Preview — the trial starts 2026-12-01; posts can be generated and copied but are not recorded (Dec 1&apos;s assignment shown)</>}
+            {' · '}LinkedIn: {assignment.linkedin === 'in_post' ? 'link in the post' : 'link in the first comment'}
+            {' · '}{assignment.whatsapp ? `WhatsApp + Telegram: ${assignment.whatsapp} format` : 'no WhatsApp / Telegram today'}
+            {' · '}no X
+          </div>
+        )}
+        {!isTrial && markingOff && (
+          <div className="mb-4 p-3 rounded-lg text-sm bg-sky-50 dark:bg-sky-950/30 border border-sky-300 dark:border-sky-800 text-sky-900 dark:text-sky-200" data-testid="trial-running">
+            December trial running (2026-12-01 → 12-31) — post from 🧪 December Trial. Marking posted is off here.
+          </div>
+        )}
 
         {loadError && (
           <div className="mb-4 p-3 rounded-lg text-sm bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-200 flex flex-wrap items-center gap-3" data-testid="load-error">
@@ -724,8 +817,9 @@ function DailyDay({ today, onDayChange, onReload }: { today: string; onDayChange
         {hasPosts && (
           <div className="mt-2">
             <div className="flex flex-wrap gap-1 mb-3" role="tablist">
-              {POSTING_PLATFORMS.map(p => {
-                const has = !!textFor(p.platform)
+              {platforms.map(p => {
+                // trial cards stay (and stay editable) even when their text is cleared
+                const has = isTrial ? textFor(p.platform) !== null : !!textFor(p.platform)
                 if (!has && !failed.includes(p.platform)) return null
                 return (
                   <button key={p.platform} type="button" role="tab" aria-selected={activeTab === p.platform} onClick={() => setActiveTab(p.platform)} className={chip(activeTab === p.platform)} data-testid={`tab-${p.platform}`}>
@@ -740,8 +834,10 @@ function DailyDay({ today, onDayChange, onReload }: { today: string; onDayChange
               const info = platformInfo(activeTab)
               const text = textFor(activeTab)
               if (!info) return null
-              if (!text) return <div className="p-4 rounded-lg border border-zinc-700 text-sm text-zinc-400">No post for {info.name} — use Retry Failed{info.derivedFrom ? ` (Telegram follows ${platformInfo(info.derivedFrom)?.name})` : ''}.</div>
+              if (text === null || (!isTrial && !text)) return <div className="p-4 rounded-lg border border-zinc-700 text-sm text-zinc-400">No post for {info.name} — use Retry Failed{info.derivedFrom ? ` (Telegram follows ${platformInfo(info.derivedFrom)?.name})` : ''}.</div>
               const isPosted = posted.has(activeTab)
+              // trial: a recorded post keeps its text — WhatsApp too once Telegram (which copies it) is recorded
+              const locked = isTrial && (isPosted || platforms.some(p => p.derivedFrom === activeTab && posted.has(p.platform)))
               return (
                 <div className="relative bg-zinc-900 dark:bg-zinc-950 rounded-lg p-4 border border-zinc-700 dark:border-zinc-800" data-testid={`card-${activeTab}`}>
                   {busy === `rewrite:${activeTab}` && (
@@ -750,19 +846,35 @@ function DailyDay({ today, onDayChange, onReload }: { today: string; onDayChange
                     </div>
                   )}
                   {info.derivedFrom && <p className="text-xs text-zinc-500 mb-2">The {platformInfo(info.derivedFrom)?.name} post with Telegram tracking — edit it on the {platformInfo(info.derivedFrom)?.name} card.</p>}
-                  <pre className="whitespace-pre-wrap text-sm font-mono text-zinc-200 dark:text-zinc-300" data-testid="post-text">{text}</pre>
+                  {isTrial && !info.derivedFrom && !locked ? (
+                    <textarea value={text} onChange={e => editText(activeTab, e.target.value)} rows={Math.min(24, Math.max(8, text.split('\n').length + 2))} data-testid="post-text"
+                      className="w-full whitespace-pre-wrap text-sm font-mono text-zinc-200 bg-transparent border border-zinc-700 rounded p-2 focus:outline-none focus:border-emerald-600" />
+                  ) : (
+                    <pre className="whitespace-pre-wrap text-sm font-mono text-zinc-200 dark:text-zinc-300" data-testid="post-text">{text}</pre>
+                  )}
+                  {isTrial && activeTab === 'linkedin' && hasTakePlaceholder(text) && (
+                    <p className="mt-2 text-xs text-amber-400" data-testid="take-warning">✍️ Rewrite the {TAKE_MARKER} …] line in your own words — Copy stays off until it&apos;s gone.</p>
+                  )}
+                  {isTrial && activeTab === 'linkedin' && posts.linkedin?.comment_text && (
+                    <div className="mt-3 p-3 rounded-md bg-zinc-800 border border-zinc-700">
+                      <p className="text-xs text-zinc-400 mb-1">Today the link goes in the FIRST COMMENT — post, then add this comment straight away:</p>
+                      <pre className="whitespace-pre-wrap text-xs font-mono text-zinc-300">{posts.linkedin.comment_text}</pre>
+                      <button type="button" onClick={() => navigator.clipboard.writeText(posts.linkedin?.comment_text ?? '').catch(() => setMessage({ type: 'error', text: 'Copy failed — select the comment and copy it by hand' }))}
+                        className="mt-2 text-xs px-3 py-1 bg-zinc-700 hover:bg-zinc-600 text-zinc-200 rounded">📋 Copy comment</button>
+                    </div>
+                  )}
 
                   <div className="flex items-center gap-2 mt-3 flex-wrap">
-                    <button type="button" onClick={() => copyAndMark(activeTab)} disabled={marking === activeTab || busy === 'all'} data-testid="copy-mark"
+                    <button type="button" onClick={() => copyAndMark(activeTab)} disabled={marking === activeTab || busy === 'all' || (isTrial && activeTab === 'linkedin' && hasTakePlaceholder(text))} data-testid="copy-mark"
                       className={`flex items-center gap-1.5 text-sm px-4 py-2 rounded-md transition font-medium ${isPosted ? 'bg-zinc-700 text-zinc-300 hover:bg-zinc-600' : 'bg-green-600 hover:bg-green-700 text-white'} disabled:opacity-60`}>
                       {copiedTab === activeTab ? <Check size={14} /> : <Copy size={14} />}
-                      {marking === activeTab ? 'Marking…' : isPosted ? 'Copy again (posted ✅)' : 'Copy & mark posted'}
+                      {marking === activeTab ? 'Marking…' : isPosted ? 'Copy again (posted ✅)' : markingOff ? (isTrial ? 'Copy (preview — not recorded)' : 'Copy (not recorded — trial running)') : 'Copy & mark posted'}
                     </button>
                     {copyFailed === activeTab && !isPosted && (
                       <button type="button" onClick={() => markPosted(activeTab, text)} disabled={marking === activeTab || busy === 'all'} data-testid="mark-manual"
                         className="text-sm px-3 py-2 bg-amber-700 hover:bg-amber-600 text-white rounded-md transition disabled:opacity-50">I copied it by hand — mark posted</button>
                     )}
-                    {!isPosted && !info.derivedFrom && (
+                    {!isPosted && !info.derivedFrom && !locked && (
                       <button type="button" onClick={() => skip(activeTab)} disabled={!!busy} className="text-sm px-3 py-2 bg-zinc-700 text-zinc-300 rounded-md hover:bg-zinc-600 transition disabled:opacity-50">⏭ Skip</button>
                     )}
                   </div>
@@ -793,8 +905,8 @@ function DailyDay({ today, onDayChange, onReload }: { today: string; onDayChange
                     </div>
                   )}
 
-                  {/* Rewrites — not on Telegram (it follows WhatsApp) */}
-                  {!info.derivedFrom && (
+                  {/* Rewrites — not on Telegram (it follows WhatsApp); a recorded trial post keeps the text it was posted with */}
+                  {!info.derivedFrom && !locked && (
                     <div className="flex gap-2 mt-3 flex-wrap">
                       {Object.entries(STYLE_PROMPTS).map(([key, instruction]) => (
                         <button key={key} type="button" onClick={() => rewrite(activeTab, instruction)} disabled={!!busy}

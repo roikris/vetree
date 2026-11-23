@@ -265,6 +265,11 @@
         }
       }
     },
+    "public.growth_trial_posts": {
+      "rls": true,
+      "forced": false,
+      "policies": {}
+    },
     "public.linkedin_daily_metrics": {
       "rls": true,
       "forced": false,

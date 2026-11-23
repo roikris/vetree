@@ -9,6 +9,10 @@ import { createClient } from '@/lib/supabase/server'
 import { CLAUDE_MODEL, NO_UPFRONT_THINKING, responseText } from '@/lib/ai/model'
 import { rankGrowthCandidates } from '@/lib/growth/candidates'
 import { excludedUsersOrFilter } from '@/lib/analytics-excluded-ids'
+import { israelDate } from '@/lib/growth/daily'
+import { hasLink } from '@/lib/growth/linkFree'
+import { TRIAL_PLATFORMS, TRIAL_START, assignmentFor, inTrial, trialCampaign, variantFor, type LinkedinVariant } from '@/lib/growth/trial'
+import { linkedinTrialPrompt, linkedinFirstComment, whatsappShortPrompt } from '@/lib/growth/trialPrompts'
 
 export async function POST(request: NextRequest) {
   const startedAt = Date.now()
@@ -53,6 +57,15 @@ export async function POST(request: NextRequest) {
     const styleInstruction: string | undefined = body.style_instruction
     const abstractOverride: string | undefined = body.abstract_override
     const existingPost: string | undefined = body.existing_post
+    // December trial (growth-005): the 🧪 tab sends trial: true. The variant comes from the Israel date (never from the
+    // client); before December the tab previews with Dec 1's assignment. Without `trial` nothing below changes.
+    const trial = body.trial === true
+    const trialDay = israelDate(new Date())
+    const trialDate = inTrial(trialDay) ? trialDay : TRIAL_START
+    const trialVariant = trial ? variantFor(platform, assignmentFor(trialDay, { preview: true })) : null
+    if (trial && !TRIAL_PLATFORMS.some(p => p.platform === platform && !p.derivedFrom)) {
+      return NextResponse.json({ error: `Not a generated trial platform: ${platform}` }, { status: 400 })
+    }
     console.log('[generate-post] platform:', platform, 'forced article_id:', articleId || '(none)', 'style rewrite:', !!styleInstruction)
 
     let postContent = ''
@@ -144,7 +157,12 @@ export async function POST(request: NextRequest) {
       threads: 'utm_source=threads&utm_medium=social',
     }
 
-    const articleUrl = `https://vetree.app/article/${article.id}?${utmParams[platform as keyof typeof utmParams] || 'utm_source=social&utm_medium=social'}`
+    const baseUtm = utmParams[platform as keyof typeof utmParams] || 'utm_source=social&utm_medium=social'
+    // trial posts carry a per-post token in utm_campaign (facebook_intl's 'intl' becomes 'intl-trial-YYYYMMDD')
+    const campaign = trial ? trialCampaign(platform, trialDate) : null
+    const articleUrl = `https://vetree.app/article/${article.id}?${campaign
+      ? `${baseUtm.replace(/&utm_campaign=[^&]*/, '')}&utm_campaign=${campaign}`
+      : baseUtm}`
 
     // Save CTA — rotating clause by weekday, replaces 🌿 vetree.app footer
     const saveUrl = `${articleUrl}&intent=save&utm_content=save-line`
@@ -274,9 +292,24 @@ Shorter = more completions = more reach.`
 
     const platformRule = platformRules[platform as keyof typeof platformRules] || platformRules.telegram
 
+    // Trial: Roi's recent openings on this platform, which the trial prompts must not echo (the repetition guard the
+    // daily panel's unused `recentPosts` never provided)
+    let recentHooks: string[] = []
+    if (trial && (platform === 'linkedin' || (platform === 'whatsapp' && trialVariant === 'short'))) {
+      const { data: hooks, error: hooksError } = await supabase.from('growth_agent_memory')
+        .select('hook_line').eq('platform', platform).eq('outcome', 'approved').not('hook_line', 'is', null)
+        .order('created_at', { ascending: false }).limit(10)
+      if (hooksError) throw new Error(`recent openings: ${hooksError.message}`)
+      recentHooks = (hooks ?? []).map(h => h.hook_line as string)
+    }
+
     // Build platform-specific prompt
     let promptContent: string
-    if (platform === 'twitter') {
+    if (trial && platform === 'linkedin') {
+      promptContent = linkedinTrialPrompt(article, { variant: (trialVariant ?? 'in_post') as LinkedinVariant, articleUrl, recentHooks })
+    } else if (trial && platform === 'whatsapp' && trialVariant === 'short') {
+      promptContent = whatsappShortPrompt(article, { articleUrl, recentHooks })
+    } else if (platform === 'twitter') {
       promptContent = `PLATFORM: Twitter
 PLATFORM RULE: ${platformRule}
 
@@ -464,6 +497,16 @@ Return ONLY the post text. Follow the platform rule exactly.`
     }
     postContent = processed.post
 
+    // Trial LinkedIn 'first_comment': the post itself carries no link; the app writes the comment with it
+    let commentText: string | null = null
+    if (trial && platform === 'linkedin' && trialVariant === 'first_comment') {
+      postContent = postContent.split('\n').filter(l => !/^\s*(🔗|💾)/.test(l)).join('\n').trim()
+      if (hasLink(postContent)) {
+        return NextResponse.json({ error: 'The LinkedIn post came back with a link (this variant must have none) — regenerate' }, { status: 500 })
+      }
+      commentText = linkedinFirstComment(article.title, articleUrl)
+    }
+
     // Twitter-specific length check
     if (platform === 'twitter' && postContent.length > 280) {
       console.log(`[generate-post] Tweet too long (${postContent.length} chars), asking Claude to shorten...`)
@@ -517,7 +560,8 @@ Return ONLY the shortened tweet (under 280 chars).`
       crowd_favorite: !!article.crowdFavorite,
       hook_line: hookLine,
       article_url: `vetree.app/article/${article.id}`,
-      source_journal: article.source_journal || 'N/A'
+      source_journal: article.source_journal || 'N/A',
+      ...(trial ? { trial_date: trialDate, trial_variant: trialVariant, comment_text: commentText } : {}),
     })
 
   } catch (error) {

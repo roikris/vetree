@@ -50,11 +50,16 @@ export function usePageTracking() {
     const utm_campaign = searchParams.get('utm_campaign') || null
     const utm_id = searchParams.get('utm_id') || null
 
-    // Store in sessionStorage so UTMs persist across pages within same session
-    if (utm_source) sessionStorage.setItem('utm_source', utm_source)
-    if (utm_medium) sessionStorage.setItem('utm_medium', utm_medium)
-    if (utm_campaign) sessionStorage.setItem('utm_campaign', utm_campaign)
-    if (utm_id) sessionStorage.setItem('utm_id', utm_id)
+    // Store in sessionStorage so UTMs persist across pages within same session. A new tagged arrival replaces the
+    // whole set (absent ones removed): mixing one link's source with an earlier link's campaign would credit the wrong
+    // post (growth-005 attributes December visits by utm_source + utm_campaign). A page without any keeps the set.
+    if (utm_source || utm_medium || utm_campaign || utm_id) {
+      const utms = { utm_source, utm_medium, utm_campaign, utm_id }
+      for (const [key, value] of Object.entries(utms)) {
+        if (value) sessionStorage.setItem(key, value)
+        else sessionStorage.removeItem(key)
+      }
+    }
 
     // Visible time: accumulated while the document is visible
     let visibleMs = 0

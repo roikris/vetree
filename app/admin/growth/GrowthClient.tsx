@@ -4,6 +4,8 @@ import { useState } from 'react'
 import { DailyPosts } from './DailyPosts'
 import { SynthesisPosts } from './SynthesisPosts'
 import { DigestDryRun } from './DigestDryRun'
+import { TrialTab } from './TrialTab'
+import { trialPhase } from '@/lib/growth/trial'
 // Daily posts (growth-002): every day one article goes to every platform — DailyPosts.tsx. Posts are generated fresh
 // by the Content Agent route (not pre-written); UTM tracking is embedded automatically per platform. The standalone
 // Content Agent tab and the 90-day rotation calendar were removed (unused; Roi 2026-10-13).
@@ -18,7 +20,7 @@ type GrowthClientProps = {
 }
 
 export function GrowthClient({}: GrowthClientProps) {
-  const [activeTab, setActiveTab] = useState<'campaign' | 'synthesis' | 'digest'>('campaign')
+  const [activeTab, setActiveTab] = useState<'campaign' | 'trial' | 'synthesis' | 'digest'>(() => (trialPhase(new Date()) === 'running' ? 'trial' : 'campaign'))
 
   return (
     <div className="space-y-8">
@@ -33,6 +35,16 @@ export function GrowthClient({}: GrowthClientProps) {
           }`}
         >
           📅 Daily Posts
+        </button>
+        <button
+          onClick={() => setActiveTab('trial')}
+          className={`px-4 py-2 font-medium transition-colors ${
+            activeTab === 'trial'
+              ? 'text-[#3D7A5F] dark:text-[#4E9A78] border-b-2 border-[#3D7A5F] dark:border-[#4E9A78]'
+              : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300'
+          }`}
+        >
+          🧪 December Trial
         </button>
         <button
           onClick={() => setActiveTab('synthesis')}
@@ -59,6 +71,8 @@ export function GrowthClient({}: GrowthClientProps) {
       {/* Content based on active tab */}
       {activeTab === 'campaign' ? (
         <DailyPosts />
+      ) : activeTab === 'trial' ? (
+        <TrialTab />
       ) : activeTab === 'synthesis' ? (
         <SynthesisPosts />
       ) : (
