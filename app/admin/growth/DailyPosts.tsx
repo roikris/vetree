@@ -11,6 +11,7 @@ import { onceGuard } from '@/lib/growth/approvals'
 import {
   TRIAL_START, inTrial, trialPhase, trialPlatformsFor, trialDayNumber, assignmentFor, hasTakePlaceholder, TAKE_MARKER,
 } from '@/lib/growth/trial'
+import { pickAfterGenerate, pickSourceFor, type Pick } from '@/lib/growth/pickSource'
 
 // Growth OS — the daily posts (growth-002, replaces CampaignCalendar.tsx). The owner's flow (Roi, 2026-10-13): every
 // day ONE article goes to EVERY platform. Generate All writes a post per platform for one article (Telegram = the
@@ -48,8 +49,9 @@ type Post = Draft & {
   trial_date?: string; trial_variant?: string | null; comment_text?: string | null
 }
 export type PanelMode = 'daily' | 'trial'
-type DayStore = { articleId: string | null; articleTitle: string | null; posts: Record<string, Post>; failed?: string[] }
-type Article = { id: string; title: string; crowdFavorite?: boolean }
+// pick (trial only, growth-006): how the day's article was chosen, bound to that article id
+type DayStore = { articleId: string | null; articleTitle: string | null; posts: Record<string, Post>; failed?: string[]; pick?: Pick | null }
+type Article = { id: string; title: string; crowdFavorite?: boolean; source?: 'recommendation' | 'search' }
 
 // Drafts are this browser's, per Israel day (posted state is in the database)
 const STORE_PREFIX: Record<PanelMode, string> = { daily: 'vetree_daily_posts_', trial: 'vetree_trial_posts_' }
@@ -146,6 +148,9 @@ function DailyDay({ today, mode, onDayChange, onReload }: { today: string; mode:
   const [exclusionNote, setExclusionNote] = useState<string | null>(null)
 
   const [selected, setSelected] = useState<Article | null>(null)
+  // trial: how the day's article was chosen (growth-006) — sent with each mark; its own warning, never overwritten
+  const [pick, setPick] = useState<Pick | null>(null)
+  const [pickWarning, setPickWarning] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [results, setResults] = useState<{ id: string; title: string; source_journal?: string }[]>([])
   const [showResults, setShowResults] = useState(false)
@@ -199,9 +204,9 @@ function DailyDay({ today, mode, onDayChange, onReload }: { today: string; mode:
     writeStore(today, {
       articleId: dayArticle?.id ?? first?.article_id ?? null,
       articleTitle: dayArticle?.title ?? first?.article_title ?? null,
-      posts, failed,
+      posts, failed, ...(isTrial ? { pick } : {}),
     }, mode)
-  }, [loaded, today, posts, failed, dayArticle, mode])
+  }, [loaded, today, posts, failed, dayArticle, mode, isTrial, pick])
 
   const loadMissingUrls = async () => {
     try {
@@ -246,6 +251,11 @@ function DailyDay({ today, mode, onDayChange, onReload }: { today: string; mode:
       setRows(todayRows)
       setDayArticle(fixed)
       setPosts(r.drafts as Record<string, Post>)
+      // the stored pick survives only for the article the kept drafts / today's posts are for
+      if (isTrial) {
+        const keptArticle = fixed?.id ?? Object.values(r.drafts as Record<string, Post>)[0]?.article_id ?? null
+        setPick(stored?.pick && stored.pick.articleId === keptArticle ? stored.pick : null)
+      }
       // platforms still without a post (failed earlier, or a dropped draft) stay retryable after a reload
       const drafts = r.drafts as Record<string, Post>
       setFailed([...new Set([...(stored?.failed ?? []), ...r.dropped])].filter(p => generated.some(g => g.platform === p) && !drafts[p]))
@@ -352,6 +362,7 @@ function DailyDay({ today, mode, onDayChange, onReload }: { today: string; mode:
     const next: Record<string, Post> = keepExisting ? { ...posts } : {}
     const todo = generated.filter(p => !(keepExisting && next[p.platform]))
     let shared: string | null = locked?.id ?? (keepExisting ? articleId : null)
+    let serverPicked = false
     const failedNow: string[] = []
     try {
       // the first platform fixes the article when the server picks (up to 3 tries if it lands on a large-animal one)
@@ -367,6 +378,7 @@ function DailyDay({ today, mode, onDayChange, onReload }: { today: string; mode:
         }
         if (!got) { setMessage({ type: 'error', text: 'Could not find a suitable article after 3 attempts' }); return }
         shared = got.article_id
+        serverPicked = true
         next[first.platform] = { ...toPost(got, first.language), crowd_favorite: !!got.crowd_favorite }
         noteExclusions(got.article_labels)
       }
@@ -400,6 +412,7 @@ function DailyDay({ today, mode, onDayChange, onReload }: { today: string; mode:
       }
       setPosts(next)
       setFailed(failedNow)
+      if (isTrial) setPick(prev => pickAfterGenerate({ sharedId: shared, dayFixed: !!dayArticle, serverPicked, selected: locked === selected ? selected : null, previous: prev }))
       if (!activeTab || !next[activeTab]) setActiveTab(platforms.find(p => next[p.derivedFrom ?? p.platform])?.platform ?? '')
       const made = Object.keys(next).length
       setMessage(prev => prev?.type === 'error' && failedNow.length ? prev : {
@@ -462,14 +475,17 @@ function DailyDay({ today, mode, onDayChange, onReload }: { today: string; mode:
 
   // trial: the approval + trial row in one call (record_trial_post); the text is exactly what was copied
   const trialGuard = useRef(onceGuard<string>(async key => {
-    const [platform, article, text, comment] = JSON.parse(key) as [string, string, string, string | null]
+    const [platform, article, text, comment, pickSource] = JSON.parse(key) as [string, string, string, string | null, string | null]
     try {
       const res = await fetch('/api/admin/growth/trial/mark', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ article_id: article, platform, final_text: text, comment_text: comment }),
+        body: JSON.stringify({ article_id: article, platform, final_text: text, comment_text: comment, ...(pickSource ? { pick_source: pickSource } : {}) }),
       })
       const data = await res.json().catch(() => ({}))
-      if (res.ok && data.approval_id) return String(data.approval_id)
+      if (res.ok && data.approval_id) {
+        if (data.pick_logged === false) setPickWarning(`${platformInfo(platform)?.name}: posted and recorded, but how the article was chosen wasn't logged (analysis only)`)
+        return String(data.approval_id)
+      }
       setMessage({ type: 'error', text: `⚠️ ${platformInfo(platform)?.name}: copied, but NOT recorded — ${data.error || `HTTP ${res.status}`}` })
       return null
     } catch { return null }
@@ -521,7 +537,7 @@ function DailyDay({ today, mode, onDayChange, onReload }: { today: string; mode:
     let id: string | null
     try {
       id = isTrial
-        ? await trialGuard.current(JSON.stringify([platform, articleId, text, platform === 'linkedin' ? posts.linkedin?.comment_text ?? null : null]))
+        ? await trialGuard.current(JSON.stringify([platform, articleId, text, platform === 'linkedin' ? posts.linkedin?.comment_text ?? null : null, pickSourceFor(pick, articleId) ?? null]))
         : await guard.current(JSON.stringify([platform, articleId, hookOf(text)]))
     } finally {
       op.current.marking--
@@ -663,6 +679,12 @@ function DailyDay({ today, mode, onDayChange, onReload }: { today: string; mode:
             {' · '}no X
           </div>
         )}
+        {isTrial && pickWarning && (
+          <div className="mb-4 p-3 rounded-lg text-xs bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-200 flex items-center gap-3" data-testid="pick-warning">
+            <span className="flex-1">⚠️ {pickWarning}</span>
+            <button type="button" onClick={() => setPickWarning(null)} className="underline">Dismiss</button>
+          </div>
+        )}
         {!isTrial && markingOff && (
           <div className="mb-4 p-3 rounded-lg text-sm bg-sky-50 dark:bg-sky-950/30 border border-sky-300 dark:border-sky-800 text-sky-900 dark:text-sky-200" data-testid="trial-running">
             December trial running (2026-12-01 → 12-31) — post from 🧪 December Trial. Marking posted is off here.
@@ -720,7 +742,7 @@ function DailyDay({ today, mode, onDayChange, onReload }: { today: string; mode:
                     {recommendations.map((a, i) => (
                       <div key={a.id} className="flex items-start gap-3 p-3 bg-gray-800 border border-gray-700 rounded-lg hover:border-emerald-700 transition group">
                         <span className="text-lg font-bold text-gray-600 w-6 shrink-0 mt-0.5">{i + 1}</span>
-                        <div className={`flex-1 min-w-0 ${canPick ? 'cursor-pointer' : ''}`} onClick={canPick ? () => { setSelected({ id: a.id, title: a.title, crowdFavorite: !!a.crowdFavorite }); setShowRecs(false) } : undefined}>
+                        <div className={`flex-1 min-w-0 ${canPick ? 'cursor-pointer' : ''}`} onClick={canPick ? () => { setSelected({ id: a.id, title: a.title, crowdFavorite: !!a.crowdFavorite, source: 'recommendation' }); setShowRecs(false) } : undefined}>
                           <p className={`text-sm text-white font-medium truncate ${canPick ? 'group-hover:text-emerald-300' : ''}`}>{a.title}</p>
                           <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">{a.scores?.reason || a.clinical_bottom_line}</p>
                           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5">
@@ -768,7 +790,7 @@ function DailyDay({ today, mode, onDayChange, onReload }: { today: string; mode:
                   {showResults && results.length > 0 && (
                     <div className="absolute top-full left-0 right-0 mt-1 bg-gray-800 border border-gray-600 rounded-lg shadow-xl z-50 max-h-48 overflow-y-auto">
                       {results.map(a => (
-                        <button key={a.id} type="button" onClick={() => { setSelected({ id: a.id, title: a.title }); setSearch(''); setShowResults(false) }}
+                        <button key={a.id} type="button" onClick={() => { setSelected({ id: a.id, title: a.title, source: 'search' }); setSearch(''); setShowResults(false) }}
                           className="w-full text-left px-4 py-3 hover:bg-gray-700 transition border-b border-gray-700 last:border-0">
                           <p className="text-sm text-white truncate">{a.title}</p>
                           <p className="text-xs text-gray-400 mt-0.5">{a.source_journal}</p>

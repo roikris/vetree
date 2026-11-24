@@ -113,3 +113,17 @@ test('review r1: a Dec 31 arrival signing up on Jan 1 counts for December', () =
   assert.equal(r.scorecard.find(x => x.channel === 'whatsapp' && x.period === 'trial')!.signups, 1)
   assert.equal(r.funnel.find(f => f.source === 'whatsapp')!.signups, 1)
 })
+
+test('picks (growth-006): one row per trial day — its article, the earliest known pick source, disagreement', () => {
+  const approvals = [
+    { id: 'a1', article_id: 'A', platform: 'linkedin', created_at: '2026-12-01T07:00:00Z' },
+    { id: 'a2', article_id: 'A', platform: 'whatsapp', created_at: '2026-12-01T08:00:00Z' },
+    { id: 'b1', article_id: 'B', platform: 'linkedin', created_at: '2026-12-02T07:00:00Z' },
+  ]
+  const row = (approval_id: string, trial_date: string, pick_source: string | null) => ({ approval_id, platform: 'linkedin', trial_date, variant: null, utm_campaign: null, char_count: null, ends_with_question: null, li_comments: null, li_comments_age_hours: null, li_impressions: null, li_impressions_age_hours: null, pick_source })
+  const r = analyzeTrial({ now: new Date('2026-12-10T00:00:00Z'), approvals, trialRows: [row('a2', '2026-12-01', 'search'), row('a1', '2026-12-01', 'recommendation'), row('b1', '2026-12-02', null)], views: [], events: [], signups: [], scores: new Map(), labels: new Map(), linkedinDaily: [] })
+  assert.deepEqual(r.picks, [
+    { date: '2026-12-01', article_id: 'A', pick_source: 'recommendation', disagree: true, posts: 2 },
+    { date: '2026-12-02', article_id: 'B', pick_source: 'not recorded', disagree: false, posts: 1 },
+  ])
+})

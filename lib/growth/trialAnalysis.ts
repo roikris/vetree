@@ -16,6 +16,7 @@
 import { israelDate } from './daily'
 import { BASELINE_END, BASELINE_START, FOLLOW_UP_DAYS, TRIAL_END, TRIAL_START, parseTrialCampaign } from './trial'
 import { articleIdFromPath, isGoogleReferrer } from '@/lib/analytics/searchConsole'
+import { daySource } from './pickSource'
 
 export const CHANNELS = ['whatsapp', 'telegram', 'linkedin', 'facebook_il', 'facebook_intl'] as const
 export type Channel = (typeof CHANNELS)[number]
@@ -27,6 +28,8 @@ export type TrialRowIn = {
   char_count: number | null; ends_with_question: boolean | null
   li_comments: number | null; li_comments_age_hours: number | null
   li_impressions: number | null; li_impressions_age_hours: number | null
+  /** growth-006 (091): how the day's article was chosen; NULL = not recorded */
+  pick_source?: string | null
 }
 export type ViewIn = {
   created_at: string; path: string; session_id: string | null; ip_hash: string | null; user_id: string | null
@@ -370,6 +373,22 @@ export function analyzeTrial(input: AnalysisInput) {
     ambiguous: signups.filter(s => s.ambiguous).length,
     unattributed: signups.filter(s => s.source === 'unattributed').length,
   }
-  return { scorecard, google, splits, drivers, textDrivers, funnel, linkedinTotals, attribution: { ambiguous, unmatched, outsideTrial, maturing }, signupSummary, posts }
+  // 6. how each trial day's article was chosen (growth-006) — descriptive; the scores are in the drivers above, and
+  // January joins growth_recommendation_sets (lists shown that Israel day before the first post) for positions
+  const approvalById = new Map(input.approvals.map(a => [a.id, a]))
+  const rowsByDay = new Map<string, { created_at: string; approval_id: string; pick_source: string | null; article_id: string | null }[]>()
+  for (const r of input.trialRows) {
+    const a = approvalById.get(r.approval_id)
+    const list = rowsByDay.get(r.trial_date) ?? []
+    list.push({ created_at: a?.created_at ?? '', approval_id: r.approval_id, pick_source: r.pick_source ?? null, article_id: a?.article_id ?? null })
+    rowsByDay.set(r.trial_date, list)
+  }
+  const picks = [...rowsByDay.entries()].sort(([x], [y]) => x.localeCompare(y)).map(([date, rows]) => {
+    const first = [...rows].sort((a, b) => a.created_at.localeCompare(b.created_at) || a.approval_id.localeCompare(b.approval_id))[0]
+    const { source, disagree } = daySource(rows)
+    return { date, article_id: first?.article_id ?? null, pick_source: source ?? 'not recorded', disagree, posts: rows.length }
+  })
+
+  return { scorecard, google, splits, drivers, textDrivers, funnel, linkedinTotals, attribution: { ambiguous, unmatched, outsideTrial, maturing }, signupSummary, picks, posts }
 }
 export type TrialAnalysis = ReturnType<typeof analyzeTrial>
