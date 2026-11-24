@@ -2242,6 +2242,38 @@
       "wip_sha": null,
       "expected_failures": [],
       "notes": "Report 2026-11-22: a row stored at 4 impressions really has 9,375. Roi 2026-11-23 go-ahead. Tier 2 (Supabase writes + migration). \u00b7 Roi 2026-11-24: the higher-only rule had been agreed in an earlier conversation but never recorded \u2014 now in app/api/CLAUDE.md + supabase/CLAUDE.md. Not done: rolled-back production test of the function (needs Roi's \"test ok\"). \u00b7 session 20261124-0702-claude-166c"
+    },
+    {
+      "id": "growth-006",
+      "priority": 1,
+      "area": "growth",
+      "type": "feature",
+      "title": "Recommendation engine learns from audience response (analytics), applied to the December trial",
+      "user_visible_behavior": "Growth OS recommendations / auto-pick weigh what the audience actually responded to (if the analysis supports it); each pick records the ranking policy that served it.",
+      "status": "not_started",
+      "verification": [
+        {
+          "step": "Read-only production pull (last ~6 weeks: approved rows, tagged page_views of posted articles, linkedin_post_metrics, growth_article_scores, saves/signups); analysed locally",
+          "target": "production",
+          "db_reads": "prod",
+          "db_writes": "none",
+          "paid_calls": false
+        },
+        {
+          "step": "Plan reviewed by Codex before building; ranking change + tests; init.sh check GREEN",
+          "target": "local",
+          "db_reads": "prod",
+          "db_writes": "none",
+          "paid_calls": false
+        }
+      ],
+      "evidence": [],
+      "branch": "",
+      "pr": null,
+      "head_sha": null,
+      "wip_sha": null,
+      "expected_failures": [],
+      "notes": "Roi 2026-11-24: \"let's figure out how to use the insights we gained from the analytics to implement changes to the recommendation engine as well in the trial\"; read-only pull: \"yes, go ahead\". Must be live before 2026-12-01 to cover the whole trial. Picker change applies to all December days (not a third split) \u2014 recommendation, to confirm with the analysis."
     }
   ]
 }
