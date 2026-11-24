@@ -11,9 +11,12 @@
  */
 export const SAVE_INTENT_EVENT = 'vetree:save-intent'
 
-export function requestGuestSave(articleId: string, opts: { onArticlePage: boolean; push?: (url: string) => void }) {
+/** Which article-page Save button was pressed (seo-002): the app bar's, or the one under the clinical bottom line. */
+export type SavePlacement = 'appbar' | 'inline'
+
+export function requestGuestSave(articleId: string, opts: { onArticlePage: boolean; push?: (url: string) => void; placement?: SavePlacement }) {
   if (opts.onArticlePage) {
-    window.dispatchEvent(new CustomEvent(SAVE_INTENT_EVENT, { detail: { articleId } }))
+    window.dispatchEvent(new CustomEvent(SAVE_INTENT_EVENT, { detail: { articleId, placement: opts.placement ?? 'appbar' } }))
     return
   }
   const url = `/article/${encodeURIComponent(articleId)}?intent=save`
