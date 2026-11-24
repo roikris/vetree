@@ -43,6 +43,9 @@ SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE
   v_raised integer;
+  -- This call's own timestamp (clock_timestamp, not the transaction-stable now()), so RETURNING can tell the rows this
+  -- call raised from ones another call in the same transaction already stamped (Codex round 2)
+  v_at timestamptz := clock_timestamp();
 BEGIN
   IF p_rows IS NULL OR jsonb_typeof(p_rows) <> 'array' THEN
     RAISE EXCEPTION 'invalid: p_rows must be a JSON array';
@@ -52,10 +55,12 @@ BEGIN
   END IF;
 
   WITH incoming AS (
-    SELECT DISTINCT ON (x.post_url) x.post_url, x.post_date, x.impressions, x.engagements, x.raw_row
+    -- A URL listed twice keeps the higher of each number
+    SELECT x.post_url, max(x.post_date) AS post_date, max(x.impressions) AS impressions,
+           max(x.engagements) AS engagements, (array_agg(x.raw_row))[1] AS raw_row
     FROM jsonb_to_recordset(p_rows) AS x(post_url text, post_date date, impressions integer, engagements integer, raw_row jsonb)
     WHERE x.post_url IS NOT NULL AND x.post_url <> ''
-    ORDER BY x.post_url
+    GROUP BY x.post_url
   ), changed AS (
     UPDATE public.linkedin_post_metrics m
     SET
@@ -74,12 +79,12 @@ BEGIN
       metrics_updated_at = CASE
         WHEN (i.impressions IS NOT NULL AND (m.impressions IS NULL OR i.impressions > m.impressions))
           OR (i.engagements IS NOT NULL AND (m.engagements IS NULL OR i.engagements > m.engagements))
-        THEN now() ELSE m.metrics_updated_at END,
+        THEN v_at ELSE m.metrics_updated_at END,
       post_date = COALESCE(i.post_date, m.post_date),
       raw_row = COALESCE(i.raw_row, m.raw_row)
     FROM incoming i
     WHERE m.post_url = i.post_url
-    RETURNING (m.metrics_updated_at = now()) AS raised
+    RETURNING (m.metrics_updated_at IS NOT DISTINCT FROM v_at) AS raised
   )
   SELECT count(*) FILTER (WHERE raised) INTO v_raised FROM changed;
   RETURN v_raised;

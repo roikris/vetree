@@ -512,9 +512,10 @@ export async function POST(request: NextRequest) {
     new_rows_inserted: newRowsWithUrl.length + newRows.length,
     assignment_note: `${existingRowsWithUrl.length - newRowsWithUrl.length} existing row${existingRowsWithUrl.length - newRowsWithUrl.length === 1 ? '' : 's'} were metric-updated (assignments preserved); ${newRowsWithUrl.length + newRows.length} new row${(newRowsWithUrl.length + newRows.length) === 1 ? '' : 's'} inserted with fresh matches`,
     ...periodSummary,
-    // Decided by the database against each row's current values (the dry run's figures are a preview)
+    // Posts whose numbers rose, decided by the database against each row's current values (the dry run's figures
+    // are a preview; under a concurrent upload the per-group counts above are approximate)
     numbers_raised: numbersRaised,
-    lower_numbers_kept: Math.max(0, existingRowsWithUrl.length - newRowsWithUrl.length - numbersRaised),
+    lower_numbers_kept: undefined,
     matched_articles: newRowsWithUrl.filter(r => r.article_id).length,
     match_breakdown: {
       slug: newRowsWithUrl.filter(r => r.match_method === 'slug').length,
