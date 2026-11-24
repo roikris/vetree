@@ -355,15 +355,20 @@ export async function POST(request: NextRequest) {
   // Only genuinely new rows get article_id/match_method from this run's matcher.
   const newRows: Array<Record<string, unknown>> = []       // no post_url — always a fresh insert
   const newRowsWithUrl: Array<Record<string, unknown>> = []   // post_url not seen before — full columns
-  const existingRowsWithUrl: Array<Record<string, unknown>> = [] // post_url already exists — metric columns only
+  const existingRowsWithUrl: Array<Record<string, unknown>> = [] // post_url already exists — numbers only, via the RPC
 
   for (const p of topPostsResult.posts) {
     if (!p.post_date) continue
     const existing = existingPostsMap.get(p.url)
-    // Every row carries the same keys (a bulk upsert writes NULL for a missing key); kept values are written back as-is
-    const m = p.url ? merged.get(p.url) : undefined
-    const imp = m?.impressions ?? mergeMetric(null, p.impressions, period)
-    const eng = m?.engagements ?? mergeMetric(null, p.engagements, period)
+    if (p.url && existing) {
+      // Compared with the row's CURRENT numbers inside one UPDATE (apply_linkedin_post_metrics, migration 090) — not
+      // with the read above, which is ~30 s old after the AI matcher: a hand correction made meanwhile must survive.
+      existingRowsWithUrl.push({ post_url: p.url, post_date: p.post_date, impressions: p.impressions, engagements: p.engagements, raw_row: p.raw_row })
+      continue
+    }
+    // A new row: the export's numbers with its range (every row carries the same keys — a bulk write NULLs a missing one)
+    const imp = mergeMetric(null, p.impressions, period)
+    const eng = mergeMetric(null, p.engagements, period)
     const metricFields = {
       post_url: p.url || null,
       post_date: p.post_date,
@@ -374,14 +379,10 @@ export async function POST(request: NextRequest) {
       engagements_period_start: eng.start,
       engagements_period_end: eng.end,
       raw_row: p.raw_row,
-      // "as of": moves only when a number actually changed
-      metrics_updated_at: !existing || imp.changed || eng.changed ? new Date().toISOString() : existing.metrics_updated_at,
+      metrics_updated_at: new Date().toISOString(),
     }
-
     if (!p.url) {
       newRows.push(metricFields)
-    } else if (existing) {
-      existingRowsWithUrl.push(metricFields)
     } else {
       const match = matchMap.get(p.url)
       newRowsWithUrl.push({
@@ -389,25 +390,35 @@ export async function POST(request: NextRequest) {
         article_id: match?.article_id ?? null,
         match_method: match?.method ?? null,
       })
+      // Also through the RPC: if another upload inserted this post meanwhile, the insert below skips it and the RPC
+      // applies the numbers (a no-op for the row this upload inserted itself)
+      existingRowsWithUrl.push({ post_url: p.url, post_date: p.post_date, impressions: p.impressions, engagements: p.engagements, raw_row: p.raw_row })
     }
   }
 
   let postsUpserted = 0
   let postsError: string | null = null
+  let numbersRaised = 0
 
   if (newRowsWithUrl.length) {
+    // Insert only: a row that appeared since the read keeps its assignment (ignoreDuplicates = ON CONFLICT DO NOTHING)
     const { error } = await supabase
       .from('linkedin_post_metrics')
-      .upsert(newRowsWithUrl, { onConflict: 'post_url', ignoreDuplicates: false })
+      .upsert(newRowsWithUrl, { onConflict: 'post_url', ignoreDuplicates: true })
     if (error) postsError = error.message
     else postsUpserted += newRowsWithUrl.length
   }
   if (existingRowsWithUrl.length && !postsError) {
-    const { error } = await supabase
-      .from('linkedin_post_metrics')
-      .upsert(existingRowsWithUrl, { onConflict: 'post_url', ignoreDuplicates: false })
+    const { data: raised, error } = await supabase.rpc('apply_linkedin_post_metrics', {
+      p_rows: existingRowsWithUrl,
+      p_period_start: period?.start ?? null,
+      p_period_end: period?.end ?? null,
+    })
     if (error) postsError = error.message
-    else postsUpserted += existingRowsWithUrl.length
+    else {
+      numbersRaised = typeof raised === 'number' ? raised : 0
+      postsUpserted += existingRowsWithUrl.length - newRowsWithUrl.length // the new rows were counted above
+    }
 
     // Safety-net guard: assignment columns were never sent for these rows, so
     // they must be byte-for-byte identical to the pre-upload snapshot. If a
@@ -415,7 +426,7 @@ export async function POST(request: NextRequest) {
     // this payload, this is what catches it — refuse loudly instead of
     // silently wiping a human decision.
     if (!postsError) {
-      const touchedUrls = existingRowsWithUrl.map(r => r.post_url as string)
+      const touchedUrls = existingRowsWithUrl.map(r => r.post_url as string).filter(u => existingPostsMap.has(u))
       const { data: postWriteRows, error: verifyError } = await supabase
         .from('linkedin_post_metrics')
         .select('post_url, article_id, match_method')
@@ -497,10 +508,13 @@ export async function POST(request: NextRequest) {
     // Only newRowsWithUrl carries article_id/match_method from this run's
     // matcher — existing rows' assignments were never touched, so they're
     // deliberately excluded from these stats (see assignment_note below).
-    existing_rows_metric_update_only: existingRowsWithUrl.length,
+    existing_rows_metric_update_only: existingRowsWithUrl.length - newRowsWithUrl.length,
     new_rows_inserted: newRowsWithUrl.length + newRows.length,
-    assignment_note: `${existingRowsWithUrl.length} existing row${existingRowsWithUrl.length === 1 ? '' : 's'} were metric-updated (assignments preserved); ${newRowsWithUrl.length + newRows.length} new row${(newRowsWithUrl.length + newRows.length) === 1 ? '' : 's'} inserted with fresh matches`,
+    assignment_note: `${existingRowsWithUrl.length - newRowsWithUrl.length} existing row${existingRowsWithUrl.length - newRowsWithUrl.length === 1 ? '' : 's'} were metric-updated (assignments preserved); ${newRowsWithUrl.length + newRows.length} new row${(newRowsWithUrl.length + newRows.length) === 1 ? '' : 's'} inserted with fresh matches`,
     ...periodSummary,
+    // Decided by the database against each row's current values (the dry run's figures are a preview)
+    numbers_raised: numbersRaised,
+    lower_numbers_kept: Math.max(0, existingRowsWithUrl.length - newRowsWithUrl.length - numbersRaised),
     matched_articles: newRowsWithUrl.filter(r => r.article_id).length,
     match_breakdown: {
       slug: newRowsWithUrl.filter(r => r.match_method === 'slug').length,

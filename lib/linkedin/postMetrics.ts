@@ -33,7 +33,7 @@ export const LAUNCH_DAYS = 7
 
 /**
  * Why a stored number probably understates the post's lifetime total, or null when its range covers the launch week.
- * - 'unknown_range': written before migration 090 or entered by hand
+ * - 'unknown_range': no range recorded (written before migration 090, or an export without a daily sheet)
  * - 'missed_launch': counted over a range that started more than LAUNCH_DAYS after the post
  */
 export function undercountReason(postDate: string, m: StoredMetric): 'unknown_range' | 'missed_launch' | null {

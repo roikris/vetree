@@ -562,7 +562,7 @@ export function LinkedInSection() {
         <p style={{ margin: '0 0 10px', fontSize: 12, lineHeight: 1.5, color: 'var(--al-mut3)' }} data-testid="li-period-note">
           Per-post numbers: a LinkedIn export counts only its own date range and lists only its top 50 posts, so each post
           keeps the <b>highest</b> number any export reported. ⚠ = probably an undercount (the range missed the post&apos;s
-          first week, or is unknown — rows before 2026-11-24). Fix one by typing the number from the post&apos;s LinkedIn page.
+          first week, or is unknown). Fix one by typing the number from the post&apos;s LinkedIn page.
           The daily totals above are complete.
         </p>
       )}
@@ -742,7 +742,9 @@ export function LinkedInSection() {
                   </td>
                   {/* Engagement rate — computed at render */}
                   <td style={td}>
-                    {(row.impressions ?? 0) > 0 && row.engagements !== null
+                    {!row.impressions_period_start || row.impressions_period_start !== row.engagements_period_start || row.impressions_period_end !== row.engagements_period_end
+                      ? <span title="Impressions and engagements were counted over different (or unknown) ranges — no rate" style={{ color: 'var(--al-mut6)' }}>n/a</span>
+                      : (row.impressions ?? 0) > 0 && row.engagements !== null
                       ? `${((row.engagements / row.impressions!) * 100).toFixed(1)}%`
                       : '—'}
                   </td>
@@ -779,7 +781,7 @@ function Undercount({ postDate, value, start, end }: { postDate: string; value: 
   if (value === null) return null
   const range = start && end ? `${start.slice(5)} → ${end.slice(5)}` : 'range unknown'
   const why = reason === 'unknown_range'
-    ? 'Recorded before export ranges were kept (2026-11-24) — may be one quiet week, not the post\'s total'
+    ? 'No range recorded (an older row, or an export without a daily sheet) — may be one quiet week, not the post\'s total'
     : reason === 'missed_launch'
       ? `Counted ${start} → ${end}, which misses the post's first week — the real total is higher`
       : `Counted ${start} → ${end}`

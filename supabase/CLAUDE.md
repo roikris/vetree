@@ -553,6 +553,7 @@ Service role only. Records data migrations and each `purge_expired_logs()` run.
 | `saved_this_week(since, until, excluded, limit)` | 083 | Homepage "Articles saved this week": save counts per publicly visible article in [since, until), excluded user ids left out, ordered by count, newer article, id — article ids + counts only (feed-002) |
 | `replace_search_console_day(day, final, daily, queries, pages, query_truncated, page_truncated)` | 088 | One Search Console day replaced in all three data sets + marked ok, in one locked transaction; payload dates ignored; a malformed payload raises and changes nothing |
 | `search_console_summary(from, to, limit)` | 088 | Read-only: daily totals, top queries / pages (impression-weighted position), incomplete days in the window (≤ 121 days, limit ≤ 100) |
+| `apply_linkedin_post_metrics(rows, period_start, period_end)` | 090 | One LinkedIn export's numbers for existing posts: per metric keeps the higher of the row's CURRENT value and the export's, with the export range; never touches article_id / match_method; returns rows whose numbers rose |
 | `purge_expired_logs()` | 069/070/087 | 12-month retention purge (pg_cron daily 03:15 UTC); since 087 also pending durations older than a day |
 | `delete_user_account(uuid)` | 070 | GDPR deletion of a user's rows across all PII tables |
 | `search_articles_batch` / `search_articles_fuzzy` / `search_articles_synthesis` | 060 / 054+056 / 026+030 | Search — granted to `anon` (public search) |
