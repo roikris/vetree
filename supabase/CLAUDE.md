@@ -468,7 +468,15 @@ Written by aggregate route; pre-filtered (admin + TEST_USER_ID excluded).
 | match_method | text | activity_id / slug / date / ai / haiku / manual |
 | raw_row | jsonb | original import row |
 | uploaded_at | timestamptz | |
-| metrics_updated_at | timestamptz | when impressions/engagements were last written (XLSX upload or manual edit) |
+| metrics_updated_at | timestamptz | when impressions/engagements last CHANGED (XLSX upload raising a number, or manual edit) |
+| impressions_period_start / _end | date nullable | migration 090 — the export range the stored impressions were counted over; NULL = before 090 |
+| engagements_period_start / _end | date nullable | the same for engagements |
+
+**Per-post numbers are range-scoped (analytics-002, migration 090).** A LinkedIn export's top-posts sheet counts each
+post over the export's date range only and lists the top 50. The upload keeps, per metric, the HIGHEST value any
+export reported (`mergeMetric`, `lib/linkedin/postMetrics.ts`) — a lower bound of the post's lifetime number — with its
+range; a typed-in number is the post page's all-time figure (range = post date → today). The admin table marks ⚠ an
+unknown range or one that misses the post's first week (`undercountReason`). `linkedin_daily_metrics` is complete.
 
 `match_method` constraint (live, fully reconciled via migrations 038→040→042→043→045):
 `('activity_id', 'slug', 'date', 'ai', 'haiku', 'manual', 'no_article', 'cleared')`

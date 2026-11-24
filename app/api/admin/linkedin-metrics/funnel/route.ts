@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
   // 1. Fetch all linkedin post metrics
   let metricsQuery = supabase
     .from('linkedin_post_metrics')
-    .select('id, post_url, post_date, article_id, impressions, engagements, match_method, metrics_updated_at')
+    .select('id, post_url, post_date, article_id, impressions, engagements, impressions_period_start, impressions_period_end, engagements_period_start, engagements_period_end, match_method, metrics_updated_at')
     .order('post_date', { ascending: false })
 
   if (from) metricsQuery = metricsQuery.gte('post_date', from)
@@ -133,6 +133,11 @@ export async function GET(request: NextRequest) {
       impressions: m.impressions,
       engagements: m.engagements,
       metrics_updated_at: m.metrics_updated_at ?? null,
+      // The export range each number was counted over (analytics-002; NULL = before migration 090)
+      impressions_period_start: m.impressions_period_start ?? null,
+      impressions_period_end: m.impressions_period_end ?? null,
+      engagements_period_start: m.engagements_period_start ?? null,
+      engagements_period_end: m.engagements_period_end ?? null,
       sessions,
       unique_visitors,
       saves,

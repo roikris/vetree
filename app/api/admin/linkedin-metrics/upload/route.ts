@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import * as XLSX from 'xlsx'
+import { exportPeriod, mergeMetric } from '@/lib/linkedin/postMetrics'
 import { matchArticlesToPosts } from '@/lib/linkedin/matchArticle'
 
 export const runtime = 'nodejs'
@@ -258,23 +259,47 @@ export async function POST(request: NextRequest) {
   const existingPostsMap = new Map<string, {
     impressions: number | null
     engagements: number | null
+    impressions_period_start: string | null
+    impressions_period_end: string | null
+    engagements_period_start: string | null
+    engagements_period_end: string | null
+    metrics_updated_at: string | null
     article_id: string | null
     match_method: string | null
   }>()
 
   if (postUrls.length) {
-    const { data: existingPosts } = await supabase
+    const { data: existingPosts, error: existingError } = await supabase
       .from('linkedin_post_metrics')
-      .select('post_url, impressions, engagements, article_id, match_method')
+      .select('post_url, impressions, engagements, impressions_period_start, impressions_period_end, engagements_period_start, engagements_period_end, metrics_updated_at, article_id, match_method')
       .in('post_url', postUrls)
-    for (const p of existingPosts ?? []) {
-      if (p.post_url) existingPostsMap.set(p.post_url, {
-        impressions: p.impressions,
-        engagements: p.engagements,
-        article_id: p.article_id,
-        match_method: p.match_method,
-      })
+    // Without this read every post would look new and its upsert would overwrite a human's article assignment
+    if (existingError) {
+      return NextResponse.json({ error: `Could not read existing posts: ${existingError.message}` }, { status: 500 })
     }
+    for (const p of existingPosts ?? []) {
+      if (p.post_url) existingPostsMap.set(p.post_url, p)
+    }
+  }
+
+  // Per-post numbers count over this export's date range only (analytics-002, lib/linkedin/postMetrics.ts): each
+  // metric keeps the highest value any export reported, with the range it was counted over.
+  const period = exportPeriod(engagementRows.map(r => r.date))
+  const merged = new Map<string, { impressions: ReturnType<typeof mergeMetric>; engagements: ReturnType<typeof mergeMetric> }>()
+  for (const p of topPostsResult.posts) {
+    if (!p.post_date || !p.url) continue
+    const e = existingPostsMap.get(p.url)
+    merged.set(p.url, {
+      impressions: mergeMetric(e ? { value: e.impressions, start: e.impressions_period_start, end: e.impressions_period_end } : null, p.impressions, period),
+      engagements: mergeMetric(e ? { value: e.engagements, start: e.engagements_period_start, end: e.engagements_period_end } : null, p.engagements, period),
+    })
+  }
+  const existingMerged = [...merged.entries()].filter(([url]) => existingPostsMap.has(url)).map(([, m]) => m)
+  const periodSummary = {
+    export_period: period,
+    numbers_raised: existingMerged.filter(m => m.impressions.changed || m.engagements.changed).length,
+    lower_numbers_kept: existingMerged.filter(m => !m.impressions.changed && !m.engagements.changed).length,
+    period_note: 'Per-post numbers count over the export\'s date range only; each post keeps the highest number any export reported.',
   }
 
   const postsWithDate = topPostsResult.posts.filter(p => p.post_date)
@@ -292,6 +317,7 @@ export async function POST(request: NextRequest) {
     total_followers_date: followersResult.totalFollowersDate,
     discovery: discoverySummary,
     demographics: demographicsSummary,
+    ...periodSummary,
   }
 
   // ── Dry run ────────────────────────────────────────────────────────────────
@@ -334,13 +360,22 @@ export async function POST(request: NextRequest) {
   for (const p of topPostsResult.posts) {
     if (!p.post_date) continue
     const existing = existingPostsMap.get(p.url)
+    // Every row carries the same keys (a bulk upsert writes NULL for a missing key); kept values are written back as-is
+    const m = p.url ? merged.get(p.url) : undefined
+    const imp = m?.impressions ?? mergeMetric(null, p.impressions, period)
+    const eng = m?.engagements ?? mergeMetric(null, p.engagements, period)
     const metricFields = {
       post_url: p.url || null,
       post_date: p.post_date,
-      impressions: p.impressions ?? existing?.impressions ?? null,
-      engagements: p.engagements ?? existing?.engagements ?? null,
+      impressions: imp.value,
+      impressions_period_start: imp.start,
+      impressions_period_end: imp.end,
+      engagements: eng.value,
+      engagements_period_start: eng.start,
+      engagements_period_end: eng.end,
       raw_row: p.raw_row,
-      metrics_updated_at: new Date().toISOString(),
+      // "as of": moves only when a number actually changed
+      metrics_updated_at: !existing || imp.changed || eng.changed ? new Date().toISOString() : existing.metrics_updated_at,
     }
 
     if (!p.url) {
@@ -465,6 +500,7 @@ export async function POST(request: NextRequest) {
     existing_rows_metric_update_only: existingRowsWithUrl.length,
     new_rows_inserted: newRowsWithUrl.length + newRows.length,
     assignment_note: `${existingRowsWithUrl.length} existing row${existingRowsWithUrl.length === 1 ? '' : 's'} were metric-updated (assignments preserved); ${newRowsWithUrl.length + newRows.length} new row${(newRowsWithUrl.length + newRows.length) === 1 ? '' : 's'} inserted with fresh matches`,
+    ...periodSummary,
     matched_articles: newRowsWithUrl.filter(r => r.article_id).length,
     match_breakdown: {
       slug: newRowsWithUrl.filter(r => r.match_method === 'slug').length,
