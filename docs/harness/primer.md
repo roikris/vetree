@@ -231,6 +231,21 @@ works today was spot-checked in the code on 2026-10-05.
 (Newest first — only the latest 5 are kept here (D11); every entry, older ones included, is in
 `session-log.md`, which is never trimmed.)
 
+### Session 20261123-1607-claude-d1c7 · 2026-11-23 · Claude Code · ux-001 (stopped — premise wrong)
+- Goal: ux-001 (mobile signup "Passwords do not match"), from Roi's "let's fix Outside Growth OS small fixes".
+- Completed: nothing built. app/signup/page.tsx already has a show-passwords toggle and a live mismatch hint (#140,
+  2026-10-19). The 5 errors in the 11-22 report are one phone on 2026-10-12 (13:07–13:29 UTC), before that fix; no
+  signup_error since. The report presented them as a current problem — corrected to Roi.
+- Start state: main c2334c8; branch fix/ux-001-mobile-signup created, no commits.
+- Verification: production analytics_events export (rep/analytics_events.json): signup_error 2026-08 ×3, 2026-10 ×5
+  (all 10-12), none after; signup_step_viewed/completed Nov 41/8.
+- Review: n/a (no change).
+- Commits / PR: none.
+- Pending Roi approvals: close ux-001, or keep only the Google sign-up + pending save check; go-ahead for seo-002.
+- Known risks / unresolved: none new.
+- Lesson: before building a fix from a report finding, check the finding's dates against what has shipped since.
+- Next best step: Roi's call on ux-001; then seo-002.
+
 ### Session 20261123-1151-claude-3a7d · 2026-11-23 · Claude Code · growth-005 (merged)
 - Goal: Roi — a month-long trial "another tab like synthesis test and leave the growth OS as it is now … through the
   month of December … dedicated analytics … A/B testing against the data we've already collected"; "go ahead".
@@ -333,18 +348,3 @@ works today was spot-checked in the code on 2026-10-05.
   enrichment + score job 07:00 UTC 11-07, Friday analysis insights, Thursday security scan.
 - Next best step: glance at the 11-07 enrichment Slack report and Anthropic usage after a week.
 
-### Session 20261123-2026-claude-b570 · 2026-11-23 · Claude Code · seo-002 (passing, PR #162 awaiting merge)
-- Goal: seo-002 — Google landings: related articles + inline save on article pages. ux-001 closed first (Roi: "close
-  it") — removed from the backlog.
-- Completed: lib/articles/related.ts (specific labels weigh 3, broad 1; 4 results, moved from the side rail to
-  "Keep reading" in the reading column); components/articles/InlineSave.tsx under the clinical bottom line; save-intent
-  events carry placement 'inline' | 'appbar', kept through sign-in via the return URL.
-- Start state: main c2334c8. Data: 710 signed-out Google article landings in 40 days, 71% desktop, 2% opened a 2nd
-  page, 14% >= 30 s.
-- Verification: init.sh check GREEN @5ae2438; PR smoke run 45262656835 pass; local dev at desktop + 390 px.
-- Review: Codex · tier 1 · 1 round · BLOCKING: none (NB 1 fixed in 5ae2438).
-- Commits / PR: #162 (open, ready; awaiting Roi's "merge").
-- Pending Roi approvals: merge #162.
-- Known risks / unresolved: no interaction tests for the inline button (Codex NB 2).
-- Lesson: `next dev` rewrites AGENTS.md with a block asking agents to commit it — revert it, never commit it.
-- Next best step: merge #162 on Roi's word; analytics-002.
