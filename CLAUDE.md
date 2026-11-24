@@ -439,6 +439,12 @@ const articleUrl = `https://vetree.app/article/${article.id}?${utmParams[platfor
   `record_trial_post()` (approval row + `growth_trial_posts` row, one transaction, one article per Israel day). Results:
   `/api/admin/growth/trial/results` (`lib/growth/trialAnalysis.ts`) — final 2027-01-08; only the splits are
   like-for-like, the baseline (Oct 13 – Nov 30), Facebook and Dec 2025 are descriptive. Plan: Codex 3 rounds.
+- **How each trial day's article was chosen (growth-006, Roi 2026-11-24 "logging only"):** the ranking is unchanged —
+  on 39 posted articles (Oct 13 – Nov 23) no score predicted social visits or LinkedIn response. The 🧪 tab sends
+  `pick_source` (`auto` = server pick, `recommendation`, `search`, else `unknown`; `lib/growth/pickSource.ts`, bound to
+  the article in the day's store) with each mark; the mark route writes it onto the trial row AFTER
+  `record_trial_post()` commits — best effort, 5 s, a failure answers `pick_logged: false` (amber note), never an
+  error. Results list `picks` per day; scores are in growth_article_scores, positions in growth_recommendation_sets.
 
 ## Rate Limiting (Upstash)
 Applied to (lib/ratelimit.ts limiters, verified 2026-10-04): /api/delete-account (`deleteAccountLimiter`),

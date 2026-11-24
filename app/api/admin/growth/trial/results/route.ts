@@ -32,7 +32,7 @@ export async function GET() {
           .order('created_at', { ascending: true }).order('id', { ascending: true }).range(a, b)),
       readAll<Record<string, unknown>>('trial rows', (a, b) =>
         supabase.from('growth_trial_posts')
-          .select('approval_id, platform, trial_date, variant, utm_campaign, char_count, ends_with_question, li_comments, li_comments_age_hours, li_impressions, li_impressions_age_hours')
+          .select('approval_id, platform, trial_date, variant, utm_campaign, char_count, ends_with_question, li_comments, li_comments_age_hours, li_impressions, li_impressions_age_hours, pick_source')
           .order('approval_id', { ascending: true }).range(a, b)),
       readAll<ViewIn>('page views', (a, b) =>
         supabase.from('page_views')
