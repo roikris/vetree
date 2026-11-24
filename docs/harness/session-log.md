@@ -1168,3 +1168,26 @@ Newest at the bottom. The same entries (latest few) appear in primer.md → Rece
   its .out file exists — round 3 sat unlaunched for ~2 h.
 - Next best step: Roi re-types the 2026-06-11 post's impressions (9,375) in Admin → Analytics; then the overdue
   analytics-001 bot-surge check.
+
+### Session 20261124-1311-claude-ff52 · 2026-11-24 · Claude Code · growth-006 (merged)
+- Goal: Roi — "use the insights we gained from the analytics to implement changes to the recommendation engine as well
+  in the trial"; read-only pull "yes, go ahead".
+- Completed: analysis (39 posted articles Oct 13 – Nov 23: no practice/talk/wow score predicts social visits, engaged
+  visits, WhatsApp or LinkedIn; median 2 social visitors / 72 h; LinkedIn links ~0 visits; across 1,219 scored
+  articles scores weakly track Google/organic reading, rho +0.11..+0.15). Roi: no ranking change, "logging only",
+  then the simplified plan "A". #164 → ef3f150: migration 091 growth_trial_posts.pick_source; the 🧪 tab sends how the
+  day's article was chosen (bound to that article id); the mark route writes it after record_trial_post() commits
+  (5 s, never fails a recorded post); results list `picks` per day. Ranking / auto-pick / Daily Posts unchanged.
+- Start state: main 2747150; branch feat/growth-006-trial-pick-source.
+- Verification: init.sh check (tsc, lint ratchet, unit, audits) + build; 091 pushed on Roi's "push"; schema snapshot
+  07c9b9f (+12 facts); PR smoke run 45458782580 pass; replay old/new pass; production /api/version = ef3f150.
+- Review: Codex · tier 2 · plan 3 rounds (54k–66k each; r1–r2 BLOCKING → simplified → none) · code 2 rounds
+  (r1 BLOCKING throwing reporter → fixed 68a896f; r2 none).
+- Commits / PR: #164 merged by Roi ("merge").
+- Pending Roi approvals: none for growth-006. KeepUp / pstack (other repo): Roi to pick emulator-only vs phones and
+  the skill's language before /pstack:create-verification-skill (run it from ~/Documents/family-app).
+- Known risks / unresolved: provenance is client-reported; a failed pick write stays NULL ('not recorded'); positions
+  are inferred from growth_recommendation_sets in January (no set id stored).
+- Lesson: a 'logging only' request grew into a race-prone snapshot design over two review rounds — when the data the
+  question needs already exists (scores, recommendation logs), log only what's missing.
+- Next best step: Dec 1 — first trial day; check one trial row has pick_source. Overdue: analytics-001 bot-surge check.

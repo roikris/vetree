@@ -2248,9 +2248,9 @@
       "priority": 1,
       "area": "growth",
       "type": "feature",
-      "title": "Recommendation engine learns from audience response (analytics), applied to the December trial",
-      "user_visible_behavior": "Growth OS recommendations / auto-pick weigh what the audience actually responded to (if the analysis supports it); each pick records the ranking policy that served it.",
-      "status": "not_started",
+      "title": "December trial: record how each day's article was chosen (ranking unchanged)",
+      "user_visible_behavior": "Trial marks carry pick_source (auto / recommendation / search / unknown); results list picks per day; amber note if not logged. Ranking unchanged.",
+      "status": "merged",
       "verification": [
         {
           "step": "Read-only production pull (last ~6 weeks: approved rows, tagged page_views of posted articles, linkedin_post_metrics, growth_article_scores, saves/signups); analysed locally",
@@ -2267,10 +2267,17 @@
           "paid_calls": false
         }
       ],
-      "evidence": [],
-      "branch": "",
-      "pr": null,
-      "head_sha": null,
+      "evidence": [
+        "Read-only production pull (Roi: \"yes, go ahead\"): 39 posted articles Oct 13-Nov 23 - no score predicts social visits / engaged / WhatsApp / LinkedIn (|rho|<=0.26, perm p>=0.19); 1,219 scored articles: scores weakly track organic/Google reading (rho +0.11..+0.15). Roi: \"logging only\", then plan \"A\"",
+        "Codex tier 2 plan: r1 BLOCKING (rank after approval), r2 BLOCKING (snapshot race, no retry) -> simplified (Roi \"A\") -> r3 BLOCKING: none (60k)",
+        "Codex tier 2 code: r1 BLOCKING (throwing reporter -> 500 after commit; fixed 68a896f) -> r2 BLOCKING: none",
+        "Migration 091 pushed on Roi's \"push\"; schema snapshot 07c9b9f (+12 facts); acl/rls/schema audits PASS; unit incl. tests/unit/pickSource.test.ts (8) + picks test",
+        "PR #164 smoke run 45458782580 pass (2m41s); replay old/new pass",
+        "Merged by Roi (\"merge\") as ef3f150; production /api/version = ef3f150, post-deploy health check success"
+      ],
+      "branch": "feat/growth-006-trial-pick-source",
+      "pr": 164,
+      "head_sha": "07c9b9f",
       "wip_sha": null,
       "expected_failures": [],
       "notes": "Roi 2026-11-24: \"let's figure out how to use the insights we gained from the analytics to implement changes to the recommendation engine as well in the trial\"; read-only pull: \"yes, go ahead\". Must be live before 2026-12-01 to cover the whole trial. Picker change applies to all December days (not a third split) \u2014 recommendation, to confirm with the analysis."
