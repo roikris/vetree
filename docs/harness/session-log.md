@@ -1144,3 +1144,27 @@ Newest at the bottom. The same entries (latest few) appear in primer.md → Rece
 - Known risks / unresolved: no interaction tests for the inline button (Codex NB 2).
 - Lesson: `next dev` rewrites AGENTS.md with a block asking agents to commit it — revert it, never commit it.
 - Next best step: merge #162 on Roi's word; analytics-002.
+
+### Session 20261124-0702-claude-166c · 2026-11-24 · Claude Code · analytics-002 (merged)
+- Goal: analytics-002 — LinkedIn per-post rows dropping to a quiet week's numbers (stored 4 impressions, LinkedIn
+  9,375). Roi: "next"; also "merge 162 if green" (seo-002 merged as d687760).
+- Completed: #163 → 2747150. Migration 090: four nullable range columns + apply_linkedin_post_metrics() (service_role
+  only) — per metric keeps the higher of the row's CURRENT value and the export's, inside one UPDATE, with the export
+  range; never touches article_id / match_method. lib/linkedin/postMetrics.ts (exportPeriod, mergeMetric,
+  undercountReason); upload route writes existing rows only through the RPC; manual edit = all-time (post date →
+  today); admin table shows ranges + ⚠ undercount, Eng% n/a when ranges differ; insights prompt calls the numbers
+  lower bounds. Rule written into app/api/CLAUDE.md + supabase/CLAUDE.md.
+- Start state: main d687760; branch fix/analytics-002-linkedin-post-periods.
+- Verification: unit 5/5 + build green; 090 pushed on Roi's "push"; schema snapshot 60083fb; audits PASS; PR smoke
+  run 45367834492 pass; replay old/new pass; production /api/version = 2747150, health check success.
+- Review: Codex · tier 2 · 3 rounds · r1 BLOCKING race (fixed: compare in SQL), r2 BLOCKING schema.json (fixed:
+  post-push snapshot), r3 BLOCKING: none, NB: none.
+- Commits / PR: #163 merged by Roi ("merge").
+- Pending Roi approvals: optional rolled-back production test of apply_linkedin_post_metrics ("test ok").
+- Known risks / unresolved: rows written before 090 have unknown ranges (⚠) until a later export raises them; the
+  existing 4-impression row stays until re-typed by hand or a bigger export arrives.
+- Lesson: Roi said the higher-only rule was agreed in an earlier PR — nothing recorded it, so it was never built. A
+  rule agreed in chat goes into the CLAUDE.md files in the same PR. Also: after launching a review in Terminal, check
+  its .out file exists — round 3 sat unlaunched for ~2 h.
+- Next best step: Roi re-types the 2026-06-11 post's impressions (9,375) in Admin → Analytics; then the overdue
+  analytics-001 bot-surge check.

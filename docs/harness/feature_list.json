@@ -1,6 +1,6 @@
 {
   "project": "vetree",
-  "last_updated": "2026-11-23",
+  "last_updated": "2026-11-24",
   "rules": {
     "single_active_feature": true,
     "passing_requires_evidence": true,
@@ -2173,7 +2173,7 @@
       "type": "feature",
       "title": "Google landings: related articles + inline save on article pages",
       "user_visible_behavior": "Article pages reached from search show related articles and an inline save prompt; the 3-article wall is unchanged.",
-      "status": "passing",
+      "status": "merged",
       "verification": [
         {
           "step": "init.sh check GREEN",
@@ -2195,7 +2195,8 @@
         "PR #162 smoke run 45262656835 pass (2m37s); replay old/new pass",
         "local dev vs prod reads: desktop + 390px frame, no horizontal scroll; Keep reading 4 items; inline guest Save opens save-auth-prompt",
         "Codex tier-1 review: BLOCKING: none; NB1 (placement lost across sign-in) fixed in 5ae2438",
-        "render cost: same single related query per render (limit 6 -> 40 light columns)"
+        "render cost: same single related query per render (limit 6 -> 40 light columns)",
+        "Merged by Roi (\"merge 162 if green\") as d687760; production /api/version = d687760, health check success"
       ],
       "branch": "feat/seo-002-article-landings",
       "pr": 162,
@@ -2209,9 +2210,9 @@
       "priority": 4,
       "area": "analytics",
       "type": "fix",
-      "title": "LinkedIn per-post metrics: mark rows the latest export didn't cover",
-      "user_visible_behavior": "Admin LinkedIn per-post table shows 'as of <date>' and flags stale rows (exports list only the top 50 posts).",
-      "status": "not_started",
+      "title": "LinkedIn per-post metrics: keep the highest value any export reported, with its date range",
+      "user_visible_behavior": "Uploads never lower a stored impressions/engagements number; each number shows the export range it was counted over; \u26a0 when the range is unknown or misses the post's first week; Eng% n/a when ranges differ.",
+      "status": "merged",
       "verification": [
         {
           "step": "init.sh check GREEN; upload test",
@@ -2228,13 +2229,19 @@
           "paid_calls": false
         }
       ],
-      "evidence": [],
-      "branch": "",
-      "pr": null,
-      "head_sha": null,
+      "evidence": [
+        "Migration 090 (4 nullable period columns + apply_linkedin_post_metrics(), service_role only) pushed on Roi's \"push\"; schema snapshot 60083fb; acl/rls/schema audits PASS",
+        "tests/unit/linkedinPostMetrics.test.ts (5) pass; npm run build green",
+        "Codex tier 2: r1 BLOCKING (read-then-write race \u2192 compare inside one UPDATE), r2 BLOCKING (schema.json \u2192 post-push snapshot), r3 BLOCKING: none, NB: none",
+        "PR #163 smoke run 45367834492 pass (2m54s); replay old/new pass",
+        "Merged by Roi (\"merge\") as 2747150; production /api/version = 2747150, post-deploy health check success"
+      ],
+      "branch": "fix/analytics-002-linkedin-post-periods",
+      "pr": 163,
+      "head_sha": "60083fb",
       "wip_sha": null,
       "expected_failures": [],
-      "notes": "Report 2026-11-22: a row stored at 4 impressions really has 9,375. Roi 2026-11-23 go-ahead. Tier 2 (Supabase writes + migration)."
+      "notes": "Report 2026-11-22: a row stored at 4 impressions really has 9,375. Roi 2026-11-23 go-ahead. Tier 2 (Supabase writes + migration). \u00b7 Roi 2026-11-24: the higher-only rule had been agreed in an earlier conversation but never recorded \u2014 now in app/api/CLAUDE.md + supabase/CLAUDE.md. Not done: rolled-back production test of the function (needs Roi's \"test ok\"). \u00b7 session 20261124-0702-claude-166c"
     }
   ]
 }
