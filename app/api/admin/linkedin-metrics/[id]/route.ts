@@ -32,15 +32,26 @@ export async function PATCH(
   // Metrics update — inline edit of impressions / engagements
   if ('impressions' in body || 'engagements' in body) {
     const updates: Record<string, unknown> = { metrics_updated_at: new Date().toISOString() }
+    if ('impressions' in body && (!Number.isInteger(impressions) || impressions < 0))
+      return NextResponse.json({ error: 'impressions must be a non-negative integer' }, { status: 400 })
+    if ('engagements' in body && (!Number.isInteger(engagements) || engagements < 0))
+      return NextResponse.json({ error: 'engagements must be a non-negative integer' }, { status: 400 })
+    // A number typed in by hand is the one on the post's own LinkedIn page — all time, up to today (analytics-002):
+    // its range is the post date → today, so it never shows as an undercount.
+    const { data: row, error: rowError } = await supabase
+      .from('linkedin_post_metrics').select('post_date').eq('id', id).maybeSingle()
+    if (rowError) return NextResponse.json({ error: rowError.message }, { status: 500 })
+    if (!row) return NextResponse.json({ error: 'Row not found' }, { status: 500 })
+    const today = new Date().toISOString().slice(0, 10)
     if ('impressions' in body) {
-      if (!Number.isInteger(impressions) || impressions < 0)
-        return NextResponse.json({ error: 'impressions must be a non-negative integer' }, { status: 400 })
       updates.impressions = impressions
+      updates.impressions_period_start = row.post_date
+      updates.impressions_period_end = today
     }
     if ('engagements' in body) {
-      if (!Number.isInteger(engagements) || engagements < 0)
-        return NextResponse.json({ error: 'engagements must be a non-negative integer' }, { status: 400 })
       updates.engagements = engagements
+      updates.engagements_period_start = row.post_date
+      updates.engagements_period_end = today
     }
     const { error } = await supabase
       .from('linkedin_post_metrics')

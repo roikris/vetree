@@ -189,19 +189,24 @@ export async function POST(request: NextRequest) {
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
     const { data: linkedinMetrics } = await supabase
       .from('linkedin_post_metrics')
-      .select('post_date, impressions, engagements, article_id, match_method, metrics_updated_at, articles(title, labels)')
+      .select('post_date, impressions, engagements, impressions_period_start, impressions_period_end, engagements_period_start, engagements_period_end, article_id, match_method, metrics_updated_at, articles(title, labels)')
       .gte('post_date', thirtyDaysAgo)
       .order('post_date', { ascending: false })
       .limit(30)
 
     const linkedinSummary = linkedinMetrics && linkedinMetrics.length > 0
       ? linkedinMetrics.map((m: any) => {
-          const engRate = (m.impressions ?? 0) > 0
-            ? ((m.engagements / m.impressions) * 100).toFixed(1)
-            : '0'
+          // Each number is the highest any export reported, counted over its own range (analytics-002): a rate is only
+          // meaningful when both numbers share one range
+          const range = (a: string | null, b: string | null) => (a && b ? `${a}→${b}` : 'range unknown')
+          const impRange = range(m.impressions_period_start, m.impressions_period_end)
+          const engRange = range(m.engagements_period_start, m.engagements_period_end)
+          const sameRange = !!m.impressions_period_start && impRange === engRange
+          const engRate = sameRange && (m.impressions ?? 0) > 0
+            ? `${((m.engagements / m.impressions) * 100).toFixed(1)}% rate`
+            : 'rate n/a — different or unknown ranges'
           const labels = (m.articles?.labels ?? []).join(', ') || 'no tags'
-          const asOf = m.metrics_updated_at ? ` [snapshot as of ${m.metrics_updated_at.slice(0, 10)}]` : ''
-          return `  ${m.post_date}: ${m.impressions ?? '—'} impressions, ${m.engagements ?? '—'} engagements (${engRate}% rate)${asOf} [${labels}] — "${m.articles?.title || m.article_id || 'unmatched'}" (matched via ${m.match_method ?? 'none'})`
+          return `  ${m.post_date}: ${m.impressions ?? '—'} impressions [${impRange}], ${m.engagements ?? '—'} engagements [${engRange}] (${engRate}) [${labels}] — "${m.articles?.title || m.article_id || 'unmatched'}" (matched via ${m.match_method ?? 'none'})`
         }).join('\n')
       : '  No LinkedIn post data uploaded yet'
 
@@ -237,7 +242,7 @@ RECENTLY SAVED ARTICLES (what content resonates):
 ${recentSaves && recentSaves.length > 0 ? (recentSaves as any[]).slice(0, 5).map((s: any) => `  "${s.articles?.title || s.article_id}" — saved`).join('\n') : '  No saves this week'}
 
 LINKEDIN PER-POST PERFORMANCE (last 30 days — impressions, engagements, engagement rate):
-NOTE: Impressions/engagements are snapshots as of the listed date; posts have unequal exposure time. Do not rank posts of different ages by raw impressions; prefer CTR and engagement rate.
+NOTE: Each per-post number is the highest a LinkedIn export reported, counted over the date range in brackets (an export counts only its own range and lists only its top 50 posts) — a LOWER BOUND, not the lifetime total. Numbers over different or unknown ranges are not comparable: do not rank posts or compare rates across them. The daily account totals below are complete.
 ${linkedinSummary}
 
 LINKEDIN DAILY ACCOUNT TOTALS (last 30 days):

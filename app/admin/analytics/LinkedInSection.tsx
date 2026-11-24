@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { undercountReason } from '@/lib/linkedin/postMetrics'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
@@ -19,6 +20,10 @@ type FunnelRow = {
   impressions: number | null
   engagements: number | null
   metrics_updated_at: string | null
+  impressions_period_start: string | null
+  impressions_period_end: string | null
+  engagements_period_start: string | null
+  engagements_period_end: string | null
   sessions: number
   unique_visitors: number
   saves: number
@@ -141,7 +146,8 @@ export function LinkedInSection() {
       if (r.id !== rowId) return r
       const impressions = field === 'impressions' ? val : (r.impressions ?? 0)
       const ctr = impressions > 0 ? parseFloat(((r.sessions / impressions) * 100).toFixed(2)) : 0
-      return { ...r, [field]: val, metrics_updated_at: now, ctr }
+      // A typed-in number is all time up to today — the route records the post date → today as its range
+      return { ...r, [field]: val, metrics_updated_at: now, ctr, [`${field}_period_start`]: r.post_date, [`${field}_period_end`]: now.slice(0, 10) }
     }))
     setEditingCell(null)
     setEditValue('')
@@ -552,6 +558,14 @@ export function LinkedInSection() {
       )}
 
       {/* ── Per-post table ────────────────────────────────────────────── */}
+      {rows.length > 0 && (
+        <p style={{ margin: '0 0 10px', fontSize: 12, lineHeight: 1.5, color: 'var(--al-mut3)' }} data-testid="li-period-note">
+          Per-post numbers: a LinkedIn export counts only its own date range and lists only its top 50 posts, so each post
+          keeps the <b>highest</b> number any export reported. ⚠ = probably an undercount (the range missed the post&apos;s
+          first week, or is unknown). Fix one by typing the number from the post&apos;s LinkedIn page.
+          The daily totals above are complete.
+        </p>
+      )}
       {funnelLoading && !rows.length && (
         <div style={{ color: 'var(--al-mut4)', fontSize: 13, padding: 16 }}>Loading…</div>
       )}
@@ -685,10 +699,11 @@ export function LinkedInSection() {
                         >
                           {row.impressions?.toLocaleString() ?? '—'}
                         </span>
+                        <Undercount postDate={row.post_date} value={row.impressions} start={row.impressions_period_start} end={row.impressions_period_end} />
                         {row.metrics_updated_at && (
                           <div
                             style={{ fontSize: 10, color: 'var(--al-mut6)', marginTop: 1 }}
-                            title="Manual edits are stopgaps between uploads; the next XLSX upload will overwrite these values"
+                            title="When this row's numbers last changed. A typed-in number is taken as the post's all-time number; a later export replaces it only with a higher one."
                           >
                             as of {row.metrics_updated_at.slice(0, 10)}
                           </div>
@@ -721,12 +736,15 @@ export function LinkedInSection() {
                         >
                           {row.engagements?.toLocaleString() ?? '—'}
                         </span>
+                        <Undercount postDate={row.post_date} value={row.engagements} start={row.engagements_period_start} end={row.engagements_period_end} />
                       </div>
                     )}
                   </td>
                   {/* Engagement rate — computed at render */}
                   <td style={td}>
-                    {(row.impressions ?? 0) > 0 && row.engagements !== null
+                    {!row.impressions_period_start || row.impressions_period_start !== row.engagements_period_start || row.impressions_period_end !== row.engagements_period_end
+                      ? <span title="Impressions and engagements were counted over different (or unknown) ranges — no rate" style={{ color: 'var(--al-mut6)' }}>n/a</span>
+                      : (row.impressions ?? 0) > 0 && row.engagements !== null
                       ? `${((row.engagements / row.impressions!) * 100).toFixed(1)}%`
                       : '—'}
                   </td>
@@ -753,6 +771,24 @@ export function LinkedInSection() {
           </table>
         </div>
       )}
+    </div>
+  )
+}
+
+// The range a per-post number was counted over, ⚠ when it probably understates the post (analytics-002)
+function Undercount({ postDate, value, start, end }: { postDate: string; value: number | null; start: string | null; end: string | null }) {
+  const reason = undercountReason(postDate, { value, start, end })
+  if (value === null) return null
+  const range = start && end ? `${start.slice(5)} → ${end.slice(5)}` : 'range unknown'
+  const why = reason === 'unknown_range'
+    ? 'No range recorded (an older row, or an export without a daily sheet) — may be one quiet week, not the post\'s total'
+    : reason === 'missed_launch'
+      ? `Counted ${start} → ${end}, which misses the post's first week — the real total is higher`
+      : `Counted ${start} → ${end}`
+  return (
+    <div data-testid={reason ? 'li-undercount' : undefined} title={why}
+      style={{ fontSize: 10, marginTop: 1, color: reason ? '#b45309' : 'var(--al-mut6)' }}>
+      {reason ? '⚠ ' : ''}{range}
     </div>
   )
 }

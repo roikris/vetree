@@ -397,6 +397,14 @@ This is NOT the feed's search (progressive `search_articles_batch` batches with 
 - Parses impressions + engagements sheets from LinkedIn analytics export
 - Runs article matching: activity_id → slug → date → AI (Claude Sonnet)
 - Upserts to `linkedin_post_metrics` (idempotent via post_url UNIQUE constraint)
+- **Per-post numbers keep the highest value any export reported** (analytics-002): an export counts over its own date
+  range only (= its Engagement sheet's first → last day) and lists the top 50 posts, so a later quiet week never
+  overwrites a bigger number; each kept number stores its range (`*_period_start/_end`, migration 090). Existing rows
+  are written ONLY through `apply_linkedin_post_metrics()` (090), which compares with each row's CURRENT values inside
+  one UPDATE — the route's earlier read is ~30 s old after the AI matcher, and a hand correction made meanwhile must
+  survive; it never touches article_id / match_method. New rows: insert-only upsert (`ignoreDuplicates`), every row
+  with the same keys (supabase-js writes NULL for a missing key), then the same RPC. A failed read of existing rows is
+  a 500 — otherwise every post would look new.
 
 **Assignment-preserving upsert (critical — read before touching this route):** the XLSX
 knows numbers; humans know articles. On conflict (existing post_url), the upsert payload
@@ -429,6 +437,7 @@ manually-assigned rows on 2026-07-28 when the matcher didn't find a fresh match 
 
 `/api/admin/linkedin-metrics/[id]` — PATCH/DELETE
 - Admin manually sets article_id (sets match_method = 'manual') or deletes row
+- `{ impressions | engagements }` — a typed-in number = the post page's all-time figure: range set to post date → today
 - `{ match_method: 'no_article' }` — marks row as having no associated article
 - `{ action: 'clear_match' }` — clears article_id and sets match_method = 'cleared';
   logs the previous article_id + match_method server-side before overwriting

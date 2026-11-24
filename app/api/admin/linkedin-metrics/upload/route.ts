@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import * as XLSX from 'xlsx'
+import { exportPeriod, mergeMetric } from '@/lib/linkedin/postMetrics'
 import { matchArticlesToPosts } from '@/lib/linkedin/matchArticle'
 
 export const runtime = 'nodejs'
@@ -258,23 +259,47 @@ export async function POST(request: NextRequest) {
   const existingPostsMap = new Map<string, {
     impressions: number | null
     engagements: number | null
+    impressions_period_start: string | null
+    impressions_period_end: string | null
+    engagements_period_start: string | null
+    engagements_period_end: string | null
+    metrics_updated_at: string | null
     article_id: string | null
     match_method: string | null
   }>()
 
   if (postUrls.length) {
-    const { data: existingPosts } = await supabase
+    const { data: existingPosts, error: existingError } = await supabase
       .from('linkedin_post_metrics')
-      .select('post_url, impressions, engagements, article_id, match_method')
+      .select('post_url, impressions, engagements, impressions_period_start, impressions_period_end, engagements_period_start, engagements_period_end, metrics_updated_at, article_id, match_method')
       .in('post_url', postUrls)
-    for (const p of existingPosts ?? []) {
-      if (p.post_url) existingPostsMap.set(p.post_url, {
-        impressions: p.impressions,
-        engagements: p.engagements,
-        article_id: p.article_id,
-        match_method: p.match_method,
-      })
+    // Without this read every post would look new and its upsert would overwrite a human's article assignment
+    if (existingError) {
+      return NextResponse.json({ error: `Could not read existing posts: ${existingError.message}` }, { status: 500 })
     }
+    for (const p of existingPosts ?? []) {
+      if (p.post_url) existingPostsMap.set(p.post_url, p)
+    }
+  }
+
+  // Per-post numbers count over this export's date range only (analytics-002, lib/linkedin/postMetrics.ts): each
+  // metric keeps the highest value any export reported, with the range it was counted over.
+  const period = exportPeriod(engagementRows.map(r => r.date))
+  const merged = new Map<string, { impressions: ReturnType<typeof mergeMetric>; engagements: ReturnType<typeof mergeMetric> }>()
+  for (const p of topPostsResult.posts) {
+    if (!p.post_date || !p.url) continue
+    const e = existingPostsMap.get(p.url)
+    merged.set(p.url, {
+      impressions: mergeMetric(e ? { value: e.impressions, start: e.impressions_period_start, end: e.impressions_period_end } : null, p.impressions, period),
+      engagements: mergeMetric(e ? { value: e.engagements, start: e.engagements_period_start, end: e.engagements_period_end } : null, p.engagements, period),
+    })
+  }
+  const existingMerged = [...merged.entries()].filter(([url]) => existingPostsMap.has(url)).map(([, m]) => m)
+  const periodSummary = {
+    export_period: period,
+    numbers_raised: existingMerged.filter(m => m.impressions.changed || m.engagements.changed).length,
+    lower_numbers_kept: existingMerged.filter(m => !m.impressions.changed && !m.engagements.changed).length,
+    period_note: 'Per-post numbers count over the export\'s date range only; each post keeps the highest number any export reported.',
   }
 
   const postsWithDate = topPostsResult.posts.filter(p => p.post_date)
@@ -292,6 +317,7 @@ export async function POST(request: NextRequest) {
     total_followers_date: followersResult.totalFollowersDate,
     discovery: discoverySummary,
     demographics: demographicsSummary,
+    ...periodSummary,
   }
 
   // ── Dry run ────────────────────────────────────────────────────────────────
@@ -329,24 +355,34 @@ export async function POST(request: NextRequest) {
   // Only genuinely new rows get article_id/match_method from this run's matcher.
   const newRows: Array<Record<string, unknown>> = []       // no post_url — always a fresh insert
   const newRowsWithUrl: Array<Record<string, unknown>> = []   // post_url not seen before — full columns
-  const existingRowsWithUrl: Array<Record<string, unknown>> = [] // post_url already exists — metric columns only
+  const existingRowsWithUrl: Array<Record<string, unknown>> = [] // post_url already exists — numbers only, via the RPC
 
   for (const p of topPostsResult.posts) {
     if (!p.post_date) continue
     const existing = existingPostsMap.get(p.url)
+    if (p.url && existing) {
+      // Compared with the row's CURRENT numbers inside one UPDATE (apply_linkedin_post_metrics, migration 090) — not
+      // with the read above, which is ~30 s old after the AI matcher: a hand correction made meanwhile must survive.
+      existingRowsWithUrl.push({ post_url: p.url, post_date: p.post_date, impressions: p.impressions, engagements: p.engagements, raw_row: p.raw_row })
+      continue
+    }
+    // A new row: the export's numbers with its range (every row carries the same keys — a bulk write NULLs a missing one)
+    const imp = mergeMetric(null, p.impressions, period)
+    const eng = mergeMetric(null, p.engagements, period)
     const metricFields = {
       post_url: p.url || null,
       post_date: p.post_date,
-      impressions: p.impressions ?? existing?.impressions ?? null,
-      engagements: p.engagements ?? existing?.engagements ?? null,
+      impressions: imp.value,
+      impressions_period_start: imp.start,
+      impressions_period_end: imp.end,
+      engagements: eng.value,
+      engagements_period_start: eng.start,
+      engagements_period_end: eng.end,
       raw_row: p.raw_row,
       metrics_updated_at: new Date().toISOString(),
     }
-
     if (!p.url) {
       newRows.push(metricFields)
-    } else if (existing) {
-      existingRowsWithUrl.push(metricFields)
     } else {
       const match = matchMap.get(p.url)
       newRowsWithUrl.push({
@@ -354,25 +390,35 @@ export async function POST(request: NextRequest) {
         article_id: match?.article_id ?? null,
         match_method: match?.method ?? null,
       })
+      // Also through the RPC: if another upload inserted this post meanwhile, the insert below skips it and the RPC
+      // applies the numbers (a no-op for the row this upload inserted itself)
+      existingRowsWithUrl.push({ post_url: p.url, post_date: p.post_date, impressions: p.impressions, engagements: p.engagements, raw_row: p.raw_row })
     }
   }
 
   let postsUpserted = 0
   let postsError: string | null = null
+  let numbersRaised = 0
 
   if (newRowsWithUrl.length) {
+    // Insert only: a row that appeared since the read keeps its assignment (ignoreDuplicates = ON CONFLICT DO NOTHING)
     const { error } = await supabase
       .from('linkedin_post_metrics')
-      .upsert(newRowsWithUrl, { onConflict: 'post_url', ignoreDuplicates: false })
+      .upsert(newRowsWithUrl, { onConflict: 'post_url', ignoreDuplicates: true })
     if (error) postsError = error.message
     else postsUpserted += newRowsWithUrl.length
   }
   if (existingRowsWithUrl.length && !postsError) {
-    const { error } = await supabase
-      .from('linkedin_post_metrics')
-      .upsert(existingRowsWithUrl, { onConflict: 'post_url', ignoreDuplicates: false })
+    const { data: raised, error } = await supabase.rpc('apply_linkedin_post_metrics', {
+      p_rows: existingRowsWithUrl,
+      p_period_start: period?.start ?? null,
+      p_period_end: period?.end ?? null,
+    })
     if (error) postsError = error.message
-    else postsUpserted += existingRowsWithUrl.length
+    else {
+      numbersRaised = typeof raised === 'number' ? raised : 0
+      postsUpserted += existingRowsWithUrl.length - newRowsWithUrl.length // the new rows were counted above
+    }
 
     // Safety-net guard: assignment columns were never sent for these rows, so
     // they must be byte-for-byte identical to the pre-upload snapshot. If a
@@ -380,7 +426,7 @@ export async function POST(request: NextRequest) {
     // this payload, this is what catches it — refuse loudly instead of
     // silently wiping a human decision.
     if (!postsError) {
-      const touchedUrls = existingRowsWithUrl.map(r => r.post_url as string)
+      const touchedUrls = existingRowsWithUrl.map(r => r.post_url as string).filter(u => existingPostsMap.has(u))
       const { data: postWriteRows, error: verifyError } = await supabase
         .from('linkedin_post_metrics')
         .select('post_url, article_id, match_method')
@@ -462,9 +508,14 @@ export async function POST(request: NextRequest) {
     // Only newRowsWithUrl carries article_id/match_method from this run's
     // matcher — existing rows' assignments were never touched, so they're
     // deliberately excluded from these stats (see assignment_note below).
-    existing_rows_metric_update_only: existingRowsWithUrl.length,
+    existing_rows_metric_update_only: existingRowsWithUrl.length - newRowsWithUrl.length,
     new_rows_inserted: newRowsWithUrl.length + newRows.length,
-    assignment_note: `${existingRowsWithUrl.length} existing row${existingRowsWithUrl.length === 1 ? '' : 's'} were metric-updated (assignments preserved); ${newRowsWithUrl.length + newRows.length} new row${(newRowsWithUrl.length + newRows.length) === 1 ? '' : 's'} inserted with fresh matches`,
+    assignment_note: `${existingRowsWithUrl.length - newRowsWithUrl.length} existing row${existingRowsWithUrl.length - newRowsWithUrl.length === 1 ? '' : 's'} were metric-updated (assignments preserved); ${newRowsWithUrl.length + newRows.length} new row${(newRowsWithUrl.length + newRows.length) === 1 ? '' : 's'} inserted with fresh matches`,
+    ...periodSummary,
+    // Posts whose numbers rose, decided by the database against each row's current values (the dry run's figures
+    // are a preview; under a concurrent upload the per-group counts above are approximate)
+    numbers_raised: numbersRaised,
+    lower_numbers_kept: undefined,
     matched_articles: newRowsWithUrl.filter(r => r.article_id).length,
     match_breakdown: {
       slug: newRowsWithUrl.filter(r => r.match_method === 'slug').length,
