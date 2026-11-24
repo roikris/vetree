@@ -80,3 +80,9 @@ test('daySource: earliest known value; unknown only when nothing better; disagre
   // same time → approval id breaks the tie
   assert.deepEqual(daySource([r('2026-12-01T08:00:00Z', 'b', 'search'), r('2026-12-01T08:00:00Z', 'a', 'recommendation')]), { source: 'recommendation', disagree: true })
 })
+
+test('logPickSource: a throwing reporter is contained — the recorded post is never turned into an error', async () => {
+  const boom = () => { throw new Error('sentry down') }
+  assert.equal(await logPickSource(client(async () => ({ error: { message: 'boom' } })), 'ap', 'auto', boom), false)
+  assert.equal(await logPickSource(client(async () => ({ error: null })), null, 'auto', boom), false)
+})

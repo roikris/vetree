@@ -374,7 +374,10 @@ export function analyzeTrial(input: AnalysisInput) {
     unattributed: signups.filter(s => s.source === 'unattributed').length,
   }
   // 6. how each trial day's article was chosen (growth-006) — descriptive; the scores are in the drivers above, and
-  // January joins growth_recommendation_sets (lists shown that Israel day before the first post) for positions
+  // January joins growth_recommendation_sets (lists shown that Israel day before the first post) for positions.
+  // Join limits: a set id isn't stored with the pick, so several sets (or none) can match a day — the position is
+  // inferred; growth_article_scores keeps only the latest score per article (a rescore overwrites it); an auto-pick's
+  // draw (weighted random from the top 10) isn't recorded.
   const approvalById = new Map(input.approvals.map(a => [a.id, a]))
   const rowsByDay = new Map<string, { created_at: string; approval_id: string; pick_source: string | null; article_id: string | null }[]>()
   for (const r of input.trialRows) {

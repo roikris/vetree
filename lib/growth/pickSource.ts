@@ -66,11 +66,16 @@ export const PICK_LOG_TIMEOUT_MS = 5_000
 /**
  * After record_trial_post committed: fills pick_source on that post's trial row if still empty (a retry that gets
  * already_recorded can fill it too). Never throws and never waits longer than the timeout — the post is recorded
- * whatever happens here. Returns whether the write went through; `onFail` reports a failure (Sentry in the route).
+ * whatever happens here. Returns whether the write went through; `onFail` reports a failure (Sentry in the route) —
+ * a reporter that throws is contained too.
+ * Retry limits: only a repeat of the same mark request (already_recorded) can fill a NULL later — the panel never
+ * re-sends a platform it shows as posted, so a failed write stays NULL ('not recorded' in the results); a stored
+ * 'unknown' is never improved (first writer wins).
  */
 export async function logPickSource(client: PickLogClient, approvalId: unknown, source: PickSource,
   onFail: () => void = () => {}, timeoutMs = PICK_LOG_TIMEOUT_MS): Promise<boolean> {
-  if (typeof approvalId !== 'string' || !approvalId) { onFail(); return false }
+  const fail = () => { try { onFail() } catch { /* reporting must not undo a recorded post */ } return false }
+  if (typeof approvalId !== 'string' || !approvalId) return fail()
   try {
     const signal = AbortSignal.timeout(timeoutMs)
     const write = Promise.resolve(client.from('growth_trial_posts').update({ pick_source: source })
@@ -84,6 +89,5 @@ export async function logPickSource(client: PickLogClient, approvalId: unknown, 
   } catch (e) {
     console.error('[trial/mark] pick_source not logged:', e instanceof Error ? e.message : String(e))
   }
-  onFail()
-  return false
+  return fail()
 }
