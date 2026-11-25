@@ -2281,6 +2281,38 @@
       "wip_sha": null,
       "expected_failures": [],
       "notes": "Roi 2026-11-24: \"let's figure out how to use the insights we gained from the analytics to implement changes to the recommendation engine as well in the trial\"; read-only pull: \"yes, go ahead\". Must be live before 2026-12-01 to cover the whole trial. Picker change applies to all December days (not a third split) \u2014 recommendation, to confirm with the analysis."
+    },
+    {
+      "id": "analytics-003",
+      "priority": 1,
+      "area": "analytics",
+      "type": "fix",
+      "title": "Search analytics: suggestion-chip clicks and automated visitors counted as real searches (56% of search_logs since Sep 1)",
+      "user_visible_behavior": "Admin \u2192 Analytics searches, the daily aggregate (total/top/zero-result searches) and the analysis agent's search signals leave out bots, the likely-automated estimate (signed out) and landing-page chip clicks; the Recent searches panel says how many chip clicks were not counted",
+      "status": "in_progress",
+      "verification": [
+        {
+          "step": "Read-only pull of production search_logs (78 since 2026-09-01) + page_views of the same ip_hash: 44 are the 4 landing-page chips, all signed out, a new IP each, 0 article views",
+          "target": "production",
+          "db_reads": "prod",
+          "db_writes": "none",
+          "paid_calls": false
+        },
+        {
+          "step": "Migration 092 (search_logs bot_name, traffic_class, via + backfill of signed-out exact chip queries); db push only on Roi's yes; unit tests; init.sh check; Codex tier 2 plan + code",
+          "target": "preview",
+          "db_reads": "prod",
+          "db_writes": "prod",
+          "paid_calls": false
+        }
+      ],
+      "evidence": [],
+      "branch": "fix/search-log-automation",
+      "pr": null,
+      "head_sha": null,
+      "wip_sha": null,
+      "expected_failures": [],
+      "notes": "Roi 2026-11-25: \"yes\" to options 1 + 2 (traffic columns + chip flag)."
     }
   ]
 }
