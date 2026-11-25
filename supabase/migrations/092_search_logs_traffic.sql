@@ -38,4 +38,4 @@ UPDATE public.search_logs
  WHERE via IS NULL
    AND user_id IS NULL
    AND query IN ('canine diabetes management', 'feline hypertension', 'TPLO outcomes', 'lymphoma chemotherapy')
-   AND created_at < timestamptz '2026-11-25T21:00:00Z';
+   AND created_at < timestamptz '2026-11-25T19:31:00Z';
