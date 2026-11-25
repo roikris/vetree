@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { excludedUsersOrFilter } from '@/lib/analytics-excluded-ids'
+import { searchDemand } from '@/lib/analytics/searchFilters'
 import { countSynthesisEvents } from '@/lib/analytics/synthesisEvents'
 
 export async function POST(request: NextRequest) {
@@ -95,12 +96,13 @@ export async function POST(request: NextRequest) {
     fail('registered_mau', regMauError)
     const registeredMau = new Set(registeredMauData?.map(r => r.user_id) ?? []).size
 
-    // Total searches + zero result searches (exclude admin)
-    const { data: searchData, error: searchError } = await supabase
+    // Total / zero-result / top searches = typed demand (analytics-003): admin + test, crawlers, chip searches and
+    // the signed-out likely-automated estimate left out (lib/analytics/searchFilters.ts). Zero here can be real —
+    // the signals route checks logging health on the raw rows instead.
+    const { data: searchData, error: searchError } = await searchDemand(supabase
       .from('search_logs')
       .select('query, results_count, user_id')
-      .gte('created_at', sevenDaysAgo)
-      .or(excludedUsersOrFilter())
+      .gte('created_at', sevenDaysAgo))
     fail('search_logs', searchError)
 
     const totalSearches = searchData?.length || 0

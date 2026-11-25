@@ -242,7 +242,8 @@ The aggregate route must:
 2. Call `fail(label, error)` after each query — `fail()` throws on non-null error → returns 500
 3. Abort with 500 if MAU is 0 after computing: guards against writing silent zeros
 4. Exclude admin + TEST_USER_ID via `excludedUsersOrFilter()` from ALL queries
-5. Never write zeros to the snapshot silently — a zero total_searches is a sensor failure signal
+5. Never write zeros to the snapshot silently. `total_searches` is filtered demand (`searchDemand()`, analytics-003) and
+   can be zero for real; logging health is the signals route's raw count of recorded rows (`searchLoggingGap`)
 
 Silent error swallowing (missing error variable) caused two weeks of all-zero snapshots (2026-07-13).
 
@@ -369,7 +370,11 @@ This is NOT the feed's search (progressive `search_articles_batch` batches with 
 - Exclude admin + TEST_USER_ID from ALL analytics queries via `excludedUsersOrFilter()`
 - Article views are NOT reliable signals (social promotion bias) — use saves/searches/synthesis
 - Signal types: search_gap, churn_risk, content_opportunity, growth_signal, retention_driver, ux_problem, data_gap
-- `data_gap` fires when total_searches == 0 in latest snapshot (logging sensor failure)
+- `data_gap` fires when zero search_logs rows of ANY kind (crawlers, chips, automated included; admin/test excluded)
+  were recorded in 7 days — the snapshot's total_searches is filtered demand since analytics-003 and can be 0 for real
+- Every search DEMAND read goes through `searchDemand()` (`lib/analytics/searchFilters.ts`) — deliberate raw exceptions: the signals route's
+  logging-health count and getRecentSearches' chip count; the insights prompt carries
+  `SEARCH_CUTOVER_NOTE` (figures before 2026-11-26 counted crawlers clicking the landing chips)
 
 ### Insights output contract (systemPrompt in insights/route.ts)
 - **Standing constraints** — set by the owner, never derived from data, must survive any future prompt rewrite. Currently: never suggest changing LinkedIn posting cadence/frequency.

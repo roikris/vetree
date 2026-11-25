@@ -6,6 +6,7 @@ import { excludedUsersOrFilter } from '@/lib/analytics-excluded-ids'
 import { countSynthesisEvents, getAnalyticsCleanupBoundary } from '@/lib/analytics/synthesisEvents'
 import { computeActivation } from '@/lib/analytics/activation'
 import { readAll, isLikelyAutomated, LIKELY_HUMAN_OR } from '@/lib/analytics/readAll'
+import { searchDemand } from '@/lib/analytics/searchFilters'
 
 // includeAutomated (every page_views / analytics_events reader below): false = the dashboard's default, the
 // likely-automated estimate from signed-out visitors is left out (LIKELY_HUMAN_OR); true = everything, as before.
@@ -389,7 +390,7 @@ export async function getSessionDuration(days: number = 7, includeAutomated = fa
   return { data: { average, median, distribution }, error: null }
 }
 
-export async function getRecentSearches(days: number = 7, limit: number = 20) {
+export async function getRecentSearches(days: number = 7, limit: number = 20, includeAutomated = false) {
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
@@ -409,14 +410,23 @@ export async function getRecentSearches(days: number = 7, limit: number = 20) {
   const startDate = new Date()
   startDate.setDate(startDate.getDate() - days)
 
-  const { data: searches } = await db
-    .from('search_logs')
-    .select('query, results_count, results_count_is_lower_bound, created_at')
-    .gte('created_at', startDate.toISOString())
-    .or(excludedUsersOrFilter())
+  // Typed demand only (lib/analytics/searchFilters.ts) — crawlers, chip searches and (unless includeAutomated) the
+  // signed-out likely-automated estimate left out; chip searches counted separately for the panel's note
+  const [{ data: searches, error: searchesError }, { count: chipSearches, error: chipError }] = await Promise.all([
+    searchDemand(db
+      .from('search_logs')
+      .select('query, results_count, results_count_is_lower_bound, created_at')
+      .gte('created_at', startDate.toISOString()), includeAutomated),
+    db.from('search_logs').select('id', { count: 'exact', head: true })
+      .gte('created_at', startDate.toISOString()).eq('via', 'chip').or(excludedUsersOrFilter()),
+  ])
+  if (searchesError || chipError) {
+    console.error('[analytics] search_logs read failed:', (searchesError || chipError)?.message)
+    return { data: [], chipSearches: 0, error: 'Failed to load searches' }
+  }
 
   if (!searches || searches.length === 0) {
-    return { data: [], error: null }
+    return { data: [], chipSearches: chipSearches ?? 0, error: null }
   }
 
   // Group by query and aggregate
@@ -458,7 +468,7 @@ export async function getRecentSearches(days: number = 7, limit: number = 20) {
     .sort((a, b) => b.count - a.count)
     .slice(0, limit)
 
-  return { data: recentSearches, error: null }
+  return { data: recentSearches, chipSearches: chipSearches ?? 0, error: null }
 }
 
 export async function getDeviceBreakdown(days: number = 7, includeAutomated = false) {

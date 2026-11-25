@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { getClientIP } from '@/lib/ratelimit'
 import { hashIP } from '@/lib/ipHash'
+import { detectBotName } from '@/lib/bot-detection'
+import { trafficClassForIP } from '@/lib/analytics/datacenter'
 import { EXCLUDED_USER_IDS } from '@/lib/analytics-excluded-ids'
 import { analyticsRecordingEnabled, isQATraffic } from '@/lib/analytics/recording'
 
@@ -12,7 +14,7 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient()
     const body = await request.json()
-    const { query, results_count, results_count_is_lower_bound } = body
+    const { query, results_count, results_count_is_lower_bound, via } = body
 
     if (!query || query.trim().length === 0) {
       return NextResponse.json({ error: 'Query is required' }, { status: 400 })
@@ -43,6 +45,10 @@ export async function POST(request: NextRequest) {
 
     // Hash IP for privacy (never store raw IP)
     const ipHash = hashIP(ip)
+    // Tagged like page_views (/api/analytics/track), never dropped — readers leave them out (lib/analytics/searchFilters.ts).
+    // The raw IP is only compared in memory for the hosting-network estimate; confirmed crawlers keep bot_name only.
+    const botName = detectBotName(userAgent)
+    const trafficClass = botName ? null : trafficClassForIP(ip)
 
     // Insert search log — with the service role: the public key cannot insert into search_logs
     // (since migration 078, infra-002), so rows only arrive through this route's filters (QA, excluded users)
@@ -54,7 +60,11 @@ export async function POST(request: NextRequest) {
         // Progressive search logs its first batch: true means "at least results_count"
         results_count_is_lower_bound: results_count_is_lower_bound === true,
         user_id: user?.id || null,
-        ip_hash: ipHash
+        ip_hash: ipHash,
+        bot_name: botName,
+        traffic_class: trafficClass,
+        // a landing-page suggestion chip (analytics-003) — client-reported, anything else is a typed search
+        via: via === 'chip' ? 'chip' : null,
       })
 
     if (error) {

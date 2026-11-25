@@ -1,6 +1,6 @@
 {
   "note": "Known lint errors (D9 ratchet). Only errors above these counts fail. Shrink, never grow.",
-  "total_errors": 99,
+  "total_errors": 98,
   "entries": [
     {
       "file": "app/actions/admin.ts",
@@ -90,7 +90,7 @@
     {
       "file": "components/articles/SaveIntentHandler.tsx",
       "rule": "react-hooks/set-state-in-effect",
-      "count": 2
+      "count": 1
     },
     {
       "file": "components/articles/SoftRegistrationPrompt.tsx",
