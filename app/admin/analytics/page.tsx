@@ -17,7 +17,7 @@ export default async function AdminAnalyticsPage({ searchParams }: { searchParam
     getVisitorsOverTime(days, include),
     getTopArticles(days, 10, include),
     getSessionDuration(days, include),
-    getRecentSearches(days),
+    getRecentSearches(days, 20, include),
     getDeviceBreakdown(days, include),
     getTopCountries(days, 10, include),
     getSavedArticlesStats(days),
@@ -70,6 +70,7 @@ export default async function AdminAnalyticsPage({ searchParams }: { searchParam
         initialTopArticles={topArticles.data || []}
         initialSessionDuration={sessionDuration.data}
         initialRecentSearches={recentSearches.data || []}
+        initialChipSearches={recentSearches.chipSearches ?? 0}
         initialDeviceBreakdown={deviceBreakdown.data}
         initialTopCountries={topCountries.data || []}
         initialSavedArticlesStats={savedArticlesStats.data}

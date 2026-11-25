@@ -276,13 +276,20 @@ opposite (`.not('bot_name', 'is', null)`) for the admin "Bot Traffic" panel. Don
 new page_views-reading query without deciding which side of that filter it belongs on.
 
 ### `search_logs`
-| Column | Type |
-|--------|------|
-| query | text |
-| results_count | integer |
-| user_id | uuid nullable |
-| ip_hash | text |
-| created_at | timestamptz |
+| Column | Type | Notes |
+|--------|------|-------|
+| query | text | |
+| results_count | integer | |
+| user_id | uuid nullable | |
+| ip_hash | text | |
+| created_at | timestamptz | |
+| results_count_is_lower_bound | boolean | progressive search's first batch: "at least" |
+| bot_name | text nullable | migration 092 — crawler (user agent), as page_views |
+| traffic_class | text nullable | migration 092 — hosting-network estimate, as page_views (same CHECK) |
+| via | text nullable | migration 092 — `'chip'` = from a landing-page suggestion chip; before 092 inferred (signed out + exact chip text) |
+
+Readers use `searchDemand()` (`lib/analytics/searchFilters.ts`): no crawlers, no chip searches, signed-out
+likely-automated hidden by default (analytics-003).
 
 ### `analytics_events`
 | Column | Type | Notes |

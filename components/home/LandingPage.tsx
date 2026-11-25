@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { getEvidenceBadge } from '@/lib/utils/evidenceBadge'
+import { SEARCH_CHIPS, chipHref } from '@/lib/search/chips'
 import { CookieSettingsButton } from '@/components/consent/TrackingConsent'
 
 const SPECIALTIES: [string, string][] = [
@@ -46,8 +47,6 @@ const staticStats = [
   { num: '~40s',    label: 'To read one clinical bottom line' },
   { num: '3-tier',  label: 'Evidence tiers by study design' },
 ]
-
-const CHIPS = ['canine diabetes management', 'feline hypertension', 'TPLO outcomes', 'lymphoma chemotherapy']
 
 type LandingPageProps = {
   exampleArticle?: any
@@ -181,8 +180,8 @@ export function LandingPage({ exampleArticle, articleCountLabel }: LandingPagePr
             </form>
             <div style={{ display: 'flex', alignItems: 'center', gap: 9, flexWrap: 'wrap' }}>
               <span style={{ font: "italic 400 13.5px/1 var(--font-spectral, serif)", color: 'var(--al-mut6)', marginRight: 2 }}>Try —</span>
-              {CHIPS.map(chip => (
-                <Link key={chip} href={`/?search=${encodeURIComponent(chip)}`} style={{ padding: '7px 13px', borderRadius: 999, background: 'rgba(var(--al-line), .05)', border: '1px solid rgba(var(--al-line), .12)', font: "500 12.5px/1 var(--font-instrument, sans-serif)", color: 'var(--al-body)', textDecoration: 'none' }}>
+              {SEARCH_CHIPS.map(chip => (
+                <Link key={chip} href={chipHref(chip)} style={{ padding: '7px 13px', borderRadius: 999, background: 'rgba(var(--al-line), .05)', border: '1px solid rgba(var(--al-line), .12)', font: "500 12.5px/1 var(--font-instrument, sans-serif)", color: 'var(--al-body)', textDecoration: 'none' }}>
                   {chip}
                 </Link>
               ))}

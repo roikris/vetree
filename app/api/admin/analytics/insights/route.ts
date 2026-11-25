@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import Anthropic from '@anthropic-ai/sdk'
 import { excludedUsersOrFilter } from '@/lib/analytics-excluded-ids'
+import { searchDemand, SEARCH_CUTOVER_NOTE } from '@/lib/analytics/searchFilters'
 import { scrubIdentifiers } from '@/lib/analytics/scrubIdentifiers'
 import { CLAUDE_MODEL, NO_UPFRONT_THINKING, responseText } from '@/lib/ai/model'
 import { EXPERIMENT_KICKOFF_DATE, EXPERIMENT_END_DATE, EXPERIMENT_TOTAL_DAYS, experimentDayNumber, experimentPhase } from '@/lib/synthesis/experiment'
@@ -113,23 +114,21 @@ export async function POST(request: NextRequest) {
     const sevenDaysAgoISO = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
 
     // Zero-result searches (exact queries users searched with no results)
-    const { data: zeroResultQueries } = await supabase
+    const { data: zeroResultQueries } = await searchDemand(supabase
       .from('search_logs')
       .select('query, results_count, created_at')
       .eq('results_count', 0)
-      .or(excludedUsersOrFilter())
-      .gte('created_at', sevenDaysAgoISO)
+      .gte('created_at', sevenDaysAgoISO))
       .order('created_at', { ascending: false })
       .limit(20)
 
     // Thin-result searches (1-4 results — sparse coverage)
-    const { data: thinResultQueries } = await supabase
+    const { data: thinResultQueries } = await searchDemand(supabase
       .from('search_logs')
       .select('query, results_count, created_at')
       .gt('results_count', 0)
       .lte('results_count', 4)
-      .or(excludedUsersOrFilter())
-      .gte('created_at', sevenDaysAgoISO)
+      .gte('created_at', sevenDaysAgoISO))
       .order('created_at', { ascending: false })
       .limit(20)
 
@@ -228,6 +227,8 @@ export async function POST(request: NextRequest) {
 
     const specificDataSection = `
 SPECIFIC DATA — cite these exact items in your insights:
+
+SEARCH DATA NOTE: ${SEARCH_CUTOVER_NOTE}
 
 ZERO-RESULT SEARCHES (users searched, found nothing — content gaps):
 ${topZeroResults.length > 0 ? topZeroResults.map(r => `  "${r.query}" — searched ${r.count}x this week, 0 results`).join('\n') : '  None this week'}

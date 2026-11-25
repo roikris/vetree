@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { excludedUsersOrFilter } from '@/lib/analytics-excluded-ids'
+import { searchDemand, searchLoggingGap } from '@/lib/analytics/searchFilters'
 import { getAnalyticsCleanupBoundary } from '@/lib/analytics/synthesisEvents'
 
 export async function POST(request: NextRequest) {
@@ -33,8 +34,15 @@ export async function POST(request: NextRequest) {
     const signals: any[] = []
 
     if (latest) {
-      // Signal 0: Zero searches logged — likely a data pipeline gap
-      if ((latest.total_searches ?? 0) === 0) {
+      // Signal 0: zero search rows RECORDED this week — likely a logging gap. Counted on the raw rows (crawlers,
+      // chip and likely-automated searches included: they prove the logger writes), not the snapshot's
+      // total_searches, which is filtered demand and can be zero for real (analytics-003)
+      const { count: recordedSearches, error: recordedError } = await supabase
+        .from('search_logs').select('id', { count: 'exact', head: true })
+        .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
+        .or(excludedUsersOrFilter())
+      if (recordedError) throw new Error(`search_logs count: ${recordedError.message}`)
+      if (searchLoggingGap(recordedSearches ?? 0)) {
         signals.push({
           date: latest.date,
           type: 'data_gap',
@@ -57,11 +65,11 @@ export async function POST(request: NextRequest) {
 
       // Signal 2: Specific zero-result queries (content gaps)
       const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
-      const { data: zeroSearches } = await supabase
+      const { data: zeroSearches } = await searchDemand(supabase
         .from('search_logs')
         .select('query, results_count')
         .eq('results_count', 0)
-        .gte('created_at', sevenDaysAgo)
+        .gte('created_at', sevenDaysAgo))
 
       const zeroQueryCounts = zeroSearches?.reduce((acc, s) => {
         acc[s.query] = (acc[s.query] || 0) + 1
@@ -94,12 +102,12 @@ export async function POST(request: NextRequest) {
       // Signal 2b: Low-result queries as content gap fallback (results > 0 but < 10)
       // Only surface these when zero-result signals are sparse (< 3), so they fill the gap
       if (topZeroQueries.length < 3) {
-        const { data: lowResultSearches } = await supabase
+        const { data: lowResultSearches } = await searchDemand(supabase
           .from('search_logs')
           .select('query, results_count')
           .gt('results_count', 0)
           .lt('results_count', 10)
-          .gte('created_at', sevenDaysAgo)
+          .gte('created_at', sevenDaysAgo))
 
         const lowQueryCounts = lowResultSearches?.reduce((acc, s) => {
           acc[s.query] = (acc[s.query] || 0) + 1

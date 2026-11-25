@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { SEARCH_DEMAND_SINCE } from '@/lib/search/chips'
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { getAnalyticsOverview, getTopPages, getVisitorsOverTime, getTopArticles, getSessionDuration, getRecentSearches, getDeviceBreakdown, getTopCountries, getSavedArticlesStats, getTrafficSources, getSynthesisStats, getSaveIntentFunnel, getBotTraffic } from '@/app/actions/analytics'
 
@@ -11,6 +12,8 @@ type AnalyticsClientProps = {
   initialTopArticles: any[]
   initialSessionDuration: any
   initialRecentSearches: any[]
+  /** suggestion-chip searches in the window, never counted as searches (analytics-003) */
+  initialChipSearches?: number
   initialDeviceBreakdown: any
   initialTopCountries: any[]
   initialSavedArticlesStats: any
@@ -43,6 +46,7 @@ export function AnalyticsClient({
   initialTopArticles,
   initialSessionDuration,
   initialRecentSearches,
+  initialChipSearches = 0,
   initialDeviceBreakdown,
   initialTopCountries,
   initialSavedArticlesStats,
@@ -64,6 +68,7 @@ export function AnalyticsClient({
   const [topArticles, setTopArticles] = useState(initialTopArticles || [])
   const [sessionDuration, setSessionDuration] = useState(initialSessionDuration)
   const [recentSearches, setRecentSearches] = useState(initialRecentSearches || [])
+  const [chipSearches, setChipSearches] = useState(initialChipSearches)
   const [deviceBreakdown, setDeviceBreakdown] = useState(initialDeviceBreakdown)
   const [topCountries, setTopCountries] = useState(initialTopCountries || [])
   const [savedArticlesStats, setSavedArticlesStats] = useState(initialSavedArticlesStats)
@@ -132,7 +137,7 @@ export function AnalyticsClient({
         getVisitorsOverTime(newRange, include),
         getTopArticles(newRange, 10, include),
         getSessionDuration(newRange, include),
-        getRecentSearches(newRange),
+        getRecentSearches(newRange, 20, include),
         getDeviceBreakdown(newRange, include),
         getTopCountries(newRange, 10, include),
         getSavedArticlesStats(newRange),
@@ -148,6 +153,7 @@ export function AnalyticsClient({
       setTopArticles(articlesRes.data || [])
       setSessionDuration(sessionRes.data)
       setRecentSearches(searchesRes.data || [])
+      setChipSearches(searchesRes.chipSearches ?? 0)
       setDeviceBreakdown(deviceRes.data)
       setTopCountries(countriesRes.data || [])
       setSavedArticlesStats(savedRes.data)
@@ -707,6 +713,11 @@ export function AnalyticsClient({
         ) : (
           <div style={{ textAlign: 'center', padding: '48px 0', color: 'var(--al-mut4)', fontFamily: 'var(--font-instrument,sans-serif)', fontSize: 14 }}>
             No searches recorded yet
+          </div>
+        )}
+        {chipSearches > 0 && (
+          <div style={{ marginTop: 12, color: 'var(--al-mut4)', fontFamily: 'var(--font-instrument,sans-serif)', fontSize: 12 }}>
+            {chipSearches} suggestion-origin {chipSearches === 1 ? 'search' : 'searches'} excluded — the landing page&apos;s chip links, mostly automated visitors; before {SEARCH_DEMAND_SINCE} inferred from the exact chip text.
           </div>
         )}
       </div>

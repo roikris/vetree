@@ -7,6 +7,7 @@ import { SproutLoader } from '@/components/search/SproutLoader'
 import { Article } from '@/lib/supabase'
 import { ParsedFilters, SortOption } from '@/types/search'
 import { buildSearchParams } from '@/lib/utils/searchParams'
+import { searchVia } from '@/lib/search/chips'
 import { defaultQuickFilterFor } from '@/lib/utils/species'
 import type { Disclosure, SearchArticle } from '@/lib/search/progressive'
 
@@ -71,7 +72,8 @@ export function ProgressiveResults({ filters, initialArticles, initialCursor, in
     fetch('/api/analytics/search', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query, results_count: initialArticles.length, results_count_is_lower_bound: lowerBound }),
+      // via: 'chip' when this search came from a landing-page suggestion chip (analytics-003) — not typed demand
+      body: JSON.stringify({ query, results_count: initialArticles.length, results_count_is_lower_bound: lowerBound, via: searchVia(window.location.search, query) }),
     }).catch(() => { /* best-effort */ })
     // Logged once per mount (a search); deliberately not re-run on later batches
     // eslint-disable-next-line react-hooks/exhaustive-deps

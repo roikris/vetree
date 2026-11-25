@@ -8,7 +8,7 @@ import { ratelimitModerate, rateLimitIP } from '@/lib/ratelimit'
 import { createClient } from '@/lib/supabase/server'
 import { CLAUDE_MODEL, NO_UPFRONT_THINKING, responseText } from '@/lib/ai/model'
 import { rankGrowthCandidates } from '@/lib/growth/candidates'
-import { excludedUsersOrFilter } from '@/lib/analytics-excluded-ids'
+import { searchDemand } from '@/lib/analytics/searchFilters'
 import { israelDate } from '@/lib/growth/daily'
 import { hasLink } from '@/lib/growth/linkFree'
 import { TRIAL_PLATFORMS, TRIAL_START, assignmentFor, inTrial, trialCampaign, variantFor, type LinkedinVariant } from '@/lib/growth/trial'
@@ -99,12 +99,11 @@ export async function POST(request: NextRequest) {
 
     // Recent zero-result searches as a hot demand signal for the post copy
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
-    const { data: zeroResultSearches } = await supabase
+    const { data: zeroResultSearches } = await searchDemand(supabase
       .from('search_logs')
       .select('query')
       .eq('results_count', 0)
-      .gte('created_at', sevenDaysAgo)
-      .or(excludedUsersOrFilter())
+      .gte('created_at', sevenDaysAgo))
       .order('created_at', { ascending: false })
       .limit(50)
 
