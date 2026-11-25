@@ -712,7 +712,7 @@ export function AnalyticsClient({
           </table>
         ) : (
           <div style={{ textAlign: 'center', padding: '48px 0', color: 'var(--al-mut4)', fontFamily: 'var(--font-instrument,sans-serif)', fontSize: 14 }}>
-            No searches recorded yet
+            No typed searches in this period
           </div>
         )}
         {chipSearches > 0 && (

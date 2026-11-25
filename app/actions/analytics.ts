@@ -412,7 +412,7 @@ export async function getRecentSearches(days: number = 7, limit: number = 20, in
 
   // Typed demand only (lib/analytics/searchFilters.ts) — crawlers, chip searches and (unless includeAutomated) the
   // signed-out likely-automated estimate left out; chip searches counted separately for the panel's note
-  const [{ data: searches }, { count: chipSearches }] = await Promise.all([
+  const [{ data: searches, error: searchesError }, { count: chipSearches, error: chipError }] = await Promise.all([
     searchDemand(db
       .from('search_logs')
       .select('query, results_count, results_count_is_lower_bound, created_at')
@@ -420,6 +420,10 @@ export async function getRecentSearches(days: number = 7, limit: number = 20, in
     db.from('search_logs').select('id', { count: 'exact', head: true })
       .gte('created_at', startDate.toISOString()).eq('via', 'chip').or(excludedUsersOrFilter()),
   ])
+  if (searchesError || chipError) {
+    console.error('[analytics] search_logs read failed:', (searchesError || chipError)?.message)
+    return { data: [], chipSearches: 0, error: 'Failed to load searches' }
+  }
 
   if (!searches || searches.length === 0) {
     return { data: [], chipSearches: chipSearches ?? 0, error: null }

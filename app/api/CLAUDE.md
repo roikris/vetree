@@ -372,7 +372,8 @@ This is NOT the feed's search (progressive `search_articles_batch` batches with 
 - Signal types: search_gap, churn_risk, content_opportunity, growth_signal, retention_driver, ux_problem, data_gap
 - `data_gap` fires when zero search_logs rows of ANY kind (crawlers, chips, automated included; admin/test excluded)
   were recorded in 7 days — the snapshot's total_searches is filtered demand since analytics-003 and can be 0 for real
-- Every search_logs read goes through `searchDemand()` (`lib/analytics/searchFilters.ts`); the insights prompt carries
+- Every search DEMAND read goes through `searchDemand()` (`lib/analytics/searchFilters.ts`) — deliberate raw exceptions: the signals route's
+  logging-health count and getRecentSearches' chip count; the insights prompt carries
   `SEARCH_CUTOVER_NOTE` (figures before 2026-11-26 counted crawlers clicking the landing chips)
 
 ### Insights output contract (systemPrompt in insights/route.ts)

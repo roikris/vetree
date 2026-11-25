@@ -508,14 +508,15 @@ excluded, crawlers (`bot_name`) excluded.
 - Cohorts were 5–25 accounts on 2026-10-04: read percentages as direction, not trend
 - User Retention's "7/30-day retention" = users active in the window ÷ ALL registered users (not cohort retention);
   its windows include today, so they span 8 / 31 UTC dates
-**Searches (analytics-003, Roi 2026-11-25)** — every search_logs reader counts typed demand only, through
+**Searches (analytics-003, Roi 2026-11-25)** — every search demand reader counts typed demand only, through
 `searchDemand()` (`lib/analytics/searchFilters.ts`): admin + test, crawlers (`bot_name`) and **suggestion-chip searches
 (`via = 'chip'`) always out**, the signed-out likely-automated estimate (`traffic_class`) out unless "Include likely
 automated". Why: 44 of 78 searches Sep 1 – Nov 25 were JavaScript-running crawlers following the landing page's four
 "Try —" chips (signed out, a new IP each, no article opened). Chip links carry `&via=chip` (`lib/search/chips.ts`);
 the logger tags rows like page_views (migration 092). Before the 092 deploy (2026-11-26) rows have no traffic labels and
 `via` is inferred (signed-out, exact chip text); earlier snapshots, signals and insights counted everything.
-`data_gap` ("search logging may be broken") = zero RECORDED rows of any kind in 7 days, not zero demand.
+`data_gap` ("search logging may be broken") = zero RECORDED rows of any kind in 7 days, not zero demand (that count and
+the panel's chip count are the only raw reads).
 **Google Search (analytics-001, Roi 2026-10-31)** — Admin → Analytics → Google Search, from the daily import
 (`.github/workflows/search-console.yml`, domain property `sc-domain:vetree.app`, read-only service account; route
 `/api/admin/analytics/search-console`). Search Console days are **Pacific time** and run **2–3 days behind**; the
