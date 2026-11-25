@@ -69,6 +69,9 @@ for (const key of ['window', 'document', 'HTMLElement', 'Node', 'Element', 'Even
 }
 g.IS_REACT_ACT_ENVIRONMENT = true
 if (typeof g.navigator === 'undefined') g.navigator = win.navigator
+// happy-dom's navigator (used on Node 20, which has no global one) reports webdriver = true, and the logger
+// deliberately skips automated browsers — this test plays a person
+Object.defineProperty(g.navigator as object, 'webdriver', { value: false, configurable: true })
 g.IntersectionObserver = class { observe() {} disconnect() {} unobserve() {} }
 
 let posts: Record<string, unknown>[] = []
