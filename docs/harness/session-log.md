@@ -1191,3 +1191,30 @@ Newest at the bottom. The same entries (latest few) appear in primer.md → Rece
 - Lesson: a 'logging only' request grew into a race-prone snapshot design over two review rounds — when the data the
   question needs already exists (scores, recommendation logs), log only what's missing.
 - Next best step: Dec 1 — first trial day; check one trial row has pick_source. Overdue: analytics-001 bot-surge check.
+
+### Session 20261125-1803-claude-8472 · 2026-11-25 → 11-27 · Claude Code · analytics-003 (merged)
+- Goal: Roi — "some automated tool running the same 4 searches everyday on the platform. look into it"; then "Yes" to
+  traffic labels on search_logs + a chip flag (options 1 + 2).
+- Completed: read-only pull — 44 of 78 searches since Sep 1 = the landing page's 4 "Try —" chips, followed by
+  JavaScript-running crawlers (signed out, a new IP each, 0 article views). #165 → daad620: migration 092 (search_logs
+  bot_name, traffic_class, via; backfill of signed-out exact chip text before 19:31 UTC = 47 rows); chip links carry
+  `&via=chip`; the logger tags rows like page_views; every search demand reader goes through searchDemand()
+  (lib/analytics/searchFilters.ts); data_gap = zero RECORDED rows; insights prompt carries SEARCH_CUTOVER_NOTE.
+  #166 → fa50ec5: SEARCH_DEMAND_SINCE 2026-11-26 → 2026-11-25 (the real deploy). Bot-surge re-check (analytics-001)
+  done read-only: crawler views 0/day since 11-18.
+- Start state: main ef3f150; branches fix/search-log-automation, fix/search-demand-since-date.
+- Verification: init.sh check GREEN (2011e8b); 092 pushed on Roi's "Push, merge when green"; schema snapshot +31 facts;
+  PR #165 smoke green on c2b4ada (first run red: Node 20 test fallback), #166 smoke green; production /api/version =
+  daad620 then fa50ec5, health checks pass.
+- Review: Codex · #165 tier 2 · plan 2 rounds (r1 BLOCKING data_gap → fixed; r2 none) · code 1 round (none; NB 1, 3, 4
+  applied) · #166 tier 1 · 1 round (none; NB1 applied).
+- Commits / PR: #165 merged on Roi's "Push, merge when green"; #166 merged on Roi's "merge".
+- Pending Roi approvals: none.
+- Known risks / unresolved: chip searches logged 19:31–~19:50 UTC on 11-25 have no via (a handful at most); figures
+  before the cutover aren't comparable; npx's Supabase CLI 3.4.0 hangs at "temporary login role" — use
+  ~/.local/bin/supabase (2.117.0).
+- Lesson: component tests that depend on globals must pin them — CI's Node 20 has no global navigator, and happy-dom's
+  reports webdriver = true. Don't push and `gh pr ready` at the same moment: two smoke runs start, one is cancelled,
+  and the cancelled run blocks the merge until re-run.
+- Next best step: Dec 1 — first trial day; check one trial row has pick_source. Roi: re-type the 2026-06-11 LinkedIn
+  impressions (9,375).
