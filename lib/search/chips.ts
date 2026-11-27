@@ -4,7 +4,7 @@
 export const SEARCH_CHIPS = ['canine diabetes management', 'feline hypertension', 'TPLO outcomes', 'lymphoma chemotherapy'] as const
 
 /** UTC date the filtered search figures start (the 092 deploy) — before it, every search reader counted every row. */
-export const SEARCH_DEMAND_SINCE = '2026-11-26'
+export const SEARCH_DEMAND_SINCE = '2026-11-25'
 
 export function chipHref(chip: string): string {
   return `/?search=${encodeURIComponent(chip)}&via=chip`
