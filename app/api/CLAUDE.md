@@ -374,7 +374,7 @@ This is NOT the feed's search (progressive `search_articles_batch` batches with 
   were recorded in 7 days — the snapshot's total_searches is filtered demand since analytics-003 and can be 0 for real
 - Every search DEMAND read goes through `searchDemand()` (`lib/analytics/searchFilters.ts`) — deliberate raw exceptions: the signals route's
   logging-health count and getRecentSearches' chip count; the insights prompt carries
-  `SEARCH_CUTOVER_NOTE` (figures before 2026-11-26 counted crawlers clicking the landing chips)
+  `SEARCH_CUTOVER_NOTE` (figures before 2026-11-25 counted crawlers clicking the landing chips)
 
 ### Insights output contract (systemPrompt in insights/route.ts)
 - **Standing constraints** — set by the owner, never derived from data, must survive any future prompt rewrite. Currently: never suggest changing LinkedIn posting cadence/frequency.

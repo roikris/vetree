@@ -513,7 +513,7 @@ excluded, crawlers (`bot_name`) excluded.
 (`via = 'chip'`) always out**, the signed-out likely-automated estimate (`traffic_class`) out unless "Include likely
 automated". Why: 44 of 78 searches Sep 1 – Nov 25 were JavaScript-running crawlers following the landing page's four
 "Try —" chips (signed out, a new IP each, no article opened). Chip links carry `&via=chip` (`lib/search/chips.ts`);
-the logger tags rows like page_views (migration 092). Before the 092 deploy (2026-11-26) rows have no traffic labels and
+the logger tags rows like page_views (migration 092). Before the 092 deploy (2026-11-25 ~19:50 UTC) rows have no traffic labels and
 `via` is inferred (signed-out, exact chip text); earlier snapshots, signals and insights counted everything.
 `data_gap` ("search logging may be broken") = zero RECORDED rows of any kind in 7 days, not zero demand (that count and
 the panel's chip count are the only raw reads).
